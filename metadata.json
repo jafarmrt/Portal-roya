@@ -1,0 +1,6 @@
+{
+  "name": "پرتال سازمانی رویا طرح داخلی",
+  "description": "پرتال داخلی شرکت رویا طرح داخلی شامل سیستم نظرسنجی، مدیریت همکاران، تقویم، اخبار و اطلاعیه‌ها، برنامه‌های آموزشی و جستجوی سراسری",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

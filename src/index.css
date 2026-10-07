@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Vazirmatn", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap');
+
+@layer base {
+  body {
+    font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: #FDFBF7;
+    color: #2D2D2D;
+  }
+}
+
+/* Custom smooth scrollbars with Natural Tones */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F5F2ED;
+}
+::-webkit-scrollbar-thumb {
+  background: #D5CEC2;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #B5A898;
+}
+
+/* Natural Tones Custom Color Palette */
+.bg-natural-base { background-color: #FDFBF7; }
+.bg-natural-surface { background-color: #F5F2ED; }
+.bg-natural-card { background-color: #FFFFFF; }
+.bg-natural-sage { background-color: #991b1b; }
+.bg-natural-sage-light { background-color: #EFEFEA; }
+.bg-natural-wood { background-color: #dc2626; }
+.bg-natural-wood-light { background-color: #F7F3ED; }
+.bg-natural-terracotta { background-color: #f87171; }
+.bg-natural-terracotta-light { background-color: #FBF0EC; }
+.bg-natural-nav { background-color: #7f1d1d; }
+.text-natural-dark { color: #2D2D2D; }
+.text-natural-muted { color: #6E6A60; }
+.text-natural-sage { color: #991b1b; }
+.text-natural-wood { color: #dc2626; }
+.text-natural-terracotta { color: #f87171; }
+.border-natural { border-color: #E6E0D5; }
+.border-natural-sage { border-color: #991b1b; }
+.border-natural-wood { border-color: #dc2626; }
+.border-natural-terracotta { border-color: #f87171; }
+
+.brand-red {
+  color: #dc2626;
+}
+.bg-brand-red {
+  background-color: #dc2626;
+}
+.border-brand-red {
+  border-color: #dc2626;
+}
