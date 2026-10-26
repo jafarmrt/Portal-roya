@@ -30,7 +30,8 @@ services:
     volumes:
       - uploads:/data/uploads
     ports:
-      - "${PORTAL_PORT:-3000}:3000"
+      # Behind nginx on the same server, set PORTAL_BIND=127.0.0.1 so only nginx can reach the portal.
+      - "${PORTAL_BIND:-0.0.0.0}:${PORTAL_PORT:-3000}:3000"
 
 volumes:
   pgdata:
