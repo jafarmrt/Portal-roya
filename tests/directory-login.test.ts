@@ -2,13 +2,13 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DirectoryUser } from '../server/ldap';
 
-const directory = vi.hoisted(() => ({ authenticate: vi.fn(), down: false }));
+const directory = vi.hoisted(() => ({ authenticate: vi.fn(), down: false, enabled: true }));
 
 vi.mock('../server/ldap', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../server/ldap')>();
   return {
     ...actual,
-    isDirectoryEnabled: () => true,
+    isDirectoryEnabled: () => directory.enabled,
     // An outage throws outside the vi.fn, which would otherwise report the error as a test failure.
     authenticateWithDirectory: async (username: string, password: string) => {
       if (directory.down) throw new actual.DirectoryUnavailableError('connect ECONNREFUSED');
@@ -123,10 +123,26 @@ describe('Active Directory sign-in', () => {
     expect(demoted.body.user.role).toBe('employee');
   });
 
+  it('turns an AD account back into a portal account when AD sign-in is switched off', async () => {
+    directory.authenticate.mockResolvedValue(adUser());
+    const res = await request(app).post('/api/auth/login').send({ username: 'sara.ahmadi', password: 'ad-password' }).expect(200);
+    directory.enabled = false;
+    try {
+      const reset = await admin.post(`/api/employees/${res.body.user.id}/reset-password`).expect(200);
+      const login = await request(app)
+        .post('/api/auth/login')
+        .send({ username: 'sara.ahmadi', password: reset.body.temporaryPassword })
+        .expect(200);
+      expect(login.body.user).toMatchObject({ authSource: 'local', mustChangePassword: true });
+    } finally {
+      directory.enabled = true;
+    }
+  });
+
   it('answers 503 when AD is down, but local accounts still sign in', async () => {
     directory.down = true;
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const res = await request(app).post('/api/auth/login').send({ username: 'sara.ahmadi', password: 'ad-password' });
+    const res = await request(app).post('/api/auth/login').send({ username: 'boss', password: 'ad-password' });
     expect(res.status).toBe(503);
     await request(app).post('/api/auth/login').send({ username: ADMIN.username, password: 'wrong-password' }).expect(401);
     await request(app).post('/api/auth/login').send(ADMIN).expect(200);

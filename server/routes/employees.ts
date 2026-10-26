@@ -10,7 +10,7 @@ import { checkRows, type ImportRow, importRowsSchema, MAX_IMPORT_ROWS, rowsToRec
 import { birthdayWishes, colleagueWishes, employees, newColleagues } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
-import { DIRECTORY_PASSWORD_MESSAGE } from '../ldap.js';
+import { DIRECTORY_PASSWORD_MESSAGE, isDirectoryEnabled } from '../ldap.js';
 import { audienceIds, createNotifications } from '../notify.js';
 import { fullName, serializeEmployee, serializeForGuest } from '../serializers.js';
 import { guestSettings } from '../settings.js';
@@ -212,11 +212,12 @@ employeesRouter.post(
   requireManager,
   route(async (req, res) => {
     const target = await loadEmployee(req.params.id);
-    if (target.authSource === 'ldap') throw new HttpError(400, DIRECTORY_PASSWORD_MESSAGE);
+    if (target.authSource === 'ldap' && isDirectoryEnabled()) throw new HttpError(400, DIRECTORY_PASSWORD_MESSAGE);
     const temp = temporaryPassword();
     await db
       .update(employees)
-      .set({ passwordHash: await hashPassword(temp), mustChangePassword: true, failedLogins: 0, lockedUntil: null })
+      // With AD sign-in switched off, a reset turns an AD account back into a portal account.
+      .set({ passwordHash: await hashPassword(temp), authSource: 'local', mustChangePassword: true, failedLogins: 0, lockedUntil: null })
       .where(eq(employees.id, target.id));
     res.json({ temporaryPassword: temp });
   }),

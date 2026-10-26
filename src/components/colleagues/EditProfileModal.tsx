@@ -14,7 +14,7 @@ interface EditProfileModalProps {
 }
 
 export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClose }) => {
-  const { updateUserProfile, resetEmployeePassword, userRole, appSettings, employees, currentUser } = usePortal();
+  const { updateUserProfile, resetEmployeePassword, directoryLogin, userRole, appSettings, employees, currentUser } = usePortal();
   const isAdmin = userRole === 'manager';
   const isSelf = currentUser?.id === user.id;
 
@@ -161,7 +161,12 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
                 غیرفعال کردن حساب (همکار دیگر نمی‌تواند وارد شود و از دفتر تلفن پنهان می‌شود)
               </label>
             )}
-            {!isSelf && (
+            {!isSelf && user.authSource === 'ldap' && directoryLogin && (
+              <p className="text-[11px] text-[#6E6A60] leading-relaxed">
+                این همکار با حساب اکتیو دایرکتوری وارد می‌شود؛ رمز عبورش در ویندوز تغییر می‌کند، نه در پرتال.
+              </p>
+            )}
+            {!isSelf && (user.authSource !== 'ldap' || !directoryLogin) && (
               <div className="space-y-2">
                 <button
                   type="button"

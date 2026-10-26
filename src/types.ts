@@ -25,6 +25,8 @@ export interface UserProfile {
   position: string;
   department: string;
   role: UserRole;
+  /** 'ldap' accounts sign in with their Active Directory password and have no portal password. */
+  authSource: 'local' | 'ldap';
   isActive: boolean;
   extension: string;
   mobile: string;

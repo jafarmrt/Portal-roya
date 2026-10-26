@@ -354,16 +354,19 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                             <span>ویرایش اطلاعات من</span>
                           </button>
 
-                          <button
-                            onClick={() => {
-                              setIsPasswordOpen(true);
-                              setIsUserMenuOpen(false);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#2D2D2D] hover:bg-[#F5F2ED] rounded-xl transition-colors text-right cursor-pointer"
-                          >
-                            <KeyRound className="w-4 h-4 text-[#7A756D]" />
-                            <span>تغییر رمز عبور</span>
-                          </button>
+                          {/* Active Directory accounts change their password in Windows. */}
+                          {currentUser.authSource !== 'ldap' && (
+                            <button
+                              onClick={() => {
+                                setIsPasswordOpen(true);
+                                setIsUserMenuOpen(false);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#2D2D2D] hover:bg-[#F5F2ED] rounded-xl transition-colors text-right cursor-pointer"
+                            >
+                              <KeyRound className="w-4 h-4 text-[#7A756D]" />
+                              <span>تغییر رمز عبور</span>
+                            </button>
+                          )}
 
                           {currentUser.role === 'manager' && (
                             <button
