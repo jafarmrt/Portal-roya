@@ -1,0 +1,1 @@
+ALTER TABLE "employees" ADD COLUMN "auth_source" text DEFAULT 'local' NOT NULL;

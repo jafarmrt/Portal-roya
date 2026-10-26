@@ -7,7 +7,7 @@ import { ModalCloseButton, ModalShell } from './common/Modal';
 
 /** Username/password form shared by the full login page and the guest sign-in dialog. */
 const LoginForm: React.FC = () => {
-  const { login } = usePortal();
+  const { login, directoryLogin } = usePortal();
   const id = useId();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -45,6 +45,7 @@ const LoginForm: React.FC = () => {
             autoFocus
             required
             dir="ltr"
+            placeholder={directoryLogin ? 'مثلاً ali.rezaei' : undefined}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             className="w-full pl-3 pr-10 py-3 rounded-xl border border-[#D9D4CB] text-sm focus:border-red-700 focus:ring-2 focus:ring-red-700/20 outline-hidden text-left"
@@ -80,7 +81,9 @@ const LoginForm: React.FC = () => {
       </button>
 
       <p className="text-[11px] text-[#7A756D] text-center leading-relaxed">
-        حساب کاربری را مدیر پرتال می‌سازد. اگر رمز خود را فراموش کرده‌اید، از مدیر بخواهید آن را بازنشانی کند.
+        {directoryLogin
+          ? 'با همان نام کاربری و رمز ورود به ویندوز (حساب سازمانی) وارد شوید. برای فراموشی رمز با واحد فناوری اطلاعات تماس بگیرید.'
+          : 'حساب کاربری را مدیر پرتال می‌سازد. اگر رمز خود را فراموش کرده‌اید، از مدیر بخواهید آن را بازنشانی کند.'}
       </p>
     </form>
   );
