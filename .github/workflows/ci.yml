@@ -35,6 +35,18 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # Opens every page of the built portal in Chrome as admin, employee and guest; a blank page,
+      # crash or console error fails the build, so no release is published.
+      - name: Browser smoke tests
+        run: npm run test:e2e
+        env:
+          E2E_DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-results
+          path: test-results/
+          retention-days: 7
 
   # Every green commit on main is published as a ready-to-run bundle. The server
   # installs it with deploy/update.sh, so it never needs npm or node_modules.
