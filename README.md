@@ -87,6 +87,7 @@ WantedBy=multi-user.target
 | `TRUST_PROXY` | اگر پشت nginx است `true` کنید |
 | `SETUP_TOKEN` | کد اختیاری برای صفحهٔ راه‌اندازی اولیه |
 | `SMTP_HOST` و… | ایمیل داخلی برای اخبار فوری و بخشنامه‌ها؛ خالی = غیرفعال |
+| `LDAP_URL` و… | ورود با نام کاربری و رمز ویندوز (اکتیو دایرکتوری)؛ خالی = غیرفعال. راهنما: [`deploy/AD-LOGIN.md`](deploy/AD-LOGIN.md) |
 | `UPLOAD_DIR`، `MAX_UPLOAD_MB` | محل و سقف حجم فایل‌های بارگذاری‌شده |
 
 اگر می‌خواهید پرتال با نام دامنهٔ داخلی یا HTTPS در دسترس باشد، نمونهٔ تنظیم nginx در [`deploy/nginx.conf.example`](deploy/nginx.conf.example) است. توجه کنید که بافر برای مسیر `/api/events` (به‌روزرسانی زنده) باید خاموش باشد.
