@@ -333,8 +333,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setIsLoading(true);
     setError(null);
     // Guests only load the shared, read-only content; personal data comes after sign-in.
-    const { notifications: loadNotifications, moods: loadMoods, ...shared } = loaders;
-    const toLoad = sessionKey ? [...Object.values(shared), loadNotifications, loadMoods] : Object.values(shared);
+    const { notifications: loadNotifications, moods: loadMoods, me: loadMe, ...shared } = loaders;
+    const toLoad = sessionKey ? [...Object.values(shared), loadNotifications, loadMoods, loadMe] : Object.values(shared);
     if (!sessionKey) {
       setNotifications([]);
       setUserMoods([]);

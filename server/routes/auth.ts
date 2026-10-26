@@ -21,7 +21,6 @@ import { currentUser, HttpError, newId, parse, route } from '../http.js';
 import { serializeMe } from '../serializers.js';
 import { ensureSettings, guestSettings } from '../settings.js';
 import { ensureRoles } from '../roles.js';
-import { ensureSettings } from '../settings.js';
 import { optionalText, password, requiredText, username } from '../validation.js';
 
 export const authRouter = Router();

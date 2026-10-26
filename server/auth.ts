@@ -110,6 +110,7 @@ const GUEST_READABLE = [
   /^\/employees$/,
   /^\/new_colleagues$/,
   /^\/birthday_wishes$/,
+  /^\/roles$/,
 ];
 
 /** True for any read, e.g. downloading an uploaded file. */

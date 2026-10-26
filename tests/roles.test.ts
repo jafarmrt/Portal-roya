@@ -118,4 +118,20 @@ describe('roles and permissions', () => {
     await manager.agent.delete(`/api/birthday_wishes/${id}`).expect(200);
     expect(await wishIds()).toEqual([]);
   });
+
+  it('resolves imported roles by Persian name and keeps the admin role to admins', async () => {
+    await admin.post('/api/roles').send({ name: 'سرپرست' }).expect(201);
+    const row = (username: string, role: string) => ({ firstName: 'الف', lastName: 'ب', username, position: 'پ', department: 'فروش', role });
+    const res = await admin
+      .post('/api/employees/import')
+      .send({ rows: [row('imp.one', 'سرپرست'), row('imp.two', 'کارشناس'), row('imp.three', 'ناشناخته')] })
+      .expect(201);
+    expect(res.body.created.map((c: { username: string }) => c.username)).toEqual(['imp.one', 'imp.two']);
+    expect(res.body.skipped[0].errors[0]).toContain('ناشناخته');
+
+    await admin.patch('/api/roles/manager').send({ permissions: ['users.manage'] }).expect(200);
+    const byManager = await manager.agent.post('/api/employees/import').send({ rows: [row('imp.four', 'ادمین برنامه')] }).expect(201);
+    expect(byManager.body.created).toEqual([]);
+    expect(byManager.body.skipped[0].errors[0]).toContain('ادمین');
+  });
 });
