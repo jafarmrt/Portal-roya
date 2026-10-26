@@ -1,134 +1,277 @@
-import { relations } from 'drizzle-orm';
-import { integer, pgTable, serial, text, timestamp, boolean, jsonb } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  serial,
+  text,
+  timestamp,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 
-export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
-  uid: text('uid').notNull().unique(), // Firebase Auth UID
-  email: text('email').notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
+// Dates that are only meaningful on the Jalali calendar (birthdays, calendar
+// days) are stored as 'YYYY/MM/DD' Jalali strings. Moments in time (creation,
+// publish, expiry) are stored as timestamps and formatted on the client.
+
+export interface SkillRecord {
+  id: string;
+  name: string;
+  category: string;
+  endorsedBy: string[];
+}
+
+export interface WorkExperienceRecord {
+  id: string;
+  company: string;
+  role: string;
+  startYear: string;
+  endYear: string;
+  description: string;
+}
+
+export interface AttachmentRecord {
+  name: string;
+  url: string;
+  size: number;
+  mimeType: string;
+}
+
+export interface ExternalSystemRecord {
+  id: string;
+  name: string;
+  description: string;
+  iconName: string;
+  url: string;
+  bgColor: string;
+  textColor: string;
+}
+
+export const employees = pgTable('employees', {
+  id: text('id').primaryKey(),
+  username: text('username').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  mustChangePassword: boolean('must_change_password').notNull().default(true),
+  role: text('role').notNull().default('employee'), // 'employee' | 'manager'
+  isActive: boolean('is_active').notNull().default(true),
+  firstName: text('first_name').notNull(),
+  lastName: text('last_name').notNull(),
+  position: text('position').notNull(),
+  department: text('department').notNull(),
+  email: text('email').notNull().default(''),
+  mobile: text('mobile').notNull().default(''),
+  extension: text('extension').notNull().default(''),
+  bio: text('bio').notNull().default(''),
+  location: text('location').notNull().default(''),
+  avatarUrl: text('avatar_url').notNull().default(''),
+  birthDate: text('birth_date').notNull().default(''),
+  hireDate: text('hire_date').notNull().default(''),
+  directManagerId: text('direct_manager_id'),
+  skills: jsonb('skills').$type<SkillRecord[]>().notNull().default([]),
+  workExperiences: jsonb('work_experiences').$type<WorkExperienceRecord[]>().notNull().default([]),
+  failedLogins: integer('failed_logins').notNull().default(0),
+  lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const news = pgTable(
+  'news',
+  {
+    id: text('id').primaryKey(),
+    title: text('title').notNull(),
+    summary: text('summary').notNull(),
+    content: text('content').notNull(),
+    category: text('category').notNull(),
+    authorId: text('author_id').notNull().references(() => employees.id),
+    image: text('image').notNull().default(''),
+    isPinned: boolean('is_pinned').notNull().default(false),
+    isUrgent: boolean('is_urgent').notNull().default(false),
+    requiresAck: boolean('requires_ack').notNull().default(false),
+    tags: text('tags').array().notNull().default([]),
+    // Empty array means the whole organization.
+    targetDepartments: text('target_departments').array().notNull().default([]),
+    attachments: jsonb('attachments').$type<AttachmentRecord[]>().notNull().default([]),
+    publishAt: timestamp('publish_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    // Set once notifications for the item have been sent (immediately or by the scheduler).
+    notifiedAt: timestamp('notified_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('news_publish_at_idx').on(t.publishAt)],
+);
+
+export const newsLikes = pgTable(
+  'news_likes',
+  {
+    newsId: text('news_id').notNull().references(() => news.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.newsId, t.userId] })],
+);
+
+export const newsReads = pgTable(
+  'news_reads',
+  {
+    newsId: text('news_id').notNull().references(() => news.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    readAt: timestamp('read_at', { withTimezone: true }).notNull().defaultNow(),
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.newsId, t.userId] })],
+);
 
 export const polls = pgTable('polls', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   description: text('description').notNull(),
-  department: text('department').notNull(),
-  createdBy: text('created_by').notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-  expiryDate: text('expiry_date').notNull(),
-  type: text('type').notNull(), // 'multiple_choice' or 'free_text'
-  totalVotes: integer('total_votes').default(0),
-  isActive: boolean('is_active').default(true),
+  department: text('department').notNull().default('all'),
+  createdById: text('created_by_id').notNull().references(() => employees.id),
+  type: text('type').notNull(), // 'multiple_choice' | 'free_text'
+  isActive: boolean('is_active').notNull().default(true),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const pollOptions = pgTable('poll_options', {
   id: text('id').primaryKey(),
   pollId: text('poll_id').notNull().references(() => polls.id, { onDelete: 'cascade' }),
   text: text('text').notNull(),
-  votesCount: integer('votes_count').default(0),
+  position: integer('position').notNull().default(0),
 });
 
-export const pollVotes = pgTable('poll_votes', {
-  id: serial('id').primaryKey(),
-  pollId: text('poll_id').notNull().references(() => polls.id, { onDelete: 'cascade' }),
-  userId: text('user_id').notNull(),
-  optionId: text('option_id').references(() => pollOptions.id),
-  freeText: text('free_text'),
-  submittedAt: timestamp('submitted_at').defaultNow(),
-});
+export const pollVotes = pgTable(
+  'poll_votes',
+  {
+    id: serial('id').primaryKey(),
+    pollId: text('poll_id').notNull().references(() => polls.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    optionId: text('option_id').references(() => pollOptions.id, { onDelete: 'cascade' }),
+    freeText: text('free_text'),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('poll_votes_poll_user_uq').on(t.pollId, t.userId)],
+);
 
-
-export const employees = pgTable('employees', {
-  id: text('id').primaryKey(),
-  username: text('username').notNull().unique(),
-  password: text('password').notNull(),
-  firstName: text('first_name').notNull(),
-  lastName: text('last_name').notNull(),
-  role: text('role').notNull(),
-  position: text('position').notNull(),
-  department: text('department').notNull(),
-  avatarUrl: text('avatar_url'),
-  birthDate: text('birth_date'),
-  hireDate: text('hire_date'),
-  skills: text('skills').array(),
-  workExperiences: jsonb('work_experiences'), // or jsonb
-  customHolidays: jsonb('custom_holidays'), // jsonb
-  coverImage: text('cover_image'),
-  quote: text('quote'),
-  hobbies: text('hobbies').array(),
-  education: text('education'),
-  email: text('email'),
-  phone: text('phone'),
-});
-
-export const news = pgTable('news', {
-  id: text('id').primaryKey(),
-  title: text('title').notNull(),
-  summary: text('summary').notNull(),
-  content: text('content').notNull(),
-  category: text('category').notNull(),
-  author: text('author').notNull(),
-  authorRole: text('author_role').notNull(),
-  date: text('date').notNull(),
-  image: text('image').notNull(),
-  isPinned: boolean('is_pinned').default(false),
-  tags: text('tags').array(),
-  likesCount: integer('likes_count').default(0),
-  likedBy: text('liked_by').array(),
-  commentsCount: integer('comments_count').default(0),
-});
-
-export const moods = pgTable('moods', {
-  id: text('id').primaryKey(),
-  userId: text('user_id').notNull(),
-  date: text('date').notNull(),
-  mood: text('mood').notNull(),
-  submittedAt: timestamp('submitted_at').defaultNow(),
-});
+export const moods = pgTable(
+  'moods',
+  {
+    id: serial('id').primaryKey(),
+    userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    date: text('date').notNull(), // Jalali YYYY/MM/DD
+    mood: text('mood').notNull(),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('moods_user_date_uq').on(t.userId, t.date)],
+);
 
 export const trainings = pgTable('trainings', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   instructor: text('instructor').notNull(),
-  instructorRole: text('instructor_role').notNull(),
-  date: text('date').notNull(),
-  time: text('time').notNull(),
-  duration: text('duration').notNull(),
-  location: text('location').notNull(),
+  instructorRole: text('instructor_role').notNull().default(''),
+  date: text('date').notNull(), // Jalali YYYY/MM/DD
+  time: text('time').notNull().default(''),
+  duration: text('duration').notNull().default(''),
+  location: text('location').notNull().default(''),
   capacity: integer('capacity').notNull(),
-  enrolledUserIds: text('enrolled_user_ids').array(),
   description: text('description').notNull(),
-  coverImage: text('cover_image').notNull(),
+  coverImage: text('cover_image').notNull().default(''),
   category: text('category').notNull(),
-  prerequisites: text('prerequisites').notNull(),
+  prerequisites: text('prerequisites').notNull().default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const trainingEnrollments = pgTable(
+  'training_enrollments',
+  {
+    trainingId: text('training_id').notNull().references(() => trainings.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.trainingId, t.userId] })],
+);
 
 export const newColleagues = pgTable('new_colleagues', {
   id: text('id').primaryKey(),
-  userId: text('user_id').notNull(),
+  userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
   welcomeMessage: text('welcome_message').notNull(),
   joinDate: text('join_date').notNull(),
-  department: text('department').notNull(),
-  position: text('position').notNull(),
-  likes: integer('likes').default(0),
-  wishes: jsonb('wishes'), // jsonb
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const colleagueWishes = pgTable('colleague_wishes', {
+  id: serial('id').primaryKey(),
+  newColleagueId: text('new_colleague_id').notNull().references(() => newColleagues.id, { onDelete: 'cascade' }),
+  senderId: text('sender_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+  message: text('message').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const birthdayWishes = pgTable('birthday_wishes', {
+  id: serial('id').primaryKey(),
+  targetUserId: text('target_user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+  senderId: text('sender_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+  jalaliYear: integer('jalali_year').notNull(),
+  text: text('text').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const calendarEvents = pgTable('calendar_events', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
-  date: text('date').notNull(),
+  date: text('date').notNull(), // Jalali YYYY/MM/DD
   type: text('type').notNull(),
-  description: text('description').notNull(),
+  description: text('description').notNull().default(''),
   time: text('time'),
   location: text('location'),
   badgeColor: text('badge_color'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Organization-specific overrides of the built-in holiday table, keyed by 'YYYY-MM-DD' (Jalali).
+export const customHolidays = pgTable('custom_holidays', {
+  date: text('date').primaryKey(),
+  title: text('title').notNull(),
+  isHoliday: boolean('is_holiday').notNull().default(true),
+});
+
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: serial('id').primaryKey(),
+    userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    message: text('message').notNull(),
+    type: text('type').notNull(),
+    linkTab: text('link_tab'),
+    linkId: text('link_id'),
+    isRead: boolean('is_read').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('notifications_user_idx').on(t.userId, t.createdAt)],
+);
+
+export const documents = pgTable('documents', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  description: text('description').notNull().default(''),
+  category: text('category').notNull(),
+  fileUrl: text('file_url').notNull(),
+  fileName: text('file_name').notNull(),
+  fileSize: integer('file_size').notNull(),
+  mimeType: text('mime_type').notNull(),
+  uploadedById: text('uploaded_by_id').notNull().references(() => employees.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const settings = pgTable('settings', {
-  id: text('id').primaryKey(), // We'll just have one row, e.g. id = 'global'
-  departments: text('departments').array().notNull().default(['طراحی و توسعه محصول', 'فروش و امور مشتریان', 'منابع انسانی', 'فناوری اطلاعات (IT)', 'بازرگانی و تامین', 'انبار و زنجیره تامین']),
-  newsCategories: text('news_categories').array().notNull().default(['اخبار سازمان', 'اطلاعیه هام', 'بخشنامه', 'رویداد و جشن']),
-  trainingCategories: text('training_categories').array().notNull().default(['نرم‌افزار', 'مهارتهای نرم', 'استانداردها', 'مدیریت و فروش']),
-  systems: jsonb('systems').$type<any[]>()
+  id: text('id').primaryKey(), // single row: 'global'
+  departments: text('departments').array().notNull().default([]),
+  newsCategories: text('news_categories').array().notNull().default([]),
+  trainingCategories: text('training_categories').array().notNull().default([]),
+  documentCategories: text('document_categories').array().notNull().default([]),
+  systems: jsonb('systems').$type<ExternalSystemRecord[]>().notNull().default([]),
 });
