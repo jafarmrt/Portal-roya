@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit3, Eye, FileSpreadsheet, KeyRound, Search, ShieldOff, UserCog, UserPlus, Users } from 'lucide-react';
+import { Download, Edit3, Eye, FileSpreadsheet, KeyRound, Search, ShieldOff, UserCog, UserPlus, Users } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { toPersianDigits } from '../../lib/jalali';
 import { matches } from '../../lib/search';
@@ -9,7 +9,7 @@ import { inputClass } from '../common/Modal';
 import { AccountAccessModal } from './AccountAccessModal';
 import { AddEmployeeModal } from './AddEmployeeModal';
 import { EditProfileModal } from './EditProfileModal';
-import { ImportEmployeesModal } from './ImportEmployeesModal';
+import { downloadCsv, ImportEmployeesModal, TEMPLATE_HEADER } from './ImportEmployeesModal';
 
 type View = 'active' | 'account' | 'noAccount' | 'inactive' | 'all';
 
@@ -48,6 +48,16 @@ export const PeopleManagement: React.FC = () => {
       (!query.trim() || matches(query, `${e.firstName} ${e.lastName}`, e.username, e.position, e.extension, e.mobile, e.email)),
   );
 
+  // The same columns as the import, plus the portal id, so the edited file updates these people.
+  const exportShown = () =>
+    downloadCsv('roya-portal-staff.csv', [
+      ['شناسه', ...TEMPLATE_HEADER],
+      ...shown.map((e) => [
+        e.id, e.firstName, e.lastName, e.username, e.position, e.department, e.hasAccount ? roleName(e.role) : '',
+        e.email, e.mobile, e.extension, e.birthDate, e.hireDate,
+      ]),
+    ]);
+
   return (
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-5 sm:p-8 text-white shadow-xl">
@@ -73,7 +83,15 @@ export const PeopleManagement: React.FC = () => {
               onClick={() => setImporting(true)}
               className="px-5 py-3 text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 rounded-2xl flex items-center gap-2 whitespace-nowrap"
             >
-              <FileSpreadsheet className="w-4 h-4" /> ورود گروهی از اکسل
+              <FileSpreadsheet className="w-4 h-4" /> ورود یا به‌روزرسانی از اکسل
+            </button>
+            <button
+              onClick={exportShown}
+              disabled={shown.length === 0}
+              title="فهرست همین نمای فعلی؛ پس از ویرایش، از «ورود یا به‌روزرسانی از اکسل» بارگذاری کنید"
+              className="px-5 py-3 text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 rounded-2xl flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
+            >
+              <Download className="w-4 h-4" /> خروجی اکسل
             </button>
           </div>
         </div>

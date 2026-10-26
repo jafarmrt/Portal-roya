@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { currentJalaliYear, todayJalali } from '../../shared/jalali.js';
 import { can, type Employee, hashPassword, isAdmin, requirePermission, type SessionUser } from '../auth.js';
 import { db } from '../db/index.js';
-import { checkRows, type ImportRow, importRowsSchema, MAX_IMPORT_ROWS, rowsToRecords } from '../employeeImport.js';
+import { checkRows, type ImportRow, importRowsSchema, type ImportUpdate, MAX_IMPORT_ROWS, rowsToRecords } from '../employeeImport.js';
 import { birthdayWishes, colleagueWishes, employees, newColleagues } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
@@ -635,7 +635,9 @@ employeesRouter.post(
     if (records.length === 0) throw new HttpError(400, 'فایل هیچ ردیفی برای ورود ندارد.');
     if (records.length > MAX_IMPORT_ROWS) throw new HttpError(400, `هر بار حداکثر ${MAX_IMPORT_ROWS} نفر را می‌توان وارد کرد.`);
     const rows = await checkRows(records, { allowAdmin: isAdmin(currentUser(req)) });
-    res.json({ rows: rows.map(({ row, data, errors, warnings }) => ({ row, data, errors, warnings })) });
+    res.json({
+      rows: rows.map(({ row, data, errors, warnings, action, target, changes }) => ({ row, data, errors, warnings, action, target, changes })),
+    });
   }),
 );
 
@@ -654,7 +656,27 @@ employeesRouter.post(
       prepared.push({ row: r.row, value: r.value!, temporary, hash: temporary ? await hashPassword(temporary) : '' });
     }
 
-    const created = await db.transaction(async (tx) => {
+    // Updates that give someone a portal account get a temporary password too.
+    const updates: { row: number; update: ImportUpdate; changes: string[]; temporary: string | null; hash: string }[] = [];
+    for (const r of checked.filter((c) => c.update)) {
+      const temporary = r.update!.username ? temporaryPassword() : null;
+      updates.push({ row: r.row, update: r.update!, changes: r.changes ?? [], temporary, hash: temporary ? await hashPassword(temporary) : '' });
+    }
+
+    const { created, updated } = await db.transaction(async (tx) => {
+      const updated = [];
+      for (const { row, update, changes, temporary, hash } of updates) {
+        const account = update.username
+          ? { hasAccount: true, username: update.username, passwordHash: hash, authSource: 'local', mustChangePassword: true, failedLogins: 0, lockedUntil: null }
+          : {};
+        const [emp] = await tx
+          .update(employees)
+          .set({ ...update.set, ...account })
+          // Access given in the meantime is not overwritten.
+          .where(update.username ? and(eq(employees.id, update.id), eq(employees.hasAccount, false)) : eq(employees.id, update.id))
+          .returning();
+        if (emp) updated.push({ row, emp, changes, temporary });
+      }
       const out = [];
       for (const { row, value, temporary, hash } of prepared) {
         const [emp] = await tx
@@ -672,15 +694,15 @@ employeesRouter.post(
           .returning();
         if (emp) out.push({ row, emp, temporary });
       }
-      return out;
+      return { created: out, updated };
     });
 
-    const createdRows = new Set(created.map((c) => c.row));
+    const doneRows = new Set([...created, ...updated].map((c) => c.row));
     const skipped = checked
-      .filter((r) => !createdRows.has(r.row))
-      .map((r) => ({ row: r.row, username: r.data.username ?? '', errors: r.errors.length ? r.errors : ['نام کاربری هم‌زمان ثبت شد.'] }));
+      .filter((r) => !doneRows.has(r.row) && r.action !== 'unchanged')
+      .map((r) => ({ row: r.row, username: r.data.username ?? '', errors: r.errors.length ? r.errors : ['این ردیف هم‌زمان در جای دیگری تغییر کرد.'] }));
 
-    if (created.length > 0) broadcastChange('employees');
+    if (created.length > 0 || updated.length > 0) broadcastChange('employees');
     if (body.introduce && created.length > 0) {
       for (const { emp } of created) await introduceColleague(emp, '', emp.hireDate, false);
       const createdIds = new Set(created.map((c) => c.emp.id));
@@ -693,18 +715,21 @@ employeesRouter.post(
       });
       broadcastChange('new_colleagues');
     }
+    const summary = (emp: Employee, temporary: string | null) => ({
+      id: emp.id,
+      username: emp.username ?? '',
+      hasAccount: emp.hasAccount,
+      firstName: emp.firstName,
+      lastName: emp.lastName,
+      position: emp.position,
+      department: emp.department,
+      // Shown once so the manager can print or hand them out; null when no account was made.
+      temporaryPassword: temporary,
+    });
     res.status(201).json({
-      created: created.map(({ emp, temporary }) => ({
-        id: emp.id,
-        username: emp.username ?? '',
-        hasAccount: emp.hasAccount,
-        firstName: emp.firstName,
-        lastName: emp.lastName,
-        position: emp.position,
-        department: emp.department,
-        // Shown once so the manager can print or hand them out; null for phone-book-only rows.
-        temporaryPassword: temporary,
-      })),
+      created: created.map(({ emp, temporary }) => summary(emp, temporary)),
+      updated: updated.map(({ emp, temporary, changes }) => ({ ...summary(emp, temporary), changes })),
+      unchanged: checked.filter((r) => r.action === 'unchanged').length,
       skipped,
     });
   }),

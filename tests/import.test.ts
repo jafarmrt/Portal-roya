@@ -73,7 +73,7 @@ describe('bulk employee import', () => {
   });
   afterAll(() => pool.end());
 
-  it('previews an Excel file and flags bad, duplicate and existing rows', async () => {
+  it('previews an Excel file, flags bad and duplicate rows and matches existing accounts', async () => {
     const file = buildXlsx([
       HEADER,
       ['علی', 'رضایی', 'Ali.Rezaei', 'کارشناس فروش', 'فروش', 'کارشناس', '۰۹۱۲۱۲۳۴۵۶۷'],
@@ -83,12 +83,14 @@ describe('bulk employee import', () => {
       ['بی‌نام', '', 'نام فارسی', 'کارشناس', 'فروش', '', ''],
     ]);
     const res = await admin.post('/api/employees/import/preview').attach('file', file, 'staff.xlsx').expect(200);
-    const rows = res.body.rows as { row: number; data: Record<string, string>; errors: string[] }[];
+    const rows = res.body.rows as { row: number; data: Record<string, string>; errors: string[]; action?: string; changes?: string[] }[];
     expect(rows.map((r) => r.row)).toEqual([2, 3, 4, 5, 6]);
     expect(rows[0].errors).toEqual([]);
     expect(rows[1].errors).toEqual([]);
     expect(rows[2].errors[0]).toContain('ردیف 2');
-    expect(rows[3].errors[0]).toContain('از قبل وجود دارد');
+    // An existing username updates that account instead of adding someone.
+    expect(rows[3]).toMatchObject({ errors: [], action: 'update' });
+    expect(rows[3].changes!.join(' ')).toContain('قدیمی');
     expect(rows[4].errors.join(' ')).toContain('نام خانوادگی: این فیلد الزامی است');
   });
 
@@ -113,8 +115,8 @@ describe('bulk employee import', () => {
       })
       .expect(201);
     expect(res.body.created.map((c: { username: string }) => c.username)).toEqual(['ali.rezaei', 'm.ahmadi']);
-    expect(res.body.skipped).toHaveLength(1);
-    expect(res.body.skipped[0].username).toBe('existing.user');
+    expect(res.body.skipped).toEqual([]);
+    expect(res.body.updated.map((u: { username: string }) => u.username)).toEqual(['existing.user']);
 
     const ali = res.body.created[0];
     const agent = request.agent(app);

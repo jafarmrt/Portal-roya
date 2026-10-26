@@ -11,6 +11,10 @@ interface PreviewRow {
   data: Record<string, string>;
   errors: string[];
   warnings: string[];
+  /** Whether the row adds someone, updates who it matched (`target`), or matches someone unchanged. */
+  action?: 'create' | 'update' | 'unchanged';
+  target?: string;
+  changes?: string[];
 }
 
 interface CreatedAccount {
@@ -27,10 +31,12 @@ interface CreatedAccount {
 
 interface ImportResult {
   created: CreatedAccount[];
+  updated: (CreatedAccount & { changes: string[] })[];
+  unchanged: number;
   skipped: { row: number; username: string; errors: string[] }[];
 }
 
-const TEMPLATE_HEADER = ['نام', 'نام خانوادگی', 'نام کاربری', 'سمت', 'واحد', 'نقش', 'ایمیل', 'موبایل', 'داخلی', 'تاریخ تولد', 'تاریخ استخدام'];
+export const TEMPLATE_HEADER = ['نام', 'نام خانوادگی', 'نام کاربری', 'سمت', 'واحد', 'نقش', 'ایمیل', 'موبایل', 'داخلی', 'تاریخ تولد', 'تاریخ استخدام'];
 const TEMPLATE_SAMPLES = [
   ['علی', 'رضایی', 'ali.rezaei', 'کارشناس فروش', 'فروش و امور مشتریان', 'کارشناس', 'ali.rezaei@roya.local', '09121234567', '215', '1370/05/12', '1400/01/15'],
   // No username: listed in the phone book without a portal account.
@@ -40,7 +46,7 @@ const TEMPLATE_SAMPLES = [
 const csvCell = (value: string) => (/[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
 
 /** Saves a UTF-8 CSV with a BOM so Excel shows the Persian text correctly. */
-function downloadCsv(filename: string, rows: string[][]) {
+export function downloadCsv(filename: string, rows: string[][]) {
   const blob = new Blob(['\uFEFF' + rows.map((r) => r.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -78,8 +84,13 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
 
   const validRows = preview?.filter((r) => r.errors.length === 0) ?? [];
   const invalidCount = (preview?.length ?? 0) - validRows.length;
-  const phoneOnlyCount = validRows.filter((r) => !r.data.username).length;
-  const accounts = result?.created.filter((a) => a.hasAccount) ?? [];
+  const newRows = validRows.filter((r) => r.action === 'create');
+  const updateCount = validRows.filter((r) => r.action === 'update').length;
+  const unchangedCount = validRows.filter((r) => r.action === 'unchanged').length;
+  const phoneOnlyCount = newRows.filter((r) => !r.data.username).length;
+  const toSend = validRows.filter((r) => r.action !== 'unchanged');
+  // Everyone who got a portal account in this import: new people and people given access.
+  const accounts = [...(result?.created ?? []), ...(result?.updated ?? [])].filter((a) => a.temporaryPassword);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -102,9 +113,9 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
   const handleImport = async () => {
     setBusy(true);
     try {
-      const res = await api.post<ImportResult>('/api/employees/import', { rows: validRows.map((r) => r.data), introduce });
+      const res = await api.post<ImportResult>('/api/employees/import', { rows: toSend.map((r) => r.data), introduce });
       setResult(res);
-      toast.success(`${toPersianDigits(res.created.length)} نفر ثبت شد.`);
+      toast.success(`${toPersianDigits(res.created.length)} نفر اضافه و ${toPersianDigits(res.updated.length)} نفر به‌روز شد.`);
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -141,7 +152,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
         <PrintSheet accounts={accounts} />
         <div className="space-y-4">
           <p className="font-bold">
-            {toPersianDigits(accounts.length)} نفر با حساب پورتال و {toPersianDigits(result.created.length - accounts.length)} نفر فقط در دفتر تلفن ثبت شدند.
+            {toPersianDigits(result.created.length)} نفر اضافه شد ({toPersianDigits(result.created.filter((a) => a.hasAccount).length)} نفر با حساب پورتال) و {toPersianDigits(result.updated.length)} نفر به‌روز شد.
           </p>
           {accounts.length > 0 && (
             <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl text-amber-900 leading-relaxed">
@@ -154,13 +165,16 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                 <tr><th className="p-2 text-right">نام</th><th className="p-2 text-right">نام کاربری</th><th className="p-2 text-right">رمز موقت</th><th className="p-2 text-right">واحد</th></tr>
               </thead>
               <tbody>
-                {result.created.map((a) => (
+                {[...result.created.map((a) => ({ ...a, changes: [] as string[] })), ...result.updated].map((a) => (
                   <tr key={a.id} className="border-t border-[#E6E0D5]">
-                    <td className="p-2">{a.firstName} {a.lastName}</td>
+                    <td className="p-2">
+                      {a.firstName} {a.lastName}
+                      {a.changes.length > 0 && <span className="block text-[11px] text-[#6E6A60]">به‌روز شد: {a.changes.join('، ')}</span>}
+                    </td>
                     {a.hasAccount ? (
                       <>
                         <td className="p-2"><code dir="ltr">{a.username}</code></td>
-                        <td className="p-2"><code dir="ltr" className="font-bold select-all">{a.temporaryPassword}</code></td>
+                        <td className="p-2">{a.temporaryPassword ? <code dir="ltr" className="font-bold select-all">{a.temporaryPassword}</code> : <span className="text-[#8C867A]">—</span>}</td>
                       </>
                     ) : (
                       <td className="p-2 text-[#6E6A60]" colSpan={2}>فقط دفتر تلفن (بدون دسترسی پورتال)</td>
@@ -173,7 +187,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
           </div>
           {result.skipped.length > 0 && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-2xl text-red-800 space-y-1">
-              <p className="font-bold">{toPersianDigits(result.skipped.length)} ردیف ساخته نشد:</p>
+              <p className="font-bold">{toPersianDigits(result.skipped.length)} ردیف ثبت نشد:</p>
               {result.skipped.map((s) => <p key={s.row}>{s.username || '—'}: {s.errors.join(' ')}</p>)}
             </div>
           )}
@@ -184,8 +198,8 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
 
   return (
     <Modal
-      title="ورود گروهی همکاران از اکسل"
-      subtitle="ثبت چند نفر با یک فایل، با یا بدون حساب پورتال"
+      title="ورود و به‌روزرسانی کارکنان از اکسل"
+      subtitle="افزودن افراد جدید یا تغییر مشخصات افراد موجود با یک فایل"
       icon={<FileSpreadsheet className="w-5 h-5" />}
       onClose={onClose}
       size="xl"
@@ -193,9 +207,9 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
         <>
           <button type="button" onClick={onClose} className={secondaryButtonClass}>انصراف</button>
           {preview && (
-            <button type="button" onClick={handleImport} disabled={busy || validRows.length === 0} className={primaryButtonClass}>
+            <button type="button" onClick={handleImport} disabled={busy || toSend.length === 0} className={primaryButtonClass}>
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-              {busy ? 'در حال ثبت...' : `ثبت ${toPersianDigits(validRows.length)} نفر`}
+              {busy ? 'در حال ثبت...' : `ثبت ${toPersianDigits(toSend.length)} ردیف`}
             </button>
           )}
         </>
@@ -211,7 +225,10 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
           </li>
           <li><strong>نام کاربری</strong> را همان نام ورود ویندوز همکار بنویسید (مثلاً <code dir="ltr">ali.rezaei</code>) تا بعداً با ورود اکتیو دایرکتوری یکی شود. برای همکارانی که به پورتال دسترسی ندارند (مثلاً همکاران کارگاه) نام کاربری را <strong>خالی بگذارید</strong>؛ فقط در دفتر تلفن و کارت‌های تولد دیده می‌شوند.</li>
           <li>در ستون نقش نام یکی از نقش‌های پرتال را بنویسید، مثلاً «مدیر» یا «کارشناس» (خالی یعنی کارشناس). تاریخ‌ها به شکل ۱۴۰۰/۰۱/۱۵.</li>
-          <li>فایل را با فرمت xlsx یا CSV ذخیره و اینجا بارگذاری کنید. قبل از ساخت حساب‌ها پیش‌نمایش و خطاها را می‌بینید.</li>
+          <li>
+            <strong>برای تغییر مشخصات افراد موجود</strong> (مثلاً موبایل یا دادن نام کاربری به همکاری که حساب ندارد) از «مدیریت کارکنان» دکمهٔ «خروجی اکسل» را بزنید، فایل را ویرایش کنید و همین‌جا بارگذاری کنید. ستون شناسه را تغییر ندهید؛ ردیف‌ها با آن پیدا می‌شوند. فقط خانه‌های پر شده تغییر می‌کنند.
+          </li>
+          <li>فایل را با فرمت xlsx یا CSV ذخیره و اینجا بارگذاری کنید. قبل از ثبت، پیش‌نمایش افراد جدید، تغییرات و خطاها را می‌بینید.</li>
         </ol>
 
         <input ref={inputRef} type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" onChange={handleFile} />
@@ -228,17 +245,19 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
         {preview && (
           <>
             <div className="flex flex-wrap gap-2 font-bold">
-              <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800">{toPersianDigits(validRows.length)} ردیف آماده</span>
-              {phoneOnlyCount > 0 && <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-900">{toPersianDigits(phoneOnlyCount)} نفر فقط دفتر تلفن (بدون نام کاربری)</span>}
+              {newRows.length > 0 && <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800">{toPersianDigits(newRows.length)} نفر جدید</span>}
+              {updateCount > 0 && <span className="px-3 py-1 rounded-full bg-sky-50 text-sky-800">{toPersianDigits(updateCount)} نفر به‌روزرسانی</span>}
+              {unchangedCount > 0 && <span className="px-3 py-1 rounded-full bg-stone-100 text-stone-700">{toPersianDigits(unchangedCount)} نفر بدون تغییر</span>}
+              {phoneOnlyCount > 0 && <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-900">{toPersianDigits(phoneOnlyCount)} نفر جدید فقط دفتر تلفن (بدون نام کاربری)</span>}
               {invalidCount > 0 && <span className="px-3 py-1 rounded-full bg-red-50 text-red-700">{toPersianDigits(invalidCount)} ردیف با خطا (ثبت نمی‌شود)</span>}
             </div>
-            <label className="flex items-start gap-2 p-3 bg-[#F5F2ED] rounded-xl cursor-pointer leading-relaxed">
+            {newRows.length > 0 && <label className="flex items-start gap-2 p-3 bg-[#F5F2ED] rounded-xl cursor-pointer leading-relaxed">
               <input type="checkbox" checked={introduce} onChange={(e) => setIntroduce(e.target.checked)} className="accent-red-700 mt-0.5" />
               <span>
                 <strong>این افراد همکار جدید هستند؛ در داشبورد معرفی شوند.</strong>
-                <span className="block text-[#6E6A60]">برای ورود اولیهٔ همهٔ کارکنان فعلی این گزینه را خاموش بگذارید. به همه یک اعلان جمعی داده می‌شود.</span>
+                <span className="block text-[#6E6A60]">فقط برای افراد جدید این فایل. برای ورود اولیهٔ همهٔ کارکنان فعلی این گزینه را خاموش بگذارید. به همه یک اعلان جمعی داده می‌شود.</span>
               </span>
-            </label>
+            </label>}
             <div className="overflow-x-auto border border-[#E6E0D5] rounded-2xl max-h-[45dvh]">
               <table className="w-full text-xs">
                 <thead className="bg-[#F5F2ED] text-[#4B4740] sticky top-0">
@@ -251,14 +270,23 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                   {preview.map((r) => (
                     <tr key={r.row} className={`border-t border-[#E6E0D5] ${r.errors.length ? 'bg-red-50/60' : ''}`}>
                       <td className="p-2">{toPersianDigits(r.row)}</td>
-                      <td className="p-2">{r.data.firstName} {r.data.lastName}</td>
+                      <td className="p-2">{r.target ?? `${r.data.firstName ?? ''} ${r.data.lastName ?? ''}`}</td>
                       <td className="p-2">{r.data.username ? <code dir="ltr">{r.data.username}</code> : <span className="text-[#8C867A]">بدون حساب</span>}</td>
                       <td className="p-2">{r.data.position}</td>
                       <td className="p-2">{r.data.department}</td>
                       <td className="p-2">
                         {r.errors.length === 0 ? (
                           <>
-                            <span className="text-emerald-700 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> آماده</span>
+                            {r.action === 'update' ? (
+                              <>
+                                <span className="text-sky-800 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> به‌روزرسانی</span>
+                                {r.changes?.map((c) => <span key={c} className="block text-[#4B4740] mt-0.5">{c}</span>)}
+                              </>
+                            ) : r.action === 'unchanged' ? (
+                              <span className="text-stone-600">بدون تغییر</span>
+                            ) : (
+                              <span className="text-emerald-700 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> نفر جدید</span>
+                            )}
                             {r.warnings.map((w) => <span key={w} className="block text-amber-800 mt-0.5">{w}</span>)}
                           </>
                         ) : (
