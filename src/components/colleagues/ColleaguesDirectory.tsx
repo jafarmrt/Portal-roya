@@ -7,6 +7,7 @@ import { UserProfile } from '../../types';
 import { UserProfileModal } from './UserProfileModal';
 import { EditProfileModal } from './EditProfileModal';
 import { AddEmployeeModal } from './AddEmployeeModal';
+import { ImportEmployeesModal } from './ImportEmployeesModal';
 import {
   Users,
   Search,
@@ -17,6 +18,7 @@ import {
   Copy,
   Check,
   ChevronLeft,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 export const ColleaguesDirectory: React.FC = () => {
@@ -31,6 +33,7 @@ export const ColleaguesDirectory: React.FC = () => {
   const setSelectedUserForView = (emp: UserProfile | null) => setActiveTab('colleagues', emp?.id ?? null);
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<UserProfile | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [copiedExtension, setCopiedExtension] = useState<string | null>(null);
 
   const departments = [
@@ -81,13 +84,22 @@ export const ColleaguesDirectory: React.FC = () => {
           </div>
 
           {userRole === 'manager' && (
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="px-5 py-3 text-xs font-bold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-2xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap self-start sm:self-auto"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>ثبت همکار جدید</span>
-            </button>
+            <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="px-5 py-3 text-xs font-bold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-2xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>ثبت همکار جدید</span>
+              </button>
+              <button
+                onClick={() => setIsImportOpen(true)}
+                className="px-5 py-3 text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 rounded-2xl transition-all flex items-center gap-2 whitespace-nowrap"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>ورود گروهی از اکسل</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -256,6 +268,7 @@ export const ColleaguesDirectory: React.FC = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
       />
+      {isImportOpen && <ImportEmployeesModal onClose={() => setIsImportOpen(false)} />}
 
     </div>
   );

@@ -78,3 +78,39 @@
     bottom: calc(72px + env(safe-area-inset-bottom)) !important;
   }
 }
+
+/* Account sheet printed after a bulk import: only the cards are printed. */
+.print-sheet {
+  display: none;
+}
+@media print {
+  body > *:not(.print-sheet) {
+    display: none !important;
+  }
+  .print-sheet {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8mm;
+    font-size: 11pt;
+    color: #000;
+  }
+  .print-card {
+    border: 1px dashed #555;
+    border-radius: 4mm;
+    padding: 5mm;
+    break-inside: avoid;
+    line-height: 1.9;
+  }
+  .print-card-title {
+    font-weight: 800;
+    margin-bottom: 2mm;
+  }
+  .print-card code {
+    font-size: 13pt;
+    font-weight: 700;
+  }
+  .print-card-note {
+    font-size: 9pt;
+    color: #444;
+  }
+}
