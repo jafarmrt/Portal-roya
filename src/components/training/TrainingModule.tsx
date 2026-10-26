@@ -39,14 +39,14 @@ export const TrainingModule: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-5 sm:p-8 text-white shadow-xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#dc2626]/30 text-[#E6E0D5] text-xs font-semibold border border-[#dc2626]/40">
               <GraduationCap className="w-3.5 h-3.5" />
               <span>پرتال توسعه سرمایه‌های انسانی و آموزش رویا</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white">برنامه‌ها و دوره‌های آموزشی سازمانی</h1>
+            <h1 className="text-xl sm:text-3xl font-black text-white">برنامه‌ها و دوره‌های آموزشی سازمانی</h1>
             <p className="text-[#E6E0D5] text-xs sm:text-sm max-w-2xl leading-relaxed">
               ارتقای مستمر مهارتهای تخصصی، تکنیک‌های طراحی، استانداردهای بین‌المللی پوشش‌های سطح و فنون مذاکره B2B.
             </p>

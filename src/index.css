@@ -71,3 +71,10 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Keep toasts above the mobile bottom navigation bar */
+@media (max-width: 1023px) {
+  .portal-toaster {
+    bottom: calc(72px + env(safe-area-inset-bottom)) !important;
+  }
+}

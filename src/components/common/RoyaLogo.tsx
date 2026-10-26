@@ -18,10 +18,10 @@ export const RoyaLogo: React.FC<RoyaLogoProps> = ({ className = '', size = 'md' 
     <div className={`inline-flex items-center gap-3 select-none ${className}`}>
       {/* Precision Vector Emblem matching ROYA Surface Center emblem typography */}
       <div className={`flex flex-col justify-center ${dimensions.height}`}>
-        <div className="flex items-baseline font-serif tracking-widest text-[#dc2626] leading-none font-bold text-2xl sm:text-3xl">
+        <div className="flex items-baseline font-serif tracking-widest text-[#dc2626] leading-none font-bold text-xl sm:text-3xl">
           <span>ROYA</span>
         </div>
-        <div className="text-[10px] sm:text-[11px] uppercase tracking-[0.25em] text-[#991b1b] font-sans font-semibold -mt-0.5">
+        <div className="text-[9px] sm:text-[11px] uppercase tracking-[0.15em] sm:tracking-[0.25em] whitespace-nowrap text-[#991b1b] font-sans font-semibold -mt-0.5">
           Surface Center
         </div>
       </div>

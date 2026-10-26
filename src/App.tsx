@@ -109,7 +109,7 @@ const MainContent: React.FC = () => {
 export default function App() {
   return (
     <PortalProvider>
-      <Toaster position="bottom-left" toastOptions={{ style: { background: '#333', color: '#fff', fontFamily: 'inherit' } }} />
+      <Toaster position="bottom-left" containerClassName="portal-toaster" toastOptions={{ style: { background: '#333', color: '#fff', fontFamily: 'inherit' } }} />
       <MainContent />
     </PortalProvider>
   );

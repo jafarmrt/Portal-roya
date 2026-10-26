@@ -1,8 +1,8 @@
 import React from 'react';
 import { Poll } from '../../types';
 import { formatDate } from '../../lib/jalali';
-import { useEscapeKey } from '../../lib/useEscapeKey';
-import { X, BarChart3, MessageSquare, ShieldCheck, UserCheck } from 'lucide-react';
+import { Modal, secondaryButtonClass } from '../common/Modal';
+import { BarChart3, MessageSquare, ShieldCheck, UserCheck } from 'lucide-react';
 
 interface PollResultsModalProps {
   poll: Poll | null;
@@ -10,38 +10,22 @@ interface PollResultsModalProps {
 }
 
 export const PollResultsModal: React.FC<PollResultsModalProps> = ({ poll, onClose }) => {
-  useEscapeKey(onClose, Boolean(poll));
   if (!poll) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div role="dialog" aria-modal="true" aria-label="نتایج نظرسنجی" className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden text-right">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-slate-50 border-b border-slate-200">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-red-100 text-red-600 rounded-xl">
-              <BarChart3 className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-800">نتایج کلی و ناشناس نظرسنجی</h3>
-              <p className="text-xs text-slate-500">{poll.title}</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="بستن"
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
+    <Modal
+      title="نتایج کلی و ناشناس نظرسنجی"
+      subtitle={poll.title}
+      icon={<BarChart3 className="w-5 h-5" />}
+      onClose={onClose}
+      size="lg"
+      footer={<button onClick={onClose} className={secondaryButtonClass}>بستن پنجره نتایج</button>}
+    >
         {/* Content */}
-        <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+        <div className="space-y-6">
           
           {/* Metadata banner */}
-          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
             <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
               <span>نتایج به صورت کاملاً کلی و ناشناس محاسبه شده‌اند</span>
@@ -70,9 +54,9 @@ export const PollResultsModal: React.FC<PollResultsModalProps> = ({ poll, onClos
 
                 return (
                   <div key={opt.id} className="space-y-1.5 p-3 rounded-xl border border-slate-100 bg-slate-50/30">
-                    <div className="flex items-center justify-between text-xs font-bold">
-                      <span className="text-slate-800">{opt.text}</span>
-                      <span className="text-red-600 font-extrabold">{percentage}% ({opt.votesCount} رای)</span>
+                    <div className="flex items-start justify-between gap-3 text-xs font-bold">
+                      <span className="text-slate-800 min-w-0 break-words">{opt.text}</span>
+                      <span className="text-red-600 font-extrabold whitespace-nowrap">{percentage}% ({opt.votesCount} رای)</span>
                     </div>
 
                     {/* Progress Bar */}
@@ -120,17 +104,6 @@ export const PollResultsModal: React.FC<PollResultsModalProps> = ({ poll, onClos
 
         </div>
 
-        {/* Footer */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl transition-colors"
-          >
-            بستن پنجره نتایج
-          </button>
-        </div>
-
-      </div>
-    </div>
+    </Modal>
   );
 };
