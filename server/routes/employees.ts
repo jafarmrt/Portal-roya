@@ -1,14 +1,17 @@
 import { randomBytes } from 'crypto';
 import { and, desc, eq, ne, sql } from 'drizzle-orm';
 import { Router } from 'express';
+import multer from 'multer';
 import { z } from 'zod';
 import { currentJalaliYear, todayJalali } from '../../shared/jalali.js';
 import { type Employee, hashPassword, requireManager } from '../auth.js';
 import { db } from '../db/index.js';
+import { checkRows, type ImportRow, importRowsSchema, MAX_IMPORT_ROWS, rowsToRecords } from '../employeeImport.js';
 import { birthdayWishes, colleagueWishes, employees, newColleagues } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, newId, parse, route } from '../http.js';
 import { audienceIds, createNotifications } from '../notify.js';
+import { readSpreadsheet, SpreadsheetError } from '../spreadsheet.js';
 import { fullName, serializeEmployee } from '../serializers.js';
 import { assetUrl, assetUrlValue, jalaliDateValue, optionalJalaliDate, optionalText, password, requiredText, textValue, username } from '../validation.js';
 
@@ -406,5 +409,91 @@ employeesRouter.post(
     }
     broadcastChange('birthday_wishes');
     res.status(201).json({ success: true });
+  }),
+);
+
+// Bulk import: the manager uploads an Excel/CSV file, checks the preview, then confirms the valid rows.
+const importUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1 } });
+
+employeesRouter.post(
+  '/employees/import/preview',
+  requireManager,
+  (req, res, next) => {
+    importUpload.single('file')(req, res, (err: unknown) => {
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') next(new HttpError(400, 'حجم فایل نباید بیشتر از ۲ مگابایت باشد.'));
+      else next(err);
+    });
+  },
+  route(async (req, res) => {
+    if (!req.file) throw new HttpError(400, 'فایلی انتخاب نشده است.');
+    let sheet: string[][];
+    try {
+      sheet = readSpreadsheet(req.file.buffer, req.file.originalname);
+    } catch (err) {
+      if (err instanceof SpreadsheetError) throw new HttpError(400, err.message);
+      throw err;
+    }
+    const { records, missing } = rowsToRecords(sheet);
+    if (missing.length > 0) throw new HttpError(400, `ستون‌های لازم در ردیف اول فایل پیدا نشد: ${missing.join('، ')}`);
+    if (records.length === 0) throw new HttpError(400, 'فایل هیچ ردیفی برای ورود ندارد.');
+    if (records.length > MAX_IMPORT_ROWS) throw new HttpError(400, `هر بار حداکثر ${MAX_IMPORT_ROWS} نفر را می‌توان وارد کرد.`);
+    const rows = await checkRows(records);
+    res.json({ rows: rows.map(({ row, data, errors }) => ({ row, data, errors })) });
+  }),
+);
+
+employeesRouter.post(
+  '/employees/import',
+  requireManager,
+  route(async (req, res) => {
+    const body = parse(importRowsSchema, req.body);
+    const checked = await checkRows(body.rows.map((data, i) => ({ row: i + 1, data })));
+    const valid = checked.filter((r) => r.value);
+
+    const prepared: { value: ImportRow; temporary: string; hash: string }[] = [];
+    for (const r of valid) {
+      const temporary = temporaryPassword();
+      prepared.push({ value: r.value!, temporary, hash: await hashPassword(temporary) });
+    }
+
+    const created = await db.transaction(async (tx) => {
+      const out = [];
+      for (const { value, temporary, hash } of prepared) {
+        const [emp] = await tx
+          .insert(employees)
+          .values({
+            id: newId('emp'),
+            ...value,
+            passwordHash: hash,
+            mustChangePassword: true,
+            hireDate: value.hireDate || todayJalali(),
+          })
+          // A username taken since the check is skipped rather than overwritten.
+          .onConflictDoNothing({ target: employees.username })
+          .returning();
+        if (emp) out.push({ emp, temporary });
+      }
+      return out;
+    });
+
+    const createdNames = new Set(created.map((c) => c.emp.username));
+    const skipped = checked
+      .filter((r) => !r.value || !createdNames.has(r.value.username))
+      .map((r) => ({ row: r.row, username: r.data.username ?? '', errors: r.errors.length ? r.errors : ['نام کاربری هم‌زمان ثبت شد.'] }));
+
+    if (created.length > 0) broadcastChange('employees');
+    res.status(201).json({
+      created: created.map(({ emp, temporary }) => ({
+        id: emp.id,
+        username: emp.username,
+        firstName: emp.firstName,
+        lastName: emp.lastName,
+        position: emp.position,
+        department: emp.department,
+        // Shown once so the manager can print or hand them out.
+        temporaryPassword: temporary,
+      })),
+      skipped,
+    });
   }),
 );
