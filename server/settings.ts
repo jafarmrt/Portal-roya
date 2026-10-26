@@ -20,3 +20,12 @@ export async function ensureSettings() {
   const [row] = await db.select().from(settings).where(eq(settings.id, 'global'));
   return row;
 }
+
+/** The guest-access switches; a fresh install allows guests to read but hides the directory. */
+export async function guestSettings() {
+  const [row] = await db
+    .select({ guestAccess: settings.guestAccess, guestDirectory: settings.guestDirectory })
+    .from(settings)
+    .where(eq(settings.id, 'global'));
+  return row ?? { guestAccess: true, guestDirectory: false };
+}

@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { LogIn, Lock, User } from 'lucide-react';
 import { usePortal } from '../context/PortalContext';
 import { errorMessage } from '../lib/api';
 import { RoyaLogo } from './common/RoyaLogo';
+import { ModalCloseButton, ModalShell } from './common/Modal';
 
-export const LoginPage: React.FC = () => {
+/** Username/password form shared by the full login page and the guest sign-in dialog. */
+const LoginForm: React.FC = () => {
   const { login } = usePortal();
+  const id = useId();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -25,70 +28,95 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <main className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4" dir="rtl">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-[#E6E0D5] overflow-hidden">
-        <div className="px-8 pt-8 pb-5 border-b border-[#E6E0D5]">
-          <RoyaLogo size="md" />
-          <h1 className="text-xl font-black mt-5 text-[#2D2D2D]">ورود به پرتال</h1>
-          <p className="text-xs text-[#6E6A60] mt-1">برای مشاهدهٔ اخبار، اطلاعیه‌ها و همکاران وارد شوید.</p>
+    <form onSubmit={handleSubmit} className="p-8 space-y-4">
+      {error && (
+        <div role="alert" className="p-3 bg-red-50 text-red-800 text-xs font-bold rounded-xl border border-red-200">
+          {error}
         </div>
+      )}
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-4">
-          {error && (
-            <div role="alert" className="p-3 bg-red-50 text-red-800 text-xs font-bold rounded-xl border border-red-200">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label htmlFor="login-username" className="block text-xs font-bold text-[#4B4740] mb-1">نام کاربری</label>
-            <div className="relative">
-              <input
-                id="login-username"
-                type="text"
-                autoComplete="username"
-                autoFocus
-                required
-                dir="ltr"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full pl-3 pr-10 py-3 rounded-xl border border-[#D9D4CB] text-sm focus:border-red-700 focus:ring-2 focus:ring-red-700/20 outline-hidden text-left"
-              />
-              <User className="w-4 h-4 text-[#8C867A] absolute right-3 top-3.5" />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="login-password" className="block text-xs font-bold text-[#4B4740] mb-1">رمز عبور</label>
-            <div className="relative">
-              <input
-                id="login-password"
-                type="password"
-                autoComplete="current-password"
-                required
-                dir="ltr"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-3 pr-10 py-3 rounded-xl border border-[#D9D4CB] text-sm focus:border-red-700 focus:ring-2 focus:ring-red-700/20 outline-hidden text-left"
-              />
-              <Lock className="w-4 h-4 text-[#8C867A] absolute right-3 top-3.5" />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full py-3 bg-[#991b1b] hover:bg-[#7f1d1d] text-white rounded-xl text-sm font-black shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-          >
-            <LogIn className="w-4 h-4" />
-            <span>{isSubmitting ? 'در حال بررسی...' : 'ورود'}</span>
-          </button>
-
-          <p className="text-[11px] text-[#7A756D] text-center leading-relaxed">
-            حساب کاربری را مدیر پرتال می‌سازد. اگر رمز خود را فراموش کرده‌اید، از مدیر بخواهید آن را بازنشانی کند.
-          </p>
-        </form>
+      <div>
+        <label htmlFor={`${id}-username`} className="block text-xs font-bold text-[#4B4740] mb-1">نام کاربری</label>
+        <div className="relative">
+          <input
+            id={`${id}-username`}
+            type="text"
+            autoComplete="username"
+            autoFocus
+            required
+            dir="ltr"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full pl-3 pr-10 py-3 rounded-xl border border-[#D9D4CB] text-sm focus:border-red-700 focus:ring-2 focus:ring-red-700/20 outline-hidden text-left"
+          />
+          <User className="w-4 h-4 text-[#8C867A] absolute right-3 top-3.5" />
+        </div>
       </div>
-    </main>
+
+      <div>
+        <label htmlFor={`${id}-password`} className="block text-xs font-bold text-[#4B4740] mb-1">رمز عبور</label>
+        <div className="relative">
+          <input
+            id={`${id}-password`}
+            type="password"
+            autoComplete="current-password"
+            required
+            dir="ltr"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full pl-3 pr-10 py-3 rounded-xl border border-[#D9D4CB] text-sm focus:border-red-700 focus:ring-2 focus:ring-red-700/20 outline-hidden text-left"
+          />
+          <Lock className="w-4 h-4 text-[#8C867A] absolute right-3 top-3.5" />
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="w-full py-3 bg-[#991b1b] hover:bg-[#7f1d1d] text-white rounded-xl text-sm font-black shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+      >
+        <LogIn className="w-4 h-4" />
+        <span>{isSubmitting ? 'در حال بررسی...' : 'ورود'}</span>
+      </button>
+
+      <p className="text-[11px] text-[#7A756D] text-center leading-relaxed">
+        حساب کاربری را مدیر پرتال می‌سازد. اگر رمز خود را فراموش کرده‌اید، از مدیر بخواهید آن را بازنشانی کند.
+      </p>
+    </form>
+  );
+};
+
+export const LoginPage: React.FC = () => (
+  <main className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4" dir="rtl">
+    <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-[#E6E0D5] overflow-hidden">
+      <div className="px-8 pt-8 pb-5 border-b border-[#E6E0D5]">
+        <RoyaLogo size="md" />
+        <h1 className="text-xl font-black mt-5 text-[#2D2D2D]">ورود به پرتال</h1>
+        <p className="text-xs text-[#6E6A60] mt-1">برای مشاهدهٔ اخبار، اطلاعیه‌ها و همکاران وارد شوید.</p>
+      </div>
+      <LoginForm />
+    </div>
+  </main>
+);
+
+/** Sign-in dialog for guests; opens when they try to comment, vote, like or open personal pages. */
+export const LoginModal: React.FC = () => {
+  const { loginPrompt, closeLoginPrompt } = usePortal();
+  const titleId = useId();
+  if (!loginPrompt) return null;
+
+  return (
+    <ModalShell onClose={closeLoginPrompt} size="sm" labelledBy={titleId}>
+      <div className="px-6 pt-6 pb-4 border-b border-[#E6E0D5] flex items-start justify-between gap-3 shrink-0">
+        <div>
+          <h2 id={titleId} className="text-lg font-black text-[#2D2D2D]">ورود به پرتال</h2>
+          <p className="text-xs text-[#6E6A60] mt-1 leading-relaxed">{loginPrompt}</p>
+        </div>
+        <ModalCloseButton onClose={closeLoginPrompt} />
+      </div>
+      <div className="overflow-y-auto overscroll-contain min-h-0">
+        <LoginForm />
+      </div>
+    </ModalShell>
   );
 };

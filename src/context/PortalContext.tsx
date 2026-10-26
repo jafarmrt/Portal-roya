@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { api, errorMessage, setUnauthorizedHandler } from '../lib/api';
+import { ApiError, api, errorMessage, setUnauthorizedHandler } from '../lib/api';
 import { buildSearchResults } from '../lib/search';
 import type {
   ActiveTab,
@@ -77,6 +77,13 @@ interface PortalContextType {
   authChecked: boolean;
   currentUser: CurrentUser | null;
   isLoggedIn: boolean;
+  /** Browsing without a session while the manager allows guest access (read-only). */
+  isGuest: boolean;
+  guestAccess: boolean;
+  /** Why the sign-in dialog is open (null when closed). Guests see it when they try to interact. */
+  loginPrompt: string | null;
+  requestLogin: (reason?: string) => void;
+  closeLoginPrompt: () => void;
   userRole: UserRole;
   login: (username: string, password: string) => Promise<CurrentUser>;
   logout: () => Promise<void>;
@@ -159,6 +166,8 @@ function readHash(): { tab: ActiveTab; id: string | null } {
   return VALID_TABS.includes(tab as ActiveTab) ? { tab: tab as ActiveTab, id: id || null } : { tab: 'dashboard', id: null };
 }
 
+export const DEFAULT_LOGIN_REASON = 'برای ثبت نظر، رأی، تبریک و سایر تعامل‌ها وارد حساب کاربری خود شوید.';
+
 /** Runs an API call and shows its error as a toast. Returns undefined on failure. */
 async function attempt<T>(fn: () => Promise<T>, success?: string): Promise<T | undefined> {
   try {
@@ -166,7 +175,8 @@ async function attempt<T>(fn: () => Promise<T>, success?: string): Promise<T | u
     if (success) toast.success(success);
     return result;
   } catch (err) {
-    toast.error(errorMessage(err));
+    // A 401 opens the sign-in dialog (see the unauthorized handler), so no toast is needed.
+    if (!(err instanceof ApiError && err.status === 401)) toast.error(errorMessage(err));
     return undefined;
   }
 }
@@ -175,6 +185,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isSetupComplete, setIsSetupComplete] = useState<boolean | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [guestAccess, setGuestAccess] = useState(false);
+  const [loginPrompt, setLoginPrompt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -196,16 +208,27 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [userMoods, setUserMoods] = useState<UserMood[]>([]);
   const newsCount = useRef(NEWS_PAGE_SIZE);
 
-  const isReady = Boolean(currentUser && !currentUser.mustChangePassword);
+  const isGuest = !currentUser && guestAccess;
+  const isReady = Boolean(currentUser && !currentUser.mustChangePassword) || isGuest;
+  const guestAccessRef = useRef(false);
+  guestAccessRef.current = guestAccess;
+
+  const requestLogin = useCallback((reason?: string) => setLoginPrompt(reason || DEFAULT_LOGIN_REASON), []);
+  const closeLoginPrompt = useCallback(() => setLoginPrompt(null), []);
 
   // --- Session ---
 
   useEffect(() => {
-    setUnauthorizedHandler(() => setCurrentUser(null));
+    setUnauthorizedHandler(() => {
+      setCurrentUser(null);
+      // Guests (or users whose session expired) can keep reading; offer them the sign-in dialog.
+      if (guestAccessRef.current) setLoginPrompt(DEFAULT_LOGIN_REASON);
+    });
     (async () => {
       try {
-        const status = await api.get<{ isSetupComplete: boolean }>('/api/system/status');
+        const status = await api.get<{ isSetupComplete: boolean; guestAccess?: boolean }>('/api/system/status');
         setIsSetupComplete(status.isSetupComplete);
+        setGuestAccess(Boolean(status.guestAccess));
         if (status.isSetupComplete) {
           const me = await api.get<{ user: CurrentUser }>('/api/auth/me').catch(() => null);
           setCurrentUser(me?.user ?? null);
@@ -222,6 +245,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const login = async (username: string, password: string) => {
     const { user } = await api.post<{ user: CurrentUser }>('/api/auth/login', { username, password });
     setCurrentUser(user);
+    setLoginPrompt(null);
     return user;
   };
 
@@ -288,13 +312,24 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     [loaders],
   );
 
+  const sessionKey = currentUser && !currentUser.mustChangePassword ? currentUser.id : null;
+
   useEffect(() => {
     if (!isReady) return;
     setIsLoading(true);
     setError(null);
-    Promise.all(Object.values(loaders).map((load) => load()))
+    // Guests only load the shared, read-only content; personal data comes after sign-in.
+    const { notifications: loadNotifications, moods: loadMoods, ...shared } = loaders;
+    const toLoad = sessionKey ? [...Object.values(shared), loadNotifications, loadMoods] : Object.values(shared);
+    if (!sessionKey) {
+      setNotifications([]);
+      setUserMoods([]);
+    }
+    Promise.all(toLoad.map((load) => load()))
       .catch((err) => setError(errorMessage(err)))
       .finally(() => setIsLoading(false));
+
+    if (!sessionKey) return;
 
     // Live updates: the server sends "changed" signals and we refetch that resource.
     const source = new EventSource('/api/events');
@@ -311,7 +346,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       void refresh('notifications');
     });
     return () => source.close();
-  }, [isReady, loaders, refresh]);
+  }, [isReady, sessionKey, loaders, refresh]);
+
+  // A manager may switch guest access while the page is open.
+  useEffect(() => {
+    if (appSettings) setGuestAccess(appSettings.guestAccess);
+  }, [appSettings]);
 
   const loadMoreNews = async () => {
     newsCount.current += NEWS_PAGE_SIZE;
@@ -422,6 +462,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const markNewsRead = async (newsId: string) => {
+    // Opening an article is not an interaction worth a sign-in prompt for guests.
+    if (!currentUser) return;
     const item = news.find((n) => n.id === newsId);
     if (item?.isRead) return;
     const updated = await api.post<NewsItem>(`/api/news/${newsId}/read`).catch(() => null);
@@ -528,6 +570,11 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         authChecked,
         currentUser,
         isLoggedIn: Boolean(currentUser),
+        isGuest,
+        guestAccess,
+        loginPrompt,
+        requestLogin,
+        closeLoginPrompt,
         userRole: currentUser?.role ?? 'employee',
         login,
         logout,

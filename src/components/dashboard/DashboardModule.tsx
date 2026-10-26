@@ -23,6 +23,7 @@ import {
 export const DashboardModule: React.FC = () => {
   const {
     currentUser,
+    isGuest,
     news,
     polls,
     trainings,
@@ -31,9 +32,11 @@ export const DashboardModule: React.FC = () => {
 
   const activePoll = polls.find(p => p.isActive && !p.hasVoted);
   const publishedNews = news.filter(n => n.status === 'published');
-  const pendingAcks = publishedNews.filter(n => n.requiresAck && !n.acknowledgedAt);
+  // Read and acknowledgement state is personal, so guests just see what is published.
+  const pendingAcks = isGuest ? [] : publishedNews.filter(n => n.requiresAck && !n.acknowledgedAt);
   const unreadCount = publishedNews.filter(n => !n.isRead).length;
-  const latestNews = publishedNews.filter(n => !(n.requiresAck && !n.acknowledgedAt)).slice(0, 4);
+  const openPollsCount = polls.filter(p => p.isActive && !p.hasVoted).length;
+  const latestNews = publishedNews.filter(n => !pendingAcks.includes(n)).slice(0, 4);
   const today = todayJalali();
   const upcomingTraining = [...trainings].filter(t => t.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
   const now = moment();
@@ -58,7 +61,9 @@ export const DashboardModule: React.FC = () => {
             </h1>
             <p className="text-[#E6E0D5] text-xs sm:text-sm max-w-xl leading-relaxed">
               امروز {todayStr} است.
-              {unreadCount > 0 ? ` ${toPersianDigits(unreadCount)} خبر یا اطلاعیهٔ نخوانده دارید.` : ' همهٔ اخبار را خوانده‌اید.'}
+              {isGuest
+                ? ' برای شرکت در نظرسنجی‌ها و ثبت تبریک و نظر، وارد حساب کاربری خود شوید.'
+                : unreadCount > 0 ? ` ${toPersianDigits(unreadCount)} خبر یا اطلاعیهٔ نخوانده دارید.` : ' همهٔ اخبار را خوانده‌اید.'}
             </p>
           </div>
 
@@ -71,7 +76,7 @@ export const DashboardModule: React.FC = () => {
               <div className="text-[10px] text-[#E6E0D5]">نظرسنجی‌ها</div>
               <div className="text-base font-black text-white flex items-center gap-1.5">
                 <Vote className="w-4 h-4 text-[#9BB088]" />
-                <span>{toPersianDigits(polls.filter(p => p.isActive && !p.hasVoted).length)} در انتظار رأی شما</span>
+                <span>{toPersianDigits(openPollsCount)} {isGuest ? 'در حال رأی‌گیری' : 'در انتظار رأی شما'}</span>
               </div>
             </button>
 
@@ -79,10 +84,10 @@ export const DashboardModule: React.FC = () => {
               onClick={() => setActiveTab('news')}
               className="px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl backdrop-blur-xs border border-white/10 text-right transition-all"
             >
-              <div className="text-[10px] text-[#E6E0D5]">اخبار نخوانده</div>
+              <div className="text-[10px] text-[#E6E0D5]">{isGuest ? 'اخبار و اطلاعیه‌ها' : 'اخبار نخوانده'}</div>
               <div className="text-base font-black text-white flex items-center gap-1.5">
                 <Newspaper className="w-4 h-4 text-[#E6E0D5]" />
-                <span>{toPersianDigits(unreadCount)} مورد</span>
+                <span>{toPersianDigits(isGuest ? publishedNews.length : unreadCount)} مورد</span>
               </div>
             </button>
           </div>
@@ -237,7 +242,7 @@ export const DashboardModule: React.FC = () => {
           <BirthdayCard />
 
           {/* Mood check-in (anonymous in reports) */}
-          <MoodTrackerWidget />
+          {!isGuest && <MoodTrackerWidget />}
 
           {/* Upcoming Training Highlight */}
           {upcomingTraining && (

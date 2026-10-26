@@ -34,6 +34,11 @@ export function currentUser(req: AuthedRequest): Employee {
   return req.user;
 }
 
+/** The signed-in user, or null for a visitor on a guest-readable route. */
+export function viewerOf(req: AuthedRequest): Employee | null {
+  return req.user ?? null;
+}
+
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
   if (err instanceof HttpError) {
     res.status(err.status).json({ error: err.message, code: err.code });

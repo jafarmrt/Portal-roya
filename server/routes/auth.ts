@@ -17,7 +17,7 @@ import { db } from '../db/index.js';
 import { employees } from '../db/schema.js';
 import { currentUser, HttpError, newId, parse, route } from '../http.js';
 import { serializeMe } from '../serializers.js';
-import { ensureSettings } from '../settings.js';
+import { ensureSettings, guestSettings } from '../settings.js';
 import { optionalText, password, requiredText, username } from '../validation.js';
 
 export const authRouter = Router();
@@ -38,7 +38,8 @@ async function hasAnyEmployee() {
 authRouter.get(
   '/system/status',
   route(async (_req, res) => {
-    res.json({ isSetupComplete: await hasAnyEmployee() });
+    const isSetupComplete = await hasAnyEmployee();
+    res.json({ isSetupComplete, guestAccess: isSetupComplete && (await guestSettings()).guestAccess });
   }),
 );
 

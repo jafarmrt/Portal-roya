@@ -47,6 +47,8 @@ const updateSchema = z
     trainingCategories: list,
     documentCategories: list,
     systems: z.array(systemSchema).max(50),
+    guestAccess: z.boolean(),
+    guestDirectory: z.boolean(),
   })
   .partial();
 

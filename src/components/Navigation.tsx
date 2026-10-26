@@ -15,7 +15,8 @@ import {
   BarChart2,
   FolderOpen,
   Network,
-  LayoutGrid
+  LayoutGrid,
+  LogIn
 } from 'lucide-react';
 
 interface NavigationProps {
@@ -24,14 +25,15 @@ interface NavigationProps {
 }
 
 export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onCloseMobileNav }) => {
-  const { activeTab, setActiveTab, currentUser, polls, news } = usePortal();
+  const { activeTab, setActiveTab, currentUser, isGuest, requestLogin, appSettings, polls, news } = usePortal();
   useEscapeKey(onCloseMobileNav, isMobileNavOpen);
 
-  const activePollsCount = polls.filter(p => p.isActive && !p.hasVoted).length;
-  const unreadNewsCount = news.filter(n => n.status === 'published' && !n.isRead).length;
-  const pendingAckCount = news.filter(n => n.status === 'published' && n.requiresAck && !n.acknowledgedAt).length;
+  // Read/vote badges are personal, so guests don't get them.
+  const activePollsCount = isGuest ? 0 : polls.filter(p => p.isActive && !p.hasVoted).length;
+  const unreadNewsCount = isGuest ? 0 : news.filter(n => n.status === 'published' && !n.isRead).length;
+  const pendingAckCount = isGuest ? 0 : news.filter(n => n.status === 'published' && n.requiresAck && !n.acknowledgedAt).length;
 
-  const navItems: { id: ActiveTab; label: string; icon: React.ReactNode; badge?: string | number; badgeColor?: string }[] = [
+  let navItems: { id: ActiveTab; label: string; icon: React.ReactNode; badge?: string | number; badgeColor?: string }[] = [
     {
       id: 'dashboard',
       label: 'داشبورد',
@@ -85,6 +87,11 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
     },
 
   ];
+
+  // The phone book and org chart stay hidden from guests unless a manager opened them.
+  if (isGuest && !appSettings?.guestDirectory) {
+    navItems = navItems.filter((item) => item.id !== 'colleagues' && item.id !== 'orgchart');
+  }
 
   if (currentUser?.role === 'manager') {
     navItems.push({ id: 'reports', label: 'گزارش‌ها', icon: <BarChart2 className="w-4 h-4" /> });
@@ -150,6 +157,18 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
                   ✕
                 </button>
               </div>
+
+              {isGuest && (
+                <button
+                  onClick={() => {
+                    onCloseMobileNav();
+                    requestLogin();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 p-3 mb-4 rounded-xl bg-white text-[#7f1d1d] text-xs font-black"
+                >
+                  <LogIn className="w-4 h-4" /> ورود به پرتال
+                </button>
+              )}
 
               {/* User Profile Mini Badge in Mobile Nav */}
               {currentUser && (

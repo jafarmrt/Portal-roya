@@ -276,4 +276,7 @@ export const settings = pgTable('settings', {
   trainingCategories: text('training_categories').array().notNull().default([]),
   documentCategories: text('document_categories').array().notNull().default([]),
   systems: jsonb('systems').$type<ExternalSystemRecord[]>().notNull().default([]),
+  // Visitors who are not signed in may read public content; the staff directory is opt-in separately.
+  guestAccess: boolean('guest_access').notNull().default(true),
+  guestDirectory: boolean('guest_directory').notNull().default(false),
 });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { LayoutDashboard, ExternalLink, Users, Newspaper } from 'lucide-react';
+import { LayoutDashboard, ExternalLink, Users, Newspaper, Calendar, LogIn } from 'lucide-react';
 import { ActiveTab } from '../../types';
 import { Avatar } from './Avatar';
 
@@ -8,13 +8,19 @@ export const MobileBottomBar: React.FC = () => {
   const {
     activeTab,
     setActiveTab,
-    currentUser
+    currentUser,
+    isGuest,
+    requestLogin,
+    appSettings
   } = usePortal();
+  const directoryHidden = isGuest && !appSettings?.guestDirectory;
 
   const navButtons: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard', label: 'داشبورد', icon: <LayoutDashboard className="w-5 h-5" /> },
     { id: 'systems', label: 'سامانه‌ها', icon: <ExternalLink className="w-5 h-5" /> },
-    { id: 'colleagues', label: 'همکاران', icon: <Users className="w-5 h-5" /> },
+    directoryHidden
+      ? { id: 'calendar', label: 'تقویم', icon: <Calendar className="w-5 h-5" /> }
+      : { id: 'colleagues', label: 'همکاران', icon: <Users className="w-5 h-5" /> },
     { id: 'news', label: 'اخبار', icon: <Newspaper className="w-5 h-5" /> },
   ];
 
@@ -44,6 +50,16 @@ export const MobileBottomBar: React.FC = () => {
             </button>
           );
         })}
+
+        {isGuest && (
+          <button
+            onClick={() => requestLogin()}
+            className="flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all text-[#991b1b] font-bold"
+          >
+            <div className="p-1 rounded-lg"><LogIn className="w-5 h-5" /></div>
+            <span className="text-[10px] mt-0.5">ورود</span>
+          </button>
+        )}
 
         {currentUser && (
           <button
