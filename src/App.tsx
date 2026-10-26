@@ -9,11 +9,12 @@ import { Setup } from './components/Setup';
 import { LoginModal, LoginPage } from './components/LoginPage';
 import { ForcePasswordChangePage } from './components/ChangePasswordModal';
 import { DashboardModule } from './components/dashboard/DashboardModule';
+import { ErrorBoundary, loadModule } from './components/common/ErrorBoundary';
 import { currentJalaliYear, toPersianDigits } from './lib/jalali';
 
 // Secondary modules load on demand to keep the first download small.
 const named = <T,>(loader: () => Promise<T>, key: keyof T) =>
-  lazy(() => loader().then((m) => ({ default: m[key] as unknown as React.ComponentType })));
+  lazy(() => loadModule(loader)().then((m) => ({ default: m[key] as unknown as React.ComponentType })));
 
 const PollsModule = named(() => import('./components/polls/PollsModule'), 'PollsModule');
 const ColleaguesDirectory = named(() => import('./components/colleagues/ColleaguesDirectory'), 'ColleaguesDirectory');
@@ -109,23 +110,25 @@ const MainContent: React.FC = () => {
       {isGuest && <GuestBanner />}
 
       <main id="main" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <Suspense fallback={<div className="py-20 flex justify-center"><Loader2 className="w-8 h-8 text-red-600 animate-spin" /></div>}>
-          {activeTab === 'dashboard' && <DashboardModule />}
-          {activeTab === 'polls' && <PollsModule />}
-          {activeTab === 'colleagues' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <ColleaguesDirectory />)}
-          {activeTab === 'orgchart' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <OrgChartModule />)}
-          {activeTab === 'search' && <GlobalSearchModule />}
-          {activeTab === 'news' && <NewsModule />}
-          {activeTab === 'documents' && <DocumentsModule />}
-          {activeTab === 'training' && <TrainingModule />}
-          {activeTab === 'calendar' && <CalendarModule />}
-          {activeTab === 'notifications' &&
-            (isGuest ? <LoginRequired message="برای دیدن اعلان‌های خود وارد حساب کاربری شوید." /> : <NotificationsInbox />)}
-          {activeTab === 'systems' && <SystemsModule />}
-          {activeTab === 'reports' && can('reports.view') && <ReportsModule />}
-          {activeTab === 'people' && can('users.manage') && <PeopleManagement />}
-          {activeTab === 'admin' && (isAdmin || can('settings.manage')) && <AdminSettingsModule />}
-        </Suspense>
+        <ErrorBoundary resetKey={activeTab}>
+          <Suspense fallback={<div className="py-20 flex justify-center"><Loader2 className="w-8 h-8 text-red-600 animate-spin" /></div>}>
+            {activeTab === 'dashboard' && <DashboardModule />}
+            {activeTab === 'polls' && <PollsModule />}
+            {activeTab === 'colleagues' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <ColleaguesDirectory />)}
+            {activeTab === 'orgchart' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <OrgChartModule />)}
+            {activeTab === 'search' && <GlobalSearchModule />}
+            {activeTab === 'news' && <NewsModule />}
+            {activeTab === 'documents' && <DocumentsModule />}
+            {activeTab === 'training' && <TrainingModule />}
+            {activeTab === 'calendar' && <CalendarModule />}
+            {activeTab === 'notifications' &&
+              (isGuest ? <LoginRequired message="برای دیدن اعلان‌های خود وارد حساب کاربری شوید." /> : <NotificationsInbox />)}
+            {activeTab === 'systems' && <SystemsModule />}
+            {activeTab === 'reports' && can('reports.view') && <ReportsModule />}
+            {activeTab === 'people' && can('users.manage') && <PeopleManagement />}
+            {activeTab === 'admin' && (isAdmin || can('settings.manage')) && <AdminSettingsModule />}
+          </Suspense>
+        </ErrorBoundary>
       </main>
 
       <MobileBottomBar />
@@ -146,9 +149,11 @@ const MainContent: React.FC = () => {
 
 export default function App() {
   return (
-    <PortalProvider>
-      <Toaster position="bottom-left" containerClassName="portal-toaster" toastOptions={{ style: { background: '#333', color: '#fff', fontFamily: 'inherit' } }} />
-      <MainContent />
-    </PortalProvider>
+    <ErrorBoundary fullScreen>
+      <PortalProvider>
+        <Toaster position="bottom-left" containerClassName="portal-toaster" toastOptions={{ style: { background: '#333', color: '#fff', fontFamily: 'inherit' } }} />
+        <MainContent />
+      </PortalProvider>
+    </ErrorBoundary>
   );
 }

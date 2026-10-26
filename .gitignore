@@ -10,3 +10,7 @@ uploads/
 server-dist/
 backups/
 logs/
+e2e/.auth/
+e2e/.uploads/
+test-results/
+playwright-report/

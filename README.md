@@ -126,6 +126,7 @@ cp .env.example .env        # DATABASE_URL را به یک PostgreSQL محلی ب
 npm run dev                 # سرور و Vite روی http://localhost:3000
 npm run lint && npm run typecheck
 npm test                    # به TEST_DATABASE_URL (پایگاه دادهٔ جدا) نیاز دارد
+npm run build && npm run test:e2e   # تست مرورگر همهٔ صفحه‌ها؛ پایگاه داده را E2E_DATABASE_URL می‌دهد و پاک می‌کند
 npm run db:generate         # بعد از تغییر server/db/schema.ts برای ساخت migration
 ```
 

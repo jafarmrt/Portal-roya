@@ -16,6 +16,11 @@ async function main() {
   if (config.isProduction) {
     const distPath = path.resolve('dist');
     app.use(express.static(distPath, { index: false, maxAge: '7d', immutable: true }));
+    // A missing file (e.g. a code chunk from the previous release requested by a page opened before
+    // an update) must be a real 404: answering with index.html makes the browser fail to run it.
+    app.get(/\.[a-z0-9]+$/i, (_req, res) => {
+      res.status(404).end();
+    });
     app.get('*', (_req, res) => {
       res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(distPath, 'index.html'));
