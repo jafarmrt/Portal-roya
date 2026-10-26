@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import request from 'supertest';
 import { createApp } from '../server/app';
 import { db, runMigrations } from '../server/db/index';
+import { ensureRoles } from '../server/roles';
 
 export const app = createApp();
 
@@ -16,9 +17,10 @@ export async function resetDatabase() {
   if (rows.length > 0) {
     await db.execute(sql.raw(`truncate ${rows.map((r) => `"${r.tablename}"`).join(', ')} restart identity cascade`));
   }
+  await ensureRoles();
 }
 
-/** Runs first-time setup and returns an agent logged in as the first manager. */
+/** Runs first-time setup and returns an agent logged in as the first admin. */
 export async function setupAdmin() {
   const agent = request.agent(app);
   const res = await agent.post('/api/system/setup').send({
@@ -35,7 +37,7 @@ export async function setupAdmin() {
 /** Creates an employee through the API and returns a logged-in agent that already chose a password. */
 export async function createEmployee(
   admin: ReturnType<typeof request.agent>,
-  data: { username: string; department?: string; role?: 'employee' | 'manager' },
+  data: { username: string; department?: string; role?: string },
 ) {
   const created = await admin.post('/api/employees').send({
     username: data.username,

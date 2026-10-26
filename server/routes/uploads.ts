@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { Router } from 'express';
 import fs from 'fs';
 import multer from 'multer';
+import { type AuthedRequest, can } from '../auth.js';
 import { config } from '../config.js';
 import { currentUser, HttpError, route } from '../http.js';
 
@@ -37,9 +38,9 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     const isImage = file.mimetype in IMAGE_TYPES;
     const isDocument = file.mimetype in DOCUMENT_TYPES;
-    const isManager = (req as { user?: { role: string } }).user?.role === 'manager';
-    if (isImage || (isDocument && isManager)) cb(null, true);
-    else cb(new HttpError(400, isDocument ? 'بارگذاری سند فقط برای مدیران مجاز است.' : 'نوع فایل مجاز نیست.'));
+    const mayUploadDocuments = can((req as AuthedRequest).user, 'documents.manage');
+    if (isImage || (isDocument && mayUploadDocuments)) cb(null, true);
+    else cb(new HttpError(400, isDocument ? 'بارگذاری سند فقط برای مدیران اسناد مجاز است.' : 'نوع فایل مجاز نیست.'));
   },
 });
 

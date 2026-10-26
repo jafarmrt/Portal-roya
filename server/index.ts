@@ -5,10 +5,12 @@ import { config } from './config.js';
 import { runMigrations } from './db/index.js';
 import { describeDirectoryUser } from './ldap.js';
 import { isMailEnabled } from './mailer.js';
+import { ensureRoles } from './roles.js';
 import { startScheduler } from './scheduler.js';
 
 async function main() {
   await runMigrations();
+  await ensureRoles();
   const app = createApp();
 
   if (config.isProduction) {

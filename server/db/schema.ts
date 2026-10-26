@@ -50,6 +50,16 @@ export interface ExternalSystemRecord {
   textColor: string;
 }
 
+export const roles = pgTable('roles', {
+  id: text('id').primaryKey(), // 'admin' | 'manager' | 'employee' | 'role-<uuid>' for roles added by an admin
+  name: text('name').notNull().unique(),
+  description: text('description').notNull().default(''),
+  permissions: text('permissions').array().notNull().default([]),
+  // Built-in roles cannot be deleted; the admin role's permissions cannot be changed.
+  isSystem: boolean('is_system').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const employees = pgTable('employees', {
   id: text('id').primaryKey(),
   username: text('username').notNull().unique(),
@@ -57,7 +67,10 @@ export const employees = pgTable('employees', {
   // 'local' accounts sign in with the portal password; 'ldap' accounts with their Active Directory password.
   authSource: text('auth_source').notNull().default('local'),
   mustChangePassword: boolean('must_change_password').notNull().default(true),
-  role: text('role').notNull().default('employee'), // 'employee' | 'manager'
+  role: text('role')
+    .notNull()
+    .default('employee')
+    .references(() => roles.id, { onUpdate: 'cascade' }),
   isActive: boolean('is_active').notNull().default(true),
   firstName: text('first_name').notNull(),
   lastName: text('last_name').notNull(),

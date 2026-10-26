@@ -3,7 +3,7 @@ import path from 'path';
 import { desc, eq } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireManager } from '../auth.js';
+import { requirePermission } from '../auth.js';
 import { config } from '../config.js';
 import { db } from '../db/index.js';
 import { documents, employees } from '../db/schema.js';
@@ -43,7 +43,7 @@ const documentSchema = z.object({
 
 documentsRouter.post(
   '/documents',
-  requireManager,
+  requirePermission('documents.manage'),
   route(async (req, res) => {
     const viewer = currentUser(req);
     const body = parse(documentSchema, req.body);
@@ -76,7 +76,7 @@ documentsRouter.post(
 
 documentsRouter.delete(
   '/documents/:id',
-  requireManager,
+  requirePermission('documents.manage'),
   route(async (req, res) => {
     const deleted = await db.delete(documents).where(eq(documents.id, req.params.id)).returning({ fileUrl: documents.fileUrl });
     if (deleted.length === 0) throw new HttpError(404, 'سند یافت نشد.');

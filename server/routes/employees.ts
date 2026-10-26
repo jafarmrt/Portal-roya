@@ -4,7 +4,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { currentJalaliYear, todayJalali } from '../../shared/jalali.js';
-import { type Employee, hashPassword, requireManager } from '../auth.js';
+import { can, type Employee, hashPassword, isAdmin, requirePermission, type SessionUser } from '../auth.js';
 import { db } from '../db/index.js';
 import { checkRows, type ImportRow, importRowsSchema, MAX_IMPORT_ROWS, rowsToRecords } from '../employeeImport.js';
 import { birthdayWishes, colleagueWishes, employees, newColleagues } from '../db/schema.js';
@@ -15,6 +15,8 @@ import { audienceIds, createNotifications } from '../notify.js';
 import { fullName, serializeEmployee, serializeForGuest } from '../serializers.js';
 import { guestSettings } from '../settings.js';
 import { readSpreadsheet, SpreadsheetError } from '../spreadsheet.js';
+import { roleExists } from '../roles.js';
+import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID } from '../../shared/permissions.js';
 import { assetUrl, assetUrlValue, jalaliDateValue, optionalJalaliDate, optionalText, password, requiredText, textValue, username } from '../validation.js';
 
 export const employeesRouter = Router();
@@ -30,17 +32,29 @@ async function loadEmployee(id: string) {
   return emp;
 }
 
-function assertSelfOrManager(viewer: Employee, targetId: string) {
-  if (viewer.id !== targetId && viewer.role !== 'manager') {
-    throw new HttpError(403, 'فقط خود همکار یا مدیر می‌تواند این تغییر را انجام دهد.');
+function assertSelfOrUserManager(viewer: SessionUser, targetId: string) {
+  if (viewer.id !== targetId && !can(viewer, 'users.manage')) {
+    throw new HttpError(403, 'فقط خود همکار یا مدیر کاربران می‌تواند این تغییر را انجام دهد.');
   }
 }
 
-async function activeManagerCount(excludeId: string) {
+/** Only an admin may hand out the admin role or change an admin's account; otherwise users.manage could escalate itself. */
+function assertMayManageAccount(viewer: SessionUser, target: Pick<Employee, 'role'> | null, newRole?: string) {
+  const touchesAdmin = target?.role === ADMIN_ROLE_ID || newRole === ADMIN_ROLE_ID;
+  if (touchesAdmin && !isAdmin(viewer)) {
+    throw new HttpError(403, 'فقط ادمین برنامه می‌تواند حساب ادمین‌ها را تغییر دهد یا نقش ادمین بدهد.');
+  }
+}
+
+async function assertRoleExists(roleId: string) {
+  if (!(await roleExists(roleId))) throw new HttpError(400, 'نقش انتخاب‌شده وجود ندارد.');
+}
+
+async function activeAdminCount(excludeId: string) {
   const [row] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(employees)
-    .where(and(eq(employees.role, 'manager'), eq(employees.isActive, true), ne(employees.id, excludeId)));
+    .where(and(eq(employees.role, ADMIN_ROLE_ID), eq(employees.isActive, true), ne(employees.id, excludeId)));
   return row.count;
 }
 
@@ -58,7 +72,7 @@ employeesRouter.get(
       res.json(rows.filter((e) => e.isActive).map((e) => serializeForGuest(e, byId)));
       return;
     }
-    const visible = viewer.role === 'manager' ? rows : rows.filter((e) => e.isActive);
+    const visible = can(viewer, 'users.manage') ? rows : rows.filter((e) => e.isActive);
     res.json(visible.map((e) => serializeEmployee(e, viewer.id, byId)));
   }),
 );
@@ -81,7 +95,7 @@ const createSchema = z.object({
   lastName: requiredText(100),
   position: requiredText(100),
   department: requiredText(100),
-  role: z.enum(['employee', 'manager']).default('employee'),
+  role: z.string().trim().min(1).max(100).default(DEFAULT_ROLE_ID),
   hireDate: optionalJalaliDate,
   directManagerId: z.string().max(100).nullable().optional(),
   isNewColleague: z.boolean().default(false),
@@ -90,9 +104,11 @@ const createSchema = z.object({
 
 employeesRouter.post(
   '/employees',
-  requireManager,
+  requirePermission('users.manage'),
   route(async (req, res) => {
     const body = parse(createSchema, req.body);
+    assertMayManageAccount(currentUser(req), null, body.role);
+    await assertRoleExists(body.role);
     const username = body.username || (body.email ? body.email.split('@')[0].toLowerCase() : '');
     if (!/^[a-z0-9._-]{3,40}$/.test(username)) {
       throw new HttpError(400, 'نام کاربری معتبر وارد کنید (حروف انگلیسی، عدد و . _ -).');
@@ -167,7 +183,7 @@ const managerOnlyFields = {
   lastName: requiredText(100),
   position: requiredText(100),
   department: requiredText(100),
-  role: z.enum(['employee', 'manager']),
+  role: z.string().trim().min(1).max(100),
   hireDate: jalaliDateValue,
   directManagerId: z.string().max(100).nullable(),
   isActive: z.boolean(),
@@ -178,19 +194,22 @@ employeesRouter.patch(
   '/employees/:id',
   route(async (req, res) => {
     const viewer = currentUser(req);
-    assertSelfOrManager(viewer, req.params.id);
+    assertSelfOrUserManager(viewer, req.params.id);
     const target = await loadEmployee(req.params.id);
     const body = parse(updateSchema, req.body);
 
-    if (viewer.role !== 'manager') {
-      for (const key of Object.keys(managerOnlyFields)) {
-        if (key in body) throw new HttpError(403, 'تغییر نام، سمت، واحد و نقش فقط توسط مدیر ممکن است.');
+    const changesAccount = Object.keys(managerOnlyFields).some((key) => key in body);
+    if (changesAccount) {
+      if (!can(viewer, 'users.manage')) {
+        throw new HttpError(403, 'تغییر نام، سمت، واحد و نقش فقط توسط مدیر کاربران ممکن است.');
       }
+      assertMayManageAccount(viewer, target, body.role);
     }
-    const losesManagerAccess =
-      target.role === 'manager' && (body.role === 'employee' || body.isActive === false);
-    if (losesManagerAccess && (await activeManagerCount(target.id)) === 0) {
-      throw new HttpError(400, 'پرتال باید حداقل یک مدیر فعال داشته باشد.');
+    if (body.role !== undefined && body.role !== target.role) await assertRoleExists(body.role);
+    const losesAdminAccess =
+      target.role === ADMIN_ROLE_ID && ((body.role !== undefined && body.role !== ADMIN_ROLE_ID) || body.isActive === false);
+    if (losesAdminAccess && (await activeAdminCount(target.id)) === 0) {
+      throw new HttpError(400, 'پرتال باید حداقل یک ادمین فعال داشته باشد.');
     }
     if (body.directManagerId === target.id) {
       throw new HttpError(400, 'همکار نمی‌تواند مدیر مستقیم خودش باشد.');
@@ -209,10 +228,11 @@ employeesRouter.patch(
 
 employeesRouter.post(
   '/employees/:id/reset-password',
-  requireManager,
+  requirePermission('users.manage'),
   route(async (req, res) => {
     const target = await loadEmployee(req.params.id);
     if (target.authSource === 'ldap' && isDirectoryEnabled()) throw new HttpError(400, DIRECTORY_PASSWORD_MESSAGE);
+    assertMayManageAccount(currentUser(req), target);
     const temp = temporaryPassword();
     await db
       .update(employees)
@@ -245,7 +265,7 @@ employeesRouter.post(
   '/employees/:id/experiences',
   route(async (req, res) => {
     const viewer = currentUser(req);
-    assertSelfOrManager(viewer, req.params.id);
+    assertSelfOrUserManager(viewer, req.params.id);
     const exp = parse(experienceSchema, req.body);
     const updated = await mutateProfile(req.params.id, (emp) => ({
       workExperiences: [{ id: newId('we'), ...exp }, ...emp.workExperiences],
@@ -259,7 +279,7 @@ employeesRouter.delete(
   '/employees/:id/experiences/:expId',
   route(async (req, res) => {
     const viewer = currentUser(req);
-    assertSelfOrManager(viewer, req.params.id);
+    assertSelfOrUserManager(viewer, req.params.id);
     const updated = await mutateProfile(req.params.id, (emp) => ({
       workExperiences: emp.workExperiences.filter((w) => w.id !== req.params.expId),
     }));
@@ -274,7 +294,7 @@ employeesRouter.post(
   '/employees/:id/skills',
   route(async (req, res) => {
     const viewer = currentUser(req);
-    assertSelfOrManager(viewer, req.params.id);
+    assertSelfOrUserManager(viewer, req.params.id);
     const skill = parse(skillSchema, req.body);
     const updated = await mutateProfile(req.params.id, (emp) => ({
       skills: [...emp.skills, { id: newId('sk'), name: skill.name, category: skill.category || 'تخصصی', endorsedBy: [] }],
@@ -288,7 +308,7 @@ employeesRouter.delete(
   '/employees/:id/skills/:skillId',
   route(async (req, res) => {
     const viewer = currentUser(req);
-    assertSelfOrManager(viewer, req.params.id);
+    assertSelfOrUserManager(viewer, req.params.id);
     const updated = await mutateProfile(req.params.id, (emp) => ({
       skills: emp.skills.filter((s) => s.id !== req.params.skillId),
     }));
@@ -328,6 +348,7 @@ employeesRouter.get(
       .select({
         id: colleagueWishes.id,
         newColleagueId: colleagueWishes.newColleagueId,
+        senderId: colleagueWishes.senderId,
         message: colleagueWishes.message,
         createdAt: colleagueWishes.createdAt,
         firstName: employees.firstName,
@@ -345,7 +366,7 @@ employeesRouter.get(
         createdAt: c.createdAt.toISOString(),
         wishes: wishes
           .filter((w) => w.newColleagueId === c.id)
-          .map((w) => ({ id: String(w.id), userName: fullName(w), message: w.message, time: w.createdAt.toISOString() })),
+          .map((w) => ({ id: String(w.id), senderId: w.senderId, userName: fullName(w), message: w.message, time: w.createdAt.toISOString() })),
       })),
     );
   }),
@@ -385,6 +406,7 @@ employeesRouter.get(
       .select({
         id: birthdayWishes.id,
         targetUserId: birthdayWishes.targetUserId,
+        senderId: birthdayWishes.senderId,
         text: birthdayWishes.text,
         createdAt: birthdayWishes.createdAt,
         firstName: employees.firstName,
@@ -394,10 +416,11 @@ employeesRouter.get(
       .innerJoin(employees, eq(employees.id, birthdayWishes.senderId))
       .where(eq(birthdayWishes.jalaliYear, currentJalaliYear()))
       .orderBy(birthdayWishes.createdAt);
-    const grouped: Record<string, { id: string; senderName: string; text: string; time: string }[]> = {};
+    const grouped: Record<string, { id: string; senderId: string; senderName: string; text: string; time: string }[]> = {};
     for (const r of rows) {
       (grouped[r.targetUserId] ??= []).push({
         id: String(r.id),
+        senderId: r.senderId,
         senderName: fullName(r),
         text: r.text,
         time: r.createdAt.toISOString(),
@@ -437,7 +460,7 @@ const importUpload = multer({ storage: multer.memoryStorage(), limits: { fileSiz
 
 employeesRouter.post(
   '/employees/import/preview',
-  requireManager,
+  requirePermission('users.manage'),
   (req, res, next) => {
     importUpload.single('file')(req, res, (err: unknown) => {
       if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') next(new HttpError(400, 'حجم فایل نباید بیشتر از ۲ مگابایت باشد.'));
@@ -457,17 +480,17 @@ employeesRouter.post(
     if (missing.length > 0) throw new HttpError(400, `ستون‌های لازم در ردیف اول فایل پیدا نشد: ${missing.join('، ')}`);
     if (records.length === 0) throw new HttpError(400, 'فایل هیچ ردیفی برای ورود ندارد.');
     if (records.length > MAX_IMPORT_ROWS) throw new HttpError(400, `هر بار حداکثر ${MAX_IMPORT_ROWS} نفر را می‌توان وارد کرد.`);
-    const rows = await checkRows(records);
+    const rows = await checkRows(records, { allowAdmin: isAdmin(currentUser(req)) });
     res.json({ rows: rows.map(({ row, data, errors }) => ({ row, data, errors })) });
   }),
 );
 
 employeesRouter.post(
   '/employees/import',
-  requireManager,
+  requirePermission('users.manage'),
   route(async (req, res) => {
     const body = parse(importRowsSchema, req.body);
-    const checked = await checkRows(body.rows.map((data, i) => ({ row: i + 1, data })));
+    const checked = await checkRows(body.rows.map((data, i) => ({ row: i + 1, data })), { allowAdmin: isAdmin(currentUser(req)) });
     const valid = checked.filter((r) => r.value);
 
     const prepared: { value: ImportRow; temporary: string; hash: string }[] = [];
@@ -515,5 +538,47 @@ employeesRouter.post(
       })),
       skipped,
     });
+  }),
+);
+
+// --- Moderation: the sender or anyone with comments.moderate may remove a message ---
+
+function wishIdParam(value: string) {
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) throw new HttpError(404, 'پیام یافت نشد.');
+  return id;
+}
+
+function assertMayRemoveWish(viewer: SessionUser, senderId: string) {
+  if (senderId !== viewer.id && !can(viewer, 'comments.moderate')) {
+    throw new HttpError(403, 'فقط فرستنده یا مدیر پیام‌ها می‌تواند این پیام را حذف کند.');
+  }
+}
+
+employeesRouter.delete(
+  '/colleague_wishes/:id',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const id = wishIdParam(req.params.id);
+    const [wish] = await db.select().from(colleagueWishes).where(eq(colleagueWishes.id, id));
+    if (!wish) throw new HttpError(404, 'پیام یافت نشد.');
+    assertMayRemoveWish(viewer, wish.senderId);
+    await db.delete(colleagueWishes).where(eq(colleagueWishes.id, id));
+    broadcastChange('new_colleagues');
+    res.json({ success: true });
+  }),
+);
+
+employeesRouter.delete(
+  '/birthday_wishes/:id',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const id = wishIdParam(req.params.id);
+    const [wish] = await db.select().from(birthdayWishes).where(eq(birthdayWishes.id, id));
+    if (!wish) throw new HttpError(404, 'پیام یافت نشد.');
+    assertMayRemoveWish(viewer, wish.senderId);
+    await db.delete(birthdayWishes).where(eq(birthdayWishes.id, id));
+    broadcastChange('birthday_wishes');
+    res.json({ success: true });
   }),
 );

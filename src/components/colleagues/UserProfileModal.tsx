@@ -31,7 +31,7 @@ interface UserProfileModalProps {
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onEdit }) => {
-  const { currentUser, userRole, endorseSkill, addWorkExperience, addSkill, removeWorkExperience, removeSkill } = usePortal();
+  const { currentUser, can, endorseSkill, addWorkExperience, addSkill, removeWorkExperience, removeSkill } = usePortal();
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // New experience/skill mini-forms inside profile view
@@ -47,7 +47,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
 
 
   const isOwnProfile = currentUser ? currentUser.id === user.id : false;
-  const canEdit = isOwnProfile || userRole === 'manager';
+  const canEdit = isOwnProfile || can('users.manage');
 
   const copyToClipboard = async (text: string, label: string) => {
     if (!text) return;

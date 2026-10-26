@@ -13,7 +13,8 @@ export type ResourceName =
   | 'new_colleagues'
   | 'birthday_wishes'
   | 'documents'
-  | 'settings';
+  | 'settings'
+  | 'roles';
 
 interface Client {
   userId: string;

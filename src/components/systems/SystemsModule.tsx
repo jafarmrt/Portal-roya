@@ -13,8 +13,8 @@ const iconLabels: Record<string, string> = {
 };
 
 export const SystemsModule: React.FC = () => {
-  const { currentUser, appSettings, updateSettings } = usePortal();
-  const isManager = currentUser?.role === 'manager';
+  const { can, appSettings, updateSettings } = usePortal();
+  const isManager = can('systems.manage');
   const [isEditing, setIsEditing] = useState(false);
   
   const currentSystems = appSettings?.systems ?? [];

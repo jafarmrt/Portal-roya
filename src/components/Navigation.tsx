@@ -25,7 +25,7 @@ interface NavigationProps {
 }
 
 export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onCloseMobileNav }) => {
-  const { activeTab, setActiveTab, currentUser, isGuest, requestLogin, appSettings, polls, news } = usePortal();
+  const { activeTab, setActiveTab, currentUser, isGuest, requestLogin, appSettings, can, isAdmin, polls, news } = usePortal();
   useEscapeKey(onCloseMobileNav, isMobileNavOpen);
 
   // Read/vote badges are personal, so guests don't get them.
@@ -93,8 +93,10 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
     navItems = navItems.filter((item) => item.id !== 'colleagues' && item.id !== 'orgchart');
   }
 
-  if (currentUser?.role === 'manager') {
+  if (can('reports.view')) {
     navItems.push({ id: 'reports', label: 'گزارش‌ها', icon: <BarChart2 className="w-4 h-4" /> });
+  }
+  if (isAdmin || can('settings.manage')) {
     navItems.push({ id: 'admin', label: 'تنظیمات', icon: <Settings className="w-4 h-4" /> });
   }
 

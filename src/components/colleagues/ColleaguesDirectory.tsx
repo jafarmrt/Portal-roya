@@ -22,8 +22,8 @@ import {
 } from 'lucide-react';
 
 export const ColleaguesDirectory: React.FC = () => {
-  const { employees, userRole, appSettings, focusId, setActiveTab } = usePortal();
-  const isManager = userRole === 'manager';
+  const { employees, can, roleName, appSettings, focusId, setActiveTab } = usePortal();
+  const isManager = can('users.manage');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDept, setSelectedDept] = useState('all');
@@ -83,7 +83,7 @@ export const ColleaguesDirectory: React.FC = () => {
             </p>
           </div>
 
-          {userRole === 'manager' && (
+          {isManager && (
             <div className="flex flex-wrap gap-2 self-start sm:self-auto">
               <button
                 onClick={() => setIsAddModalOpen(true)}
@@ -176,7 +176,7 @@ export const ColleaguesDirectory: React.FC = () => {
                       {emp.department}
                     </span>
                     {!emp.isActive && <span className="inline-block mt-1.5 mr-1 px-2 py-0.5 text-[10px] font-bold bg-stone-200 text-stone-700 rounded-md">غیرفعال</span>}
-                    {emp.role === 'manager' && <span className="inline-block mt-1.5 mr-1 px-2 py-0.5 text-[10px] font-bold bg-red-50 text-red-800 rounded-md">مدیر پرتال</span>}
+                    {emp.role !== 'employee' && <span className="inline-block mt-1.5 mr-1 px-2 py-0.5 text-[10px] font-bold bg-red-50 text-red-800 rounded-md">{roleName(emp.role)}</span>}
                   </div>
                 </div>
 

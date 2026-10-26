@@ -13,7 +13,9 @@ import {
   requireAuth,
   type Employee,
   verifyPassword,
+  withPermissions,
 } from '../auth.js';
+import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID } from '../../shared/permissions.js';
 import { config } from '../config.js';
 import { db } from '../db/index.js';
 import { employees } from '../db/schema.js';
@@ -28,6 +30,7 @@ import {
 } from '../ldap.js';
 import { serializeMe } from '../serializers.js';
 import { ensureSettings, guestSettings } from '../settings.js';
+import { ensureRoles } from '../roles.js';
 import { optionalText, password, requiredText, username } from '../validation.js';
 
 export const authRouter = Router();
@@ -80,6 +83,7 @@ authRouter.post(
     }
 
     const passwordHash = await hashPassword(body.password);
+    await ensureRoles();
     // The advisory lock prevents two simultaneous setup requests from both succeeding.
     const created = await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(724001)`);
@@ -92,7 +96,7 @@ authRouter.post(
           username: body.username,
           passwordHash,
           mustChangePassword: false,
-          role: 'manager',
+          role: ADMIN_ROLE_ID,
           firstName: body.firstName,
           lastName: body.lastName,
           position: body.position,
@@ -107,7 +111,7 @@ authRouter.post(
     if (!created) throw new HttpError(409, 'پرتال قبلاً راه‌اندازی شده است.');
     await ensureSettings();
     issueSession(res, created.id);
-    res.json({ user: serializeMe(created) });
+    res.json({ user: serializeMe(await withPermissions(created)) });
   }),
 );
 
@@ -119,11 +123,11 @@ const loginSchema = z.object({
 
 const USERNAME_RE = /^[a-z0-9._-]{3,40}$/;
 
-async function otherActiveManagers(excludeId: string) {
+async function otherActiveAdmins(excludeId: string) {
   const [row] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(employees)
-    .where(and(eq(employees.role, 'manager'), eq(employees.isActive, true), ne(employees.id, excludeId)));
+    .where(and(eq(employees.role, ADMIN_ROLE_ID), eq(employees.isActive, true), ne(employees.id, excludeId)));
   return row.count;
 }
 
@@ -143,9 +147,9 @@ async function syncDirectoryUser(dir: DirectoryUser, existing: Employee | undefi
 
   if (existing) {
     let role = existing.role;
-    if (dir.isAdmin === true) role = 'manager';
-    // Never demote the last active manager, or nobody could manage the portal.
-    if (dir.isAdmin === false && role === 'manager' && (await otherActiveManagers(existing.id)) > 0) role = 'employee';
+    if (dir.isAdmin === true) role = ADMIN_ROLE_ID;
+    // Only admins are demoted (other roles are managed in the portal), and never the last active admin.
+    if (dir.isAdmin === false && role === ADMIN_ROLE_ID && (await otherActiveAdmins(existing.id)) > 0) role = DEFAULT_ROLE_ID;
     const [updated] = await db
       .update(employees)
       .set({ ...profile, ...session, role })
@@ -161,7 +165,7 @@ async function syncDirectoryUser(dir: DirectoryUser, existing: Employee | undefi
       username: dir.username,
       // AD accounts never use a portal password; an empty hash never matches.
       passwordHash: '',
-      role: dir.isAdmin ? 'manager' : 'employee',
+      role: dir.isAdmin ? ADMIN_ROLE_ID : DEFAULT_ROLE_ID,
       firstName: dir.username,
       lastName: '',
       position: 'نامشخص',
@@ -232,7 +236,7 @@ authRouter.post(
       await db.update(employees).set({ failedLogins: 0, lockedUntil: null }).where(eq(employees.id, user.id));
     }
     issueSession(res, authed.id);
-    res.json({ user: serializeMe(authed) });
+    res.json({ user: serializeMe(await withPermissions(authed)) });
   }),
 );
 
@@ -272,6 +276,6 @@ authRouter.post(
       .set({ passwordHash: await hashPassword(body.newPassword), mustChangePassword: false })
       .where(eq(employees.id, user.id))
       .returning();
-    res.json({ user: serializeMe(updated) });
+    res.json({ user: serializeMe(await withPermissions(updated)) });
   }),
 );

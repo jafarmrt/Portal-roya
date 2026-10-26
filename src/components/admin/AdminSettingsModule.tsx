@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Eye, Plus, Settings, X } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import type { AppSettings } from '../../types';
 import { inputClass, primaryButtonClass } from '../common/Modal';
+import { RolesEditor } from './RolesEditor';
 
 type ListKey = 'departments' | 'newsCategories' | 'trainingCategories' | 'documentCategories';
 
@@ -135,7 +136,7 @@ const GuestAccessSettings: React.FC<{ settings: AppSettings }> = ({ settings }) 
 };
 
 export const AdminSettingsModule: React.FC = () => {
-  const { appSettings } = usePortal();
+  const { appSettings, can, isAdmin } = usePortal();
   if (!appSettings) return null;
 
   return (
@@ -146,13 +147,16 @@ export const AdminSettingsModule: React.FC = () => {
         </div>
         <div>
           <h2 className="text-xl font-black text-[#2D2D2D]">تنظیمات پرتال</h2>
-          <p className="text-sm text-[#6E6A60]">فهرست واحدها و دسته‌بندی‌ها. سامانه‌های سازمانی از صفحهٔ «سامانه‌ها» ویرایش می‌شوند.</p>
+          <p className="text-sm text-[#6E6A60]">نقش‌ها و دسترسی‌ها، فهرست واحدها و دسته‌بندی‌ها. سامانه‌های سازمانی از صفحهٔ «سامانه‌ها» ویرایش می‌شوند.</p>
         </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <GuestAccessSettings settings={appSettings} />
-        {SECTIONS.map((s) => <ListEditor key={`${s.key}-${appSettings[s.key].join('|')}`} settings={appSettings} section={s} />)}
-      </div>
+      {isAdmin && <RolesEditor />}
+      {can('settings.manage') && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <GuestAccessSettings settings={appSettings} />
+          {SECTIONS.map((s) => <ListEditor key={`${s.key}-${appSettings[s.key].join('|')}`} settings={appSettings} section={s} />)}
+        </div>
+      )}
     </div>
   );
 };

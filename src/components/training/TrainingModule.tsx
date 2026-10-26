@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export const TrainingModule: React.FC = () => {
-  const { trainings, currentUser, userRole, enrollTraining, deleteTraining, appSettings } = usePortal();
+  const { trainings, currentUser, can, enrollTraining, deleteTraining, appSettings } = usePortal();
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const today = todayJalali();
 
@@ -52,7 +52,7 @@ export const TrainingModule: React.FC = () => {
             </p>
           </div>
 
-          {userRole === 'manager' && (
+          {can('trainings.manage') && (
             <button
               onClick={() => setIsAddModalOpen(true)}
               className="px-5 py-3 text-xs font-bold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-2xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap self-start sm:self-auto"
@@ -108,7 +108,7 @@ export const TrainingModule: React.FC = () => {
                   ) : (
                     <GraduationCap className="w-12 h-12 text-[#D9D4CB]" />
                   )}
-                  {userRole === 'manager' && (
+                  {can('trainings.manage') && (
                     <button
                       onClick={() => setPendingDelete({ id: program.id, title: program.title })}
                       aria-label={`حذف دوره ${program.title}`}

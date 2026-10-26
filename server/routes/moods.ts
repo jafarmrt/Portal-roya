@@ -3,7 +3,7 @@ import { Router } from 'express';
 import moment from 'moment-jalaali';
 import { z } from 'zod';
 import { todayJalali } from '../../shared/jalali.js';
-import { requireManager } from '../auth.js';
+import { requirePermission } from '../auth.js';
 import { db } from '../db/index.js';
 import { moods } from '../db/schema.js';
 import { currentUser, parse, route } from '../http.js';
@@ -39,7 +39,7 @@ moodsRouter.get(
 // Aggregated counts only: managers never see an individual's mood.
 moodsRouter.get(
   '/moods/summary',
-  requireManager,
+  requirePermission('reports.view'),
   route(async (_req, res) => {
     const since = moment().subtract(30, 'days').format('jYYYY/jMM/jDD');
     const rows = await db

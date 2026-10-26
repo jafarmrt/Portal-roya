@@ -32,10 +32,10 @@ type Filter = 'all' | 'unread' | 'ack' | string;
 
 export const NewsModule: React.FC = () => {
   const {
-    news, newsHasMore, loadMoreNews, userRole, appSettings, focusId, setActiveTab,
+    news, newsHasMore, loadMoreNews, can, appSettings, focusId, setActiveTab,
     toggleLikeNews, markNewsRead, acknowledgeNews, deleteNews,
   } = usePortal();
-  const isManager = userRole === 'manager';
+  const isManager = can('news.manage');
 
   const [editor, setEditor] = useState<{ item?: NewsItem } | null>(null);
   const [receiptsFor, setReceiptsFor] = useState<NewsItem | null>(null);

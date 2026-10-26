@@ -1,4 +1,19 @@
-export type UserRole = 'employee' | 'manager';
+import type { Permission } from '../shared/permissions';
+
+export type { Permission };
+
+/** A role id: 'admin', 'manager', 'employee' or a role added by an admin. */
+export type UserRole = string;
+
+export interface RoleInfo {
+  id: string;
+  name: string;
+  description: string;
+  permissions: Permission[];
+  isSystem: boolean;
+  isAdmin: boolean;
+  memberCount: number;
+}
 
 export interface WorkExperience {
   id: string;
@@ -44,6 +59,7 @@ export interface UserProfile {
 
 export interface CurrentUser extends UserProfile {
   mustChangePassword: boolean;
+  permissions: Permission[];
 }
 
 export type PollType = 'multiple_choice' | 'free_text';
@@ -143,11 +159,12 @@ export interface NewColleagueWelcome {
   welcomeMessage: string;
   joinDate: string;
   createdAt: string;
-  wishes: { id: string; userName: string; message: string; time: string }[];
+  wishes: { id: string; senderId: string; userName: string; message: string; time: string }[];
 }
 
 export interface BirthdayWish {
   id: string;
+  senderId: string;
   senderName: string;
   text: string;
   time: string;

@@ -114,13 +114,18 @@ describe('Active Directory sign-in', () => {
     await request(app).post('/api/auth/login').send({ username: 'reza.karimi', password }).expect(401);
   });
 
-  it('syncs the manager role from the AD admin group but never demotes the last manager', async () => {
+  it('syncs the admin role from the AD admin group and leaves other portal roles alone', async () => {
     directory.authenticate.mockResolvedValue(adUser({ username: 'boss', isAdmin: true }));
     const boss = await request(app).post('/api/auth/login').send({ username: 'boss', password: 'ad-password' }).expect(200);
-    expect(boss.body.user.role).toBe('manager');
+    expect(boss.body.user.role).toBe('admin');
     directory.authenticate.mockResolvedValue(adUser({ username: 'boss', isAdmin: false }));
     const demoted = await request(app).post('/api/auth/login').send({ username: 'boss', password: 'ad-password' }).expect(200);
     expect(demoted.body.user.role).toBe('employee');
+
+    // Roles below admin are managed in the portal, so AD does not demote them.
+    await admin.patch(`/api/employees/${boss.body.user.id}`).send({ role: 'manager' }).expect(200);
+    const kept = await request(app).post('/api/auth/login').send({ username: 'boss', password: 'ad-password' }).expect(200);
+    expect(kept.body.user.role).toBe('manager');
   });
 
   it('turns an AD account back into a portal account when AD sign-in is switched off', async () => {

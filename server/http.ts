@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
-import type { AuthedRequest, Employee } from './auth.js';
+import type { AuthedRequest, SessionUser } from './auth.js';
 
 export class HttpError extends Error {
   constructor(public status: number, message: string, public code?: string) {
@@ -29,13 +29,13 @@ export function parse<T extends z.ZodType>(schema: T, data: unknown): z.infer<T>
 export const newId = (prefix: string) => `${prefix}-${randomUUID()}`;
 
 /** The authenticated user; only call behind requireAuth. */
-export function currentUser(req: AuthedRequest): Employee {
+export function currentUser(req: AuthedRequest): SessionUser {
   if (!req.user) throw new HttpError(401, 'لطفاً وارد حساب کاربری خود شوید.');
   return req.user;
 }
 
 /** The signed-in user, or null for a visitor on a guest-readable route. */
-export function viewerOf(req: AuthedRequest): Employee | null {
+export function viewerOf(req: AuthedRequest): SessionUser | null {
   return req.user ?? null;
 }
 

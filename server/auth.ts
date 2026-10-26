@@ -6,6 +6,8 @@ import { config } from './config.js';
 import { db } from './db/index.js';
 import { employees } from './db/schema.js';
 import { guestSettings } from './settings.js';
+import { ADMIN_ROLE_ID, type Permission } from '../shared/permissions.js';
+import { rolePermissions } from './roles.js';
 
 export const SESSION_COOKIE = 'roya_session';
 const BCRYPT_ROUNDS = 12;
@@ -14,8 +16,23 @@ export const LOCK_MINUTES = 15;
 
 export type Employee = typeof employees.$inferSelect;
 
+/** The signed-in user together with the permissions their role grants. */
+export type SessionUser = Employee & { permissions: Permission[] };
+
 export interface AuthedRequest extends Request {
-  user?: Employee;
+  user?: SessionUser;
+}
+
+export function can(user: Pick<SessionUser, 'permissions'> | undefined | null, permission: Permission) {
+  return Boolean(user?.permissions.includes(permission));
+}
+
+export function isAdmin(user: Pick<Employee, 'role'> | undefined | null) {
+  return user?.role === ADMIN_ROLE_ID;
+}
+
+export async function withPermissions(user: Employee): Promise<SessionUser> {
+  return { ...user, permissions: await rolePermissions(user.role) };
 }
 
 export function hashPassword(password: string) {
@@ -50,7 +67,7 @@ export function clearSession(res: Response) {
   res.clearCookie(SESSION_COOKIE, { path: '/' });
 }
 
-async function loadUserFromRequest(req: Request): Promise<Employee | null> {
+async function loadUserFromRequest(req: Request): Promise<SessionUser | null> {
   const token = req.cookies?.[SESSION_COOKIE];
   if (!token) return null;
   try {
@@ -58,7 +75,7 @@ async function loadUserFromRequest(req: Request): Promise<Employee | null> {
     if (!payload.sub) return null;
     const [user] = await db.select().from(employees).where(eq(employees.id, payload.sub)).limit(1);
     if (!user || !user.isActive) return null;
-    return user;
+    return await withPermissions(user);
   } catch {
     return null;
   }
@@ -93,6 +110,7 @@ const GUEST_READABLE = [
   /^\/employees$/,
   /^\/new_colleagues$/,
   /^\/birthday_wishes$/,
+  /^\/roles$/,
 ];
 
 /** True for any read, e.g. downloading an uploaded file. */
@@ -127,9 +145,22 @@ export function requirePasswordChanged(req: AuthedRequest, res: Response, next: 
   next();
 }
 
-export function requireManager(req: AuthedRequest, res: Response, next: NextFunction) {
-  if (req.user?.role !== 'manager') {
-    res.status(403).json({ error: 'این عملیات فقط برای مدیران مجاز است.' });
+const FORBIDDEN = 'شما به این بخش دسترسی ندارید.';
+
+/** Allows the request only when the user's role grants the permission. */
+export function requirePermission(permission: Permission) {
+  return (req: AuthedRequest, res: Response, next: NextFunction) => {
+    if (!can(req.user, permission)) {
+      res.status(403).json({ error: FORBIDDEN });
+      return;
+    }
+    next();
+  };
+}
+
+export function requireAdmin(req: AuthedRequest, res: Response, next: NextFunction) {
+  if (!isAdmin(req.user)) {
+    res.status(403).json({ error: 'این عملیات فقط برای ادمین برنامه مجاز است.' });
     return;
   }
   next();
