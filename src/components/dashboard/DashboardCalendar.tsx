@@ -5,6 +5,7 @@ import type { CalendarEvent } from '../../types';
 import moment from 'moment-jalaali';
 import { IRANIAN_HOLIDAYS, JALALI_MONTHS } from '../../data/holidays';
 import { Modal, secondaryButtonClass } from '../common/Modal';
+import { formatDate, toPersianDigits } from '../../lib/jalali';
 
 export const DashboardCalendar: React.FC = () => {
   const { calendarEvents, setActiveTab, customHolidays } = usePortal();
@@ -67,7 +68,7 @@ export const DashboardCalendar: React.FC = () => {
             </div>
             <div>
               <h3 className="text-base font-black text-[#2D2D2D]">تقویم سازمانی</h3>
-              <p className="text-xs text-[#6E6A60]">{JALALI_MONTHS[currentMonth]} {currentYear}</p>
+              <p className="text-xs text-[#6E6A60]">{JALALI_MONTHS[currentMonth]} {toPersianDigits(currentYear)}</p>
             </div>
           </div>
           <button
@@ -81,7 +82,7 @@ export const DashboardCalendar: React.FC = () => {
         <div className="pt-2">
           <div className="flex items-center justify-between mb-4 px-2">
             <button onClick={nextMonth} className="p-1 text-[#8C867A] hover:text-[#2D2D2D]"><ChevronRight className="w-4 h-4" /></button>
-            <span className="text-sm font-bold text-[#2D2D2D]">{JALALI_MONTHS[currentMonth]} {currentYear}</span>
+            <span className="text-sm font-bold text-[#2D2D2D]">{JALALI_MONTHS[currentMonth]} {toPersianDigits(currentYear)}</span>
             <button onClick={prevMonth} className="p-1 text-[#8C867A] hover:text-[#2D2D2D]"><ChevronLeft className="w-4 h-4" /></button>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center mb-2">
@@ -122,7 +123,7 @@ export const DashboardCalendar: React.FC = () => {
                   }`}
                   title={holiday || (evt ? evt.title : '')}
                 >
-                  <span>{day}</span>
+                  <span>{toPersianDigits(day)}</span>
                   {evt && !isToday && (
                     <span className={`absolute bottom-1 w-1 h-1 rounded-full ${evt.type === 'holiday' ? 'bg-[#f87171]' : evt.type === 'birthday' ? 'bg-[#dc2626]' : 'bg-[#7f1d1d]'}`}></span>
                   )}
@@ -136,7 +137,7 @@ export const DashboardCalendar: React.FC = () => {
       {selectedEvent && (
         <Modal
           title={selectedEvent.title}
-          subtitle={selectedEvent.date}
+          subtitle={formatDate(selectedEvent.date)}
           icon={getEventIcon(selectedEvent.type)}
           onClose={() => setSelectedEvent(null)}
           size="sm"
@@ -154,7 +155,7 @@ export const DashboardCalendar: React.FC = () => {
         >
           {selectedEvent.description && <p className="text-sm text-[#6E6A60] leading-relaxed mb-4">{selectedEvent.description}</p>}
           {selectedEvent.time && (
-            <div className="text-xs font-bold text-[#6E6A60] mb-2">ساعت: <span className="text-[#2D2D2D]">{selectedEvent.time}</span></div>
+            <div className="text-xs font-bold text-[#6E6A60] mb-2">ساعت: <span className="text-[#2D2D2D]">{toPersianDigits(selectedEvent.time)}</span></div>
           )}
           {selectedEvent.location && (
             <div className="text-xs font-bold text-[#6E6A60]">مکان: <span className="text-[#2D2D2D]">{selectedEvent.location}</span></div>

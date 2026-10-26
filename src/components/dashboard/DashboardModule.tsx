@@ -264,7 +264,7 @@ export const DashboardModule: React.FC = () => {
                 <p className="text-xs text-[#6E6A60] leading-relaxed line-clamp-2">{upcomingTraining.description}</p>
                 <div className="text-xs text-[#6E6A60] space-y-1 pt-1">
                   <div>مدرس: <strong>{upcomingTraining.instructor}</strong></div>
-                  <div>تاریخ: <strong>{formatDate(upcomingTraining.date)}</strong>{upcomingTraining.time && ` (ساعت ${upcomingTraining.time})`}</div>
+                  <div>تاریخ: <strong>{formatDate(upcomingTraining.date)}</strong>{upcomingTraining.time && ` (ساعت ${toPersianDigits(upcomingTraining.time)})`}</div>
                 </div>
               </div>
 
