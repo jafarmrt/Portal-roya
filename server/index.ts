@@ -3,6 +3,7 @@ import path from 'path';
 import { createApp } from './app.js';
 import { config } from './config.js';
 import { runMigrations } from './db/index.js';
+import { describeDirectoryUser } from './ldap.js';
 import { isMailEnabled } from './mailer.js';
 import { startScheduler } from './scheduler.js';
 
@@ -30,7 +31,23 @@ async function main() {
   });
 }
 
-main().catch((err) => {
-  console.error('Failed to start the portal:', err);
-  process.exit(1);
-});
+/** `node server-dist/index.cjs ldap-test <username>` checks the AD settings in .env without starting the portal. */
+async function ldapTest(username: string | undefined) {
+  if (!username) throw new Error('Usage: ldap-test <username>');
+  console.log(JSON.stringify(await describeDirectoryUser(username), null, 2));
+}
+
+if (process.argv[2] === 'ldap-test') {
+  ldapTest(process.argv[3]).then(
+    () => process.exit(0),
+    (err) => {
+      console.error('LDAP test failed:', err instanceof Error ? err.message : err);
+      process.exit(1);
+    },
+  );
+} else {
+  main().catch((err) => {
+    console.error('Failed to start the portal:', err);
+    process.exit(1);
+  });
+}
