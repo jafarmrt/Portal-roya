@@ -126,7 +126,7 @@ async function otherActiveAdmins(excludeId: string) {
   const [row] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(employees)
-    .where(and(eq(employees.role, ADMIN_ROLE_ID), eq(employees.isActive, true), ne(employees.id, excludeId)));
+    .where(and(eq(employees.role, ADMIN_ROLE_ID), eq(employees.isActive, true), eq(employees.hasAccount, true), ne(employees.id, excludeId)));
   return row.count;
 }
 
@@ -188,7 +188,8 @@ authRouter.post(
     const [user] = await db.select().from(employees).where(eq(employees.username, name)).limit(1);
     const invalid = new HttpError(401, 'نام کاربری یا رمز عبور اشتباه است.');
 
-    if (user && !user.isActive) {
+    // People listed only in the phone book cannot sign in, not even with an AD password.
+    if (user && (!user.isActive || !user.hasAccount)) {
       await burnPasswordCheck(pass);
       throw invalid;
     }

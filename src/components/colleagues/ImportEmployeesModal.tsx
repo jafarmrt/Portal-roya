@@ -10,16 +10,19 @@ interface PreviewRow {
   row: number;
   data: Record<string, string>;
   errors: string[];
+  warnings: string[];
 }
 
 interface CreatedAccount {
   id: string;
+  /** False (with no username or password) for rows that join the phone book only. */
+  hasAccount: boolean;
   username: string;
   firstName: string;
   lastName: string;
   position: string;
   department: string;
-  temporaryPassword: string;
+  temporaryPassword: string | null;
 }
 
 interface ImportResult {
@@ -28,7 +31,11 @@ interface ImportResult {
 }
 
 const TEMPLATE_HEADER = ['نام', 'نام خانوادگی', 'نام کاربری', 'سمت', 'واحد', 'نقش', 'ایمیل', 'موبایل', 'داخلی', 'تاریخ تولد', 'تاریخ استخدام'];
-const TEMPLATE_SAMPLE = ['علی', 'رضایی', 'ali.rezaei', 'کارشناس فروش', 'فروش و امور مشتریان', 'کارشناس', 'ali.rezaei@roya.local', '09121234567', '215', '1370/05/12', '1400/01/15'];
+const TEMPLATE_SAMPLES = [
+  ['علی', 'رضایی', 'ali.rezaei', 'کارشناس فروش', 'فروش و امور مشتریان', 'کارشناس', 'ali.rezaei@roya.local', '09121234567', '215', '1370/05/12', '1400/01/15'],
+  // No username: listed in the phone book without a portal account.
+  ['حسن', 'محمدی', '', 'اپراتور تولید', 'تولید', '', '', '09131234567', '310', '1368/11/02', '1398/06/01'],
+];
 
 const csvCell = (value: string) => (/[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
 
@@ -71,6 +78,8 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
 
   const validRows = preview?.filter((r) => r.errors.length === 0) ?? [];
   const invalidCount = (preview?.length ?? 0) - validRows.length;
+  const phoneOnlyCount = validRows.filter((r) => !r.data.username).length;
+  const accounts = result?.created.filter((a) => a.hasAccount) ?? [];
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -95,7 +104,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
     try {
       const res = await api.post<ImportResult>('/api/employees/import', { rows: validRows.map((r) => r.data), introduce });
       setResult(res);
-      toast.success(`${toPersianDigits(res.created.length)} حساب کاربری ساخته شد.`);
+      toast.success(`${toPersianDigits(res.created.length)} نفر ثبت شد.`);
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -106,30 +115,39 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
   const downloadPasswords = () =>
     downloadCsv('roya-portal-accounts.csv', [
       ['نام', 'نام خانوادگی', 'نام کاربری', 'رمز موقت', 'سمت', 'واحد'],
-      ...(result?.created ?? []).map((a) => [a.firstName, a.lastName, a.username, a.temporaryPassword, a.position, a.department]),
+      ...accounts.map((a) => [a.firstName, a.lastName, a.username, a.temporaryPassword ?? '', a.position, a.department]),
     ]);
 
   if (result) {
     return (
       <Modal
-        title="حساب‌ها ساخته شد"
-        subtitle="رمزهای موقت فقط همین یک بار نمایش داده می‌شوند"
+        title="کارکنان ثبت شدند"
+        subtitle={accounts.length > 0 ? 'رمزهای موقت فقط همین یک بار نمایش داده می‌شوند' : undefined}
         icon={<CheckCircle2 className="w-5 h-5" />}
         onClose={onClose}
         size="xl"
         footer={
           <>
-            <button type="button" onClick={downloadPasswords} className={secondaryButtonClass}><Download className="w-4 h-4" /> دانلود فایل رمزها</button>
-            <button type="button" onClick={() => window.print()} className={secondaryButtonClass}><Printer className="w-4 h-4" /> چاپ برگهٔ رمزها</button>
+            {accounts.length > 0 && (
+              <>
+                <button type="button" onClick={downloadPasswords} className={secondaryButtonClass}><Download className="w-4 h-4" /> دانلود فایل رمزها</button>
+                <button type="button" onClick={() => window.print()} className={secondaryButtonClass}><Printer className="w-4 h-4" /> چاپ برگهٔ رمزها</button>
+              </>
+            )}
             <button type="button" onClick={onClose} className={primaryButtonClass}>بستن</button>
           </>
         }
       >
-        <PrintSheet accounts={result.created} />
+        <PrintSheet accounts={accounts} />
         <div className="space-y-4">
-          <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl text-amber-900 leading-relaxed">
-            قبل از بستن این پنجره برگهٔ رمزها را چاپ یا فایل آن را دانلود کنید. هر همکار در اولین ورود رمز شخصی خودش را انتخاب می‌کند. اگر کسی رمزش را گم کرد، از پروفایل او «ساخت رمز موقت جدید» را بزنید.
-          </div>
+          <p className="font-bold">
+            {toPersianDigits(accounts.length)} نفر با حساب پورتال و {toPersianDigits(result.created.length - accounts.length)} نفر فقط در دفتر تلفن ثبت شدند.
+          </p>
+          {accounts.length > 0 && (
+            <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl text-amber-900 leading-relaxed">
+              قبل از بستن این پنجره برگهٔ رمزها را چاپ یا فایل آن را دانلود کنید. هر همکار در اولین ورود رمز شخصی خودش را انتخاب می‌کند. اگر کسی رمزش را گم کرد، از پروفایل او «ساخت رمز موقت جدید» را بزنید.
+            </div>
+          )}
           <div className="overflow-x-auto border border-[#E6E0D5] rounded-2xl">
             <table className="w-full text-xs">
               <thead className="bg-[#F5F2ED] text-[#4B4740]">
@@ -139,8 +157,14 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                 {result.created.map((a) => (
                   <tr key={a.id} className="border-t border-[#E6E0D5]">
                     <td className="p-2">{a.firstName} {a.lastName}</td>
-                    <td className="p-2"><code dir="ltr">{a.username}</code></td>
-                    <td className="p-2"><code dir="ltr" className="font-bold select-all">{a.temporaryPassword}</code></td>
+                    {a.hasAccount ? (
+                      <>
+                        <td className="p-2"><code dir="ltr">{a.username}</code></td>
+                        <td className="p-2"><code dir="ltr" className="font-bold select-all">{a.temporaryPassword}</code></td>
+                      </>
+                    ) : (
+                      <td className="p-2 text-[#6E6A60]" colSpan={2}>فقط دفتر تلفن (بدون دسترسی پورتال)</td>
+                    )}
                     <td className="p-2">{a.department}</td>
                   </tr>
                 ))}
@@ -161,7 +185,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
   return (
     <Modal
       title="ورود گروهی همکاران از اکسل"
-      subtitle="ساخت حساب کاربری برای چند نفر با یک فایل"
+      subtitle="ثبت چند نفر با یک فایل، با یا بدون حساب پورتال"
       icon={<FileSpreadsheet className="w-5 h-5" />}
       onClose={onClose}
       size="xl"
@@ -171,7 +195,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
           {preview && (
             <button type="button" onClick={handleImport} disabled={busy || validRows.length === 0} className={primaryButtonClass}>
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-              {busy ? 'در حال ساخت حساب‌ها...' : `ساخت ${toPersianDigits(validRows.length)} حساب`}
+              {busy ? 'در حال ثبت...' : `ثبت ${toPersianDigits(validRows.length)} نفر`}
             </button>
           )}
         </>
@@ -180,12 +204,12 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
       <div className="space-y-4">
         <ol className="list-decimal pr-5 space-y-1.5 text-[#4B4740] leading-relaxed">
           <li>
-            فایل نمونه را دانلود کنید و در اکسل برای هر همکار یک ردیف پر کنید. ستون‌های نام، نام خانوادگی، نام کاربری، سمت و واحد الزامی‌اند.
-            <button type="button" onClick={() => downloadCsv('roya-portal-staff-template.csv', [TEMPLATE_HEADER, TEMPLATE_SAMPLE])} className="mr-2 text-red-700 font-bold hover:underline inline-flex items-center gap-1">
+            فایل نمونه را دانلود کنید و در اکسل برای هر همکار یک ردیف پر کنید. ستون‌های نام، نام خانوادگی، سمت و واحد الزامی‌اند.
+            <button type="button" onClick={() => downloadCsv('roya-portal-staff-template.csv', [TEMPLATE_HEADER, ...TEMPLATE_SAMPLES])} className="mr-2 text-red-700 font-bold hover:underline inline-flex items-center gap-1">
               <Download className="w-3.5 h-3.5" /> دانلود فایل نمونه
             </button>
           </li>
-          <li><strong>نام کاربری</strong> را همان نام ورود ویندوز همکار بنویسید (مثلاً <code dir="ltr">ali.rezaei</code>) تا بعداً با ورود اکتیو دایرکتوری یکی شود.</li>
+          <li><strong>نام کاربری</strong> را همان نام ورود ویندوز همکار بنویسید (مثلاً <code dir="ltr">ali.rezaei</code>) تا بعداً با ورود اکتیو دایرکتوری یکی شود. برای همکارانی که به پورتال دسترسی ندارند (مثلاً همکاران کارگاه) نام کاربری را <strong>خالی بگذارید</strong>؛ فقط در دفتر تلفن و کارت‌های تولد دیده می‌شوند.</li>
           <li>در ستون نقش نام یکی از نقش‌های پرتال را بنویسید، مثلاً «مدیر» یا «کارشناس» (خالی یعنی کارشناس). تاریخ‌ها به شکل ۱۴۰۰/۰۱/۱۵.</li>
           <li>فایل را با فرمت xlsx یا CSV ذخیره و اینجا بارگذاری کنید. قبل از ساخت حساب‌ها پیش‌نمایش و خطاها را می‌بینید.</li>
         </ol>
@@ -205,7 +229,8 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
           <>
             <div className="flex flex-wrap gap-2 font-bold">
               <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800">{toPersianDigits(validRows.length)} ردیف آماده</span>
-              {invalidCount > 0 && <span className="px-3 py-1 rounded-full bg-red-50 text-red-700">{toPersianDigits(invalidCount)} ردیف با خطا (ساخته نمی‌شود)</span>}
+              {phoneOnlyCount > 0 && <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-900">{toPersianDigits(phoneOnlyCount)} نفر فقط دفتر تلفن (بدون نام کاربری)</span>}
+              {invalidCount > 0 && <span className="px-3 py-1 rounded-full bg-red-50 text-red-700">{toPersianDigits(invalidCount)} ردیف با خطا (ثبت نمی‌شود)</span>}
             </div>
             <label className="flex items-start gap-2 p-3 bg-[#F5F2ED] rounded-xl cursor-pointer leading-relaxed">
               <input type="checkbox" checked={introduce} onChange={(e) => setIntroduce(e.target.checked)} className="accent-red-700 mt-0.5" />
@@ -227,12 +252,15 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                     <tr key={r.row} className={`border-t border-[#E6E0D5] ${r.errors.length ? 'bg-red-50/60' : ''}`}>
                       <td className="p-2">{toPersianDigits(r.row)}</td>
                       <td className="p-2">{r.data.firstName} {r.data.lastName}</td>
-                      <td className="p-2"><code dir="ltr">{r.data.username}</code></td>
+                      <td className="p-2">{r.data.username ? <code dir="ltr">{r.data.username}</code> : <span className="text-[#8C867A]">بدون حساب</span>}</td>
                       <td className="p-2">{r.data.position}</td>
                       <td className="p-2">{r.data.department}</td>
                       <td className="p-2">
                         {r.errors.length === 0 ? (
-                          <span className="text-emerald-700 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> آماده</span>
+                          <>
+                            <span className="text-emerald-700 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> آماده</span>
+                            {r.warnings.map((w) => <span key={w} className="block text-amber-800 mt-0.5">{w}</span>)}
+                          </>
                         ) : (
                           <span className="text-red-700 flex items-start gap-1"><AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {r.errors.join(' ')}</span>
                         )}

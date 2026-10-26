@@ -24,7 +24,8 @@ const COLUMNS = {
 } as const;
 
 type Field = keyof typeof COLUMNS;
-const REQUIRED: Field[] = ['firstName', 'lastName', 'username', 'position', 'department'];
+// A row without a username adds someone to the phone book only, without a portal account.
+const REQUIRED: Field[] = ['firstName', 'lastName', 'position', 'department'];
 
 export const FIELD_LABELS: Record<Field, string> = {
   firstName: 'نام',
@@ -57,7 +58,7 @@ const HEADER_LOOKUP = new Map<string, Field>(
 const rowSchema = z.object({
   firstName: requiredText(100),
   lastName: requiredText(100),
-  username,
+  username: username.optional(),
   position: requiredText(100),
   department: requiredText(100),
   role: z.string().min(1).default(DEFAULT_ROLE_ID),
@@ -79,6 +80,8 @@ export interface CheckedRow {
   row: number;
   data: Record<string, string>;
   errors: string[];
+  /** Shown in the preview but do not stop the row, e.g. a likely duplicate of someone already listed. */
+  warnings: string[];
   value?: ImportRow;
 }
 
@@ -142,29 +145,50 @@ export async function checkRows(
   const checked: CheckedRow[] = records.map(({ row, data }) => {
     const text: Record<string, string> = {};
     for (const [k, v] of Object.entries(data)) if (k in COLUMNS && v != null) text[k] = String(v).trim();
-    const role = resolveRole(text.role ?? '');
-    if (!role) return { row, data: text, errors: [`نقش: «${text.role}» در فهرست نقش‌های پرتال نیست`] };
-    if (role === ADMIN_ROLE_ID && !allowAdmin) return { row, data: text, errors: ['نقش: فقط ادمین برنامه می‌تواند نقش ادمین بدهد'] };
+    const login = (text.username ?? '').replace(/^.*\\/, '').replace(/@.*$/, '');
+    // Without a username there is no account, so the role cell does not apply.
+    const role = login ? resolveRole(text.role ?? '') : DEFAULT_ROLE_ID;
+    if (!role) return { row, data: text, errors: [`نقش: «${text.role}» در فهرست نقش‌های پرتال نیست`], warnings: [] };
+    if (role === ADMIN_ROLE_ID && !allowAdmin) return { row, data: text, errors: ['نقش: فقط ادمین برنامه می‌تواند نقش ادمین بدهد'], warnings: [] };
     const candidate = {
       // Missing required cells become '' so the error reads "required" rather than a type error.
       ...Object.fromEntries(REQUIRED.map((f) => [f, ''])),
       ...text,
-      username: (text.username ?? '').replace(/^.*\\/, '').replace(/@.*$/, ''),
+      username: login || undefined,
       role,
       // Excel drops the leading zero when a mobile number is typed as a number.
       mobile: toLatinDigits(text.mobile ?? '').replace(/^9\d{9}$/, '0$&'),
       extension: toLatinDigits(text.extension ?? ''),
     };
     const parsed = rowSchema.safeParse(candidate);
-    return parsed.success ? { row, data: text, errors: [], value: parsed.data } : { row, data: text, errors: firstIssue(parsed.error) };
+    const warnings = !login && text.role ? ['بدون نام کاربری حساب پورتال ساخته نمی‌شود؛ ستون نقش نادیده گرفته شد.'] : [];
+    return parsed.success
+      ? { row, data: text, errors: [], warnings, value: parsed.data }
+      : { row, data: text, errors: firstIssue(parsed.error), warnings };
   });
 
   const seen = new Map<string, number>();
   for (const r of checked) {
-    if (!r.value) continue;
+    if (!r.value?.username) continue;
     const earlier = seen.get(r.value.username);
     if (earlier) r.errors.push(`نام کاربری «${r.value.username}» در ردیف ${earlier} هم آمده است.`);
     else seen.set(r.value.username, r.row);
+  }
+
+  // People without a username cannot be matched by login, so a repeated name is flagged instead.
+  const nameKey = (first: string, last: string) => normalizeHeader(`${first} ${last}`);
+  const phoneOnly = checked.filter((r) => r.value && !r.value.username);
+  if (phoneOnly.length > 0) {
+    const listed = await db.select({ firstName: employees.firstName, lastName: employees.lastName }).from(employees);
+    const known = new Set(listed.map((e) => nameKey(e.firstName, e.lastName)));
+    const inFile = new Map<string, number>();
+    for (const r of phoneOnly) {
+      const key = nameKey(r.value!.firstName, r.value!.lastName);
+      if (known.has(key)) r.warnings.push('همکاری با همین نام از قبل در دفتر تلفن هست؛ اگر همان شخص است این ردیف را حذف کنید.');
+      const earlier = inFile.get(key);
+      if (earlier) r.warnings.push(`همین نام در ردیف ${earlier} هم آمده است.`);
+      else inFile.set(key, r.row);
+    }
   }
 
   const names = [...seen.keys()];
@@ -172,7 +196,7 @@ export async function checkRows(
     const existing = await db.select({ username: employees.username }).from(employees).where(inArray(employees.username, names));
     const taken = new Set(existing.map((e) => e.username));
     for (const r of checked) {
-      if (r.value && taken.has(r.value.username)) r.errors.push(`حسابی با نام کاربری «${r.value.username}» از قبل وجود دارد.`);
+      if (r.value?.username && taken.has(r.value.username)) r.errors.push(`حسابی با نام کاربری «${r.value.username}» از قبل وجود دارد.`);
     }
   }
   for (const r of checked) if (r.errors.length > 0) delete r.value;

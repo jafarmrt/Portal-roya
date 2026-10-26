@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { CheckCircle2, KeyRound, User } from 'lucide-react';
+import { CheckCircle2, KeyRound, ShieldOff, User } from 'lucide-react';
 import { usePortal, type ProfileUpdate } from '../../context/PortalContext';
 import type { UserProfile } from '../../types';
 import { FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
 import { JalaliDateInput } from '../common/JalaliDateInput';
 import { Avatar } from '../common/Avatar';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
-import { TemporaryPasswordNotice } from './AddEmployeeModal';
+import { AccountAccessModal, TemporaryPasswordNotice } from './AccountAccessModal';
 import { RoleSelect } from './RoleSelect';
 
 interface EditProfileModalProps {
@@ -19,6 +19,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
   // Admin accounts can only be changed by an admin; the server enforces the same rule.
   const isAdmin = can('users.manage') && (viewerIsAdmin || user.role !== 'admin');
   const isSelf = currentUser?.id === user.id;
+  // Follows portal access granted or removed from the nested dialog while this one is open.
+  const live = employees.find((e) => e.id === user.id) ?? user;
+  const [accessOpen, setAccessOpen] = useState(false);
 
   const [form, setForm] = useState<Required<ProfileUpdate>>({
     firstName: user.firstName,
@@ -47,8 +50,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
     e.preventDefault();
     setBusy(true);
     // Employees may only change their own contact details; the server enforces the same rule.
+    // The role is sent only when changed here, so access granted or removed meanwhile keeps its role.
+    const { role, ...managed } = form;
     const update: ProfileUpdate = isAdmin
-      ? form
+      ? { ...managed, ...(live.hasAccount && role !== user.role ? { role } : {}) }
       : {
           extension: form.extension,
           mobile: form.mobile,
@@ -124,7 +129,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
             <JalaliDateInput id="edit-birth" value={form.birthDate} onChange={(v) => set('birthDate', v)} defaultYear={1370} />
             <label className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[#6E6A60] cursor-pointer">
               <input type="checkbox" checked={form.hideBirthday} onChange={(e) => set('hideBirthday', e.target.checked)} className="accent-red-700" />
-              تولدم به همکاران نمایش داده نشود
+              {isSelf ? 'تولدم به همکاران نمایش داده نشود' : 'تولد این همکار به دیگران نمایش داده نشود'}
             </label>
             <p className="mt-1 text-[10px] text-[#8C867A]">سال تولد به همکاران نشان داده نمی‌شود؛ فقط روز و ماه.</p>
           </div>
@@ -143,10 +148,17 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
           <fieldset className="p-4 bg-[#F5F2ED] rounded-2xl space-y-4">
             <legend className="text-xs font-black px-1">تنظیمات مدیر</legend>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label htmlFor="edit-role" className={labelClass}>نقش</label>
-                <RoleSelect id="edit-role" value={form.role} onChange={(role) => set('role', role)} />
-              </div>
+              {live.hasAccount ? (
+                <div>
+                  <label htmlFor="edit-role" className={labelClass}>نقش</label>
+                  <RoleSelect id="edit-role" value={form.role} onChange={(role) => set('role', role)} />
+                </div>
+              ) : (
+                <div>
+                  <span className={labelClass}>نقش</span>
+                  <p className="text-[11px] text-[#6E6A60] leading-relaxed">بدون دسترسی پورتال نقشی ندارد.</p>
+                </div>
+              )}
               <div>
                 <label htmlFor="edit-manager" className={labelClass}>مدیر مستقیم</label>
                 <select id="edit-manager" value={form.directManagerId ?? ''} onChange={(e) => set('directManagerId', e.target.value || null)} className={inputClass}>
@@ -162,17 +174,31 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
               </div>
             </div>
             {!isSelf && (
+              <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-white rounded-xl border border-[#E6E0D5]">
+                <span className="text-[11px] text-[#4B4740]">
+                  {live.hasAccount
+                    ? <>دسترسی پورتال: دارد (<code dir="ltr">{live.username}</code>{live.authSource === 'ldap' ? '، ورود با اکتیو دایرکتوری' : ''})</>
+                    : 'دسترسی پورتال: ندارد؛ فقط در دفتر تلفن و کارت‌ها دیده می‌شود.'}
+                </span>
+                <button type="button" onClick={() => setAccessOpen(true)} className={secondaryButtonClass}>
+                  {live.hasAccount ? <ShieldOff className="w-4 h-4" /> : <KeyRound className="w-4 h-4" />}
+                  {live.hasAccount ? 'برداشتن دسترسی' : 'دادن دسترسی پورتال'}
+                </button>
+              </div>
+            )}
+            {accessOpen && <AccountAccessModal user={live} onClose={() => setAccessOpen(false)} />}
+            {!isSelf && (
               <label className="flex items-center gap-2 font-bold cursor-pointer">
                 <input type="checkbox" checked={!form.isActive} onChange={(e) => set('isActive', !e.target.checked)} className="accent-red-700" />
-                غیرفعال کردن حساب (همکار دیگر نمی‌تواند وارد شود و از دفتر تلفن پنهان می‌شود)
+                غیرفعال کردن (برای کسی که از شرکت رفته است: نمی‌تواند وارد شود و از دفتر تلفن و همه‌جا پنهان می‌شود)
               </label>
             )}
-            {!isSelf && user.authSource === 'ldap' && directoryLogin && (
+            {!isSelf && live.hasAccount && live.authSource === 'ldap' && directoryLogin && (
               <p className="text-[11px] text-[#6E6A60] leading-relaxed">
                 این همکار با حساب اکتیو دایرکتوری وارد می‌شود؛ رمز عبورش در ویندوز تغییر می‌کند، نه در پرتال.
               </p>
             )}
-            {!isSelf && (user.authSource !== 'ldap' || !directoryLogin) && (
+            {!isSelf && live.hasAccount && (live.authSource !== 'ldap' || !directoryLogin) && (
               <div className="space-y-2">
                 <button
                   type="button"
@@ -181,7 +207,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
                 >
                   <KeyRound className="w-4 h-4" /> ساخت رمز موقت جدید
                 </button>
-                {tempPassword && <TemporaryPasswordNotice username={user.username} password={tempPassword} />}
+                {tempPassword && <TemporaryPasswordNotice username={live.username} password={tempPassword} />}
               </div>
             )}
           </fieldset>

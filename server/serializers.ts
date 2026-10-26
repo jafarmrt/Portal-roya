@@ -28,7 +28,8 @@ export function serializeEmployee(e: Employee, viewer: Viewer | null, managersBy
   const viewerId = viewer?.id ?? '';
   return {
     id: e.id,
-    username: e.username,
+    username: e.username ?? '',
+    hasAccount: e.hasAccount,
     firstName: e.firstName,
     lastName: e.lastName,
     position: e.position,

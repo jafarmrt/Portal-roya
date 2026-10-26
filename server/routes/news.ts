@@ -350,6 +350,7 @@ newsRouter.get(
       .where(
         and(
           eq(employees.isActive, true),
+          eq(employees.hasAccount, true),
           item.targetDepartments.length ? inArray(employees.department, item.targetDepartments) : undefined,
         ),
       )

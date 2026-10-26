@@ -62,8 +62,11 @@ export const roles = pgTable('roles', {
 
 export const employees = pgTable('employees', {
   id: text('id').primaryKey(),
-  username: text('username').notNull().unique(),
+  // Colleagues without a portal account (e.g. workshop staff listed only in the phone book) have no username.
+  username: text('username').unique(),
   passwordHash: text('password_hash').notNull(),
+  // False for people who appear in the phone book, org chart and birthday cards but cannot sign in.
+  hasAccount: boolean('has_account').notNull().default(true),
   // 'local' accounts sign in with the portal password; 'ldap' accounts with their Active Directory password.
   authSource: text('auth_source').notNull().default('local'),
   mustChangePassword: boolean('must_change_password').notNull().default(true),

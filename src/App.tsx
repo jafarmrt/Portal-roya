@@ -26,6 +26,7 @@ const CalendarModule = named(() => import('./components/calendar/CalendarModule'
 const NotificationsInbox = named(() => import('./components/notifications/NotificationsInbox'), 'NotificationsInbox');
 const SystemsModule = named(() => import('./components/systems/SystemsModule'), 'SystemsModule');
 const ReportsModule = named(() => import('./components/reports/ReportsModule'), 'ReportsModule');
+const PeopleManagement = named(() => import('./components/colleagues/PeopleManagement'), 'PeopleManagement');
 const AdminSettingsModule = named(() => import('./components/admin/AdminSettingsModule'), 'AdminSettingsModule');
 
 const FullScreenLoader: React.FC<{ text: string }> = ({ text }) => (
@@ -122,6 +123,7 @@ const MainContent: React.FC = () => {
             (isGuest ? <LoginRequired message="برای دیدن اعلان‌های خود وارد حساب کاربری شوید." /> : <NotificationsInbox />)}
           {activeTab === 'systems' && <SystemsModule />}
           {activeTab === 'reports' && can('reports.view') && <ReportsModule />}
+          {activeTab === 'people' && can('users.manage') && <PeopleManagement />}
           {activeTab === 'admin' && (isAdmin || can('settings.manage')) && <AdminSettingsModule />}
         </Suspense>
       </main>

@@ -31,9 +31,20 @@ import { todayJalali } from '../lib/jalali';
 
 const NEWS_PAGE_SIZE = 30;
 
+/** How a colleague with portal access signs in: a portal password, or their Active Directory password. */
+export type SignInMethod = 'local' | 'ldap';
+
+export interface AccountInput {
+  username: string;
+  role: UserRole;
+  signIn: SignInMethod;
+}
+
 export interface NewEmployeeInput {
   firstName: string;
   lastName: string;
+  hasAccount: boolean;
+  signIn: SignInMethod;
   username: string;
   position: string;
   department: string;
@@ -134,7 +145,10 @@ interface PortalContextType {
   votePoll: (pollId: string, optionId?: string, freeText?: string) => Promise<boolean>;
   togglePollActiveStatus: (pollId: string) => Promise<void>;
   deletePoll: (pollId: string) => Promise<void>;
-  addEmployee: (data: NewEmployeeInput) => Promise<string | null>;
+  /** Resolves to the one-time password (null when none is needed), or undefined when it failed. */
+  addEmployee: (data: NewEmployeeInput) => Promise<{ temporaryPassword: string | null } | undefined>;
+  grantAccess: (id: string, account: AccountInput) => Promise<{ temporaryPassword: string | null } | undefined>;
+  revokeAccess: (id: string) => Promise<boolean>;
   updateUserProfile: (id: string, update: ProfileUpdate) => Promise<boolean>;
   resetEmployeePassword: (id: string) => Promise<string | null>;
   addWorkExperience: (userId: string, exp: Omit<WorkExperience, 'id'>) => Promise<void>;
@@ -174,7 +188,7 @@ const PortalContext = createContext<PortalContextType | undefined>(undefined);
 
 const VALID_TABS: ActiveTab[] = [
   'dashboard', 'polls', 'colleagues', 'orgchart', 'search', 'news', 'documents',
-  'training', 'calendar', 'notifications', 'systems', 'reports', 'admin',
+  'training', 'calendar', 'notifications', 'systems', 'reports', 'people', 'admin',
 ];
 
 function readHash(): { tab: ActiveTab; id: string | null } {
@@ -442,14 +456,34 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCurrentUser((me) => (me && me.id === emp.id ? { ...me, ...emp } : me));
   };
 
-  const addEmployee = async (data: NewEmployeeInput) => {
+  const addEmployee = async ({ username, ...data }: NewEmployeeInput) => {
     const result = await attempt(
-      () => api.post<{ employee: UserProfile; temporaryPassword: string }>('/api/employees', data),
+      () =>
+        api.post<{ employee: UserProfile; temporaryPassword: string | null }>(
+          '/api/employees',
+          data.hasAccount ? { ...data, username: username.trim().toLowerCase() } : data,
+        ),
       'همکار جدید اضافه شد.',
     );
-    if (!result) return null;
+    if (!result) return undefined;
     setEmployees((prev) => [...prev.filter((e) => e.id !== result.employee.id), result.employee]);
-    return result.temporaryPassword;
+    return { temporaryPassword: result.temporaryPassword };
+  };
+
+  const grantAccess = async (id: string, account: AccountInput) => {
+    const result = await attempt(
+      () => api.post<{ employee: UserProfile; temporaryPassword: string | null }>(`/api/employees/${id}/account`, account),
+      'دسترسی پورتال داده شد.',
+    );
+    if (!result) return undefined;
+    replaceEmployee(result.employee);
+    return { temporaryPassword: result.temporaryPassword };
+  };
+
+  const revokeAccess = async (id: string) => {
+    const updated = await attempt(() => api.delete<UserProfile>(`/api/employees/${id}/account`), 'دسترسی پورتال برداشته شد.');
+    if (updated) replaceEmployee(updated);
+    return Boolean(updated);
   };
 
   const updateUserProfile = async (id: string, update: ProfileUpdate) => {
@@ -694,6 +728,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         togglePollActiveStatus,
         deletePoll,
         addEmployee,
+        grantAccess,
+        revokeAccess,
         updateUserProfile,
         resetEmployeePassword,
         addWorkExperience,

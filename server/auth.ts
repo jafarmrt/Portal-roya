@@ -74,7 +74,8 @@ async function loadUserFromRequest(req: Request): Promise<SessionUser | null> {
     const payload = jwt.verify(token, config.sessionSecret) as { sub?: string };
     if (!payload.sub) return null;
     const [user] = await db.select().from(employees).where(eq(employees.id, payload.sub)).limit(1);
-    if (!user || !user.isActive) return null;
+    // Taking away portal access ends the colleague's open sessions too.
+    if (!user || !user.isActive || !user.hasAccount) return null;
     return await withPermissions(user);
   } catch {
     return null;

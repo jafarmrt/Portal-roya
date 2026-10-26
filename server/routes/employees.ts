@@ -72,11 +72,53 @@ async function assertRoleExists(roleId: string) {
   if (!(await roleExists(roleId))) throw new HttpError(400, 'نقش انتخاب‌شده وجود ندارد.');
 }
 
+/** Account columns of someone listed only in the phone book. */
+const NO_ACCOUNT = {
+  hasAccount: false,
+  username: null,
+  passwordHash: '',
+  authSource: 'local',
+  mustChangePassword: true,
+  role: DEFAULT_ROLE_ID,
+};
+
+/**
+ * Checks the username, role and sign-in method of a new portal account and returns its columns.
+ * A portal-password account gets a one-time temporary password; an AD account none, since it signs
+ * in with the Windows password and is linked on its first sign-in.
+ */
+async function prepareAccount(
+  viewer: SessionUser,
+  target: Employee | null,
+  input: { username: string; role: string; signIn: 'local' | 'ldap'; password?: string },
+) {
+  assertMayManageAccount(viewer, target, input.role);
+  await assertRoleExists(input.role);
+  const name = input.username.trim().toLowerCase();
+  if (!/^[a-z0-9._-]{3,40}$/.test(name)) {
+    throw new HttpError(400, 'نام کاربری معتبر وارد کنید (حروف انگلیسی، عدد و . _ -).');
+  }
+  const [existing] = await db.select({ id: employees.id }).from(employees).where(eq(employees.username, name));
+  if (existing && existing.id !== target?.id) throw new HttpError(409, `نام کاربری «${name}» قبلاً استفاده شده است.`);
+  if (input.signIn === 'ldap' && !isDirectoryEnabled()) {
+    throw new HttpError(400, 'ورود با اکتیو دایرکتوری روی این سرور فعال نیست؛ رمز موقت بسازید.');
+  }
+  const base = { hasAccount: true, username: name, role: input.role };
+  if (input.signIn === 'ldap') {
+    return { values: { ...base, passwordHash: '', authSource: 'ldap', mustChangePassword: false }, temporaryPassword: null };
+  }
+  const temporary = input.password || temporaryPassword();
+  return {
+    values: { ...base, passwordHash: await hashPassword(temporary), authSource: 'local', mustChangePassword: true },
+    temporaryPassword: temporary,
+  };
+}
+
 async function activeAdminCount(excludeId: string) {
   const [row] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(employees)
-    .where(and(eq(employees.role, ADMIN_ROLE_ID), eq(employees.isActive, true), ne(employees.id, excludeId)));
+    .where(and(eq(employees.role, ADMIN_ROLE_ID), eq(employees.isActive, true), eq(employees.hasAccount, true), ne(employees.id, excludeId)));
   return row.count;
 }
 
@@ -110,8 +152,14 @@ const contactFields = {
   hideBirthday: z.boolean().default(false),
 };
 
+// How a colleague with portal access signs in: a portal password, or their Active Directory password.
+const signInSchema = z.enum(['local', 'ldap']).default('local');
+
 const createSchema = z.object({
   ...contactFields,
+  // Off for people listed only in the phone book; they get no username, password or role.
+  hasAccount: z.boolean().default(true),
+  signIn: signInSchema,
   username: username.optional(),
   password: password.optional(),
   firstName: requiredText(100),
@@ -130,24 +178,19 @@ employeesRouter.post(
   requirePermission('users.manage'),
   route(async (req, res) => {
     const body = parse(createSchema, req.body);
-    assertMayManageAccount(currentUser(req), null, body.role);
-    await assertRoleExists(body.role);
-    const username = body.username || (body.email ? body.email.split('@')[0].toLowerCase() : '');
-    if (!/^[a-z0-9._-]{3,40}$/.test(username)) {
-      throw new HttpError(400, 'نام کاربری معتبر وارد کنید (حروف انگلیسی، عدد و . _ -).');
-    }
-    const [existing] = await db.select({ id: employees.id }).from(employees).where(eq(employees.username, username));
-    if (existing) throw new HttpError(409, `نام کاربری «${username}» قبلاً استفاده شده است.`);
-
-    const initialPassword = body.password || temporaryPassword();
+    const account = body.hasAccount
+      ? await prepareAccount(currentUser(req), null, {
+          username: body.username || (body.email ? body.email.split('@')[0].toLowerCase() : ''),
+          role: body.role,
+          signIn: body.signIn,
+          password: body.password,
+        })
+      : null;
     const [emp] = await db
       .insert(employees)
       .values({
         id: newId('emp'),
-        username,
-        passwordHash: await hashPassword(initialPassword),
-        mustChangePassword: true,
-        role: body.role,
+        ...(account?.values ?? NO_ACCOUNT),
         firstName: body.firstName,
         lastName: body.lastName,
         position: body.position,
@@ -173,9 +216,59 @@ employeesRouter.post(
     broadcastChange('employees');
     res.status(201).json({
       employee: serializeEmployee(emp, currentUser(req)),
-      // Returned once so the manager can hand it to the new colleague.
-      temporaryPassword: initialPassword,
+      // Returned once so the manager can hand it to the new colleague; null for AD sign-in or no account.
+      temporaryPassword: account?.temporaryPassword ?? null,
     });
+  }),
+);
+
+const accountSchema = z.object({
+  username,
+  role: z.string().trim().min(1).max(100).default(DEFAULT_ROLE_ID),
+  signIn: signInSchema,
+});
+
+/** Gives portal access to someone who so far was only in the phone book. */
+employeesRouter.post(
+  '/employees/:id/account',
+  requirePermission('users.manage'),
+  route(async (req, res) => {
+    const body = parse(accountSchema, req.body);
+    const target = await loadEmployee(req.params.id);
+    if (target.hasAccount) throw new HttpError(409, 'این همکار از قبل دسترسی پورتال دارد.');
+    if (!target.isActive) throw new HttpError(400, 'ابتدا این همکار را فعال کنید.');
+    const account = await prepareAccount(currentUser(req), target, body);
+    const [updated] = await db
+      .update(employees)
+      .set({ ...account.values, failedLogins: 0, lockedUntil: null })
+      .where(eq(employees.id, target.id))
+      .returning();
+    broadcastChange('employees');
+    res.json({ employee: serializeEmployee(updated, currentUser(req)), temporaryPassword: account.temporaryPassword });
+  }),
+);
+
+/** Takes portal access away but keeps the person in the phone book, unlike deactivating them. */
+employeesRouter.delete(
+  '/employees/:id/account',
+  requirePermission('users.manage'),
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const target = await loadEmployee(req.params.id);
+    if (target.id === viewer.id) throw new HttpError(400, 'نمی‌توانید دسترسی پورتال خودتان را بردارید.');
+    if (!target.hasAccount) throw new HttpError(409, 'این همکار دسترسی پورتال ندارد.');
+    assertMayManageAccount(viewer, target);
+    if (target.role === ADMIN_ROLE_ID && (await activeAdminCount(target.id)) === 0) {
+      throw new HttpError(400, 'پرتال باید حداقل یک ادمین فعال داشته باشد.');
+    }
+    const [updated] = await db
+      .update(employees)
+      // The username stays so access can be given back later under the same name.
+      .set({ ...NO_ACCOUNT, username: target.username, failedLogins: 0, lockedUntil: null })
+      .where(eq(employees.id, target.id))
+      .returning();
+    broadcastChange('employees');
+    res.json(serializeEmployee(updated, viewer));
   }),
 );
 
@@ -217,7 +310,10 @@ employeesRouter.patch(
       }
       assertMayManageAccount(viewer, target, body.role);
     }
-    if (body.role !== undefined && body.role !== target.role) await assertRoleExists(body.role);
+    if (body.role !== undefined && body.role !== target.role) {
+      if (!target.hasAccount) throw new HttpError(400, 'نقش فقط برای همکارانی که دسترسی پورتال دارند معنا دارد.');
+      await assertRoleExists(body.role);
+    }
     const losesAdminAccess =
       target.role === ADMIN_ROLE_ID && ((body.role !== undefined && body.role !== ADMIN_ROLE_ID) || body.isActive === false);
     if (losesAdminAccess && (await activeAdminCount(target.id)) === 0) {
@@ -243,6 +339,7 @@ employeesRouter.post(
   requirePermission('users.manage'),
   route(async (req, res) => {
     const target = await loadEmployee(req.params.id);
+    if (!target.hasAccount) throw new HttpError(400, 'این همکار دسترسی پورتال ندارد؛ ابتدا به او دسترسی بدهید.');
     if (target.authSource === 'ldap' && isDirectoryEnabled()) throw new HttpError(400, DIRECTORY_PASSWORD_MESSAGE);
     assertMayManageAccount(currentUser(req), target);
     const temp = temporaryPassword();
@@ -538,7 +635,7 @@ employeesRouter.post(
     if (records.length === 0) throw new HttpError(400, 'فایل هیچ ردیفی برای ورود ندارد.');
     if (records.length > MAX_IMPORT_ROWS) throw new HttpError(400, `هر بار حداکثر ${MAX_IMPORT_ROWS} نفر را می‌توان وارد کرد.`);
     const rows = await checkRows(records, { allowAdmin: isAdmin(currentUser(req)) });
-    res.json({ rows: rows.map(({ row, data, errors }) => ({ row, data, errors })) });
+    res.json({ rows: rows.map(({ row, data, errors, warnings }) => ({ row, data, errors, warnings })) });
   }),
 );
 
@@ -550,34 +647,37 @@ employeesRouter.post(
     const checked = await checkRows(body.rows.map((data, i) => ({ row: i + 1, data })), { allowAdmin: isAdmin(currentUser(req)) });
     const valid = checked.filter((r) => r.value);
 
-    const prepared: { value: ImportRow; temporary: string; hash: string }[] = [];
+    // Rows with a username get an account and a temporary password; the rest join the phone book only.
+    const prepared: { row: number; value: ImportRow; temporary: string | null; hash: string }[] = [];
     for (const r of valid) {
-      const temporary = temporaryPassword();
-      prepared.push({ value: r.value!, temporary, hash: await hashPassword(temporary) });
+      const temporary = r.value!.username ? temporaryPassword() : null;
+      prepared.push({ row: r.row, value: r.value!, temporary, hash: temporary ? await hashPassword(temporary) : '' });
     }
 
     const created = await db.transaction(async (tx) => {
       const out = [];
-      for (const { value, temporary, hash } of prepared) {
+      for (const { row, value, temporary, hash } of prepared) {
         const [emp] = await tx
           .insert(employees)
           .values({
             id: newId('emp'),
             ...value,
+            username: value.username ?? null,
+            hasAccount: Boolean(value.username),
             passwordHash: hash,
             mustChangePassword: true,
           })
           // A username taken since the check is skipped rather than overwritten.
           .onConflictDoNothing({ target: employees.username })
           .returning();
-        if (emp) out.push({ emp, temporary });
+        if (emp) out.push({ row, emp, temporary });
       }
       return out;
     });
 
-    const createdNames = new Set(created.map((c) => c.emp.username));
+    const createdRows = new Set(created.map((c) => c.row));
     const skipped = checked
-      .filter((r) => !r.value || !createdNames.has(r.value.username))
+      .filter((r) => !createdRows.has(r.row))
       .map((r) => ({ row: r.row, username: r.data.username ?? '', errors: r.errors.length ? r.errors : ['نام کاربری هم‌زمان ثبت شد.'] }));
 
     if (created.length > 0) broadcastChange('employees');
@@ -596,12 +696,13 @@ employeesRouter.post(
     res.status(201).json({
       created: created.map(({ emp, temporary }) => ({
         id: emp.id,
-        username: emp.username,
+        username: emp.username ?? '',
+        hasAccount: emp.hasAccount,
         firstName: emp.firstName,
         lastName: emp.lastName,
         position: emp.position,
         department: emp.department,
-        // Shown once so the manager can print or hand them out.
+        // Shown once so the manager can print or hand them out; null for phone-book-only rows.
         temporaryPassword: temporary,
       })),
       skipped,

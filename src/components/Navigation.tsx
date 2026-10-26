@@ -16,7 +16,8 @@ import {
   FolderOpen,
   Network,
   LayoutGrid,
-  LogIn
+  LogIn,
+  UserCog
 } from 'lucide-react';
 
 interface NavigationProps {
@@ -93,6 +94,9 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
     navItems = navItems.filter((item) => item.id !== 'colleagues' && item.id !== 'orgchart');
   }
 
+  if (can('users.manage')) {
+    navItems.push({ id: 'people', label: 'مدیریت کارکنان', icon: <UserCog className="w-4 h-4" /> });
+  }
   if (can('reports.view')) {
     navItems.push({ id: 'reports', label: 'گزارش‌ها', icon: <BarChart2 className="w-4 h-4" /> });
   }
