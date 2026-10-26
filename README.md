@@ -107,6 +107,8 @@ gunzip -c backup-2026-10-26.sql.gz | docker compose exec -T db psql -U portal po
 
 ## به‌روزرسانی
 
+در نصب بدون Docker، دستور `deploy/update.sh` به‌روزرسانی از GitHub را با پشتیبان‌گیری و بازگشت خودکار انجام می‌دهد و می‌تواند با cron خودکار شود. جزئیات در [`deploy/INSTALL-PM2.md`](deploy/INSTALL-PM2.md) آمده است. با Docker:
+
 ```bash
 git pull
 docker compose up -d --build

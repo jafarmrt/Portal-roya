@@ -8,3 +8,5 @@ coverage/
 !.env.example
 uploads/
 server-dist/
+backups/
+logs/
