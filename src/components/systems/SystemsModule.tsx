@@ -3,7 +3,7 @@ import { usePortal } from '../../context/PortalContext';
 import { ExternalLink, Database, Globe, CalendarClock, CreditCard, HeadphonesIcon, BookOpen, Settings, Plus, X, Save, Edit, Trash2 } from 'lucide-react';
 import { ExternalSystem } from '../../types';
 
-const iconMap: Record<string, React.ElementType> = {
+export const iconMap: Record<string, React.ElementType> = {
   Database, Globe, CalendarClock, CreditCard, HeadphonesIcon, BookOpen, Settings, ExternalLink
 };
 
@@ -12,20 +12,11 @@ export const SystemsModule: React.FC = () => {
   const isManager = currentUser?.role === 'manager';
   const [isEditing, setIsEditing] = useState(false);
   
-  const defaultSystems: ExternalSystem[] = [
-    { id: 'crm', name: 'سیستم CRM راهکاران', description: 'مدیریت ارتباط با مشتریان', iconName: 'Database', url: '#', bgColor: 'bg-red-50', textColor: 'text-red-700' },
-    { id: 'automation', name: 'اتوماسیون اداری', description: 'مدیریت مکاتبات', iconName: 'Globe', url: '#', bgColor: 'bg-blue-50', textColor: 'text-blue-700' },
-    { id: 'attendance', name: 'سیستم حضور و غیاب', description: 'ثبت تردد و مرخصی', iconName: 'CalendarClock', url: '#', bgColor: 'bg-emerald-50', textColor: 'text-emerald-700' }
-  ];
-
-  const currentSystems = appSettings?.systems && appSettings.systems.length > 0 ? appSettings.systems : defaultSystems;
+  const currentSystems = appSettings?.systems ?? [];
   const [editedSystems, setEditedSystems] = useState<ExternalSystem[]>(currentSystems);
 
-  const handleSave = () => {
-    if (appSettings) {
-      updateSettings({ ...appSettings, systems: editedSystems });
-    }
-    setIsEditing(false);
+  const handleSave = async () => {
+    if (await updateSettings({ systems: editedSystems })) setIsEditing(false);
   };
 
   const handleAddSystem = () => {

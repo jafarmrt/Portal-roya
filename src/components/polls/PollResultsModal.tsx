@@ -1,6 +1,8 @@
 import React from 'react';
 import { Poll } from '../../types';
-import { X, BarChart3, MessageSquare, ShieldCheck, UserCheck, CheckCircle2 } from 'lucide-react';
+import { formatDate } from '../../lib/jalali';
+import { useEscapeKey } from '../../lib/useEscapeKey';
+import { X, BarChart3, MessageSquare, ShieldCheck, UserCheck } from 'lucide-react';
 
 interface PollResultsModalProps {
   poll: Poll | null;
@@ -8,11 +10,12 @@ interface PollResultsModalProps {
 }
 
 export const PollResultsModal: React.FC<PollResultsModalProps> = ({ poll, onClose }) => {
+  useEscapeKey(onClose, Boolean(poll));
   if (!poll) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden text-right">
+      <div role="dialog" aria-modal="true" aria-label="نتایج نظرسنجی" className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden text-right">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 bg-slate-50 border-b border-slate-200">
@@ -27,6 +30,7 @@ export const PollResultsModal: React.FC<PollResultsModalProps> = ({ poll, onClos
           </div>
           <button
             onClick={onClose}
+            aria-label="بستن"
             className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -100,9 +104,9 @@ export const PollResultsModal: React.FC<PollResultsModalProps> = ({ poll, onClos
                       <div className="flex items-center justify-between text-[11px] text-slate-500">
                         <span className="font-bold text-slate-700 flex items-center gap-1">
                           <UserCheck className="w-3.5 h-3.5 text-red-500" />
-                          <span>{ft.anonymousUserHash}</span>
+                          <span>همکار ناشناس</span>
                         </span>
-                        <span>{ft.submittedAt}</span>
+                        <span>{formatDate(ft.submittedAt)}</span>
                       </div>
                       <p className="text-xs text-slate-800 leading-relaxed pt-1 border-t border-slate-100">
                         "{ft.responseText}"

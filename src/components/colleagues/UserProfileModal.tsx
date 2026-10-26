@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { UserProfile } from '../../types';
+import type { UserProfile } from '../../types';
+import { Avatar } from '../common/Avatar';
+import { formatDate } from '../../lib/jalali';
+import { useEscapeKey } from '../../lib/useEscapeKey';
 import {
   X,
   Phone,
@@ -17,7 +20,8 @@ import {
   Edit3,
   Copy,
   Check,
-  Sparkles
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 
 interface UserProfileModalProps {
@@ -27,34 +31,40 @@ interface UserProfileModalProps {
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onEdit }) => {
-  const { currentUser, userRole, endorseSkill, addWorkExperience, addSkill } = usePortal();
+  const { currentUser, userRole, endorseSkill, addWorkExperience, addSkill, removeWorkExperience, removeSkill } = usePortal();
+  useEscapeKey(onClose);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // New experience/skill mini-forms inside profile view
   const [isAddingExp, setIsAddingExp] = useState(false);
   const [expCompany, setExpCompany] = useState('');
   const [expRole, setExpRole] = useState('');
-  const [expStart, setExpStart] = useState('1398');
-  const [expEnd, setExpEnd] = useState('1401');
+  const [expStart, setExpStart] = useState('');
+  const [expEnd, setExpEnd] = useState('تاکنون');
   const [expDesc, setExpDesc] = useState('');
 
   const [isAddingSkill, setIsAddingSkill] = useState(false);
   const [skillName, setSkillName] = useState('');
-  const [skillCat, setSkillCat] = useState('تخصصی');
 
 
   const isOwnProfile = currentUser ? currentUser.id === user.id : false;
+  const canEdit = isOwnProfile || userRole === 'manager';
 
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedField(label);
-    setTimeout(() => setCopiedField(null), 2000);
+  const copyToClipboard = async (text: string, label: string) => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(label);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch {
+      // Clipboard access can be blocked on plain-http intranet hosts; the number stays visible.
+    }
   };
 
-  const handleAddExpSubmit = (e: React.FormEvent) => {
+  const handleAddExpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!expCompany.trim() || !expRole.trim()) return;
-    addWorkExperience(user.id, {
+    await addWorkExperience(user.id, {
       company: expCompany,
       role: expRole,
       startYear: expStart,
@@ -67,31 +77,32 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
     setExpDesc('');
   };
 
-  const handleAddSkillSubmit = (e: React.FormEvent) => {
+  const handleAddSkillSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!skillName.trim()) return;
-    addSkill(user.id, {
+    await addSkill(user.id, {
       name: skillName,
-      category: skillCat
+      category: 'تخصصی'
     });
     setIsAddingSkill(false);
     setSkillName('');
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-3xl overflow-hidden text-right">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={`کارت همکار: ${user.firstName} ${user.lastName}`} onClick={(e) => e.stopPropagation()} className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-3xl overflow-hidden text-right">
         
         {/* Cover Header Banner */}
         <div className="h-32 bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] relative">
           <button
             onClick={onClose}
+            aria-label="بستن"
             className="absolute top-4 left-4 p-2 text-white/80 hover:text-white bg-black/30 hover:bg-black/50 rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
 
-          {(isOwnProfile || userRole === 'manager') && (
+          {canEdit && (
             <button
               onClick={() => {
                 onClose();
@@ -111,10 +122,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
           {/* Avatar and Main Info Overlay */}
           <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 -mt-16 mb-6 pb-4 border-b border-[#E6E0D5]">
             <div className="flex items-end gap-4">
-              <img
-                src={user.avatar || undefined}
-                alt={`${user.firstName} ${user.lastName}`}
-                className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-4 border-white shadow-lg bg-white"
+              <Avatar
+                src={user.avatar}
+                firstName={user.firstName}
+                lastName={user.lastName}
+                className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-4 border-white shadow-lg text-2xl"
               />
               <div className="space-y-1">
                 <h2 className="text-xl sm:text-2xl font-black text-[#2D2D2D]">
@@ -146,7 +158,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                 title="شماره داخلی همکار"
               >
                 <PhoneCall className="w-3.5 h-3.5 text-[#dc2626]" />
-                <span>داخلی: <strong>{user.extension}</strong></span>
+                <span>داخلی: <strong dir="ltr">{user.extension || '—'}</strong></span>
                 {copiedField === 'داخلی' ? <Check className="w-3 h-3 text-[#991b1b]" /> : <Copy className="w-3 h-3 text-[#8C867A]" />}
               </button>
 
@@ -155,7 +167,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                 className="px-3 py-2 bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D] rounded-xl text-xs font-bold border border-[#E6E0D5] flex items-center gap-1.5 transition-colors"
               >
                 <Phone className="w-3.5 h-3.5 text-[#991b1b]" />
-                <span>{user.mobile}</span>
+                <span dir="ltr">{user.mobile || '—'}</span>
                 {copiedField === 'موبایل' ? <Check className="w-3 h-3 text-[#991b1b]" /> : <Copy className="w-3 h-3 text-[#8C867A]" />}
               </button>
             </div>
@@ -167,9 +179,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
               <Mail className="w-4 h-4 text-[#8C867A]" />
               <div>
                 <span className="text-[#8C867A] text-[10px] block">پست الکترونیکی:</span>
-                <a href={`mailto:${user.email}`} className="font-semibold text-[#2D2D2D] hover:text-[#dc2626]">
-                  {user.email}
-                </a>
+                {user.email ? (
+                  <a href={`mailto:${user.email}`} dir="ltr" className="font-semibold text-[#2D2D2D] hover:text-[#dc2626] break-all">
+                    {user.email}
+                  </a>
+                ) : (
+                  <span className="text-[#8C867A]">—</span>
+                )}
               </div>
             </div>
 
@@ -177,7 +193,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
               <Calendar className="w-4 h-4 text-[#8C867A]" />
               <div>
                 <span className="text-[#8C867A] text-[10px] block">تاریخ تولد:</span>
-                <span className="font-bold text-[#2D2D2D]">{user.birthDate}</span>
+                <span className="font-bold text-[#2D2D2D]">{user.birthDate ? formatDate(user.birthDate) : '—'}</span>
               </div>
             </div>
 
@@ -185,7 +201,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
               <UserCheck className="w-4 h-4 text-[#8C867A]" />
               <div>
                 <span className="text-[#8C867A] text-[10px] block">مدیر مستقیم:</span>
-                <span className="font-bold text-[#2D2D2D]">{user.directManager || 'مدیریت ارشد'}</span>
+                <span className="font-bold text-[#2D2D2D]">{user.directManager || '—'}</span>
               </div>
             </div>
           </div>
@@ -209,7 +225,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                 <span>سوابق شغلی و تجربیات کاری ({user.workExperiences?.length || 0}):</span>
               </h3>
 
-              {(isOwnProfile || userRole === 'manager') && !isAddingExp && (
+              {canEdit && !isAddingExp && (
                 <button
                   onClick={() => setIsAddingExp(true)}
                   className="text-xs text-red-600 hover:underline font-medium flex items-center gap-1"
@@ -287,8 +303,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                   <div key={exp.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
                     <div className="flex items-center justify-between text-xs font-bold text-slate-800">
                       <span>{exp.role} - <span className="text-red-700">{exp.company}</span></span>
-                      <span className="text-[11px] text-slate-500 font-medium">
+                      <span className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
                         {exp.startYear} - {exp.endYear}
+                        {canEdit && (
+                          <button
+                            onClick={() => removeWorkExperience(user.id, exp.id)}
+                            aria-label={`حذف سابقهٔ ${exp.company}`}
+                            className="p-1 text-slate-400 hover:text-red-700"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </span>
                     </div>
                     {exp.description && (
@@ -312,7 +337,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                 <span>مهارت‌های کلیدی و تاییده‌ها ({user.skills?.length || 0}):</span>
               </h3>
 
-              {(isOwnProfile || userRole === 'manager') && !isAddingSkill && (
+              {canEdit && !isAddingSkill && (
                 <button
                   onClick={() => setIsAddingSkill(true)}
                   className="text-xs text-red-600 hover:underline font-medium flex items-center gap-1"
@@ -351,14 +376,27 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                     className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200/80 rounded-xl text-xs font-medium text-slate-800 border border-slate-200 transition-colors"
                   >
                     <span>{skill.name}</span>
-                    <button
-                      onClick={() => endorseSkill(user.id, skill.id)}
-                      className="flex items-center gap-1 px-1.5 py-0.5 bg-white text-red-600 hover:bg-red-50 rounded-lg text-[10px] font-bold border border-slate-200 shadow-2xs"
-                      title="تایید مهارت توسط همکار"
-                    >
-                      <ThumbsUp className="w-3 h-3" />
-                      <span>{skill.endorsements}</span>
-                    </button>
+                    {isOwnProfile ? (
+                      <span className="flex items-center gap-1 px-1.5 py-0.5 text-slate-500 text-[10px] font-bold" title="تعداد تأییدها">
+                        <ThumbsUp className="w-3 h-3" />
+                        <span>{skill.endorsements}</span>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => endorseSkill(user.id, skill.id)}
+                        aria-pressed={skill.endorsedByMe}
+                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[10px] font-bold border shadow-2xs ${skill.endorsedByMe ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 hover:bg-red-50 border-slate-200'}`}
+                        title={skill.endorsedByMe ? 'لغو تأیید' : 'تأیید این مهارت'}
+                      >
+                        <ThumbsUp className="w-3 h-3" />
+                        <span>{skill.endorsements}</span>
+                      </button>
+                    )}
+                    {canEdit && (
+                      <button onClick={() => removeSkill(user.id, skill.id)} aria-label={`حذف مهارت ${skill.name}`} className="text-slate-400 hover:text-red-700">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

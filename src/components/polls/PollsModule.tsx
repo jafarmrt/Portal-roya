@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { Poll } from '../../types';
 import { CreatePollModal } from './CreatePollModal';
@@ -11,31 +11,31 @@ import {
   Clock,
   ShieldCheck,
   Building2,
-  Lock,
   Send,
-  MessageSquare,
-  Sparkles,
-  ChevronLeft,
   Trash2,
-  Filter
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { toPersianDigits } from '../../lib/jalali';
 
 export const PollsModule: React.FC = () => {
   const {
     polls,
-    currentUser,
     userRole,
-    isLoggedIn,
-    openLoginModal,
+    focusId,
     votePoll,
     togglePollActiveStatus,
     deletePoll
   } = usePortal();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [selectedPollForResults, setSelectedPollForResults] = useState<Poll | null>(null);
-  
+  const [resultsPollId, setResultsPollId] = useState<string | null>(null);
+  const selectedPollForResults = polls.find(p => p.id === resultsPollId) ?? null;
+  const [submitting, setSubmitting] = useState<string | null>(null);
+
+  // Scroll to a poll linked from a notification (#polls/<id>).
+  useEffect(() => {
+    if (focusId) document.getElementById(`poll-${focusId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [focusId]);
   // Local voting form states for each poll
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [freeTextInputs, setFreeTextInputs] = useState<Record<string, string>>({});
@@ -47,36 +47,32 @@ export const PollsModule: React.FC = () => {
     return true;
   });
 
-  const handleVoteSubmit = (poll: Poll) => {
-    if (!isLoggedIn) {
-      openLoginModal('برای ثبت رأی در این نظرسنجی، لطفاً وارد حساب کاربری خود شوید.');
-      return;
-    }
+  const handleVoteSubmit = async (poll: Poll) => {
     if (poll.type === 'multiple_choice') {
       const selectedOptId = selectedOptions[poll.id];
       if (!selectedOptId) {
         toast.error('لطفاً یکی از گزینه‌ها را انتخاب کنید.');
         return;
       }
-      votePoll(poll.id, selectedOptId);
+      setSubmitting(poll.id);
+      await votePoll(poll.id, selectedOptId);
     } else {
       const text = freeTextInputs[poll.id];
       if (!text || !text.trim()) {
         toast.error('لطفاً نظر متنی خود را وارد کنید.');
         return;
       }
-      votePoll(poll.id, undefined, text.trim());
-      setFreeTextInputs(prev => ({ ...prev, [poll.id]: '' }));
+      setSubmitting(poll.id);
+      if (await votePoll(poll.id, undefined, text.trim())) setFreeTextInputs(prev => ({ ...prev, [poll.id]: '' }));
     }
+    setSubmitting(null);
   };
 
   return (
     <div className="space-y-6">
-      
       {/* Top Banner & Header */}
       <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
         <div className="absolute top-0 left-0 -ml-12 -mt-12 w-64 h-64 rounded-full bg-[#dc2626]/20 blur-3xl pointer-events-none" />
-        
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#dc2626]/30 text-[#E6E0D5] text-xs font-semibold border border-[#dc2626]/40">
@@ -152,16 +148,16 @@ export const PollsModule: React.FC = () => {
           </div>
         ) : (
           filteredPolls.map((poll) => {
-            const hasVoted = currentUser ? poll.votedUserIds.includes(currentUser.id) : false;
+            const hasVoted = poll.hasVoted;
 
             return (
               <div
                 key={poll.id}
+                id={`poll-${poll.id}`}
                 className={`bg-white rounded-2xl border transition-all shadow-xs hover:shadow-md flex flex-col justify-between overflow-hidden ${
                   poll.isActive ? 'border-slate-200' : 'border-slate-200 bg-slate-50/50 opacity-90'
-                }`}
+                } ${focusId === poll.id ? 'ring-2 ring-red-600' : ''}`}
               >
-                
                 {/* Poll Header */}
                 <div className="p-6 pb-4">
                   <div className="flex items-center justify-between gap-2 mb-3">
@@ -185,11 +181,11 @@ export const PollsModule: React.FC = () => {
                   <div className="flex items-center gap-4 text-[11px] text-slate-500 pt-3 border-t border-slate-100">
                     <div className="flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
-                      <span>مهلت: {poll.expiryDate}</span>
+                      <span>{poll.expiryDate ? `مهلت: ${toPersianDigits(poll.expiryDate)}` : 'بدون مهلت'}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Vote className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{poll.totalVotes} شرکت‌کننده</span>
+                      <span>{toPersianDigits(poll.totalVotes)} شرکت‌کننده</span>
                     </div>
                     <div className="text-[10px] text-slate-400">
                       طراح: {poll.createdBy}
@@ -199,11 +195,9 @@ export const PollsModule: React.FC = () => {
 
                 {/* Poll Interactive Voting or Results Preview */}
                 <div className="p-6 pt-0 space-y-4">
-                  
                   {/* Case 1: Active Poll & User Has NOT Voted Yet */}
                   {poll.isActive && !hasVoted && (
                     <div className="bg-[#F5F2ED]/70 p-4 rounded-xl border border-[#E6E0D5] space-y-3">
-                      
                       {poll.type === 'multiple_choice' ? (
                         <div className="space-y-2">
                           <label className="text-xs font-bold text-[#2D2D2D] block mb-1">
@@ -251,7 +245,8 @@ export const PollsModule: React.FC = () => {
                         </span>
                         <button
                           onClick={() => handleVoteSubmit(poll)}
-                          className="px-4 py-2 text-xs font-bold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-xl shadow-xs transition-all flex items-center gap-1.5"
+                          disabled={submitting === poll.id}
+                          className="disabled:opacity-60 px-4 py-2 text-xs font-bold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-xl shadow-xs transition-all flex items-center gap-1.5"
                         >
                           <Send className="w-3.5 h-3.5" />
                           <span>ثبت رای</span>
@@ -278,11 +273,11 @@ export const PollsModule: React.FC = () => {
                   {/* Action Bar (View Results & Admin Controls) */}
                   <div className="flex items-center justify-between pt-2">
                     <button
-                      onClick={() => setSelectedPollForResults(poll)}
+                      onClick={() => setResultsPollId(poll.id)}
                       className="px-4 py-2 text-xs font-bold text-[#2D2D2D] bg-[#F5F2ED] hover:bg-[#E6E0D5] rounded-xl transition-colors flex items-center gap-1.5"
                     >
                       <BarChart3 className="w-4 h-4 text-[#dc2626]" />
-                      <span>مشاهده نتایج کلی ({poll.totalVotes} نظر)</span>
+                      <span>مشاهده نتایج کلی ({toPersianDigits(poll.totalVotes)} نظر)</span>
                     </button>
 
                     {/* Admin Actions */}
@@ -306,6 +301,7 @@ export const PollsModule: React.FC = () => {
                           }}
                           className="p-1.5 text-[#8C867A] hover:text-[#D97B5F] rounded-lg hover:bg-[#FBF0EC]"
                           title="حذف"
+                          aria-label="حذف نظرسنجی"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -329,7 +325,7 @@ export const PollsModule: React.FC = () => {
 
       <PollResultsModal
         poll={selectedPollForResults}
-        onClose={() => setSelectedPollForResults(null)}
+        onClose={() => setResultsPollId(null)}
       />
 
     </div>

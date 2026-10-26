@@ -1,177 +1,236 @@
 import React, { useState } from 'react';
+import { CalendarClock, CheckCircle2, FileText, Image as ImageIcon, Newspaper, Paperclip, Trash2, Users } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
-import { NewsItem } from '../../types';
-import { X, Newspaper, CheckCircle2, Image as ImageIcon, Tag } from 'lucide-react';
+import type { Attachment, NewsInput, NewsItem } from '../../types';
+import { toJalali, formatFileSize } from '../../lib/jalali';
+import { DOCUMENT_ACCEPT, FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
+import { JalaliDateInput } from '../common/JalaliDateInput';
+import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 
-interface AddNewsModalProps {
-  isOpen: boolean;
+interface NewsEditorModalProps {
   onClose: () => void;
+  /** When given, the modal edits this item instead of creating a new one. */
+  item?: NewsItem;
 }
 
-export const AddNewsModal: React.FC<AddNewsModalProps> = ({ isOpen, onClose }) => {
-  const { addNews, appSettings } = usePortal();
+function initialState(item: NewsItem | undefined, defaultCategory: string): NewsInput {
+  if (!item) {
+    return {
+      title: '',
+      summary: '',
+      content: '',
+      category: defaultCategory,
+      image: '',
+      isPinned: false,
+      isUrgent: false,
+      requiresAck: false,
+      tags: [],
+      targetDepartments: [],
+      attachments: [],
+      publishDate: '',
+      publishTime: '',
+      expiresDate: '',
+    };
+  }
+  const scheduled = new Date(item.publishAt) > new Date();
+  return {
+    title: item.title,
+    summary: item.summary,
+    content: item.content,
+    category: item.category,
+    image: item.image,
+    isPinned: item.isPinned,
+    isUrgent: item.isUrgent,
+    requiresAck: item.requiresAck,
+    tags: item.tags,
+    targetDepartments: item.targetDepartments,
+    attachments: item.attachments,
+    publishDate: scheduled ? toJalali(item.publishAt) : '',
+    publishTime: scheduled ? toJalali(item.publishAt, 'HH:mm') : '',
+    expiresDate: item.expiresAt ? toJalali(item.expiresAt) : '',
+  };
+}
 
-  const [title, setTitle] = useState('');
-  const [summary, setSummary] = useState('');
-  const [content, setContent] = useState('');
-  const [category, setCategory] = useState<string>(appSettings?.newsCategories[0] || 'اخبار سازمان');
-  const [image, setImage] = useState('https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=800&auto=format&fit=crop&q=80');
-  const [tagsStr, setTagsStr] = useState('اخبار, رویا طرح داخلی');
-  const [isPinned, setIsPinned] = useState(false);
+export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) => {
+  const { saveNews, appSettings } = usePortal();
+  const categories = appSettings?.newsCategories ?? [];
+  const departments = appSettings?.departments ?? [];
+  const [form, setForm] = useState<NewsInput>(() => initialState(item, categories[0] ?? 'اخبار سازمان'));
+  const [tagsText, setTagsText] = useState(form.tags.join('، '));
+  const [scheduleOpen, setScheduleOpen] = useState(Boolean(form.publishDate || form.expiresDate));
+  const [busy, setBusy] = useState(false);
 
-  if (!isOpen) return null;
+  const set = <K extends keyof NewsInput>(key: K, value: NewsInput[K]) => setForm((f) => ({ ...f, [key]: value }));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const toggleDepartment = (dep: string) =>
+    set('targetDepartments', form.targetDepartments.includes(dep) ? form.targetDepartments.filter((d) => d !== dep) : [...form.targetDepartments, dep]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !summary.trim() || !content.trim()) return;
-
-    const tags = tagsStr.split(',').map(t => t.trim()).filter(Boolean);
-
-    addNews({
-      title,
-      summary,
-      content,
-      category,
-      image,
-      tags,
-      isPinned
-    });
-
-    onClose();
-    setTitle('');
-    setSummary('');
-    setContent('');
+    setBusy(true);
+    const tags = tagsText.split(/[,،]/).map((t) => t.trim()).filter(Boolean);
+    const ok = await saveNews({ ...form, tags, publishTime: form.publishDate ? form.publishTime || '08:00' : '' }, item?.id);
+    setBusy(false);
+    if (ok) onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden text-right">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-slate-50 border-b border-slate-200">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-red-100 text-red-600 rounded-xl">
-              <Newspaper className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-800">انتشار خبر یا اطلاعیه جدید</h3>
-              <p className="text-xs text-slate-500">ارسال اطلاعیه‌های اداری، رویدادها و اخبار سازمانی</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
-          >
-            <X className="w-5 h-5" />
+    <Modal
+      title={item ? 'ویرایش خبر یا اطلاعیه' : 'انتشار خبر یا اطلاعیهٔ جدید'}
+      subtitle="اطلاعیه‌های اداری، بخشنامه‌ها، رویدادها و اخبار سازمانی"
+      icon={<Newspaper className="w-5 h-5" />}
+      onClose={onClose}
+      size="xl"
+      footer={
+        <>
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>انصراف</button>
+          <button type="submit" form="news-editor" disabled={busy} className={primaryButtonClass}>
+            <CheckCircle2 className="w-4 h-4" />
+            <span>{busy ? 'در حال ذخیره...' : item ? 'ذخیرهٔ تغییرات' : form.publishDate ? 'زمان‌بندی انتشار' : 'انتشار'}</span>
           </button>
+        </>
+      }
+    >
+      <form id="news-editor" onSubmit={handleSubmit} className="space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2">
+            <label htmlFor="news-title" className={labelClass}>عنوان *</label>
+            <input id="news-title" required maxLength={200} value={form.title} onChange={(e) => set('title', e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="news-category" className={labelClass}>دسته‌بندی *</label>
+            <select id="news-category" value={form.category} onChange={(e) => set('category', e.target.value)} className={inputClass}>
+              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
-          
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">عنوان خبر / اطلاعیه *</label>
-            <input
-              type="text"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="عنوان جذاب و دقیق خبر..."
-              className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-red-500 outline-hidden"
-            />
-          </div>
+        <div>
+          <label htmlFor="news-summary" className={labelClass}>خلاصه (در فهرست و اعلان نمایش داده می‌شود) *</label>
+          <textarea id="news-summary" required rows={2} maxLength={500} value={form.summary} onChange={(e) => set('summary', e.target.value)} className={inputClass} />
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">دسته‌بندی موضوعی</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full p-2.5 bg-[#F5F2ED] border border-[#E6E0D5] rounded-xl focus:bg-white focus:border-[#dc2626] outline-hidden text-sm"
-              >
-                {appSettings?.newsCategories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
+        <div>
+          <label htmlFor="news-content" className={labelClass}>متن کامل *</label>
+          <textarea id="news-content" required rows={8} maxLength={20000} value={form.content} onChange={(e) => set('content', e.target.value)} className={`${inputClass} leading-loose`} />
+        </div>
 
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">برچسب‌ها (کلمات کلیدی با ویرگول)</label>
-              <input
-                type="text"
-                value={tagsStr}
-                onChange={(e) => setTagsStr(e.target.value)}
-                placeholder="محصول جدید, ساعات کاری, شوروم"
-                className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-red-500 outline-hidden"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">آدرس تصویر خبر (URL)</label>
-            <input
-              type="text"
-              value={image}
-              onChange={(e) => setImage(e.target.value)}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-red-500 outline-hidden"
-            />
-          </div>
-
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">خلاصه خبر (چکیده) *</label>
-            <textarea
-              rows={2}
-              required
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              placeholder="توضیح کوتاه ۱ الی ۲ خطی برای نمایش در کارت..."
-              className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-red-500 outline-hidden"
-            />
-          </div>
-
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">متن کامل خبر / اطلاعیه *</label>
-            <textarea
-              rows={5}
-              required
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="متن کامل خبر، جزییات، مصوبه‌ها و نکات مهم..."
-              className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-red-500 outline-hidden"
-            />
-          </div>
-
-          <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700 pt-2">
-            <input
-              type="checkbox"
-              checked={isPinned}
-              onChange={(e) => setIsPinned(e.target.checked)}
-              className="w-4 h-4 accent-red-600"
-            />
-            <span>سنجاق کردن خبر در بالای فهرست (Pinned)</span>
+        {/* Delivery options: these decide who is notified and how. */}
+        <fieldset className="p-4 bg-[#F5F2ED] rounded-2xl border border-[#E6E0D5] space-y-3">
+          <legend className="text-xs font-black text-[#2D2D2D] px-1">نحوهٔ اطلاع‌رسانی</legend>
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input type="checkbox" checked={form.requiresAck} onChange={(e) => set('requiresAck', e.target.checked)} className="mt-0.5 accent-red-700" />
+            <span>
+              <strong>بخشنامه: نیاز به تأیید مطالعه دارد</strong>
+              <span className="block text-[11px] text-[#6E6A60]">هر همکار باید روی «مطالعه کردم» بزند و شما فهرست خوانده‌ها و نخوانده‌ها را می‌بینید.</span>
+            </span>
           </label>
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input type="checkbox" checked={form.isUrgent} onChange={(e) => set('isUrgent', e.target.checked)} className="mt-0.5 accent-red-700" />
+            <span>
+              <strong>فوری</strong>
+              <span className="block text-[11px] text-[#6E6A60]">با نشان قرمز نمایش داده می‌شود و اگر ایمیل سازمانی تنظیم شده باشد، ایمیل هم ارسال می‌شود.</span>
+            </span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={form.isPinned} onChange={(e) => set('isPinned', e.target.checked)} className="accent-red-700" />
+            <strong>سنجاق در بالای فهرست اخبار</strong>
+          </label>
+        </fieldset>
 
-          <div className="pt-4 border-t border-slate-200 flex justify-end gap-3">
+        <fieldset className="space-y-2">
+          <legend className={`${labelClass} flex items-center gap-1.5`}>
+            <Users className="w-4 h-4" /> مخاطبان
+          </legend>
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2 font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+              onClick={() => set('targetDepartments', [])}
+              aria-pressed={form.targetDepartments.length === 0}
+              className={`px-3 py-1.5 rounded-xl font-bold border ${form.targetDepartments.length === 0 ? 'bg-red-700 text-white border-red-700' : 'bg-white border-[#D9D4CB]'}`}
             >
-              انصراف
+              همهٔ سازمان
             </button>
-            <button
-              type="submit"
-              className="px-5 py-2 font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md shadow-red-600/20 flex items-center gap-1.5"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>انتشار خبر</span>
-            </button>
+            {departments.map((dep) => {
+              const active = form.targetDepartments.includes(dep);
+              return (
+                <button
+                  key={dep}
+                  type="button"
+                  onClick={() => toggleDepartment(dep)}
+                  aria-pressed={active}
+                  className={`px-3 py-1.5 rounded-xl font-bold border ${active ? 'bg-red-700 text-white border-red-700' : 'bg-white border-[#D9D4CB]'}`}
+                >
+                  {dep}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <span className={`${labelClass} flex items-center gap-1.5`}><ImageIcon className="w-4 h-4" /> تصویر شاخص (اختیاری)</span>
+            {form.image ? (
+              <div className="relative">
+                <img src={form.image} alt="" className="w-full h-32 object-cover rounded-xl border border-[#E6E0D5]" />
+                <button type="button" onClick={() => set('image', '')} aria-label="حذف تصویر" className="absolute top-2 left-2 p-1.5 bg-white/90 rounded-lg text-red-700">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <FileUpload accept={IMAGE_ACCEPT} label="بارگذاری تصویر" onUploaded={(f) => set('image', f.url)} />
+            )}
           </div>
 
-        </form>
+          <div className="space-y-2">
+            <span className={`${labelClass} flex items-center gap-1.5`}><Paperclip className="w-4 h-4" /> پیوست‌ها (PDF، Word، Excel…)</span>
+            {form.attachments.map((a: Attachment) => (
+              <div key={a.url} className="flex items-center justify-between gap-2 p-2 bg-[#F5F2ED] rounded-xl">
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <FileText className="w-4 h-4 shrink-0 text-red-700" />
+                  <span className="truncate">{a.name}</span>
+                  <span className="text-[10px] text-[#8C867A] whitespace-nowrap">{formatFileSize(a.size)}</span>
+                </span>
+                <button type="button" aria-label={`حذف ${a.name}`} onClick={() => set('attachments', form.attachments.filter((x) => x.url !== a.url))} className="p-1 text-red-700">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            {form.attachments.length < 10 && (
+              <FileUpload accept={DOCUMENT_ACCEPT} label="افزودن پیوست" onUploaded={(f) => set('attachments', [...form.attachments, f])} />
+            )}
+          </div>
+        </div>
 
-      </div>
-    </div>
+        <div>
+          <label htmlFor="news-tags" className={labelClass}>برچسب‌ها (با ویرگول جدا کنید)</label>
+          <input id="news-tags" value={tagsText} onChange={(e) => setTagsText(e.target.value)} className={inputClass} />
+        </div>
+
+        <div className="border-t border-[#E6E0D5] pt-4">
+          <button type="button" onClick={() => setScheduleOpen((o) => !o)} aria-expanded={scheduleOpen} className="flex items-center gap-1.5 font-bold text-red-700">
+            <CalendarClock className="w-4 h-4" />
+            زمان‌بندی انتشار و تاریخ انقضا
+          </button>
+          {scheduleOpen && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+              <div>
+                <label htmlFor="news-publish-date" className={labelClass}>تاریخ انتشار (خالی = همین حالا)</label>
+                <JalaliDateInput id="news-publish-date" value={form.publishDate} onChange={(v) => set('publishDate', v)} />
+              </div>
+              <div>
+                <label htmlFor="news-publish-time" className={labelClass}>ساعت انتشار</label>
+                <input id="news-publish-time" type="time" dir="ltr" value={form.publishTime} onChange={(e) => set('publishTime', e.target.value)} disabled={!form.publishDate} className={inputClass} />
+              </div>
+              <div>
+                <label htmlFor="news-expires-date" className={labelClass}>نمایش تا پایان روز (اختیاری)</label>
+                <JalaliDateInput id="news-expires-date" value={form.expiresDate} onChange={(v) => set('expiresDate', v)} />
+              </div>
+            </div>
+          )}
+        </div>
+      </form>
+    </Modal>
   );
 };

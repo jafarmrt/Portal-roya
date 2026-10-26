@@ -1,22 +1,20 @@
 import React from 'react';
 import { usePortal } from '../context/PortalContext';
 import { ActiveTab } from '../types';
+import { Avatar } from './common/Avatar';
+import { currentJalaliYear, toPersianDigits } from '../lib/jalali';
+import { useEscapeKey } from '../lib/useEscapeKey';
 import {
-  MonitorSmartphone,
   LayoutDashboard,
   Vote,
   Users,
-  Search,
   Newspaper,
   GraduationCap,
   Calendar,
-  Bell,
-  Sparkles,
-  PhoneCall,
-  UserPlus,
-  ShieldCheck,
   Settings,
-  BarChart2
+  BarChart2,
+  FolderOpen,
+  Network
 } from 'lucide-react';
 
 interface NavigationProps {
@@ -25,53 +23,66 @@ interface NavigationProps {
 }
 
 export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onCloseMobileNav }) => {
-  const { activeTab, setActiveTab, notifications, currentUser, polls, openLoginModal } = usePortal();
+  const { activeTab, setActiveTab, currentUser, polls, news } = usePortal();
+  useEscapeKey(onCloseMobileNav, isMobileNavOpen);
 
-  const unreadNotifCount = notifications.filter(
-    n => !n.isRead && (n.targetUserId === 'all' || (currentUser && n.targetUserId === currentUser.id))
-  ).length;
-
-  const activePollsCount = polls.filter(p => p.isActive).length;
+  const activePollsCount = polls.filter(p => p.isActive && !p.hasVoted).length;
+  const unreadNewsCount = news.filter(n => n.status === 'published' && !n.isRead).length;
+  const pendingAckCount = news.filter(n => n.status === 'published' && n.requiresAck && !n.acknowledgedAt).length;
 
   const navItems: { id: ActiveTab; label: string; icon: React.ReactNode; badge?: string | number; badgeColor?: string }[] = [
     {
       id: 'dashboard',
-      label: 'داشبورد اصلی',
+      label: 'داشبورد',
       icon: <LayoutDashboard className="w-4 h-4" />
     },
     {
       id: 'polls',
-      label: 'نظرسنجی‌های داخلی',
+      label: 'نظرسنجی‌ها',
       icon: <Vote className="w-4 h-4" />,
-      badge: activePollsCount > 0 ? `${activePollsCount} فعال` : undefined,
+      badge: activePollsCount > 0 ? `${toPersianDigits(activePollsCount)} جدید` : undefined,
       badgeColor: 'bg-[#991b1b]/30 text-[#E6E0D5]'
     },
     {
-      id: 'colleagues',
-      label: 'همکاران',
-      icon: <Users className="w-4 h-4" />
-    },
-
-    {
       id: 'news',
       label: 'اخبار و اطلاعیه‌ها',
-      icon: <Newspaper className="w-4 h-4" />
+      icon: <Newspaper className="w-4 h-4" />,
+      badge: pendingAckCount > 0
+        ? `${toPersianDigits(pendingAckCount)} بخشنامه`
+        : unreadNewsCount > 0 ? `${toPersianDigits(unreadNewsCount)} نخوانده` : undefined,
+      badgeColor: pendingAckCount > 0 ? 'bg-amber-400 text-amber-950' : 'bg-[#991b1b]/30 text-[#E6E0D5]'
+    },
+    {
+      id: 'documents',
+      label: 'اسناد و فرم‌ها',
+      icon: <FolderOpen className="w-4 h-4" />
+    },
+    {
+      id: 'colleagues',
+      label: 'دفتر تلفن',
+      icon: <Users className="w-4 h-4" />
+    },
+    {
+      id: 'orgchart',
+      label: 'چارت سازمانی',
+      icon: <Network className="w-4 h-4" />
     },
     {
       id: 'training',
-      label: 'برنامه‌های آموزشی',
+      label: 'آموزش',
       icon: <GraduationCap className="w-4 h-4" />
     },
     {
       id: 'calendar',
-      label: 'تقویم سازمانی',
+      label: 'تقویم',
       icon: <Calendar className="w-4 h-4" />
     },
 
   ];
 
   if (currentUser?.role === 'manager') {
-    navItems.push({ id: 'reports', label: 'گزارشات', icon: <BarChart2 className="w-4 h-4" /> });
+    navItems.push({ id: 'reports', label: 'گزارش‌ها', icon: <BarChart2 className="w-4 h-4" /> });
+    navItems.push({ id: 'admin', label: 'تنظیمات', icon: <Settings className="w-4 h-4" /> });
   }
 
   return (
@@ -80,13 +91,14 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
       <nav className="hidden lg:block bg-[#7f1d1d] text-[#E6E0D5] border-b border-[#7f1d1d] shadow-inner">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-reverse space-x-1 py-1.5 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1 py-1.5 min-w-0 overflow-x-auto no-scrollbar">
               {navItems.map((item) => {
                 const isActive = activeTab === item.id;
                 return (
                   <button
                     key={item.id}
                     onClick={() => setActiveTab(item.id)}
+                    aria-current={isActive ? 'page' : undefined}
                     className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                       isActive
                         ? 'bg-[#dc2626] text-white shadow-md shadow-[#dc2626]/30'
@@ -105,11 +117,6 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
               })}
             </div>
 
-            {/* Role indicator pill */}
-            <div className="flex items-center gap-2 text-xs text-[#A8A295] bg-[#7f1d1d]/80 px-3 py-1 rounded-full border border-[#4E5348]">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#9BB088]" />
-              <span>دسترسی: <strong className="text-white">{currentUser ? (currentUser.role === 'manager' ? 'مدیر ارشد' : 'کارمند') : 'میهمان'}</strong></span>
-            </div>
           </div>
         </div>
       </nav>
@@ -131,6 +138,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
                 </div>
                 <button
                   onClick={onCloseMobileNav}
+                  aria-label="بستن منو"
                   className="p-1 rounded-lg text-[#A8A295] hover:text-white hover:bg-[#7f1d1d]"
                 >
                   ✕
@@ -138,12 +146,13 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
               </div>
 
               {/* User Profile Mini Badge in Mobile Nav */}
-              {currentUser ? (
+              {currentUser && (
                 <div className="flex items-center gap-3 p-3 bg-[#7f1d1d]/80 rounded-xl mb-4 border border-[#4E5348]">
-                  <img
-                    src={currentUser.avatar || undefined}
-                    alt={currentUser.firstName}
-                    className="w-10 h-10 rounded-full object-cover border-2 border-[#dc2626]"
+                  <Avatar
+                    src={currentUser.avatar}
+                    firstName={currentUser.firstName}
+                    lastName={currentUser.lastName}
+                    className="w-10 h-10 rounded-full border-2 border-[#dc2626] text-xs"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-bold text-white truncate">
@@ -153,19 +162,6 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
                       {currentUser.position}
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="p-3 bg-[#7f1d1d]/80 rounded-xl mb-4 border border-[#4E5348] text-center">
-                  <div className="text-xs font-bold text-white mb-2">حالت مشاهده میهمان</div>
-                  <button
-                    onClick={() => {
-                      onCloseMobileNav();
-                      openLoginModal('برای دسترسی به پنل همکاران وارد شوید.');
-                    }}
-                    className="w-full py-1.5 px-3 bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
-                  >
-                    ورود به حساب
-                  </button>
                 </div>
               )}
 
@@ -202,7 +198,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
             </div>
 
             <div className="pt-4 border-t border-[#7f1d1d] text-[11px] text-[#A8A295] text-center">
-              شرکت رویا طرح داخلی © 1403
+              شرکت رویا طرح داخلی © {toPersianDigits(currentJalaliYear())}
             </div>
           </div>
         </div>

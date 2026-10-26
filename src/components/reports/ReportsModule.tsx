@@ -1,132 +1,173 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { usePortal } from '../../context/PortalContext';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Activity, BarChart2 } from 'lucide-react';
+import moment from 'moment-jalaali';
+import { Activity, BarChart2, FileCheck2, Newspaper } from 'lucide-react';
+import { usePortal } from '../../context/PortalContext';
+import { api, errorMessage } from '../../lib/api';
+import { formatDate, toPersianDigits } from '../../lib/jalali';
+import type { MoodState, MoodSummaryRow } from '../../types';
+
+type Range = 'daily' | 'weekly' | 'monthly';
+const RANGE_DAYS: Record<Range, number> = { daily: 1, weekly: 7, monthly: 30 };
+const RANGE_LABELS: Record<Range, string> = { daily: 'امروز', weekly: '۷ روز اخیر', monthly: '۳۰ روز اخیر' };
+
+const MOODS: { name: MoodState; color: string }[] = [
+  { name: 'خیلی بد', color: '#f87171' },
+  { name: 'بد', color: '#fca5a5' },
+  { name: 'معمولی', color: '#d4d4d8' },
+  { name: 'خوب', color: '#991b1b' },
+  { name: 'عالی', color: '#dc2626' },
+];
+
+const percent = (part: number, total: number) => (total > 0 ? Math.round((part / total) * 100) : 0);
 
 export const ReportsModule: React.FC = () => {
-  const { userRole, currentUser } = usePortal();
-  const [allMoods, setAllMoods] = useState<any[]>([]);
-  const [filter, setFilter] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  
-  const currentUserId = currentUser?.id;
+  const { news, setActiveTab } = usePortal();
+  const [rows, setRows] = useState<MoodSummaryRow[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [range, setRange] = useState<Range>('weekly');
 
   useEffect(() => {
-    if (userRole === 'manager' && currentUserId) {
-      fetch('/api/moods/dashboard', { headers: { 'X-User-Id': currentUserId } })
-        .then(res => {
-          if (res.ok) return res.json();
-          throw new Error('Not authorized');
-        })
-        .then(setAllMoods)
-        .catch(console.error);
+    api
+      .get<MoodSummaryRow[]>('/api/moods/summary')
+      .then(setRows)
+      .catch((err) => setLoadError(errorMessage(err)));
+  }, []);
+
+  const { data, total } = useMemo(() => {
+    const since = moment().subtract(RANGE_DAYS[range] - 1, 'days').format('jYYYY/jMM/jDD');
+    const counts = new Map<MoodState, number>();
+    for (const row of rows) {
+      if (row.date >= since) counts.set(row.mood, (counts.get(row.mood) ?? 0) + row.count);
     }
-  }, [userRole, currentUserId]);
+    const chart = MOODS.map((m) => ({ ...m, count: counts.get(m.name) ?? 0 }));
+    return { data: chart, total: chart.reduce((sum, m) => sum + m.count, 0) };
+  }, [rows, range]);
 
-  const data = useMemo(() => {
-    const getPastDateStr = (offsetDays: number) => {
-      const d = new Date();
-      d.setDate(d.getDate() - offsetDays);
-      return d.toLocaleDateString('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/([۰-۹])/g, char => String.fromCharCode(char.charCodeAt(0) - 1728));
-    };
-
-    let allowedDates = new Set<string>();
-    if (filter === 'daily') {
-      allowedDates.add(getPastDateStr(0));
-    } else if (filter === 'weekly') {
-      for (let i = 0; i < 7; i++) allowedDates.add(getPastDateStr(i));
-    } else if (filter === 'monthly') {
-      for (let i = 0; i < 30; i++) allowedDates.add(getPastDateStr(i));
-    }
-
-    const filteredMoods = allMoods.filter(m => allowedDates.has(m.date));
-
-    const moodCounts: Record<string, number> = {
-      'عالی': 0,
-      'خوب': 0,
-      'معمولی': 0,
-      'بد': 0,
-      'خیلی بد': 0
-    };
-
-    filteredMoods.forEach(m => {
-      if (moodCounts[m.mood] !== undefined) moodCounts[m.mood]++;
-    });
-
-    return [
-      { name: 'خیلی بد', count: moodCounts['خیلی بد'], color: '#f87171' },
-      { name: 'بد', count: moodCounts['بد'], color: '#fca5a5' },
-      { name: 'معمولی', count: moodCounts['معمولی'], color: '#d4d4d8' },
-      { name: 'خوب', count: moodCounts['خوب'], color: '#991b1b' },
-      { name: 'عالی', count: moodCounts['عالی'], color: '#dc2626' }
-    ];
-  }, [allMoods, filter]);
-
-  if (userRole !== 'manager') return null;
+  // Reach of recent announcements, from the read statistics the server attaches for managers.
+  const reach = news
+    .filter((n) => n.status === 'published' && n.readStats)
+    .slice(0, 15)
+    .map((n) => ({ item: n, stats: n.readStats! }));
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-3xl p-6 border border-[#e5e5e5] shadow-xs space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#e5e5e5]">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-[#fdfbf7] text-[#991b1b] rounded-2xl border border-[#f5f2ed]">
-              <BarChart2 className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-[#2d2d2d]">گزارشات و آمار</h2>
-              <p className="text-sm text-[#6e6a60] mt-1">نمایش وضعیت احساسی سازمان</p>
-            </div>
-          </div>
-          <div className="flex bg-[#F5F2ED] rounded-xl p-1 border border-[#E6E0D5]">
-            <button
-              onClick={() => setFilter('daily')}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${filter === 'daily' ? 'bg-white text-[#dc2626] shadow-sm' : 'text-[#8C867A] hover:text-[#2D2D2D]'}`}
-            >
-              روزانه (امروز)
-            </button>
-            <button
-              onClick={() => setFilter('weekly')}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${filter === 'weekly' ? 'bg-white text-[#dc2626] shadow-sm' : 'text-[#8C867A] hover:text-[#2D2D2D]'}`}
-            >
-              هفتگی
-            </button>
-            <button
-              onClick={() => setFilter('monthly')}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${filter === 'monthly' ? 'bg-white text-[#dc2626] shadow-sm' : 'text-[#8C867A] hover:text-[#2D2D2D]'}`}
-            >
-              ماهانه
-            </button>
+      <div className="flex items-center gap-3">
+        <div className="p-3 bg-[#fdfbf7] text-[#991b1b] rounded-2xl border border-[#f5f2ed]">
+          <BarChart2 className="w-6 h-6" />
+        </div>
+        <div>
+          <h2 className="text-xl font-black text-[#2d2d2d]">گزارش‌ها</h2>
+          <p className="text-sm text-[#6e6a60] mt-1">میزان دیده‌شدن اطلاعیه‌ها و حال‌وهوای سازمان</p>
+        </div>
+      </div>
+
+      <section className="bg-white rounded-3xl p-6 border border-[#e5e5e5] shadow-xs space-y-4">
+        <div className="flex items-center gap-2">
+          <Newspaper className="w-5 h-5 text-[#991b1b]" />
+          <div>
+            <h3 className="text-base font-black text-[#2d2d2d]">دسترسی اطلاعیه‌های اخیر</h3>
+            <p className="text-xs text-[#6e6a60]">چند درصد از مخاطبان هر خبر آن را باز کرده‌اند و چند نفر بخشنامه را تأیید کرده‌اند</p>
           </div>
         </div>
+        {reach.length === 0 ? (
+          <p className="text-xs text-[#6E6A60] text-center py-6 bg-[#F5F2ED] rounded-xl">هنوز خبری منتشر نشده است.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-[#8C867A] border-b border-[#E6E0D5]">
+                  <th className="text-right font-bold py-2">عنوان</th>
+                  <th className="text-right font-bold py-2 whitespace-nowrap">تاریخ</th>
+                  <th className="text-right font-bold py-2 w-1/3">خوانده شده</th>
+                  <th className="text-right font-bold py-2 whitespace-nowrap">تأیید مطالعه</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reach.map(({ item, stats }) => {
+                  const readPct = percent(stats.read, stats.audience);
+                  return (
+                    <tr key={item.id} className="border-b border-[#F5F2ED] last:border-0">
+                      <td className="py-2.5 pl-3">
+                        <button onClick={() => setActiveTab('news', item.id)} className="font-bold text-[#2D2D2D] hover:text-[#dc2626] text-right">
+                          {item.title}
+                        </button>
+                      </td>
+                      <td className="py-2.5 pl-3 whitespace-nowrap text-[#6E6A60]">{formatDate(item.publishAt)}</td>
+                      <td className="py-2.5 pl-3">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-2 bg-[#F5F2ED] rounded-full overflow-hidden" role="progressbar" aria-valuenow={readPct} aria-valuemin={0} aria-valuemax={100}>
+                            <div className="h-full bg-[#991b1b] rounded-full" style={{ width: `${readPct}%` }} />
+                          </div>
+                          <span className="whitespace-nowrap text-[#6E6A60]">{toPersianDigits(`${stats.read}/${stats.audience}`)}</span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 whitespace-nowrap">
+                        {item.requiresAck ? (
+                          <span className="flex items-center gap-1 font-bold text-[#991b1b]">
+                            <FileCheck2 className="w-3.5 h-3.5" />
+                            {toPersianDigits(`${stats.acknowledged}/${stats.audience}`)}
+                          </span>
+                        ) : (
+                          <span className="text-[#8C867A]">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
-        <div className="space-y-4">
+      <section className="bg-white rounded-3xl p-6 border border-[#e5e5e5] shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-[#fdfbf7] text-[#991b1b] rounded-xl">
-              <Activity className="w-5 h-5" />
-            </div>
+            <Activity className="w-5 h-5 text-[#991b1b]" />
             <div>
-              <h3 className="text-base font-black text-[#2d2d2d]">وضعیت احساسی سازمان</h3>
-              <p className="text-xs text-[#6e6a60]">گزارش تجمیعی نظرسنجی همکاران در بازه انتخابی</p>
+              <h3 className="text-base font-black text-[#2d2d2d]">حال‌وهوای سازمان</h3>
+              <p className="text-xs text-[#6e6a60]">
+                جمع پاسخ‌های بی‌نام همکاران در {RANGE_LABELS[range]} ({toPersianDigits(total)} پاسخ)
+              </p>
             </div>
           </div>
-          <div className="h-64 w-full mt-4" dir="ltr">
+          <div className="flex bg-[#F5F2ED] rounded-xl p-1 border border-[#E6E0D5]" role="group" aria-label="بازهٔ زمانی">
+            {(Object.keys(RANGE_LABELS) as Range[]).map((r) => (
+              <button
+                key={r}
+                onClick={() => setRange(r)}
+                aria-pressed={range === r}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${range === r ? 'bg-white text-[#dc2626] shadow-sm' : 'text-[#8C867A] hover:text-[#2D2D2D]'}`}
+              >
+                {RANGE_LABELS[r]}
+              </button>
+            ))}
+          </div>
+        </div>
+        {loadError ? (
+          <p role="alert" className="text-xs text-red-700">{loadError}</p>
+        ) : (
+          <div className="h-64 w-full" dir="ltr">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#6e6a60' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 12, fill: '#6e6a60' }} axisLine={false} tickLine={false} allowDecimals={false} />
                 <Tooltip
                   cursor={{ fill: '#f5f2ed' }}
+                  formatter={(value) => [toPersianDigits(String(value)), 'تعداد']}
                   contentStyle={{ borderRadius: '12px', border: '1px solid #e5e5e5', fontSize: '12px', textAlign: 'right' }}
                 />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                  {data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  {data.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
-      </div>
+        )}
+      </section>
     </div>
   );
 };

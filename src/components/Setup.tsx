@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { usePortal } from '../context/PortalContext';
 import { Settings, Shield, User, Briefcase, Building, Mail, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { api, errorMessage } from '../lib/api';
+import type { CurrentUser } from '../types';
 
 export const Setup: React.FC = () => {
   const { completeSetup } = usePortal();
@@ -13,7 +15,8 @@ export const Setup: React.FC = () => {
     position: 'مدیر سیستم',
     department: 'مدیریت',
     email: '',
-    phone: ''
+    mobile: '',
+    setupToken: ''
   });
   const [loading, setLoading] = useState(false);
 
@@ -24,22 +27,17 @@ export const Setup: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    if (formData.password.length < 8) {
+      toast.error('رمز عبور باید حداقل ۸ کاراکتر باشد.');
+      setLoading(false);
+      return;
+    }
     try {
-      const res = await fetch('/api/system/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      const data = await res.json();
-      
-      if (res.ok && data.success) {
-        toast.success('سیستم با موفقیت راه اندازی شد!');
-        completeSetup(data.user);
-      } else {
-        toast.error(data.error || 'خطا در راه اندازی');
-      }
+      const data = await api.post<{ user: CurrentUser }>('/api/system/setup', formData);
+      toast.success('پرتال با موفقیت راه‌اندازی شد.');
+      completeSetup(data.user);
     } catch (err) {
-      toast.error('خطای ارتباط با سرور');
+      toast.error(errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -72,6 +70,9 @@ export const Setup: React.FC = () => {
                 type="text"
                 name="username"
                 required
+                dir="ltr"
+                pattern="[a-zA-Z0-9._\-]{3,40}"
+                title="حروف انگلیسی، عدد و . _ - (۳ تا ۴۰ کاراکتر)"
                 value={formData.username}
                 onChange={handleChange}
                 className="w-full bg-[#F5F2ED] border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#dc2626]"
@@ -84,10 +85,12 @@ export const Setup: React.FC = () => {
                 type="password"
                 name="password"
                 required
+                minLength={8}
+                dir="ltr"
                 value={formData.password}
                 onChange={handleChange}
                 className="w-full bg-[#F5F2ED] border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#dc2626]"
-                placeholder="***"
+                placeholder="حداقل ۸ کاراکتر"
               />
             </div>
 
@@ -174,8 +177,8 @@ export const Setup: React.FC = () => {
                 <Phone className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A8A295]" />
                 <input
                   type="tel"
-                  name="phone"
-                  value={formData.phone}
+                  name="mobile"
+                  value={formData.mobile}
                   onChange={handleChange}
                   className="w-full bg-[#F5F2ED] border-none rounded-xl pr-10 pl-4 py-3 text-sm focus:ring-2 focus:ring-[#dc2626] text-left"
                   dir="ltr"
@@ -183,6 +186,18 @@ export const Setup: React.FC = () => {
                 />
               </div>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-[#2D2D2D] mb-2">کد راه‌اندازی (اگر در تنظیمات سرور SETUP_TOKEN تعریف شده)</label>
+            <input
+              type="password"
+              name="setupToken"
+              dir="ltr"
+              value={formData.setupToken}
+              onChange={handleChange}
+              className="w-full bg-[#F5F2ED] border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#dc2626] text-left"
+            />
           </div>
 
           <button

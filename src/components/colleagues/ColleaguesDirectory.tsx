@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { Avatar } from '../common/Avatar';
+import { matches } from '../../lib/search';
+import { toPersianDigits } from '../../lib/jalali';
 import { usePortal } from '../../context/PortalContext';
 import { UserProfile } from '../../types';
 import { UserProfileModal } from './UserProfileModal';
@@ -11,21 +14,21 @@ import {
   Phone,
   Mail,
   UserPlus,
-  Building2,
   Copy,
   Check,
   ChevronLeft,
-  Sparkles,
-  MapPin,
-  ExternalLink
 } from 'lucide-react';
 
 export const ColleaguesDirectory: React.FC = () => {
-  const { employees, userRole, currentUser, appSettings } = usePortal();
+  const { employees, userRole, appSettings, focusId, setActiveTab } = usePortal();
+  const isManager = userRole === 'manager';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDept, setSelectedDept] = useState('all');
-  const [selectedUserForView, setSelectedUserForView] = useState<UserProfile | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
+  // The open profile follows the URL (#colleagues/<id>) so profiles can be linked.
+  const selectedUserForView = focusId ? employees.find(e => e.id === focusId) ?? null : null;
+  const setSelectedUserForView = (emp: UserProfile | null) => setActiveTab('colleagues', emp?.id ?? null);
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<UserProfile | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [copiedExtension, setCopiedExtension] = useState<string | null>(null);
@@ -36,32 +39,33 @@ export const ColleaguesDirectory: React.FC = () => {
   ];
 
   const filteredEmployees = employees.filter(emp => {
+    if (!emp.isActive && !showInactive) return false;
     const matchesDept = selectedDept === 'all' || emp.department === selectedDept;
-    
     if (!searchQuery.trim()) return matchesDept;
-
-    const q = searchQuery.trim().toLowerCase();
-    const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
-    const matchesQuery = fullName.includes(q) ||
-      emp.extension.includes(q) ||
-      emp.mobile.includes(q) ||
-      emp.email.toLowerCase().includes(q) ||
-      emp.position.toLowerCase().includes(q) ||
-      emp.skills.some(s => s.name.toLowerCase().includes(q));
-
-    return matchesDept && matchesQuery;
+    return matchesDept && matches(
+      searchQuery,
+      `${emp.firstName} ${emp.lastName}`,
+      emp.extension,
+      emp.mobile,
+      emp.email,
+      emp.position,
+      ...emp.skills.map(s => s.name),
+    );
   });
 
-  const handleCopyExtension = (ext: string, e: React.MouseEvent) => {
+  const handleCopyExtension = async (ext: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(ext);
-    setCopiedExtension(ext);
-    setTimeout(() => setCopiedExtension(null), 2000);
+    try {
+      await navigator.clipboard.writeText(ext);
+      setCopiedExtension(ext);
+      setTimeout(() => setCopiedExtension(null), 2000);
+    } catch {
+      // Clipboard needs HTTPS on most browsers; the number stays visible on the card.
+    }
   };
 
   return (
     <div className="space-y-6">
-      
       {/* Top Banner Header */}
       <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -72,7 +76,7 @@ export const ColleaguesDirectory: React.FC = () => {
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white">معرفی همکاران و سیستم ارتباطات داخلی</h1>
             <p className="text-[#E6E0D5] text-xs sm:text-sm max-w-2xl leading-relaxed">
-              دسترسی سریع به شماره تلفن داخلی، موبایل، ایمیل، دپارتمان، سوابق شغلی و مهارتهای کلیدی کلیه همکاران شرکت.
+              شماره داخلی، موبایل، ایمیل، واحد، سوابق شغلی و مهارت‌های همکاران. {toPersianDigits(employees.filter(e => e.isActive).length)} همکار فعال.
             </p>
           </div>
 
@@ -90,7 +94,6 @@ export const ColleaguesDirectory: React.FC = () => {
 
       {/* Search and Department Filter Toolbar */}
       <div className="bg-white p-4 rounded-2xl border border-[#E6E0D5] shadow-xs space-y-3">
-        
         {/* Search input */}
         <div className="relative">
           <input
@@ -98,6 +101,7 @@ export const ColleaguesDirectory: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="جستجوی سریع بر اساس نام همکار، شماره داخلی، موبایل، ایمیل یا سمت سازمانی..."
+            aria-label="جستجوی همکاران"
             className="w-full pr-10 pl-4 py-3 text-xs sm:text-sm bg-[#F5F2ED] border border-[#E6E0D5] rounded-xl focus:border-[#dc2626] focus:bg-white outline-hidden transition-all text-[#2D2D2D] placeholder-[#8C867A]"
           />
           <Search className="w-4 h-4 absolute right-3.5 top-3.5 text-[#8C867A]" />
@@ -120,6 +124,12 @@ export const ColleaguesDirectory: React.FC = () => {
           ))}
         </div>
 
+        {isManager && employees.some(e => !e.isActive) && (
+          <label className="flex items-center gap-2 text-xs text-[#6E6A60] cursor-pointer">
+            <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="accent-red-700" />
+            نمایش حساب‌های غیرفعال
+          </label>
+        )}
       </div>
 
       {/* Employees Grid */}
@@ -133,17 +143,16 @@ export const ColleaguesDirectory: React.FC = () => {
           filteredEmployees.map((emp) => (
             <div
               key={emp.id}
+              role="button"
+              tabIndex={0}
               onClick={() => setSelectedUserForView(emp)}
-              className="bg-white rounded-2xl border border-[#E6E0D5] p-5 hover:border-[#dc2626] hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between group relative overflow-hidden"
+              onKeyDown={(e) => { if (e.key === 'Enter') setSelectedUserForView(emp); }}
+              className={`bg-white rounded-2xl border border-[#E6E0D5] p-5 hover:border-[#dc2626] hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between group relative overflow-hidden ${emp.isActive ? '' : 'opacity-60'}`}
             >
               {/* Top Card Content */}
               <div>
                 <div className="flex items-start gap-3 mb-4">
-                  <img
-                    src={emp.avatar || undefined}
-                    alt={`${emp.firstName} ${emp.lastName}`}
-                    className="w-14 h-14 rounded-2xl object-cover border border-[#E6E0D5] group-hover:scale-105 transition-transform"
-                  />
+                  <Avatar src={emp.avatar} firstName={emp.firstName} lastName={emp.lastName} className="w-14 h-14 rounded-2xl border border-[#E6E0D5] text-base" />
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-bold text-[#2D2D2D] group-hover:text-[#dc2626] transition-colors truncate">
                       {emp.firstName} {emp.lastName}
@@ -154,19 +163,20 @@ export const ColleaguesDirectory: React.FC = () => {
                     <span className="inline-block mt-1.5 px-2 py-0.5 text-[10px] font-medium bg-[#F5F2ED] text-[#991b1b] rounded-md">
                       {emp.department}
                     </span>
+                    {!emp.isActive && <span className="inline-block mt-1.5 mr-1 px-2 py-0.5 text-[10px] font-bold bg-stone-200 text-stone-700 rounded-md">غیرفعال</span>}
+                    {emp.role === 'manager' && <span className="inline-block mt-1.5 mr-1 px-2 py-0.5 text-[10px] font-bold bg-red-50 text-red-800 rounded-md">مدیر پرتال</span>}
                   </div>
                 </div>
 
                 {/* Quick Contact Rows */}
                 <div className="space-y-2 py-3 border-y border-[#E6E0D5] text-xs">
-                  
                   {/* Extension Row with Copy Button */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-[#6E6A60]">
                       <PhoneCall className="w-3.5 h-3.5 text-[#dc2626]" />
                       <span>شماره داخلی:</span>
                     </div>
-                    <button
+                    {emp.extension ? <button
                       onClick={(e) => handleCopyExtension(emp.extension, e)}
                       className="px-2.5 py-1 bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D] rounded-lg text-xs font-bold border border-[#E6E0D5] flex items-center gap-1 transition-colors"
                       title="کپی شماره داخلی"
@@ -177,7 +187,7 @@ export const ColleaguesDirectory: React.FC = () => {
                       ) : (
                         <Copy className="w-3 h-3 text-[#8C867A]" />
                       )}
-                    </button>
+                    </button> : <span className="text-[#A8A295]">—</span>}
                   </div>
 
                   {/* Mobile Row */}
@@ -186,7 +196,7 @@ export const ColleaguesDirectory: React.FC = () => {
                       <Phone className="w-3.5 h-3.5 text-[#8C867A]" />
                       <span>تلفن همراه:</span>
                     </div>
-                    <span className="font-semibold text-[#2D2D2D]">{emp.mobile}</span>
+                    <span dir="ltr" className="font-semibold text-[#2D2D2D]">{emp.mobile || '—'}</span>
                   </div>
 
                   {/* Email Row */}
@@ -195,7 +205,7 @@ export const ColleaguesDirectory: React.FC = () => {
                       <Mail className="w-3.5 h-3.5 text-[#8C867A]" />
                       <span>ایمیل:</span>
                     </div>
-                    <span className="font-medium text-[#2D2D2D] truncate max-w-[140px] text-[11px]">{emp.email}</span>
+                    <span dir="ltr" className="font-medium text-[#2D2D2D] truncate max-w-[140px] text-[11px]">{emp.email || '—'}</span>
                   </div>
 
                 </div>
@@ -232,7 +242,7 @@ export const ColleaguesDirectory: React.FC = () => {
       {selectedUserForView && <UserProfileModal
         user={selectedUserForView}
         onClose={() => setSelectedUserForView(null)}
-        onEdit={(usr) => setSelectedUserForEdit(usr)}
+        onEdit={(usr) => { setSelectedUserForView(null); setSelectedUserForEdit(usr); }}
       />}
 
       {/* Edit Profile Modal */}

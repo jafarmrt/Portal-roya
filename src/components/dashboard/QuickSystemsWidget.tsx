@@ -1,15 +1,12 @@
 import React from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { MonitorSmartphone, ExternalLink, Database, Globe, CalendarClock } from 'lucide-react';
+import { MonitorSmartphone, ExternalLink } from 'lucide-react';
+import { iconMap } from '../systems/SystemsModule';
 
 export const QuickSystemsWidget: React.FC = () => {
-  const { setActiveTab } = usePortal();
-
-  const quickLinks = [
-    { name: 'سیستم CRM', icon: <Database className="w-5 h-5" />, color: 'text-red-600', bg: 'bg-red-50' },
-    { name: 'اتوماسیون', icon: <Globe className="w-5 h-5" />, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { name: 'حضور و غیاب', icon: <CalendarClock className="w-5 h-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-  ];
+  const { setActiveTab, appSettings } = usePortal();
+  const systems = (appSettings?.systems ?? []).slice(0, 4);
+  if (systems.length === 0) return null;
 
   return (
     <div className="bg-white rounded-3xl p-6 border border-[#E6E0D5] shadow-xs space-y-4">
@@ -20,29 +17,37 @@ export const QuickSystemsWidget: React.FC = () => {
           </div>
           <div>
             <h3 className="text-base font-black text-[#2D2D2D]">دسترسی سریع سامانه‌ها</h3>
-            <p className="text-xs text-[#6E6A60]">برنامه‌های سازمانی پرکاربرد</p>
+            <p className="text-xs text-[#6E6A60]">نرم‌افزارهای سازمانی دیگر</p>
           </div>
         </div>
-        <button
-          onClick={() => setActiveTab('systems')}
-          className="text-xs font-bold text-[#dc2626] hover:underline"
-        >
+        <button onClick={() => setActiveTab('systems')} className="text-xs font-bold text-[#dc2626] hover:underline">
           مشاهده همه
         </button>
       </div>
 
-      <div className="space-y-3 pt-2">
-        {quickLinks.map((link, idx) => (
-          <button key={idx} className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-[#F5F2ED] transition-colors group">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-xl ${link.bg} ${link.color}`}>
-                {link.icon}
+      <div className="space-y-2 pt-1">
+        {systems.map((system) => {
+          const Icon = iconMap[system.iconName] || ExternalLink;
+          const disabled = !system.url || system.url === '#';
+          return (
+            <a
+              key={system.id}
+              href={disabled ? undefined : system.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-disabled={disabled}
+              className={`w-full flex items-center justify-between p-3 rounded-2xl transition-colors group ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:bg-[#F5F2ED]'}`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl ${system.bgColor} ${system.textColor}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <span className="text-sm font-bold text-[#2D2D2D] group-hover:text-[#dc2626] transition-colors">{system.name}</span>
               </div>
-              <span className="text-sm font-bold text-[#2D2D2D] group-hover:text-[#dc2626] transition-colors">{link.name}</span>
-            </div>
-            <ExternalLink className="w-4 h-4 text-[#A8A295] group-hover:text-[#dc2626]" />
-          </button>
-        ))}
+              <ExternalLink className="w-4 h-4 text-[#A8A295] group-hover:text-[#dc2626]" />
+            </a>
+          );
+        })}
       </div>
     </div>
   );

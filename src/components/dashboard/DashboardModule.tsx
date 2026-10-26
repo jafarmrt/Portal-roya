@@ -8,20 +8,16 @@ import { WelcomeNewColleagueCard } from './WelcomeNewColleagueCard';
 import { DashboardCalendar } from './DashboardCalendar';
 import moment from 'moment-jalaali';
 import { JALALI_MONTHS, JALALI_WEEKDAYS } from '../../data/holidays';
+import { formatDate, toPersianDigits, todayJalali } from '../../lib/jalali';
 import {
   Vote,
-  Users,
   Newspaper,
   GraduationCap,
-  Calendar,
-  Search,
-  PhoneCall,
   ChevronLeft,
-  Heart,
   Sparkles,
-  Building2,
-  Clock,
-  Pin
+  Pin,
+  FileCheck2,
+  AlertTriangle
 } from 'lucide-react';
 
 export const DashboardModule: React.FC = () => {
@@ -31,25 +27,22 @@ export const DashboardModule: React.FC = () => {
     polls,
     trainings,
     setActiveTab,
-    employees,
-    globalSearchQuery,
-    setGlobalSearchQuery,
-    isLoggedIn,
-    openLoginModal
   } = usePortal();
 
-  const activePoll = polls.find(p => p.isActive);
-
-  const pinnedNews = news.filter(n => n.isPinned);
-  const upcomingTraining = trainings[0];
-  const today = moment();
-  const todayDayIndex = (today.day() + 1) % 7;
-  const todayStr = `${JALALI_WEEKDAYS[todayDayIndex]}، ${today.jDate()} ${JALALI_MONTHS[today.jMonth()]} ${today.jYear()}`; // Mapping JS day to Sat-first array
+  const activePoll = polls.find(p => p.isActive && !p.hasVoted);
+  const publishedNews = news.filter(n => n.status === 'published');
+  const pendingAcks = publishedNews.filter(n => n.requiresAck && !n.acknowledgedAt);
+  const unreadCount = publishedNews.filter(n => !n.isRead).length;
+  const latestNews = publishedNews.filter(n => !(n.requiresAck && !n.acknowledgedAt)).slice(0, 4);
+  const today = todayJalali();
+  const upcomingTraining = [...trainings].filter(t => t.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const now = moment();
+  const todayDayIndex = (now.day() + 1) % 7; // JS Sunday-first to Saturday-first
+  const todayStr = toPersianDigits(`${JALALI_WEEKDAYS[todayDayIndex]}، ${now.jDate()} ${JALALI_MONTHS[now.jMonth()]} ${now.jYear()}`);
 
 
   return (
     <div className="space-y-6">
-      
       {/* Hero Welcome Banner */}
       <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
         <div className="absolute top-0 left-0 -ml-12 -mt-12 w-64 h-64 rounded-full bg-[#dc2626]/20 blur-3xl pointer-events-none" />
@@ -61,10 +54,11 @@ export const DashboardModule: React.FC = () => {
               <span>پرتال سازمانی رویا طرح داخلی | ROYA Surface Center</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white">
-              {currentUser ? `سلام، ${currentUser.firstName} ${currentUser.lastName} عزیز 👋` : 'به پرتال سازمانی رویا طرح داخلی خوش آمدید 👋'}
+              {currentUser ? `سلام، ${currentUser.firstName} ${currentUser.lastName} عزیز 👋` : 'خوش آمدید 👋'}
             </h1>
             <p className="text-[#E6E0D5] text-xs sm:text-sm max-w-xl leading-relaxed">
-              به پرتال یکپارچه رویا طرح داخلی خوش آمدید. امروز {todayStr} است.
+              امروز {todayStr} است.
+              {unreadCount > 0 ? ` ${toPersianDigits(unreadCount)} خبر یا اطلاعیهٔ نخوانده دارید.` : ' همهٔ اخبار را خوانده‌اید.'}
             </p>
           </div>
 
@@ -74,53 +68,59 @@ export const DashboardModule: React.FC = () => {
               onClick={() => setActiveTab('polls')}
               className="px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl backdrop-blur-xs border border-white/10 text-right transition-all"
             >
-              <div className="text-[10px] text-[#E6E0D5]">نظرسنجی‌های فعال</div>
+              <div className="text-[10px] text-[#E6E0D5]">نظرسنجی‌ها</div>
               <div className="text-base font-black text-white flex items-center gap-1.5">
                 <Vote className="w-4 h-4 text-[#9BB088]" />
-                <span>{polls.filter(p => p.isActive).length} نظرسنجی</span>
+                <span>{toPersianDigits(polls.filter(p => p.isActive && !p.hasVoted).length)} در انتظار رأی شما</span>
               </div>
             </button>
 
-            {currentUser ? (
-              <button
-                onClick={() => setActiveTab('colleagues')}
-                className="px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl backdrop-blur-xs border border-white/10 text-right transition-all"
-              >
-                <div className="text-[10px] text-[#E6E0D5]">شماره داخلی شما</div>
-                <div className="text-base font-black text-white flex items-center gap-1.5">
-                  <PhoneCall className="w-4 h-4 text-[#D97B5F]" />
-                  <span>{currentUser.extension}</span>
-                </div>
-              </button>
-            ) : (
-              <button
-                onClick={() => openLoginModal('جهت دسترسی به پنل شخصی، ثبت‌نام کارگاه‌ها و مشارکت در گفتگوها وارد شوید.')}
-                className="px-4 py-2.5 bg-white/15 hover:bg-white/25 rounded-2xl backdrop-blur-xs border border-white/20 text-right transition-all"
-              >
-                <div className="text-[10px] text-[#E6E0D5]">حساب کاربری همکاران</div>
-                <div className="text-base font-black text-white flex items-center gap-1.5">
-                  <Users className="w-4 h-4 text-[#E6E0D5]" />
-                  <span>ورود همکاران</span>
-                </div>
-              </button>
-            )}
+            <button
+              onClick={() => setActiveTab('news')}
+              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl backdrop-blur-xs border border-white/10 text-right transition-all"
+            >
+              <div className="text-[10px] text-[#E6E0D5]">اخبار نخوانده</div>
+              <div className="text-base font-black text-white flex items-center gap-1.5">
+                <Newspaper className="w-4 h-4 text-[#E6E0D5]" />
+                <span>{toPersianDigits(unreadCount)} مورد</span>
+              </div>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Main Grid Section */}
+      {pendingAcks.length > 0 && (
+        <section className="bg-amber-50 border border-amber-300 rounded-3xl p-5 sm:p-6 space-y-3" aria-labelledby="pending-acks-title">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-amber-700" />
+            <h2 id="pending-acks-title" className="text-sm font-black text-amber-900">
+              {toPersianDigits(pendingAcks.length)} بخشنامه منتظر مطالعه و تأیید شماست
+            </h2>
+          </div>
+          <ul className="space-y-2">
+            {pendingAcks.map(item => (
+              <li key={item.id}>
+                <button
+                  onClick={() => setActiveTab('news', item.id)}
+                  className="w-full flex items-center justify-between gap-3 p-3 bg-white rounded-2xl border border-amber-200 hover:border-amber-500 text-right transition-colors"
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <FileCheck2 className="w-4 h-4 text-amber-700 shrink-0" />
+                    <span className="text-xs font-bold text-[#2D2D2D] truncate">{item.title}</span>
+                  </span>
+                  <span className="text-[11px] text-[#6E6A60] whitespace-nowrap">{formatDate(item.publishAt)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <WorkAnniversaryWidget />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
         {/* Left 2 Columns: News Highlights, Active Poll, Training */}
         <div className="lg:col-span-2 space-y-6">
-          
-          {/* Mood Tracker */}
-          <MoodTrackerWidget />
-
-          {/* Mood Dashboard (Manager) */}
-          
           {/* Pinned / Latest News Section */}
           <div className="bg-white rounded-3xl p-6 border border-[#E6E0D5] shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
@@ -142,33 +142,44 @@ export const DashboardModule: React.FC = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {news.slice(0, 2).map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => setActiveTab('news')}
-                  className="p-4 bg-[#F5F2ED]/60 hover:bg-[#F5F2ED] rounded-2xl border border-[#E6E0D5] cursor-pointer transition-all space-y-2 group"
-                >
-                  <img
-                    src={item.image || undefined}
-                    alt={item.title}
-                    className="w-full h-32 object-cover rounded-xl group-hover:opacity-95 transition-opacity"
-                  />
-                  <div className="flex items-center justify-between text-[10px] text-[#6E6A60]">
-                    <span className="font-bold text-[#dc2626]">{item.category}</span>
-                    <span>{item.date}</span>
-                  </div>
-                  <h4 className="text-xs font-bold text-[#2D2D2D] line-clamp-2 group-hover:text-[#dc2626] transition-colors">
-                    {item.title}
-                  </h4>
-                </div>
-              ))}
-            </div>
+            {latestNews.length === 0 ? (
+              <p className="text-xs text-[#6E6A60] py-6 text-center">هنوز خبری منتشر نشده است.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {latestNews.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab('news', item.id)}
+                    className="p-4 bg-[#F5F2ED]/60 hover:bg-[#F5F2ED] rounded-2xl border border-[#E6E0D5] cursor-pointer transition-all space-y-2 group text-right"
+                  >
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        alt=""
+                        loading="lazy"
+                        className="w-full h-32 object-cover rounded-xl group-hover:opacity-95 transition-opacity"
+                      />
+                    )}
+                    <div className="flex items-center justify-between text-[10px] text-[#6E6A60]">
+                      <span className="font-bold text-[#dc2626] flex items-center gap-1">
+                        {item.isPinned && <Pin className="w-3 h-3" />}
+                        {item.category}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        {!item.isRead && <span className="w-2 h-2 rounded-full bg-red-600" aria-label="نخوانده" />}
+                        {formatDate(item.publishAt)}
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-bold text-[#2D2D2D] line-clamp-2 group-hover:text-[#dc2626] transition-colors">
+                      {item.title}
+                    </h4>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
- 
 
-          
           {/* Welcome New Colleagues Wall */}
           <WelcomeNewColleagueCard />
 
@@ -197,10 +208,10 @@ export const DashboardModule: React.FC = () => {
 
               <div className="flex items-center justify-between pt-2">
                 <span className="text-xs text-[#6E6A60] font-medium">
-                  مجموع شرکت‌کنندگان: <strong>{activePoll.totalVotes} نفر</strong>
+                  مجموع شرکت‌کنندگان: <strong>{toPersianDigits(activePoll.totalVotes)} نفر</strong>
                 </span>
                 <button
-                  onClick={() => setActiveTab('polls')}
+                  onClick={() => setActiveTab('polls', activePoll.id)}
                   className="px-5 py-2.5 bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5"
                 >
                   <span>شرکت در نظرسنجی و ثبت رای</span>
@@ -210,16 +221,12 @@ export const DashboardModule: React.FC = () => {
             </div>
           )}
 
-          
 
-        
-                 
 
                  </div>
 
         {/* Right Column: Birthdays & Upcoming Training Widget */}
         <div className="space-y-6">
-          
           {/* Dashboard Calendar Widget */}
           <DashboardCalendar />
 
@@ -228,6 +235,9 @@ export const DashboardModule: React.FC = () => {
 
           {/* Birthday Celebrations Card */}
           <BirthdayCard />
+
+          {/* Mood check-in (anonymous in reports) */}
+          <MoodTrackerWidget />
 
           {/* Upcoming Training Highlight */}
           {upcomingTraining && (
@@ -249,12 +259,12 @@ export const DashboardModule: React.FC = () => {
                 <p className="text-xs text-[#6E6A60] leading-relaxed line-clamp-2">{upcomingTraining.description}</p>
                 <div className="text-xs text-[#6E6A60] space-y-1 pt-1">
                   <div>مدرس: <strong>{upcomingTraining.instructor}</strong></div>
-                  <div>تاریخ: <strong>{upcomingTraining.date}</strong> (ساعت {upcomingTraining.time})</div>
+                  <div>تاریخ: <strong>{formatDate(upcomingTraining.date)}</strong>{upcomingTraining.time && ` (ساعت ${upcomingTraining.time})`}</div>
                 </div>
               </div>
 
               <button
-                onClick={() => setActiveTab('training')}
+                onClick={() => setActiveTab('training', upcomingTraining.id)}
                 className="w-full py-2 bg-[#991b1b] hover:bg-[#7f1d1d] text-white text-xs font-bold rounded-xl transition-colors text-center block mt-2"
               >
                 مشاهده جزییات و ثبت‌نام

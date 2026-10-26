@@ -1,6 +1,7 @@
 import React from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { Sparkles, Award } from 'lucide-react';
+import { todayJalali, toPersianDigits } from '../../lib/jalali';
 
 export const WorkAnniversaryWidget: React.FC = () => {
   const { currentUser } = usePortal();
@@ -8,30 +9,16 @@ export const WorkAnniversaryWidget: React.FC = () => {
   if (!currentUser || !currentUser.hireDate) return null;
   const hireDate = currentUser.hireDate; // e.g. "1399/04/10"
 
-  const parts = hireDate.split('/');
-  if (parts.length !== 3) return null;
+  const match = /^(\d{4})\/(\d{2})\/(\d{2})$/.exec(hireDate);
+  if (!match) return null;
+  const [, hireYear, hireMonth, hireDay] = match.map(Number);
+  const [currentYear, currentMonth, currentDay] = todayJalali().split('/').map(Number);
 
-  const hireYear = parseInt(parts[0], 10);
-  const hireMonth = parts[1];
-  const hireDay = parts[2];
-
-  const getTodayStr = () => new Date().toLocaleDateString('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/([۰-۹])/g, d => String.fromCharCode(d.charCodeAt(0) - 1728));
-  
-  const todayParts = getTodayStr().split('/');
-  if (todayParts.length !== 3) return null;
-
-  const currentYear = parseInt(todayParts[0], 10);
-  const currentMonth = todayParts[1];
-  const currentDay = todayParts[2];
-
-  // For testing/mock purposes, if they are the same month, we'll show it.
-  const isAnniversaryMonth = hireMonth === currentMonth; 
-  
-  // Actually, let's just make it show up if month matches, so we can see it in preview.
-  
+  // Shown during the first week after the anniversary date.
+  const isAnniversaryWeek = hireMonth === currentMonth && currentDay >= hireDay && currentDay - hireDay < 7;
   const yearsOfService = currentYear - hireYear;
 
-  if (yearsOfService > 0 && isAnniversaryMonth) {
+  if (yearsOfService > 0 && isAnniversaryWeek) {
     return (
       <div className="bg-gradient-to-r from-[#dc2626] to-[#f87171] rounded-3xl p-6 text-white shadow-lg relative overflow-hidden mb-6">
         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
@@ -46,9 +33,9 @@ export const WorkAnniversaryWidget: React.FC = () => {
               <Sparkles className="w-3 h-3" />
               تولد سازمانی
             </div>
-            <h3 className="text-lg font-black text-white">{yearsOfService} سالگی حضور شما در رویا طرح داخلی مبارک! 🎉</h3>
+            <h3 className="text-lg font-black text-white">{toPersianDigits(yearsOfService)} سالگی حضور شما در رویا طرح داخلی مبارک! 🎉</h3>
             <p className="text-xs text-white/90 mt-1 max-w-xl leading-relaxed">
-              از اینکه {yearsOfService} سال در کنار ما هستید و با تلاش‌هایتان به رشد سازمان کمک می‌کنید، صمیمانه سپاسگزاریم.
+              از اینکه {toPersianDigits(yearsOfService)} سال در کنار ما هستید و با تلاش‌هایتان به رشد سازمان کمک می‌کنید، صمیمانه سپاسگزاریم.
             </p>
           </div>
         </div>

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { PollType } from '../../types';
-import { X, Plus, Trash2, HelpCircle, Vote, AlertCircle, FileText, CheckCircle2 } from 'lucide-react';
+import { X, Plus, Trash2, Vote, FileText, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { JalaliDateInput } from '../common/JalaliDateInput';
+import { useEscapeKey } from '../../lib/useEscapeKey';
 
 interface CreatePollModalProps {
   isOpen: boolean;
@@ -16,7 +18,9 @@ export const CreatePollModal: React.FC<CreatePollModalProps> = ({ isOpen, onClos
   const [description, setDescription] = useState('');
   const [department, setDepartment] = useState('all');
   const [type, setType] = useState<PollType>('multiple_choice');
-  const [expiryDate, setExpiryDate] = useState('1403/06/30');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEscapeKey(onClose, isOpen);
   const [options, setOptions] = useState<string[]>(['گزینه ۱', 'گزینه ۲']);
 
   if (!isOpen) return null;
@@ -39,25 +43,29 @@ export const CreatePollModal: React.FC<CreatePollModalProps> = ({ isOpen, onClos
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !description.trim()) return;
+    if (!title.trim()) return;
 
     if (type === 'multiple_choice' && options.filter(o => o.trim()).length < 2) {
       toast.error('حداقل دو گزینه باید وارد شود.');
       return;
     }
 
-    addPoll({
+    setBusy(true);
+    const ok = await addPoll({
       title,
       description,
       department,
       type,
       expiryDate,
-      options: type === 'multiple_choice' ? options : []
+      options: type === 'multiple_choice' ? options.map(o => o.trim()).filter(Boolean) : []
     });
+    setBusy(false);
+    if (!ok) return;
 
     onClose();
+    setExpiryDate('');
     // Reset form
     setTitle('');
     setDescription('');
@@ -139,14 +147,8 @@ export const CreatePollModal: React.FC<CreatePollModalProps> = ({ isOpen, onClos
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">تاریخ مهلت پاسخگویی</label>
-              <input
-                type="text"
-                value={expiryDate}
-                onChange={(e) => setExpiryDate(e.target.value)}
-                placeholder="1403/06/30"
-                className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:border-red-500 outline-hidden"
-              />
+              <label htmlFor="poll-expiry" className="block text-xs font-bold text-slate-700 mb-1">مهلت پاسخگویی (اختیاری)</label>
+              <JalaliDateInput id="poll-expiry" value={expiryDate} onChange={setExpiryDate} />
             </div>
           </div>
 
@@ -236,7 +238,8 @@ export const CreatePollModal: React.FC<CreatePollModalProps> = ({ isOpen, onClos
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md shadow-red-600/20 transition-all flex items-center gap-1.5"
+              disabled={busy}
+              className="disabled:opacity-60 px-5 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md shadow-red-600/20 transition-all flex items-center gap-1.5"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>انتشار نظرسنجی</span>

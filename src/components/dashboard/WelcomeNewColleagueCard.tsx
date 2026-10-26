@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { Sparkles, Send, Heart, UserPlus, MessageSquare, Check } from 'lucide-react';
+import { Send, UserPlus, MessageSquare, Check } from 'lucide-react';
+import { Avatar } from '../common/Avatar';
+import { formatDate, timeAgo, toPersianDigits } from '../../lib/jalali';
 
 export const WelcomeNewColleagueCard: React.FC = () => {
-  const { newColleagues, employees, sendWelcomeWish, isLoggedIn, openLoginModal } = usePortal();
+  const { newColleagues, employees, sendWelcomeWish, currentUser } = usePortal();
   const [wishInputs, setWishInputs] = useState<Record<string, string>>({});
   const [submittedStatus, setSubmittedStatus] = useState<Record<string, boolean>>({});
 
-  if (newColleagues.length === 0) return null;
+  // Only colleagues who joined in the last 60 days are introduced on the dashboard.
+  const recent = newColleagues.filter(nc => Date.now() - new Date(nc.createdAt).getTime() < 60 * 864e5).slice(0, 3);
+  if (recent.length === 0) return null;
 
-  const handleSendWish = (ncId: string) => {
-    if (!isLoggedIn) {
-      openLoginModal('برای ارسال پیام خوش‌آمدگویی، لطفاً وارد حساب کاربری شوید.');
-      return;
-    }
-    const text = wishInputs[ncId] || 'ورودتان به رویا طرح داخلی را صمیمانه تبریک می‌گوییم! 🎉';
-    sendWelcomeWish(ncId, text);
+  const handleSendWish = async (ncId: string) => {
+    const text = wishInputs[ncId]?.trim() || 'ورودتان به رویا طرح داخلی را صمیمانه تبریک می‌گوییم! 🎉';
+    if (!(await sendWelcomeWish(ncId, text))) return;
     setSubmittedStatus(prev => ({ ...prev, [ncId]: true }));
     setTimeout(() => {
       setSubmittedStatus(prev => ({ ...prev, [ncId]: false }));
@@ -44,7 +44,7 @@ export const WelcomeNewColleagueCard: React.FC = () => {
 
       {/* Cards List */}
       <div className="space-y-4">
-        {newColleagues.map((nc) => {
+        {recent.map((nc) => {
           const colleague = employees.find(e => e.id === nc.userId);
           if (!colleague) return null;
 
@@ -52,11 +52,7 @@ export const WelcomeNewColleagueCard: React.FC = () => {
             <div key={nc.id} className="p-5 bg-gradient-to-br from-[#F5F2ED] to-[#EFEFEA]/50 rounded-2xl border border-[#E6E0D5] space-y-4">
               
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <img
-                  src={colleague.avatar || undefined}
-                  alt={colleague.firstName}
-                  className="w-20 h-20 rounded-2xl object-cover border-4 border-white shadow-md"
-                />
+                <Avatar src={colleague.avatar} firstName={colleague.firstName} lastName={colleague.lastName} className="w-20 h-20 rounded-2xl border-4 border-white shadow-md text-xl" />
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <h4 className="text-base font-black text-[#2D2D2D]">
@@ -67,10 +63,10 @@ export const WelcomeNewColleagueCard: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-xs font-bold text-[#dc2626]">
-                    {nc.position} | {nc.department}
+                    {colleague.position} | {colleague.department}
                   </p>
                   <p className="text-[11px] text-[#6E6A60]">
-                    تاریخ پیوستن: <strong>{nc.joinDate}</strong>
+                    تاریخ پیوستن: <strong>{formatDate(nc.joinDate)}</strong>
                   </p>
                 </div>
               </div>
@@ -85,13 +81,13 @@ export const WelcomeNewColleagueCard: React.FC = () => {
                 <div className="space-y-2 pt-2">
                   <span className="text-[11px] font-bold text-[#2D2D2D] flex items-center gap-1">
                     <MessageSquare className="w-3.5 h-3.5 text-[#991b1b]" />
-                    <span>پیام‌های خوش‌آمدگویی همکاران ({nc.wishes.length}):</span>
+                    <span>پیام‌های خوش‌آمدگویی همکاران ({toPersianDigits(nc.wishes.length)}):</span>
                   </span>
                   <div className="max-h-36 overflow-y-auto space-y-1.5 pl-1">
                     {nc.wishes.map((w) => (
                       <div key={w.id} className="p-2 bg-white rounded-lg border border-[#E6E0D5] text-[11px] flex justify-between gap-2">
                         <span><strong>{w.userName}:</strong> {w.message}</span>
-                        <span className="text-[10px] text-[#8C867A] whitespace-nowrap">{w.time}</span>
+                        <span className="text-[10px] text-[#8C867A] whitespace-nowrap">{timeAgo(w.time)}</span>
                       </div>
                     ))}
                   </div>
@@ -99,12 +95,15 @@ export const WelcomeNewColleagueCard: React.FC = () => {
               )}
 
               {/* Input for sending welcome wish */}
+              {nc.userId !== currentUser?.id && (
               <div className="flex items-center gap-2 pt-1">
                 <input
                   type="text"
                   value={wishInputs[nc.id] || ''}
                   onChange={(e) => setWishInputs(prev => ({ ...prev, [nc.id]: e.target.value }))}
                   placeholder="نوشتن پیام خوش‌آمدگویی صمیمانه..."
+                  aria-label={`پیام خوش‌آمد برای ${colleague.firstName}`}
+                  maxLength={500}
                   className="flex-1 px-3 py-1.5 text-xs bg-white border border-[#E6E0D5] rounded-xl outline-hidden focus:border-[#991b1b] text-[#2D2D2D]"
                 />
                 <button
@@ -128,6 +127,7 @@ export const WelcomeNewColleagueCard: React.FC = () => {
                   )}
                 </button>
               </div>
+              )}
 
             </div>
           );

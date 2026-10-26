@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, X, Sparkles, Cake, Users, Video } from 'lucide-react';
-import { CalendarEvent } from '../../types';
+import type { CalendarEvent } from '../../types';
 import moment from 'moment-jalaali';
-import { IRANIAN_HOLIDAYS, JALALI_MONTHS, JALALI_WEEKDAYS } from '../../data/holidays';
+import { IRANIAN_HOLIDAYS, JALALI_MONTHS } from '../../data/holidays';
 
 export const DashboardCalendar: React.FC = () => {
   const { calendarEvents, setActiveTab, customHolidays } = usePortal();
@@ -24,15 +24,8 @@ export const DashboardCalendar: React.FC = () => {
   const weekDays = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
 
   const getEventForDay = (day: number) => {
-    const dayStr = String(day).padStart(2, '0');
-    const monthStr = String(currentMonth + 1).padStart(2, '0');
-    const farsiDayStr = dayStr.replace(/0/g, '۰').replace(/1/g, '۱').replace(/2/g, '۲').replace(/3/g, '۳').replace(/4/g, '۴').replace(/5/g, '۵').replace(/6/g, '۶').replace(/7/g, '۷').replace(/8/g, '۸').replace(/9/g, '۹');
-    const farsiMonthStr = monthStr.replace(/0/g, '۰').replace(/1/g, '۱').replace(/2/g, '۲').replace(/3/g, '۳').replace(/4/g, '۴').replace(/5/g, '۵').replace(/6/g, '۶').replace(/7/g, '۷').replace(/8/g, '۸').replace(/9/g, '۹');
-    
-    return calendarEvents.find(e => 
-      e.date.includes(`${currentYear}/${monthStr}/${dayStr}`) || 
-      e.date.includes(`${currentYear}/${farsiMonthStr}/${farsiDayStr}`)
-    );
+    const date = `${currentYear}/${String(currentMonth + 1).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+    return calendarEvents.find((e) => e.date === date);
   };
 
   const getDayHoliday = (year: number, month: number, day: number) => {

@@ -1,15 +1,14 @@
 import React from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { LayoutDashboard, ExternalLink, Users, Newspaper, User, LogIn } from 'lucide-react';
+import { LayoutDashboard, ExternalLink, Users, Newspaper } from 'lucide-react';
 import { ActiveTab } from '../../types';
+import { Avatar } from './Avatar';
 
 export const MobileBottomBar: React.FC = () => {
   const {
     activeTab,
     setActiveTab,
-    isLoggedIn,
-    currentUser,
-    openLoginModal
+    currentUser
   } = usePortal();
 
   const navButtons: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
@@ -22,7 +21,7 @@ export const MobileBottomBar: React.FC = () => {
   return (
     <nav
       id="mobile-bottom-nav"
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#EAE6DF] shadow-lg px-2 py-1.5"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#EAE6DF] shadow-lg px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]"
       dir="rtl"
     >
       <div className="flex items-center justify-around">
@@ -46,32 +45,13 @@ export const MobileBottomBar: React.FC = () => {
           );
         })}
 
-        {/* Auth / Profile action */}
-        {isLoggedIn ? (
+        {currentUser && (
           <button
-            onClick={() => setActiveTab('colleagues')}
-            className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
-              activeTab === 'colleagues' ? 'text-[#991b1b] font-bold' : 'text-[#7A756D]'
-            }`}
+            onClick={() => setActiveTab('colleagues', currentUser.id)}
+            className="flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all text-[#7A756D]"
           >
-            <div className="w-6 h-6 rounded-full overflow-hidden border border-[#991b1b]">
-              <img
-                src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
-                alt={currentUser?.firstName || 'حساب کاربری'}
-                className="w-full h-full object-cover"
-              />
-            </div>
+            <Avatar src={currentUser.avatar} firstName={currentUser.firstName} lastName={currentUser.lastName} className="w-6 h-6 rounded-full border border-[#991b1b] text-[9px]" />
             <span className="text-[10px] mt-0.5">پروفایل</span>
-          </button>
-        ) : (
-          <button
-            onClick={() => openLoginModal('برای ورود به حساب کاربری، مشخصات خود را وارد کنید.')}
-            className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-[#991b1b] font-bold"
-          >
-            <div className="p-1 rounded-lg bg-[#991b1b]/10">
-              <LogIn className="w-5 h-5" />
-            </div>
-            <span className="text-[10px] mt-0.5">ورود</span>
           </button>
         )}
       </div>
