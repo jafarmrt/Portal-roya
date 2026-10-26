@@ -64,6 +64,8 @@ export const employees = pgTable('employees', {
   id: text('id').primaryKey(),
   username: text('username').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
+  // 'local' accounts sign in with the portal password; 'ldap' accounts with their Active Directory password.
+  authSource: text('auth_source').notNull().default('local'),
   mustChangePassword: boolean('must_change_password').notNull().default(true),
   role: text('role')
     .notNull()

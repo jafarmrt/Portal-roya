@@ -1,7 +1,7 @@
 {
   "name": "roya-portal",
   "private": true,
-  "version": "2.6.0",
+  "version": "2.7.0",
   "type": "module",
   "scripts": {
     "dev": "tsx watch --clear-screen=false --ignore 'src/**' server/index.ts",
@@ -23,6 +23,7 @@
     "express-rate-limit": "^8.7.1",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
+    "ldapts": "^8.2.0",
     "lucide-react": "^0.546.0",
     "moment-jalaali": "^0.10.4",
     "multer": "^2.5.0",

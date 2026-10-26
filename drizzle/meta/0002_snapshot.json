@@ -1,5 +1,5 @@
 {
-  "id": "5b7f4a3a-fcdd-4951-9d92-6d5089d19b3d",
+  "id": "b8c83f65-3fdf-4c48-8ea7-86be7bdb7822",
   "prevId": "ebadd1ca-5010-402b-b108-282db5d6bb3f",
   "version": "7",
   "dialect": "postgresql",
@@ -364,6 +364,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "auth_source": {
+          "name": "auth_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'local'"
+        },
         "must_change_password": {
           "name": "must_change_password",
           "type": "boolean",
@@ -507,21 +514,7 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "employees_role_roles_id_fk": {
-          "name": "employees_role_roles_id_fk",
-          "tableFrom": "employees",
-          "tableTo": "roles",
-          "columnsFrom": [
-            "role"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "cascade"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "employees_username_unique": {
@@ -1324,67 +1317,6 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.roles": {
-      "name": "roles",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "permissions": {
-          "name": "permissions",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'"
-        },
-        "is_system": {
-          "name": "is_system",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "roles_name_unique": {
-          "name": "roles_name_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
-        }
-      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

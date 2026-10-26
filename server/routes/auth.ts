@@ -1,7 +1,8 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, ne, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
+import { todayJalali } from '../../shared/jalali.js';
 import {
   burnPasswordCheck,
   clearSession,
@@ -10,14 +11,23 @@ import {
   LOCK_MINUTES,
   MAX_FAILED_LOGINS,
   requireAuth,
+  type Employee,
   verifyPassword,
   withPermissions,
 } from '../auth.js';
-import { ADMIN_ROLE_ID } from '../../shared/permissions.js';
+import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID } from '../../shared/permissions.js';
 import { config } from '../config.js';
 import { db } from '../db/index.js';
 import { employees } from '../db/schema.js';
 import { currentUser, HttpError, newId, parse, route } from '../http.js';
+import {
+  authenticateWithDirectory,
+  DIRECTORY_PASSWORD_MESSAGE,
+  DirectoryUnavailableError,
+  type DirectoryUser,
+  isDirectoryEnabled,
+  normalizeLoginName,
+} from '../ldap.js';
 import { serializeMe } from '../serializers.js';
 import { ensureSettings, guestSettings } from '../settings.js';
 import { ensureRoles } from '../roles.js';
@@ -42,7 +52,11 @@ authRouter.get(
   '/system/status',
   route(async (_req, res) => {
     const isSetupComplete = await hasAnyEmployee();
-    res.json({ isSetupComplete, guestAccess: isSetupComplete && (await guestSettings()).guestAccess });
+    res.json({
+      isSetupComplete,
+      guestAccess: isSetupComplete && (await guestSettings()).guestAccess,
+      directoryLogin: isDirectoryEnabled(),
+    });
   }),
 );
 
@@ -102,9 +116,71 @@ authRouter.post(
 );
 
 const loginSchema = z.object({
-  username: z.string().trim().toLowerCase().min(1).max(40),
+  // Long enough for DOMAIN\\user and user@domain forms, which are reduced to the plain username.
+  username: z.string().trim().min(1).max(200).transform(normalizeLoginName),
   password: z.string().min(1).max(128),
 });
+
+const USERNAME_RE = /^[a-z0-9._-]{3,40}$/;
+
+async function otherActiveAdmins(excludeId: string) {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(employees)
+    .where(and(eq(employees.role, ADMIN_ROLE_ID), eq(employees.isActive, true), ne(employees.id, excludeId)));
+  return row.count;
+}
+
+/** Creates the portal account on first AD sign-in, or refreshes it from AD on later ones. */
+async function syncDirectoryUser(dir: DirectoryUser, existing: Employee | undefined): Promise<Employee> {
+  // AD only overwrites a field when it has a value, so details entered in the portal survive.
+  const profile = {
+    ...(dir.firstName ? { firstName: dir.firstName } : {}),
+    ...(dir.lastName ? { lastName: dir.lastName } : {}),
+    ...(dir.email ? { email: dir.email } : {}),
+    ...(dir.position ? { position: dir.position } : {}),
+    ...(dir.department ? { department: dir.department } : {}),
+    ...(dir.extension ? { extension: dir.extension } : {}),
+    ...(dir.mobile ? { mobile: dir.mobile } : {}),
+  };
+  const session = { authSource: 'ldap', mustChangePassword: false, failedLogins: 0, lockedUntil: null };
+
+  if (existing) {
+    let role = existing.role;
+    if (dir.isAdmin === true) role = ADMIN_ROLE_ID;
+    // Only admins are demoted (other roles are managed in the portal), and never the last active admin.
+    if (dir.isAdmin === false && role === ADMIN_ROLE_ID && (await otherActiveAdmins(existing.id)) > 0) role = DEFAULT_ROLE_ID;
+    const [updated] = await db
+      .update(employees)
+      .set({ ...profile, ...session, role })
+      .where(eq(employees.id, existing.id))
+      .returning();
+    return updated;
+  }
+
+  const [created] = await db
+    .insert(employees)
+    .values({
+      id: newId('emp'),
+      username: dir.username,
+      // AD accounts never use a portal password; an empty hash never matches.
+      passwordHash: '',
+      role: dir.isAdmin ? ADMIN_ROLE_ID : DEFAULT_ROLE_ID,
+      firstName: dir.username,
+      lastName: '',
+      position: 'نامشخص',
+      department: 'نامشخص',
+      hireDate: todayJalali(),
+      ...profile,
+      ...session,
+    })
+    .onConflictDoNothing({ target: employees.username })
+    .returning();
+  if (created) return created;
+  // A simultaneous first sign-in created the row; update that one instead.
+  const [row] = await db.select().from(employees).where(eq(employees.username, dir.username)).limit(1);
+  return syncDirectoryUser(dir, row);
+}
 
 authRouter.post(
   '/auth/login',
@@ -114,29 +190,53 @@ authRouter.post(
     const [user] = await db.select().from(employees).where(eq(employees.username, name)).limit(1);
     const invalid = new HttpError(401, 'نام کاربری یا رمز عبور اشتباه است.');
 
-    if (!user || !user.isActive) {
+    if (user && !user.isActive) {
       await burnPasswordCheck(pass);
       throw invalid;
     }
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
+    if (user?.lockedUntil && user.lockedUntil > new Date()) {
       throw new HttpError(429, `حساب به دلیل تلاش‌های ناموفق تا ${LOCK_MINUTES} دقیقه قفل است.`);
     }
 
-    if (!(await verifyPassword(pass, user.passwordHash))) {
-      const failed = user.failedLogins + 1;
-      await db
-        .update(employees)
-        .set({
-          failedLogins: failed >= MAX_FAILED_LOGINS ? 0 : failed,
-          lockedUntil: failed >= MAX_FAILED_LOGINS ? new Date(Date.now() + LOCK_MINUTES * 60_000) : null,
-        })
-        .where(eq(employees.id, user.id));
+    let authed: Employee | null = null;
+    if (user?.authSource === 'local' && (await verifyPassword(pass, user.passwordHash))) {
+      authed = user;
+    } else if (isDirectoryEnabled() && USERNAME_RE.test(name)) {
+      // A local account whose AD password is accepted is linked to AD from then on.
+      try {
+        const dir = await authenticateWithDirectory(name, pass);
+        if (dir && USERNAME_RE.test(dir.username)) authed = await syncDirectoryUser(dir, user);
+      } catch (err) {
+        if (!(err instanceof DirectoryUnavailableError)) throw err;
+        console.error(err.message);
+        // A local account with a wrong password is just a wrong password, AD or not.
+        if (user?.authSource !== 'local') {
+          throw new HttpError(503, 'ارتباط با سرور اکتیو دایرکتوری برقرار نشد. کمی بعد دوباره تلاش کنید یا به واحد فناوری اطلاعات اطلاع دهید.');
+        }
+      }
+    } else if (!user) {
+      await burnPasswordCheck(pass);
+    }
+
+    if (!authed) {
+      if (user) {
+        const failed = user.failedLogins + 1;
+        await db
+          .update(employees)
+          .set({
+            failedLogins: failed >= MAX_FAILED_LOGINS ? 0 : failed,
+            lockedUntil: failed >= MAX_FAILED_LOGINS ? new Date(Date.now() + LOCK_MINUTES * 60_000) : null,
+          })
+          .where(eq(employees.id, user.id));
+      }
       throw invalid;
     }
 
-    await db.update(employees).set({ failedLogins: 0, lockedUntil: null }).where(eq(employees.id, user.id));
-    issueSession(res, user.id);
-    res.json({ user: serializeMe(await withPermissions(user)) });
+    if (authed === user) {
+      await db.update(employees).set({ failedLogins: 0, lockedUntil: null }).where(eq(employees.id, user.id));
+    }
+    issueSession(res, authed.id);
+    res.json({ user: serializeMe(await withPermissions(authed)) });
   }),
 );
 
@@ -163,6 +263,7 @@ authRouter.post(
   requireAuth,
   route(async (req, res) => {
     const user = currentUser(req);
+    if (user.authSource === 'ldap') throw new HttpError(400, DIRECTORY_PASSWORD_MESSAGE);
     const body = parse(changePasswordSchema, req.body);
     if (!(await verifyPassword(body.currentPassword, user.passwordHash))) {
       throw new HttpError(400, 'رمز عبور فعلی اشتباه است.');

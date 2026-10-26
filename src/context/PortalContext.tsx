@@ -82,6 +82,8 @@ interface PortalContextType {
   /** Browsing without a session while the manager allows guest access (read-only). */
   isGuest: boolean;
   guestAccess: boolean;
+  /** Staff sign in with their Active Directory (Windows) username and password. */
+  directoryLogin: boolean;
   /** Why the sign-in dialog is open (null when closed). Guests see it when they try to interact. */
   loginPrompt: string | null;
   requestLogin: (reason?: string) => void;
@@ -196,6 +198,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [authChecked, setAuthChecked] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [guestAccess, setGuestAccess] = useState(false);
+  const [directoryLogin, setDirectoryLogin] = useState(false);
   const [loginPrompt, setLoginPrompt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -237,9 +240,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
     (async () => {
       try {
-        const status = await api.get<{ isSetupComplete: boolean; guestAccess?: boolean }>('/api/system/status');
+        const status = await api.get<{ isSetupComplete: boolean; guestAccess?: boolean; directoryLogin?: boolean }>(
+          '/api/system/status',
+        );
         setIsSetupComplete(status.isSetupComplete);
         setGuestAccess(Boolean(status.guestAccess));
+        setDirectoryLogin(Boolean(status.directoryLogin));
         if (status.isSetupComplete) {
           const me = await api.get<{ user: CurrentUser }>('/api/auth/me').catch(() => null);
           setCurrentUser(me?.user ?? null);
@@ -626,6 +632,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isLoggedIn: Boolean(currentUser),
         isGuest,
         guestAccess,
+        directoryLogin,
         loginPrompt,
         requestLogin,
         closeLoginPrompt,

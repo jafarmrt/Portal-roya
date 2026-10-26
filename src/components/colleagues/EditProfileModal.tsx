@@ -15,7 +15,7 @@ interface EditProfileModalProps {
 }
 
 export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClose }) => {
-  const { updateUserProfile, resetEmployeePassword, can, isAdmin: viewerIsAdmin, appSettings, employees, currentUser } = usePortal();
+  const { updateUserProfile, resetEmployeePassword, directoryLogin, can, isAdmin: viewerIsAdmin, appSettings, employees, currentUser } = usePortal();
   // Admin accounts can only be changed by an admin; the server enforces the same rule.
   const isAdmin = can('users.manage') && (viewerIsAdmin || user.role !== 'admin');
   const isSelf = currentUser?.id === user.id;
@@ -160,7 +160,12 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
                 غیرفعال کردن حساب (همکار دیگر نمی‌تواند وارد شود و از دفتر تلفن پنهان می‌شود)
               </label>
             )}
-            {!isSelf && (
+            {!isSelf && user.authSource === 'ldap' && directoryLogin && (
+              <p className="text-[11px] text-[#6E6A60] leading-relaxed">
+                این همکار با حساب اکتیو دایرکتوری وارد می‌شود؛ رمز عبورش در ویندوز تغییر می‌کند، نه در پرتال.
+              </p>
+            )}
+            {!isSelf && (user.authSource !== 'ldap' || !directoryLogin) && (
               <div className="space-y-2">
                 <button
                   type="button"

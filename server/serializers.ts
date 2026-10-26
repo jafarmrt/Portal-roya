@@ -15,6 +15,7 @@ export function serializeEmployee(e: Employee, viewerId: string, managersById?: 
     position: e.position,
     department: e.department,
     role: e.role,
+    authSource: e.authSource,
     isActive: e.isActive,
     email: e.email,
     mobile: e.mobile,

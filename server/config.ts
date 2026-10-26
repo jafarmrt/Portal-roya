@@ -20,6 +20,30 @@ if (isProduction && sessionSecret.length < 32) {
   throw new Error('SESSION_SECRET باید حداقل ۳۲ کاراکتر باشد.');
 }
 
+// Active Directory / LDAP sign-in is on when LDAP_URL is set. Local portal accounts keep working alongside it.
+const ldap = process.env.LDAP_URL
+  ? {
+      url: process.env.LDAP_URL,
+      // Read-only service account used to look users up. Without it, the user's own
+      // credentials (username@LDAP_DOMAIN) are used for the lookup.
+      bindDn: process.env.LDAP_BIND_DN || '',
+      bindPassword: process.env.LDAP_BIND_PASSWORD || '',
+      domain: process.env.LDAP_DOMAIN || '',
+      baseDn: required('LDAP_BASE_DN', ''),
+      userFilter: process.env.LDAP_USER_FILTER || '(&(objectCategory=person)(objectClass=user)(sAMAccountName={{username}}))',
+      // Optional group DNs (nested membership counts).
+      allowedGroup: process.env.LDAP_ALLOWED_GROUP || '',
+      adminGroup: process.env.LDAP_ADMIN_GROUP || '',
+      startTls: process.env.LDAP_STARTTLS === 'true',
+      caFile: process.env.LDAP_CA_FILE || '',
+      tlsRejectUnauthorized: process.env.LDAP_TLS_REJECT_UNAUTHORIZED !== 'false',
+      timeoutMs: Number(process.env.LDAP_TIMEOUT_MS || 8000),
+    }
+  : null;
+if (ldap && !ldap.bindDn && !ldap.domain) {
+  throw new Error('برای ورود با اکتیو دایرکتوری یکی از LDAP_BIND_DN یا LDAP_DOMAIN را تنظیم کنید.');
+}
+
 export const config = {
   isProduction,
   isTest,
@@ -34,6 +58,7 @@ export const config = {
   uploadDir: path.resolve(process.env.UPLOAD_DIR || 'uploads'),
   maxUploadMb: Number(process.env.MAX_UPLOAD_MB || 10),
   appUrl: process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`,
+  ldap,
   smtp: process.env.SMTP_HOST
     ? {
         host: process.env.SMTP_HOST,
