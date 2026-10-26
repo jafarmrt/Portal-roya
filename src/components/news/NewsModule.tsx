@@ -105,10 +105,10 @@ export const NewsModule: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-6 sm:p-8 text-white shadow-xl">
+      <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-5 sm:p-8 text-white shadow-xl">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-black text-white">اخبار و اطلاعیه‌ها</h1>
+            <h1 className="text-xl sm:text-3xl font-black text-white">اخبار و اطلاعیه‌ها</h1>
             <p className="text-[#F5E9E9] text-xs sm:text-sm max-w-2xl leading-relaxed">
               اطلاعیه‌های رسمی، بخشنامه‌ها، رویدادها و اخبار سازمان. بخشنامه‌هایی که نیاز به تأیید دارند با نشان زرد مشخص شده‌اند.
             </p>

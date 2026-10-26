@@ -14,7 +14,8 @@ import {
   Settings,
   BarChart2,
   FolderOpen,
-  Network
+  Network,
+  LayoutGrid
 } from 'lucide-react';
 
 interface NavigationProps {
@@ -35,6 +36,11 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
       id: 'dashboard',
       label: 'داشبورد',
       icon: <LayoutDashboard className="w-4 h-4" />
+    },
+    {
+      id: 'systems',
+      label: 'سامانه‌ها',
+      icon: <LayoutGrid className="w-4 h-4" />
     },
     {
       id: 'polls',
@@ -102,7 +108,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
                     className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                       isActive
                         ? 'bg-[#dc2626] text-white shadow-md shadow-[#dc2626]/30'
-                        : 'text-[#C5BFC7] hover:text-white hover:bg-[#7f1d1d]'
+                        : 'text-[#C5BFC7] hover:text-white hover:bg-white/10'
                     }`}
                   >
                     {item.icon}
@@ -129,17 +135,17 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
             onClick={onCloseMobileNav}
           />
 
-          <div className="relative flex-1 max-w-xs w-full bg-[#7f1d1d] text-[#E6E0D5] p-5 flex flex-col justify-between shadow-2xl z-10 text-right">
+          <div className="relative flex-1 max-w-xs w-full h-full overflow-y-auto overscroll-contain bg-[#7f1d1d] text-[#E6E0D5] p-5 flex flex-col justify-between gap-4 shadow-2xl z-10 text-right" role="dialog" aria-modal="true" aria-label="منوی پرتال">
             <div>
-              <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#7f1d1d]">
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/10">
                 <div className="flex flex-col">
-                  <span className="text-sm font-black text-[#dc2626]">پرتال رویا طرح داخلی</span>
-                  <span className="text-[11px] text-[#A8A295]">ROYA Surface Center</span>
+                  <span className="text-sm font-black text-white">پرتال رویا طرح داخلی</span>
+                  <span className="text-[11px] text-[#E6E0D5]/80">ROYA Surface Center</span>
                 </div>
                 <button
                   onClick={onCloseMobileNav}
                   aria-label="بستن منو"
-                  className="p-1 rounded-lg text-[#A8A295] hover:text-white hover:bg-[#7f1d1d]"
+                  className="p-2 rounded-lg text-[#E6E0D5] hover:text-white hover:bg-white/10"
                 >
                   ✕
                 </button>
@@ -147,7 +153,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
 
               {/* User Profile Mini Badge in Mobile Nav */}
               {currentUser && (
-                <div className="flex items-center gap-3 p-3 bg-[#7f1d1d]/80 rounded-xl mb-4 border border-[#4E5348]">
+                <div className="flex items-center gap-3 p-3 bg-black/15 rounded-xl mb-4 border border-white/10">
                   <Avatar
                     src={currentUser.avatar}
                     firstName={currentUser.firstName}
@@ -158,7 +164,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
                     <div className="text-xs font-bold text-white truncate">
                       {currentUser.firstName} {currentUser.lastName}
                     </div>
-                    <div className="text-[10px] text-[#A8A295] truncate">
+                    <div className="text-[10px] text-[#E6E0D5]/80 truncate">
                       {currentUser.position}
                     </div>
                   </div>
@@ -179,7 +185,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
                       className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all ${
                         isActive
                           ? 'bg-[#dc2626] text-white shadow-md'
-                          : 'text-[#C5BFC7] hover:text-white hover:bg-[#7f1d1d]'
+                          : 'text-[#C5BFC7] hover:text-white hover:bg-white/10'
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -197,7 +203,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
               </div>
             </div>
 
-            <div className="pt-4 border-t border-[#7f1d1d] text-[11px] text-[#A8A295] text-center">
+            <div className="pt-4 border-t border-white/10 text-[11px] text-[#E6E0D5]/80 text-center">
               شرکت رویا طرح داخلی © {toPersianDigits(currentJalaliYear())}
             </div>
           </div>

@@ -44,16 +44,16 @@ export const DashboardModule: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Hero Welcome Banner */}
-      <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden">
         <div className="absolute top-0 left-0 -ml-12 -mt-12 w-64 h-64 rounded-full bg-[#dc2626]/20 blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#dc2626]/30 text-[#E6E0D5] text-xs font-semibold border border-[#dc2626]/40">
+            <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#dc2626]/30 text-[#E6E0D5] text-xs font-semibold border border-[#dc2626]/40">
               <Sparkles className="w-3.5 h-3.5" />
               <span>پرتال سازمانی رویا طرح داخلی | ROYA Surface Center</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white">
+            <h1 className="text-xl sm:text-3xl font-black text-white">
               {currentUser ? `سلام، ${currentUser.firstName} ${currentUser.lastName} عزیز 👋` : 'خوش آمدید 👋'}
             </h1>
             <p className="text-[#E6E0D5] text-xs sm:text-sm max-w-xl leading-relaxed">
@@ -88,6 +88,9 @@ export const DashboardModule: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Organisation apps sit right under the banner so they are reachable without scrolling */}
+      <QuickSystemsWidget />
 
       {pendingAcks.length > 0 && (
         <section className="bg-amber-50 border border-amber-300 rounded-3xl p-5 sm:p-6 space-y-3" aria-labelledby="pending-acks-title">
@@ -135,7 +138,7 @@ export const DashboardModule: React.FC = () => {
               </div>
               <button
                 onClick={() => setActiveTab('news')}
-                className="text-xs font-bold text-[#dc2626] hover:underline flex items-center gap-1"
+                className="text-xs font-bold text-[#dc2626] hover:underline flex items-center gap-1 whitespace-nowrap shrink-0"
               >
                 <span>مشاهده همه اخبار</span>
                 <ChevronLeft className="w-4 h-4" />
@@ -229,9 +232,6 @@ export const DashboardModule: React.FC = () => {
         <div className="space-y-6">
           {/* Dashboard Calendar Widget */}
           <DashboardCalendar />
-
-          {/* Quick Systems Widget */}
-          <QuickSystemsWidget />
 
           {/* Birthday Celebrations Card */}
           <BirthdayCard />

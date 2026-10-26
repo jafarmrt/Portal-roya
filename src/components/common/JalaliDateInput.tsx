@@ -1,4 +1,5 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import moment from 'moment-jalaali';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { JALALI_MONTH_NAMES, isValidJalaliDate, toLatinDigits, toPersianDigits } from '../../lib/jalali';
@@ -15,22 +16,60 @@ interface JalaliDateInputProps {
 }
 
 const WEEKDAYS = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
+const POPOVER_WIDTH = 288;
+const POPOVER_HEIGHT = 340;
 
 /** Text field for Jalali dates (YYYY/MM/DD) with a pop-up month picker. */
 export const JalaliDateInput: React.FC<JalaliDateInputProps> = ({ id, value, onChange, required, placeholder = '۱۴۰۵/۰۸/۱۵', defaultYear }) => {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [view, setView] = useState(() => initialView(value, defaultYear));
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+
+  // The picker floats above the page (not inside the field's box), so a scrolling dialog
+  // never cuts it off; it opens upward when there is no room below.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const rect = wrapperRef.current?.querySelector('input')?.getBoundingClientRect();
+      if (!rect) return;
+      const below = window.innerHeight - rect.bottom;
+      const top = below >= POPOVER_HEIGHT + 8 || rect.top < POPOVER_HEIGHT + 8
+        ? Math.min(rect.bottom + 4, window.innerHeight - POPOVER_HEIGHT - 8)
+        : rect.top - POPOVER_HEIGHT - 4;
+      const left = Math.min(Math.max(8, rect.right - POPOVER_WIDTH), window.innerWidth - POPOVER_WIDTH - 8);
+      setPosition({ top: Math.max(8, top), left: Math.max(8, left) });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {
-      if (!wrapperRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (!wrapperRef.current?.contains(target) && !popoverRef.current?.contains(target)) setOpen(false);
+    };
+    // Escape closes only the picker, not the dialog it sits in.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      setOpen(false);
     };
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', onKey, true);
+    };
   }, [open]);
 
   const year = view.jYear();
@@ -59,7 +98,6 @@ export const JalaliDateInput: React.FC<JalaliDateInputProps> = ({ id, value, onC
           placeholder={placeholder}
           aria-invalid={invalid}
           onChange={(e) => onChange(toLatinDigits(e.target.value))}
-          onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
           className={`${inputClass} text-left pr-16 ${invalid ? 'border-red-500' : ''}`}
         />
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -84,8 +122,15 @@ export const JalaliDateInput: React.FC<JalaliDateInputProps> = ({ id, value, onC
       </div>
       {invalid && <p className="text-[11px] text-red-600 mt-1">تاریخ را به شکل ۱۴۰۵/۰۸/۱۵ وارد کنید.</p>}
 
-      {open && (
-        <div className="absolute z-50 mt-1 right-0 w-72 bg-white border border-[#E6E0D5] rounded-2xl shadow-xl p-3 text-xs" role="dialog" aria-label="انتخاب تاریخ">
+      {open && position && createPortal(
+        <div
+          ref={popoverRef}
+          dir="rtl"
+          style={{ top: position.top, left: position.left, width: POPOVER_WIDTH }}
+          className="fixed z-[70] bg-white border border-[#E6E0D5] rounded-2xl shadow-xl p-3 text-xs text-right"
+          role="dialog"
+          aria-label="انتخاب تاریخ"
+        >
           <div className="flex items-center justify-between mb-2 gap-1">
             <button type="button" aria-label="ماه قبل" onClick={() => setView(view.clone().subtract(1, 'jMonth'))} className="p-1.5 hover:bg-[#F5F2ED] rounded-lg">
               <ChevronRight className="w-4 h-4" />
@@ -142,7 +187,8 @@ export const JalaliDateInput: React.FC<JalaliDateInputProps> = ({ id, value, onC
           <button type="button" onClick={() => { setView(moment()); pick(moment().jDate()); }} className="mt-2 w-full py-1.5 rounded-lg bg-[#F5F2ED] hover:bg-[#E6E0D5] font-bold">
             امروز
           </button>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

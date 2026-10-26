@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { ExternalLink, Database, Globe, CalendarClock, CreditCard, HeadphonesIcon, BookOpen, Settings, Plus, X, Save, Edit, Trash2 } from 'lucide-react';
+import {
+  ExternalLink, Database, Globe, CalendarClock, CreditCard, HeadphonesIcon, BookOpen, Settings, Plus, X, Save, Edit, Trash2,
+  Mail, Users, Calculator, Package, Truck, FileText, ShoppingCart, Phone, Briefcase, ChevronUp, ChevronDown,
+} from 'lucide-react';
 import { ExternalSystem } from '../../types';
 
 export const iconMap: Record<string, React.ElementType> = {
-  Database, Globe, CalendarClock, CreditCard, HeadphonesIcon, BookOpen, Settings, ExternalLink
+  Database, Globe, CalendarClock, CreditCard, HeadphonesIcon, BookOpen, Settings, ExternalLink,
+  Mail, Users, Calculator, Package, Truck, FileText, ShoppingCart, Phone, Briefcase,
+};
+
+const iconLabels: Record<string, string> = {
+  Database: 'پایگاه داده / CRM', Globe: 'وب / اتوماسیون', CalendarClock: 'حضور و غیاب', CreditCard: 'مالی و پرداخت',
+  HeadphonesIcon: 'پشتیبانی', BookOpen: 'آموزش / دانش', Settings: 'تنظیمات', ExternalLink: 'لینک عمومی',
+  Mail: 'ایمیل', Users: 'منابع انسانی', Calculator: 'حسابداری', Package: 'انبار', Truck: 'حمل و تأمین',
+  FileText: 'اسناد و نامه‌ها', ShoppingCart: 'فروش / خرید', Phone: 'تلفن و ارتباطات', Briefcase: 'پروژه‌ها',
 };
 
 export const SystemsModule: React.FC = () => {
@@ -34,6 +45,16 @@ export const SystemsModule: React.FC = () => {
 
   const handleUpdateSystem = (id: string, field: keyof ExternalSystem, value: string) => {
     setEditedSystems(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+  };
+
+  const handleMoveSystem = (index: number, delta: number) => {
+    setEditedSystems(prev => {
+      const target = index + delta;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
   };
 
   const handleRemoveSystem = (id: string) => {
@@ -98,17 +119,28 @@ export const SystemsModule: React.FC = () => {
       {isEditing ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {editedSystems.map((system) => {
+            {editedSystems.map((system, index) => {
               const Icon = iconMap[system.iconName] || Settings;
               return (
-                <div key={system.id} className="bg-white rounded-3xl p-6 border border-[#dc2626]/30 shadow-xs relative">
-                  <button 
-                    onClick={() => handleRemoveSystem(system.id)}
-                    className="absolute top-4 left-4 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    title="حذف سامانه"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <div key={system.id} className="bg-white rounded-3xl p-6 pt-12 border border-[#dc2626]/30 shadow-xs relative">
+                  <div className="absolute top-3 left-3 flex items-center gap-1">
+                    <button type="button" onClick={() => handleMoveSystem(index, -1)} disabled={index === 0} className="p-2 text-[#6E6A60] hover:bg-[#F5F2ED] rounded-lg disabled:opacity-30" title="جابه‌جایی به جلو" aria-label={`انتقال ${system.name} به جلو`}>
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button type="button" onClick={() => handleMoveSystem(index, 1)} disabled={index === editedSystems.length - 1} className="p-2 text-[#6E6A60] hover:bg-[#F5F2ED] rounded-lg disabled:opacity-30" title="جابه‌جایی به عقب" aria-label={`انتقال ${system.name} به عقب`}>
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSystem(system.id)}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="حذف سامانه"
+                      aria-label={`حذف ${system.name}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <span className="absolute top-4 right-6 text-[11px] font-bold text-[#8C867A]">ترتیب نمایش: {index + 1}</span>
                   <div className="space-y-4">
                     <div className="flex items-start gap-4">
                       <div className={`p-4 rounded-2xl ${system.bgColor} ${system.textColor}`}>
@@ -130,7 +162,7 @@ export const SystemsModule: React.FC = () => {
                         <input
                           value={system.url}
                           onChange={(e) => handleUpdateSystem(system.id, 'url', e.target.value)}
-                          placeholder="آدرس لینک (URL)"
+                          placeholder="آدرس کامل، مثلاً http://crm.roya.local"
                           className="w-full px-3 py-2 text-xs text-blue-600 border border-[#E6E0D5] rounded-lg focus:border-[#dc2626] outline-hidden text-left"
                           dir="ltr"
                         />
@@ -145,7 +177,7 @@ export const SystemsModule: React.FC = () => {
                           className="w-full px-3 py-2 text-xs bg-[#F5F2ED] border border-[#E6E0D5] rounded-lg outline-hidden"
                         >
                           {Object.keys(iconMap).map(iconName => (
-                            <option key={iconName} value={iconName}>{iconName}</option>
+                            <option key={iconName} value={iconName}>{iconLabels[iconName] ?? iconName}</option>
                           ))}
                         </select>
                       </div>
@@ -183,13 +215,16 @@ export const SystemsModule: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {currentSystems.map((system) => {
             const Icon = iconMap[system.iconName] || Settings;
+            const ready = Boolean(system.url) && system.url !== '#';
             return (
               <a
                 key={system.id}
-                href={system.url}
+                href={ready ? system.url : undefined}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group block bg-white rounded-3xl p-6 border border-[#E6E0D5] hover:border-[#dc2626]/40 hover:shadow-lg transition-all"
+                aria-disabled={!ready}
+                onClick={(e) => { if (!ready) e.preventDefault(); }}
+                className={`group block bg-white rounded-3xl p-6 border transition-all ${ready ? 'border-[#E6E0D5] hover:border-[#dc2626]/40 hover:shadow-lg' : 'border-dashed border-[#D9D4CB] opacity-70 cursor-not-allowed'}`}
               >
                 <div className="flex items-start gap-4">
                   <div className={`p-4 rounded-2xl ${system.bgColor} ${system.textColor} group-hover:scale-110 transition-transform`}>
@@ -205,6 +240,11 @@ export const SystemsModule: React.FC = () => {
                     <p className="text-xs text-[#6E6A60] mt-2 leading-relaxed">
                       {system.description}
                     </p>
+                    {!ready && (
+                      <p className="text-[11px] text-amber-700 font-bold mt-2">
+                        آدرس این سامانه هنوز ثبت نشده است{isManager ? ' (از «ویرایش سامانه‌ها» وارد کنید)' : ''}.
+                      </p>
+                    )}
                   </div>
                 </div>
               </a>

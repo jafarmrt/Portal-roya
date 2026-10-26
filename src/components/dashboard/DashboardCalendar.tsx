@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, X, Sparkles, Cake, Users, Video } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Sparkles, Cake, Users, Video } from 'lucide-react';
 import type { CalendarEvent } from '../../types';
 import moment from 'moment-jalaali';
 import { IRANIAN_HOLIDAYS, JALALI_MONTHS } from '../../data/holidays';
+import { Modal, secondaryButtonClass } from '../common/Modal';
 
 export const DashboardCalendar: React.FC = () => {
   const { calendarEvents, setActiveTab, customHolidays } = usePortal();
@@ -71,7 +72,7 @@ export const DashboardCalendar: React.FC = () => {
           </div>
           <button
             onClick={() => setActiveTab('calendar')}
-            className="text-xs font-bold text-[#dc2626] hover:underline flex items-center gap-1"
+            className="text-xs font-bold text-[#dc2626] hover:underline flex items-center gap-1 whitespace-nowrap shrink-0"
           >
             <span>جزئیات رویدادها</span>
             <ChevronLeft className="w-4 h-4" />
@@ -133,49 +134,32 @@ export const DashboardCalendar: React.FC = () => {
       </div>
 
       {selectedEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150" dir="rtl">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden text-right relative">
-            <button 
-              onClick={() => setSelectedEvent(null)}
-              className="absolute top-4 left-4 p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+        <Modal
+          title={selectedEvent.title}
+          subtitle={selectedEvent.date}
+          icon={getEventIcon(selectedEvent.type)}
+          onClose={() => setSelectedEvent(null)}
+          size="sm"
+          footer={
+            <button
+              onClick={() => {
+                setSelectedEvent(null);
+                setActiveTab('calendar');
+              }}
+              className={secondaryButtonClass}
             >
-              <X className="w-5 h-5" />
+              رفتن به تقویم
             </button>
-            
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-slate-100 rounded-2xl">
-                  {getEventIcon(selectedEvent.type)}
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-[#2D2D2D]">{selectedEvent.title}</h3>
-                  <p className="text-xs text-[#6E6A60]">{selectedEvent.date}</p>
-                </div>
-              </div>
-              
-              <p className="text-sm text-[#6E6A60] leading-relaxed mb-4">
-                {selectedEvent.description}
-              </p>
-              
-              {selectedEvent.time && (
-                <div className="text-xs font-bold text-[#6E6A60] mb-2">ساعت: <span className="text-[#2D2D2D]">{selectedEvent.time}</span></div>
-              )}
-              {selectedEvent.location && (
-                <div className="text-xs font-bold text-[#6E6A60]">مکان: <span className="text-[#2D2D2D]">{selectedEvent.location}</span></div>
-              )}
-              
-              <button
-                onClick={() => {
-                  setSelectedEvent(null);
-                  setActiveTab('calendar');
-                }}
-                className="w-full mt-6 py-2.5 bg-[#f5f2ed] hover:bg-[#e5e5e5] text-[#2d2d2d] text-sm font-bold rounded-xl transition-colors"
-              >
-                رفتن به تقویم
-              </button>
-            </div>
-          </div>
-        </div>
+          }
+        >
+          {selectedEvent.description && <p className="text-sm text-[#6E6A60] leading-relaxed mb-4">{selectedEvent.description}</p>}
+          {selectedEvent.time && (
+            <div className="text-xs font-bold text-[#6E6A60] mb-2">ساعت: <span className="text-[#2D2D2D]">{selectedEvent.time}</span></div>
+          )}
+          {selectedEvent.location && (
+            <div className="text-xs font-bold text-[#6E6A60]">مکان: <span className="text-[#2D2D2D]">{selectedEvent.location}</span></div>
+          )}
+        </Modal>
       )}
     </>
   );

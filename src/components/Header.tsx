@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePortal } from '../context/PortalContext';
 import { RoyaLogo } from './common/RoyaLogo';
 import { CommandPalette } from './common/CommandPalette';
 import { Avatar } from './common/Avatar';
 import { ChangePasswordModal } from './ChangePasswordModal';
+import { EditProfileModal } from './colleagues/EditProfileModal';
+import { SystemTile } from './dashboard/QuickSystemsWidget';
 import { timeAgo, toPersianDigits } from '../lib/jalali';
 import { useEscapeKey } from '../lib/useEscapeKey';
 import {
@@ -17,8 +19,14 @@ import {
   KeyRound,
   CheckCircle2,
   Trash2,
-  SlidersHorizontal
+  SlidersHorizontal,
+  LayoutGrid,
+  UserPen
 } from 'lucide-react';
+
+// Header drop-downs: full width under the header on phones, anchored to their button from sm up.
+const popoverClass =
+  'fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:top-auto sm:left-0 sm:mt-2 bg-white rounded-2xl shadow-xl border border-[#EAE6DF] py-3 z-50 text-right';
 
 interface HeaderProps {
   onToggleMobileNav: () => void;
@@ -34,17 +42,33 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
     markAllNotificationsRead,
     deleteNotification,
     setActiveTab,
-    logout
+    logout,
+    appSettings
   } = usePortal();
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isCmdPaletteOpen, setIsCmdPaletteOpen] = useState(false);
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
-  useEscapeKey(() => {
+  const [isAppsOpen, setIsAppsOpen] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const closeMenus = () => {
     setIsNotifOpen(false);
     setIsUserMenuOpen(false);
-  }, isNotifOpen || isUserMenuOpen);
+    setIsAppsOpen(false);
+  };
+  useEscapeKey(closeMenus, isNotifOpen || isUserMenuOpen || isAppsOpen);
+  const headerRef = useRef<HTMLElement>(null);
+  const anyMenuOpen = isNotifOpen || isUserMenuOpen || isAppsOpen;
+  useEffect(() => {
+    if (!anyMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!headerRef.current?.contains(e.target as Node)) closeMenus();
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [anyMenuOpen]);
+  const systems = appSettings?.systems ?? [];
 
   // Global Ctrl+K / Cmd+K listener
   useEffect(() => {
@@ -63,7 +87,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#EAE6DF] shadow-2xs" dir="rtl">
+      <header ref={headerRef} className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#EAE6DF] shadow-2xs" dir="rtl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-3 sm:gap-6">
             
@@ -119,11 +143,52 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
 
               {isLoggedIn && currentUser ? (
                 <>
+                  {/* Organisation apps launcher: reachable from every page without scrolling */}
+                  {systems.length > 0 && (
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => { const next = !isAppsOpen; closeMenus(); setIsAppsOpen(next); }}
+                        aria-expanded={isAppsOpen}
+                        aria-haspopup="true"
+                        title="سامانه‌های سازمان"
+                        className={`flex items-center gap-1.5 p-2 sm:px-3 rounded-xl border transition-colors cursor-pointer ${isAppsOpen ? 'bg-[#FEF2F2] border-[#FCA5A5] text-[#991b1b]' : 'border-transparent sm:border-[#EAE6DF] text-[#2D2D2D] hover:bg-[#F5F2ED]'}`}
+                      >
+                        <LayoutGrid className="w-5 h-5 text-[#991b1b]" />
+                        <span className="hidden sm:inline text-xs font-bold">سامانه‌ها</span>
+                      </button>
+
+                      {isAppsOpen && (
+                        <div className={`${popoverClass} sm:w-80`}>
+                          <div className="flex items-center justify-between px-4 pb-3 border-b border-[#EAE6DF]">
+                            <span className="font-bold text-sm text-[#1E1E1E] flex items-center gap-2">
+                              <LayoutGrid className="w-4 h-4 text-[#991b1b]" /> سامانه‌های سازمان
+                            </span>
+                            <span className="text-[10px] text-[#7A756D]">در زبانهٔ جدید باز می‌شوند</span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2 p-3 max-h-[60dvh] overflow-y-auto overscroll-contain">
+                            {systems.map((system) => (
+                              <SystemTile key={system.id} system={system} onLaunch={() => setIsAppsOpen(false)} />
+                            ))}
+                          </div>
+                          <div className="pt-2.5 px-4 border-t border-[#EAE6DF] text-center">
+                            <button
+                              onClick={() => { setActiveTab('systems'); setIsAppsOpen(false); }}
+                              className="text-xs text-[#991b1b] font-bold hover:underline cursor-pointer py-1"
+                            >
+                              {currentUser.role === 'manager' ? 'مدیریت و ویرایش سامانه‌ها' : 'مشاهده صفحه سامانه‌ها'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Notification Bell Dropdown */}
                   <div className="relative">
                     <button
                       type="button"
-                      onClick={() => { setIsNotifOpen(!isNotifOpen); setIsUserMenuOpen(false); }}
+                      onClick={() => { const next = !isNotifOpen; closeMenus(); setIsNotifOpen(next); }}
                       className="relative p-2 rounded-xl text-[#2D2D2D] hover:bg-[#F5F2ED] transition-colors cursor-pointer"
                       title="اعلان‌ها"
                       aria-label={`اعلان‌ها${unreadCount ? ` (${unreadCount} خوانده‌نشده)` : ''}`}
@@ -139,7 +204,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
 
                     {/* Notification Popover Panel */}
                     {isNotifOpen && (
-                      <div className="absolute left-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-[#EAE6DF] py-3 z-50 text-right animate-in fade-in slide-in-from-top-2 duration-150">
+                      <div className={`${popoverClass} sm:w-96`}>
                         <div className="flex items-center justify-between px-4 pb-3 border-b border-[#EAE6DF]">
                           <div className="flex items-center gap-2">
                             <Bell className="w-4 h-4 text-[#991b1b]" />
@@ -159,7 +224,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                           )}
                         </div>
 
-                        <div className="max-h-80 overflow-y-auto divide-y divide-[#F5F2ED]">
+                        <div className="max-h-[min(20rem,55dvh)] overflow-y-auto divide-y divide-[#F5F2ED]">
                           {userNotifications.length === 0 ? (
                             <div className="py-8 text-center text-[#7A756D] text-xs">
                               هیچ اعلان جدیدی وجود ندارد.
@@ -222,7 +287,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                   <div className="relative">
                     <button
                       type="button"
-                      onClick={() => { setIsUserMenuOpen(!isUserMenuOpen); setIsNotifOpen(false); }}
+                      onClick={() => { const next = !isUserMenuOpen; closeMenus(); setIsUserMenuOpen(next); }}
                       aria-expanded={isUserMenuOpen}
                       aria-label="منوی حساب کاربری"
                       className="flex items-center gap-2.5 p-1.5 pl-2.5 rounded-2xl hover:bg-[#F5F2ED] border border-transparent hover:border-[#EAE6DF] transition-all text-right cursor-pointer"
@@ -253,7 +318,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
 
                     {/* User Switcher Dropdown */}
                     {isUserMenuOpen && (
-                      <div className="absolute left-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-[#EAE6DF] py-2 z-50 text-right animate-in fade-in slide-in-from-top-2 duration-150">
+                      <div className="absolute left-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-[#EAE6DF] py-2 z-50 text-right">
                         <div className="px-4 py-2.5 border-b border-[#EAE6DF]">
                           <div className="text-xs text-[#1E1E1E] font-bold">
                             {currentUser.firstName} {currentUser.lastName}
@@ -273,6 +338,17 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                           >
                             <UserCheck className="w-4 h-4 text-[#7A756D]" />
                             <span>پروفایل من در دایرکتوری</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setIsEditProfileOpen(true);
+                              setIsUserMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#2D2D2D] hover:bg-[#F5F2ED] rounded-xl transition-colors text-right cursor-pointer"
+                          >
+                            <UserPen className="w-4 h-4 text-[#7A756D]" />
+                            <span>ویرایش اطلاعات من</span>
                           </button>
 
                           <button
@@ -330,6 +406,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
         onClose={() => setIsCmdPaletteOpen(false)}
       />
       {isPasswordOpen && <ChangePasswordModal onClose={() => setIsPasswordOpen(false)} />}
+      {isEditProfileOpen && currentUser && <EditProfileModal user={currentUser} onClose={() => setIsEditProfileOpen(false)} />}
     </>
   );
 };

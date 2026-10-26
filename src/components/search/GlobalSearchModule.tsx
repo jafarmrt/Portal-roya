@@ -37,13 +37,13 @@ export const GlobalSearchModule: React.FC = () => {
     <div className="space-y-6">
       
       {/* Search Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-red-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-red-950 rounded-3xl p-5 sm:p-8 text-white shadow-xl relative overflow-hidden">
         <div className="relative z-10 space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/20 text-red-300 text-xs font-semibold border border-red-500/30">
             <Search className="w-3.5 h-3.5" />
             <span>سامانه جستجوی سراسری هوشمند پرتال رویا طرح داخلی</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white">جستجوی جامع در تمامی محتواهای سازمان</h1>
+          <h1 className="text-xl sm:text-3xl font-black text-white">جستجوی جامع در تمامی محتواهای سازمان</h1>
           <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
             جستجوی هم‌زمان در نام و تلفن داخلی همکاران، اخبار و اطلاعیه‌ها، اسناد و فرم‌ها، دوره‌های آموزشی، نظرسنجی‌ها و تقویم سازمان.
           </p>

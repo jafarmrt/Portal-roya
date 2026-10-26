@@ -71,7 +71,7 @@ export const PollsModule: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Banner & Header */}
-      <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-5 sm:p-8 text-white shadow-xl relative overflow-hidden">
         <div className="absolute top-0 left-0 -ml-12 -mt-12 w-64 h-64 rounded-full bg-[#dc2626]/20 blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-2">
@@ -79,7 +79,7 @@ export const PollsModule: React.FC = () => {
               <Vote className="w-3.5 h-3.5" />
               <span>پرتال نظرسنجی و افکارسنجی سازمان</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white">نظرسنجی‌های داخلی رویا طرح داخلی</h1>
+            <h1 className="text-xl sm:text-3xl font-black text-white">نظرسنجی‌های داخلی رویا طرح داخلی</h1>
             <p className="text-[#E6E0D5] text-xs sm:text-sm max-w-2xl leading-relaxed">
               صدای شما در تصمیم‌گیری‌های سازمانی رویا طرح داخلی اهمیت دارد. در نظرسنجی‌ها شرکت کنید و نتایج را به صورت کلی و کاملاً ناشناس مشاهده فرمایید.
             </p>

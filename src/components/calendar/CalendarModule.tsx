@@ -4,7 +4,7 @@ import type { CalendarEvent } from '../../types';
 import { Avatar } from '../common/Avatar';
 import { JalaliDateInput } from '../common/JalaliDateInput';
 import { formatDate, todayJalali, toPersianDigits } from '../../lib/jalali';
-import { useEscapeKey } from '../../lib/useEscapeKey';
+import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import moment from 'moment-jalaali';
 import {
   Calendar,
@@ -12,7 +12,6 @@ import {
   Cake,
   GraduationCap,
   Flag,
-  X,
   ChevronRight,
   ChevronLeft,
   Settings,
@@ -35,12 +34,6 @@ export const CalendarModule: React.FC = () => {
 
   const [currentDate, setCurrentDate] = useState(() => moment());
   const today = todayJalali();
-
-  useEscapeKey(() => {
-    setIsAddOpen(false);
-    setEditingPublicDate(null);
-    setSelectedEvent(null);
-  }, isAddOpen || Boolean(editingPublicDate) || Boolean(selectedEvent));
 
   // Form states for normal event
   const [title, setTitle] = useState('');
@@ -178,7 +171,7 @@ export const CalendarModule: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3">
-          <div className="bg-white rounded-3xl p-6 border border-[#E6E0D5] shadow-xs">
+          <div className="bg-white rounded-3xl p-4 sm:p-6 border border-[#E6E0D5] shadow-xs">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               {isManager ? <button
                 onClick={() => setIsAddOpen(true)}
@@ -201,7 +194,8 @@ export const CalendarModule: React.FC = () => {
               </div>
             </div>
 
-            <div className="min-w-[600px] overflow-x-auto">
+            <div className="overflow-x-auto -mx-1 px-1 pb-1">
+            <div className="min-w-[600px]">
               <div className="grid grid-cols-7 gap-2 mb-2">
                 {JALALI_WEEKDAYS.map(day => (
                   <div key={day} className="text-center text-xs font-bold text-[#8C867A] py-2">
@@ -307,6 +301,7 @@ export const CalendarModule: React.FC = () => {
                 })}
               </div>
             </div>
+            </div>
           </div>
         </div>
 
@@ -364,178 +359,115 @@ export const CalendarModule: React.FC = () => {
       </div>
 
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-3xl shadow-2xl border border-[#E6E0D5] w-full max-w-lg p-6 space-y-4 text-right text-xs">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
-              <h3 className="text-base font-bold text-[#2D2D2D]">افزودن رویداد جدید به تقویم</h3>
-              <button onClick={() => setIsAddOpen(false)} className="text-[#6E6A60] hover:text-[#dc2626]">
-                <X className="w-5 h-5" />
-              </button>
+        <Modal
+          title="افزودن رویداد جدید به تقویم"
+          icon={<Plus className="w-5 h-5" />}
+          onClose={() => setIsAddOpen(false)}
+          size="md"
+          footer={
+            <>
+              <button type="button" onClick={() => setIsAddOpen(false)} className={secondaryButtonClass}>انصراف</button>
+              <button type="submit" form="add-event" className={primaryButtonClass}>ذخیره رویداد</button>
+            </>
+          }
+        >
+          <form id="add-event" onSubmit={handleAddSubmit} className="space-y-3">
+            <div>
+              <label htmlFor="event-title" className={labelClass}>عنوان رویداد *</label>
+              <input id="event-title" type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
             </div>
-            <form onSubmit={handleAddSubmit} className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block font-bold text-[#2D2D2D] mb-1">عنوان رویداد *</label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full p-2.5 border border-[#E6E0D5] rounded-xl outline-hidden focus:border-[#dc2626] transition-colors"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-[#2D2D2D] mb-1">تاریخ رویداد *</label>
-                  <JalaliDateInput id="event-date" required value={dateStr} onChange={setDateStr} />
-                </div>
-                <div>
-                  <label className="block font-bold text-[#2D2D2D] mb-1">نوع رویداد</label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value as CalendarEvent['type'])}
-                    className="w-full p-2.5 border border-[#E6E0D5] rounded-xl bg-white outline-hidden focus:border-[#dc2626] transition-colors"
-                  >
-                    <option value="meeting">جلسه یا همایش کاری</option>
-                    <option value="event">رویداد سازمانی</option>
-                    <option value="training">دوره آموزشی</option>
-                    <option value="holiday">تعطیلی یا مرخصی سازمانی</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="event-time" className="block font-bold text-[#2D2D2D] mb-1">ساعت</label>
-                  <input id="event-time" type="time" dir="ltr" value={time} onChange={(e) => setTime(e.target.value)} className="w-full p-2.5 border border-[#E6E0D5] rounded-xl outline-hidden focus:border-[#dc2626]" />
-                </div>
-                <div>
-                  <label htmlFor="event-location" className="block font-bold text-[#2D2D2D] mb-1">مکان</label>
-                  <input id="event-location" value={location} onChange={(e) => setLocation(e.target.value)} className="w-full p-2.5 border border-[#E6E0D5] rounded-xl outline-hidden focus:border-[#dc2626]" />
-                </div>
+                <label htmlFor="event-date" className={labelClass}>تاریخ رویداد *</label>
+                <JalaliDateInput id="event-date" required value={dateStr} onChange={setDateStr} />
               </div>
               <div>
-                <label className="block font-bold text-[#2D2D2D] mb-1">توضیحات</label>
-                <textarea
-                  rows={2}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full p-2.5 border border-[#E6E0D5] rounded-xl outline-hidden focus:border-[#dc2626] transition-colors"
-                />
+                <label htmlFor="event-type" className={labelClass}>نوع رویداد</label>
+                <select id="event-type" value={type} onChange={(e) => setType(e.target.value as CalendarEvent['type'])} className={inputClass}>
+                  <option value="meeting">جلسه یا همایش کاری</option>
+                  <option value="event">رویداد سازمانی</option>
+                  <option value="training">دوره آموزشی</option>
+                  <option value="holiday">تعطیلی یا مرخصی سازمانی</option>
+                </select>
               </div>
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#E6E0D5]">
-                <button
-                  type="button"
-                  onClick={() => setIsAddOpen(false)}
-                  className="px-4 py-2 font-semibold text-[#6E6A60] hover:bg-[#F5F2ED] rounded-xl transition-colors"
-                >
-                  انصراف
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 font-bold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-xl transition-colors"
-                >
-                  ذخیره رویداد
-                </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="event-time" className={labelClass}>ساعت</label>
+                <input id="event-time" type="time" dir="ltr" value={time} onChange={(e) => setTime(e.target.value)} className={inputClass} />
               </div>
-            </form>
-          </div>
-        </div>
+              <div>
+                <label htmlFor="event-location" className={labelClass}>مکان</label>
+                <input id="event-location" value={location} onChange={(e) => setLocation(e.target.value)} className={inputClass} />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="event-description" className={labelClass}>توضیحات</label>
+              <textarea id="event-description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} className={inputClass} />
+            </div>
+          </form>
+        </Modal>
       )}
 
       {editingPublicDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-3xl shadow-2xl border border-[#E6E0D5] w-full max-w-sm p-6 space-y-4 text-right text-xs relative">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
-              <h3 className="text-base font-bold text-[#2D2D2D]">ویرایش مناسبت تقویمی</h3>
-              <button onClick={() => setEditingPublicDate(null)} className="text-[#6E6A60] hover:text-[#dc2626]">
-                <X className="w-5 h-5" />
-              </button>
+        <Modal
+          title="ویرایش مناسبت تقویمی"
+          subtitle={`تاریخ: ${toPersianDigits(editingPublicDate.day)} ${JALALI_MONTHS[editingPublicDate.month]} ${toPersianDigits(editingPublicDate.year)}`}
+          icon={<Flag className="w-5 h-5" />}
+          onClose={() => setEditingPublicDate(null)}
+          size="sm"
+          footer={
+            <>
+              <button type="button" onClick={() => setEditingPublicDate(null)} className={secondaryButtonClass}>انصراف</button>
+              <button type="submit" form="public-event" className={primaryButtonClass}>ذخیره</button>
+            </>
+          }
+        >
+          <form id="public-event" onSubmit={handleSavePublicEvent} className="space-y-4">
+            <div>
+              <label htmlFor="public-title" className={labelClass}>عنوان مناسبت (خالی بگذارید تا حذف شود)</label>
+              <input id="public-title" type="text" value={publicTitle} onChange={(e) => setPublicTitle(e.target.value)} placeholder="مثال: روز پزشک" className={inputClass} />
             </div>
-            <p className="text-[#6E6A60] font-medium text-xs">
-              تاریخ: {toPersianDigits(editingPublicDate.day)} {JALALI_MONTHS[editingPublicDate.month]} {toPersianDigits(editingPublicDate.year)}
-            </p>
-            <form onSubmit={handleSavePublicEvent} className="space-y-4">
-              <div>
-                <label className="block font-bold text-[#2D2D2D] mb-1">عنوان مناسبت (خالی بگذارید تا حذف شود)</label>
-                <input
-                  type="text"
-                  value={publicTitle}
-                  onChange={(e) => setPublicTitle(e.target.value)}
-                  placeholder="مثال: روز پزشک"
-                  className="w-full p-2.5 border border-[#E6E0D5] rounded-xl outline-hidden focus:border-[#dc2626] transition-colors"
-                />
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={publicIsHoliday}
-                  onChange={(e) => setPublicIsHoliday(e.target.checked)}
-                  className="w-4 h-4 rounded text-[#dc2626] focus:ring-[#dc2626]"
-                />
-                <span className="font-bold text-[#2D2D2D]">این روز تعطیل رسمی است</span>
-              </label>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#E6E0D5]">
-                <button
-                  type="button"
-                  onClick={() => setEditingPublicDate(null)}
-                  className="px-4 py-2 font-semibold text-[#6E6A60] hover:bg-[#F5F2ED] rounded-xl transition-colors"
-                >
-                  انصراف
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 font-bold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-xl transition-colors"
-                >
-                  ذخیره
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={publicIsHoliday}
+                onChange={(e) => setPublicIsHoliday(e.target.checked)}
+                className="w-4 h-4 accent-red-700"
+              />
+              <span className="font-bold text-[#2D2D2D]">این روز تعطیل رسمی است</span>
+            </label>
+          </form>
+        </Modal>
       )}
 
       {selectedEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150" dir="rtl">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden text-right relative">
-            <button 
-              onClick={() => setSelectedEvent(null)}
-              className="absolute top-4 left-4 p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+        <Modal
+          title={selectedEvent.title}
+          subtitle={formatDate(selectedEvent.date)}
+          icon={getEventIcon(selectedEvent.type)}
+          onClose={() => setSelectedEvent(null)}
+          size="sm"
+        >
+          {selectedEvent.description && <p className="text-sm text-[#6E6A60] leading-relaxed mb-4">{selectedEvent.description}</p>}
+          {selectedEvent.time && (
+            <div className="text-xs font-bold text-[#6E6A60] mb-2">ساعت: <span className="text-[#2D2D2D]">{toPersianDigits(selectedEvent.time)}</span></div>
+          )}
+          {selectedEvent.location && (
+            <div className="text-xs font-bold text-[#6E6A60]">مکان: <span className="text-[#2D2D2D]">{selectedEvent.location}</span></div>
+          )}
+          {isManager && calendarEvents.some((ev) => ev.id === selectedEvent.id) && (
+            <button
+              onClick={async () => {
+                await deleteCalendarEvent(selectedEvent.id);
+                setSelectedEvent(null);
+              }}
+              className="mt-4 flex items-center gap-1.5 text-xs font-bold text-red-700 hover:underline"
             >
-              <X className="w-5 h-5" />
+              <Trash2 className="w-3.5 h-3.5" /> حذف این رویداد
             </button>
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-slate-100 rounded-2xl">
-                  {getEventIcon(selectedEvent.type)}
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-[#2D2D2D]">{selectedEvent.title}</h3>
-                  <p className="text-xs text-[#6E6A60]">{formatDate(selectedEvent.date)}</p>
-                </div>
-              </div>
-              <p className="text-sm text-[#6E6A60] leading-relaxed mb-4">
-                {selectedEvent.description}
-              </p>
-              {selectedEvent.time && (
-                <div className="text-xs font-bold text-[#6E6A60] mb-2">ساعت: <span className="text-[#2D2D2D]">{toPersianDigits(selectedEvent.time)}</span></div>
-              )}
-              {selectedEvent.location && (
-                <div className="text-xs font-bold text-[#6E6A60]">مکان: <span className="text-[#2D2D2D]">{selectedEvent.location}</span></div>
-              )}
-              {isManager && calendarEvents.some((ev) => ev.id === selectedEvent.id) && (
-                <button
-                  onClick={async () => {
-                    await deleteCalendarEvent(selectedEvent.id);
-                    setSelectedEvent(null);
-                  }}
-                  className="mt-4 flex items-center gap-1.5 text-xs font-bold text-red-700 hover:underline"
-                >
-                  <Trash2 className="w-3.5 h-3.5" /> حذف این رویداد
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+          )}
+        </Modal>
       )}
     </div>
   );
