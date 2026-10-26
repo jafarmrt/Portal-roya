@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Check, CheckCircle2, Copy, KeyRound, UserPlus } from 'lucide-react';
+import { CheckCircle2, UserPlus } from 'lucide-react';
+import { AccountCreatedNotice, AccountFields } from './AccountAccessModal';
 import { usePortal, type NewEmployeeInput } from '../../context/PortalContext';
 import { todayJalali } from '../../lib/jalali';
 import { FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
 import { JalaliDateInput } from '../common/JalaliDateInput';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
-import { RoleSelect } from './RoleSelect';
 import { Avatar } from '../common/Avatar';
 
 interface AddEmployeeModalProps {
@@ -13,39 +13,11 @@ interface AddEmployeeModalProps {
   onClose: () => void;
 }
 
-/** Shows a one-time password so the manager can hand it to the colleague. */
-export const TemporaryPasswordNotice: React.FC<{ username?: string; password: string }> = ({ username, password }) => {
-  const [copied, setCopied] = useState(false);
-  return (
-    <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl space-y-2 text-xs">
-      <p className="font-bold text-amber-900 flex items-center gap-1.5"><KeyRound className="w-4 h-4" /> این رمز فقط یک بار نمایش داده می‌شود</p>
-      <p className="text-amber-900 leading-relaxed">آن را به همکار بدهید. در اولین ورود از او خواسته می‌شود رمز شخصی انتخاب کند.</p>
-      <div className="flex flex-wrap items-center gap-2">
-        {username && <code dir="ltr" className="px-2 py-1 bg-white rounded-lg border border-amber-200">{username}</code>}
-        <code dir="ltr" className="px-2 py-1 bg-white rounded-lg border border-amber-200 font-bold select-all">{password}</code>
-        <button
-          type="button"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(password);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            } catch {
-              // The code above is selectable as a fallback.
-            }
-          }}
-          className={secondaryButtonClass}
-        >
-          {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />} کپی رمز
-        </button>
-      </div>
-    </div>
-  );
-};
-
-const emptyForm = (department: string): NewEmployeeInput => ({
+const emptyForm = (department: string, directoryLogin: boolean): NewEmployeeInput => ({
   firstName: '',
   lastName: '',
+  hasAccount: true,
+  signIn: directoryLogin ? 'ldap' : 'local',
   username: '',
   position: '',
   department,
@@ -64,32 +36,35 @@ const emptyForm = (department: string): NewEmployeeInput => ({
 });
 
 export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onClose }) => {
-  const { addEmployee, appSettings, employees } = usePortal();
-  const [form, setForm] = useState<NewEmployeeInput>(() => emptyForm(appSettings?.departments[0] ?? ''));
+  const { addEmployee, appSettings, employees, directoryLogin } = usePortal();
+  const blank = () => emptyForm(appSettings?.departments[0] ?? '', directoryLogin);
+  const [form, setForm] = useState<NewEmployeeInput>(blank);
   const [busy, setBusy] = useState(false);
-  const [created, setCreated] = useState<{ username: string; password: string } | null>(null);
+  const [created, setCreated] = useState<{ username: string; temporaryPassword: string | null } | null>(null);
 
   if (!isOpen) return null;
 
   const set = <K extends keyof NewEmployeeInput>(key: K, value: NewEmployeeInput[K]) => setForm((f) => ({ ...f, [key]: value }));
   const close = () => {
     setCreated(null);
-    setForm(emptyForm(appSettings?.departments[0] ?? ''));
+    setForm(blank());
     onClose();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    const password = await addEmployee({ ...form, username: form.username.trim().toLowerCase() });
+    const result = await addEmployee(form);
     setBusy(false);
-    if (password) setCreated({ username: form.username.trim().toLowerCase(), password });
+    if (!result) return;
+    if (form.hasAccount) setCreated({ username: form.username.trim().toLowerCase(), temporaryPassword: result.temporaryPassword });
+    else close();
   };
 
   if (created) {
     return (
       <Modal title="همکار اضافه شد" icon={<CheckCircle2 className="w-5 h-5" />} onClose={close} size="md" footer={<button onClick={close} className={primaryButtonClass}>بستن</button>}>
-        <TemporaryPasswordNotice username={created.username} password={created.password} />
+        <AccountCreatedNotice username={created.username} temporaryPassword={created.temporaryPassword} />
       </Modal>
     );
   }
@@ -99,7 +74,7 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
   return (
     <Modal
       title="ثبت همکار جدید"
-      subtitle="ساخت حساب کاربری، افزودن به دفتر تلفن و معرفی در داشبورد"
+      subtitle="افزودن به دفتر تلفن، در صورت نیاز ساخت حساب پورتال و معرفی در داشبورد"
       icon={<UserPlus className="w-5 h-5" />}
       onClose={close}
       size="xl"
@@ -123,20 +98,6 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
             <input id="emp-last" required value={form.lastName} onChange={(e) => set('lastName', e.target.value)} className={inputClass} />
           </div>
           <div>
-            <label htmlFor="emp-username" className={labelClass}>نام کاربری (انگلیسی) *</label>
-            <input
-              id="emp-username"
-              required
-              dir="ltr"
-              pattern="[a-zA-Z0-9._\-]{3,40}"
-              title="حروف انگلیسی، عدد و . _ - (۳ تا ۴۰ کاراکتر)"
-              placeholder="m.rezaei"
-              value={form.username}
-              onChange={(e) => set('username', e.target.value)}
-              className={`${inputClass} text-left`}
-            />
-          </div>
-          <div>
             <label htmlFor="emp-position" className={labelClass}>سمت *</label>
             <input id="emp-position" required value={form.position} onChange={(e) => set('position', e.target.value)} className={inputClass} />
           </div>
@@ -145,10 +106,6 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
             <select id="emp-department" value={form.department} onChange={(e) => set('department', e.target.value)} className={inputClass}>
               {appSettings?.departments.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
-          </div>
-          <div>
-            <label htmlFor="emp-role" className={labelClass}>نقش</label>
-            <RoleSelect id="emp-role" value={form.role} onChange={(role) => set('role', role)} />
           </div>
           <div>
             <label htmlFor="emp-manager" className={labelClass}>مدیر مستقیم</label>
@@ -196,6 +153,27 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
         <div>
           <label htmlFor="emp-bio" className={labelClass}>معرفی کوتاه</label>
           <textarea id="emp-bio" rows={2} value={form.bio} onChange={(e) => set('bio', e.target.value)} className={inputClass} />
+        </div>
+
+        <div className="p-4 border border-[#E6E0D5] rounded-2xl space-y-3">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input type="checkbox" checked={form.hasAccount} onChange={(e) => set('hasAccount', e.target.checked)} className="accent-red-700 mt-0.5" />
+            <span>
+              <strong>دسترسی به پورتال</strong>
+              <span className="block text-[11px] text-[#6E6A60]">
+                {form.hasAccount
+                  ? 'همکار می‌تواند وارد پرتال شود، اعلان بگیرد، رأی بدهد و پیام بفرستد.'
+                  : 'فقط در دفتر تلفن، چارت سازمانی و کارت‌های تولد و همکار جدید دیده می‌شود و وارد پرتال نمی‌شود. هر وقت لازم شد می‌توانید از «مدیریت کارکنان» به او دسترسی بدهید.'}
+              </span>
+            </span>
+          </label>
+          {form.hasAccount && (
+            <AccountFields
+              idPrefix="emp"
+              value={{ username: form.username, role: form.role, signIn: form.signIn }}
+              onChange={(a) => setForm((f) => ({ ...f, ...a }))}
+            />
+          )}
         </div>
 
         <div className="p-4 bg-[#F5F2ED] rounded-2xl space-y-2">

@@ -6,19 +6,16 @@ import { usePortal } from '../../context/PortalContext';
 import { UserProfile } from '../../types';
 import { UserProfileModal } from './UserProfileModal';
 import { EditProfileModal } from './EditProfileModal';
-import { AddEmployeeModal } from './AddEmployeeModal';
-import { ImportEmployeesModal } from './ImportEmployeesModal';
 import {
   Users,
   Search,
   PhoneCall,
   Phone,
   Mail,
-  UserPlus,
+  UserCog,
   Copy,
   Check,
   ChevronLeft,
-  FileSpreadsheet,
 } from 'lucide-react';
 
 export const ColleaguesDirectory: React.FC = () => {
@@ -27,13 +24,10 @@ export const ColleaguesDirectory: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDept, setSelectedDept] = useState('all');
-  const [showInactive, setShowInactive] = useState(false);
   // The open profile follows the URL (#colleagues/<id>) so profiles can be linked.
   const selectedUserForView = focusId ? employees.find(e => e.id === focusId) ?? null : null;
   const setSelectedUserForView = (emp: UserProfile | null) => setActiveTab('colleagues', emp?.id ?? null);
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<UserProfile | null>(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isImportOpen, setIsImportOpen] = useState(false);
   const [copiedExtension, setCopiedExtension] = useState<string | null>(null);
 
   const departments = [
@@ -42,7 +36,8 @@ export const ColleaguesDirectory: React.FC = () => {
   ];
 
   const filteredEmployees = employees.filter(emp => {
-    if (!emp.isActive && !showInactive) return false;
+    // Colleagues who left are managed on the staff page, not listed here.
+    if (!emp.isActive) return false;
     const matchesDept = selectedDept === 'all' || emp.department === selectedDept;
     if (!searchQuery.trim()) return matchesDept;
     return matchesDept && matches(
@@ -84,22 +79,13 @@ export const ColleaguesDirectory: React.FC = () => {
           </div>
 
           {isManager && (
-            <div className="flex flex-wrap gap-2 self-start sm:self-auto">
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="px-5 py-3 text-xs font-bold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-2xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>ثبت همکار جدید</span>
-              </button>
-              <button
-                onClick={() => setIsImportOpen(true)}
-                className="px-5 py-3 text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 rounded-2xl transition-all flex items-center gap-2 whitespace-nowrap"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-                <span>ورود گروهی از اکسل</span>
-              </button>
-            </div>
+            <button
+              onClick={() => setActiveTab('people')}
+              className="self-start sm:self-auto px-5 py-3 text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 rounded-2xl transition-all flex items-center gap-2 whitespace-nowrap"
+            >
+              <UserCog className="w-4 h-4" />
+              <span>مدیریت کارکنان</span>
+            </button>
           )}
         </div>
       </div>
@@ -136,12 +122,6 @@ export const ColleaguesDirectory: React.FC = () => {
           ))}
         </div>
 
-        {isManager && employees.some(e => !e.isActive) && (
-          <label className="flex items-center gap-2 text-xs text-[#6E6A60] cursor-pointer">
-            <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="accent-red-700" />
-            نمایش حساب‌های غیرفعال
-          </label>
-        )}
       </div>
 
       {/* Employees Grid */}
@@ -159,7 +139,7 @@ export const ColleaguesDirectory: React.FC = () => {
               tabIndex={0}
               onClick={() => setSelectedUserForView(emp)}
               onKeyDown={(e) => { if (e.key === 'Enter') setSelectedUserForView(emp); }}
-              className={`bg-white rounded-2xl border border-[#E6E0D5] p-5 hover:border-[#dc2626] hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between group relative overflow-hidden ${emp.isActive ? '' : 'opacity-60'}`}
+              className="bg-white rounded-2xl border border-[#E6E0D5] p-5 hover:border-[#dc2626] hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between group relative overflow-hidden"
             >
               {/* Top Card Content */}
               <div>
@@ -175,7 +155,6 @@ export const ColleaguesDirectory: React.FC = () => {
                     <span className="inline-block mt-1.5 px-2 py-0.5 text-[10px] font-medium bg-[#F5F2ED] text-[#991b1b] rounded-md">
                       {emp.department}
                     </span>
-                    {!emp.isActive && <span className="inline-block mt-1.5 mr-1 px-2 py-0.5 text-[10px] font-bold bg-stone-200 text-stone-700 rounded-md">غیرفعال</span>}
                     {emp.role !== 'employee' && <span className="inline-block mt-1.5 mr-1 px-2 py-0.5 text-[10px] font-bold bg-red-50 text-red-800 rounded-md">{roleName(emp.role)}</span>}
                   </div>
                 </div>
@@ -262,13 +241,6 @@ export const ColleaguesDirectory: React.FC = () => {
         user={selectedUserForEdit}
         onClose={() => setSelectedUserForEdit(null)}
       />}
-
-      {/* Add Employee Modal */}
-      <AddEmployeeModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-      />
-      {isImportOpen && <ImportEmployeesModal onClose={() => setIsImportOpen(false)} />}
 
     </div>
   );

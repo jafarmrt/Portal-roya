@@ -34,7 +34,10 @@ export interface Skill {
 
 export interface UserProfile {
   id: string;
+  /** '' for people without a portal account. */
   username: string;
+  /** False for people listed in the phone book who cannot sign in (e.g. workshop staff). */
+  hasAccount: boolean;
   firstName: string;
   lastName: string;
   position: string;
@@ -242,6 +245,7 @@ export type ActiveTab =
   | 'notifications'
   | 'systems'
   | 'reports'
+  | 'people'
   | 'admin';
 
 export interface SearchResultItem {

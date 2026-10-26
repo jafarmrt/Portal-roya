@@ -15,20 +15,29 @@ export interface NotificationInput {
   linkId?: string;
 }
 
-/** Active employees, optionally limited to departments (an empty list means everyone). */
+/** Active employees who can sign in, optionally limited to departments (an empty list means everyone). */
 export async function audienceIds(departments: string[] = [], excludeId?: string) {
   const rows = await db
     .select({ id: employees.id })
     .from(employees)
     .where(
-      departments.length > 0
-        ? and(eq(employees.isActive, true), inArray(employees.department, departments))
-        : eq(employees.isActive, true),
+      and(
+        eq(employees.isActive, true),
+        eq(employees.hasAccount, true),
+        departments.length > 0 ? inArray(employees.department, departments) : undefined,
+      ),
     );
   return rows.map((r) => r.id).filter((id) => id !== excludeId);
 }
 
-export async function createNotifications(userIds: string[], input: NotificationInput, options: { email?: boolean } = {}) {
+export async function createNotifications(requested: string[], input: NotificationInput, options: { email?: boolean } = {}) {
+  if (requested.length === 0) return;
+  // People without a portal account would never read them (e.g. a birthday wish to a workshop colleague).
+  const withAccount = await db
+    .select({ id: employees.id })
+    .from(employees)
+    .where(and(inArray(employees.id, requested), eq(employees.hasAccount, true)));
+  const userIds = withAccount.map((r) => r.id);
   if (userIds.length === 0) return;
   await db.insert(notifications).values(
     userIds.map((userId) => ({

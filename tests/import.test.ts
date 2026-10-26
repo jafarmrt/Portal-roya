@@ -98,7 +98,7 @@ describe('bulk employee import', () => {
     expect(ok.body.rows[0]).toMatchObject({ errors: [], data: { username: 's.karimi', department: 'طراحی' } });
 
     const bad = await admin.post('/api/employees/import/preview').attach('file', Buffer.from('نام,سمت\nعلی,کارشناس\n'), 'x.csv').expect(400);
-    expect(bad.body.error).toContain('نام کاربری');
+    expect(bad.body.error).toContain('نام خانوادگی');
   });
 
   it('creates the valid rows with one-time passwords that work for login', async () => {
