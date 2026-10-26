@@ -30,6 +30,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
     mobile: user.mobile,
     email: user.email,
     birthDate: user.birthDate,
+    hideBirthday: user.hideBirthday,
     hireDate: user.hireDate,
     bio: user.bio,
     location: user.location,
@@ -53,6 +54,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
           mobile: form.mobile,
           email: form.email,
           birthDate: form.birthDate,
+          hideBirthday: form.hideBirthday,
           bio: form.bio,
           location: form.location,
           avatar: form.avatar,
@@ -120,6 +122,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
           <div>
             <label htmlFor="edit-birth" className={labelClass}>تاریخ تولد</label>
             <JalaliDateInput id="edit-birth" value={form.birthDate} onChange={(v) => set('birthDate', v)} defaultYear={1370} />
+            <label className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[#6E6A60] cursor-pointer">
+              <input type="checkbox" checked={form.hideBirthday} onChange={(e) => set('hideBirthday', e.target.checked)} className="accent-red-700" />
+              تولدم به همکاران نمایش داده نشود
+            </label>
+            <p className="mt-1 text-[10px] text-[#8C867A]">سال تولد به همکاران نشان داده نمی‌شود؛ فقط روز و ماه.</p>
           </div>
           <div>
             <label htmlFor="edit-location" className={labelClass}>محل استقرار</label>

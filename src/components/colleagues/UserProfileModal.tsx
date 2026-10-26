@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import type { UserProfile } from '../../types';
 import { Avatar } from '../common/Avatar';
-import { formatDate } from '../../lib/jalali';
+import { formatBirthDay } from '../../lib/jalali';
+import { IntroduceColleagueModal } from './IntroduceColleagueModal';
 import { ModalShell } from '../common/Modal';
 import {
   X,
@@ -21,7 +22,8 @@ import {
   Copy,
   Check,
   Sparkles,
-  Trash2
+  Trash2,
+  UserPlus
 } from 'lucide-react';
 
 interface UserProfileModalProps {
@@ -31,7 +33,9 @@ interface UserProfileModalProps {
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onEdit }) => {
-  const { currentUser, can, endorseSkill, addWorkExperience, addSkill, removeWorkExperience, removeSkill } = usePortal();
+  const { currentUser, can, endorseSkill, addWorkExperience, addSkill, removeWorkExperience, removeSkill, newColleagues } = usePortal();
+  const [introducing, setIntroducing] = useState(false);
+  const introduction = newColleagues.find((nc) => nc.userId === user.id);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // New experience/skill mini-forms inside profile view
@@ -172,6 +176,19 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
             </div>
           </div>
 
+          {can('users.manage') && user.isActive && (
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4 p-3 rounded-2xl border border-dashed border-[#D9D4CB] text-xs">
+              <span className="text-[#6E6A60]">
+                {introduction ? 'این همکار در داشبورد به عنوان همکار جدید معرفی شده است.' : 'هنوز در داشبورد به عنوان همکار جدید معرفی نشده است.'}
+              </span>
+              <button type="button" onClick={() => setIntroducing(true)} className="px-3 py-1.5 bg-[#991b1b] hover:bg-[#7f1d1d] text-white font-bold rounded-xl flex items-center gap-1.5">
+                <UserPlus className="w-3.5 h-3.5" />
+                {introduction ? 'ویرایش کارت معرفی' : 'معرفی به عنوان همکار جدید'}
+              </button>
+            </div>
+          )}
+          {introducing && <IntroduceColleagueModal colleague={user} card={introduction} onClose={() => setIntroducing(false)} />}
+
           {/* Quick Contact & Info Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 p-4 bg-[#F5F2ED] rounded-2xl border border-[#E6E0D5] text-xs">
             <div className="flex items-center gap-2.5">
@@ -191,8 +208,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
             <div className="flex items-center gap-2.5">
               <Calendar className="w-4 h-4 text-[#8C867A]" />
               <div>
-                <span className="text-[#8C867A] text-[10px] block">تاریخ تولد:</span>
-                <span className="font-bold text-[#2D2D2D]">{user.birthDate ? formatDate(user.birthDate) : '—'}</span>
+                <span className="text-[#8C867A] text-[10px] block">زادروز:</span>
+                <span className="font-bold text-[#2D2D2D]">
+                  {formatBirthDay(user.birthDay) || '—'}
+                  {isOwnProfile && user.hideBirthday && <span className="font-normal text-[#8C867A]"> (برای همکاران پنهان)</span>}
+                </span>
               </div>
             </div>
 

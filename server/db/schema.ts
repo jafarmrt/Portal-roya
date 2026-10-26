@@ -83,6 +83,8 @@ export const employees = pgTable('employees', {
   location: text('location').notNull().default(''),
   avatarUrl: text('avatar_url').notNull().default(''),
   birthDate: text('birth_date').notNull().default(''),
+  // The colleague asked not to show their birthday to others (cards, calendar, profile).
+  hideBirthday: boolean('hide_birthday').notNull().default(false),
   hireDate: text('hire_date').notNull().default(''),
   directManagerId: text('direct_manager_id'),
   skills: jsonb('skills').$type<SkillRecord[]>().notNull().default([]),
@@ -235,6 +237,17 @@ export const birthdayWishes = pgTable('birthday_wishes', {
   text: text('text').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// One row per colleague and Jalali year once the birthday notification has gone out.
+export const birthdayAnnouncements = pgTable(
+  'birthday_announcements',
+  {
+    employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    jalaliYear: integer('jalali_year').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.employeeId, t.jalaliYear] })],
+);
 
 export const calendarEvents = pgTable('calendar_events', {
   id: text('id').primaryKey(),

@@ -69,7 +69,11 @@ const rowSchema = z.object({
 });
 export type ImportRow = z.infer<typeof rowSchema>;
 
-export const importRowsSchema = z.object({ rows: z.array(z.record(z.string(), z.unknown())).min(1).max(MAX_IMPORT_ROWS) });
+export const importRowsSchema = z.object({
+  rows: z.array(z.record(z.string(), z.unknown())).min(1).max(MAX_IMPORT_ROWS),
+  // Also put the imported colleagues on the dashboard's "new colleagues" wall.
+  introduce: z.boolean().default(false),
+});
 
 export interface CheckedRow {
   row: number;

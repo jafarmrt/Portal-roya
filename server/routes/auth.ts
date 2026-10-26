@@ -2,7 +2,6 @@ import { and, eq, ne, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
-import { todayJalali } from '../../shared/jalali.js';
 import {
   burnPasswordCheck,
   clearSession,
@@ -170,7 +169,6 @@ async function syncDirectoryUser(dir: DirectoryUser, existing: Employee | undefi
       lastName: '',
       position: 'نامشخص',
       department: 'نامشخص',
-      hireDate: todayJalali(),
       ...profile,
       ...session,
     })

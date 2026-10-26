@@ -63,6 +63,7 @@ export type ProfileUpdate = Partial<
     | 'mobile'
     | 'email'
     | 'birthDate'
+    | 'hideBirthday'
     | 'hireDate'
     | 'bio'
     | 'location'
@@ -153,6 +154,9 @@ interface PortalContextType {
   sendWelcomeWish: (newColleagueId: string, message: string) => Promise<boolean>;
   deleteBirthdayWish: (wishId: string) => Promise<void>;
   deleteWelcomeWish: (wishId: string) => Promise<void>;
+  introduceColleague: (userId: string, input: { message: string; joinDate: string }) => Promise<boolean>;
+  updateIntroduction: (id: string, input: { welcomeMessage: string; joinDate: string }) => Promise<boolean>;
+  deleteIntroduction: (id: string) => Promise<void>;
   saveRole: (role: { id?: string; name: string; description: string; permissions?: Permission[] }) => Promise<boolean>;
   deleteRole: (roleId: string) => Promise<boolean>;
   addCalendarEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<boolean>;
@@ -551,6 +555,23 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (ok !== undefined) await refresh('new_colleagues');
   };
 
+  const introduceColleague: PortalContextType['introduceColleague'] = async (userId, input) => {
+    const ok = await attempt(() => api.post(`/api/employees/${userId}/introduce`, input), 'همکار در داشبورد معرفی شد.');
+    if (ok) await refresh('new_colleagues');
+    return Boolean(ok);
+  };
+
+  const updateIntroduction: PortalContextType['updateIntroduction'] = async (id, input) => {
+    const ok = await attempt(() => api.patch(`/api/new_colleagues/${id}`, input), 'کارت معرفی ویرایش شد.');
+    if (ok) await refresh('new_colleagues');
+    return Boolean(ok);
+  };
+
+  const deleteIntroduction = async (id: string) => {
+    const ok = await attempt(() => api.delete(`/api/new_colleagues/${id}`), 'کارت معرفی حذف شد.');
+    if (ok !== undefined) await refresh('new_colleagues');
+  };
+
   const saveRole: PortalContextType['saveRole'] = async ({ id, ...role }) => {
     const ok = await attempt(
       () => (id ? api.patch(`/api/roles/${id}`, role) : api.post('/api/roles', role)),
@@ -692,6 +713,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         sendWelcomeWish,
         deleteBirthdayWish,
         deleteWelcomeWish,
+        introduceColleague,
+        updateIntroduction,
+        deleteIntroduction,
         saveRole,
         deleteRole,
         addCalendarEvent,

@@ -1,10 +1,15 @@
-import { and, isNull, lte } from 'drizzle-orm';
+import { and, eq, isNull, lte, ne } from 'drizzle-orm';
+import moment from 'moment-jalaali';
 import { db } from './db/index.js';
-import { news } from './db/schema.js';
+import { birthdayAnnouncements, employees, news } from './db/schema.js';
 import { broadcastChange } from './events.js';
+import { audienceIds, createNotifications } from './notify.js';
 import { announceNews } from './routes/news.js';
+import { fullName } from './serializers.js';
 
 const INTERVAL_MS = 60_000;
+/** Birthday notifications go out from this hour (server local time) so they greet people in the morning. */
+export const BIRTHDAY_NOTIFY_HOUR = 8;
 
 /** Announces scheduled news once their publish time has passed. */
 export async function publishDueNews() {
@@ -17,9 +22,56 @@ export async function publishDueNews() {
   return due.length;
 }
 
+/** The 'MM/DD' birthdays that fall on the given day; Esfand 30 birthdays move to the 29th in common years. */
+export function birthdayKeysFor(now: Date) {
+  const today = moment(now);
+  const key = today.format('jMM/jDD');
+  if (key === '12/29' && !moment.jIsLeapYear(today.jYear())) return [key, '12/30'];
+  return [key];
+}
+
+/**
+ * Tells everyone whose birthday it is today, once per colleague and year. Colleagues who hid
+ * their birthday are skipped. Returns how many birthdays were announced.
+ */
+export async function announceBirthdays(now = new Date()) {
+  if (now.getHours() < BIRTHDAY_NOTIFY_HOUR) return 0;
+  const keys = birthdayKeysFor(now);
+  const year = moment(now).jYear();
+  const candidates = await db
+    .select()
+    .from(employees)
+    .where(and(eq(employees.isActive, true), eq(employees.hideBirthday, false), ne(employees.birthDate, '')));
+  let announced = 0;
+  for (const emp of candidates.filter((e) => keys.includes(e.birthDate.slice(5)))) {
+    const claimed = await db
+      .insert(birthdayAnnouncements)
+      .values({ employeeId: emp.id, jalaliYear: year })
+      .onConflictDoNothing()
+      .returning();
+    if (claimed.length === 0) continue;
+    const name = fullName(emp);
+    await createNotifications([emp.id], {
+      title: 'تولدتان مبارک! 🎉',
+      message: `${name} عزیز، خانوادهٔ رویا زادروزتان را تبریک می‌گوید.`,
+      type: 'birthday',
+      linkTab: 'dashboard',
+    });
+    await createNotifications(await audienceIds([], emp.id), {
+      title: 'امروز تولد همکارمان است 🎂',
+      message: `امروز زادروز ${name} (${emp.position}) است. از داشبورد برایش پیام تبریک بفرستید.`,
+      type: 'birthday',
+      linkTab: 'dashboard',
+    });
+    announced++;
+  }
+  return announced;
+}
+
 export function startScheduler() {
   const timer = setInterval(() => {
     publishDueNews().catch((err) => console.error('Scheduler error:', err));
+    announceBirthdays().catch((err) => console.error('Birthday scheduler error:', err));
   }, INTERVAL_MS);
   timer.unref();
 }

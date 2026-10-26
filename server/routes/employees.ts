@@ -46,6 +46,28 @@ function assertMayManageAccount(viewer: SessionUser, target: Pick<Employee, 'rol
   }
 }
 
+/**
+ * Puts a colleague on the dashboard's "new colleagues" wall. `announce` is false for bulk imports,
+ * which send one combined notification instead of one per person.
+ */
+async function introduceColleague(emp: Employee, message: string, joinDate: string, announce = true) {
+  const name = fullName(emp);
+  await db.insert(newColleagues).values({
+    id: newId('nc'),
+    userId: emp.id,
+    welcomeMessage: message || `خوش‌آمدگویی گرم به ${name} که به عنوان ${emp.position} به تیم ما پیوسته است.`,
+    joinDate: joinDate || emp.hireDate || todayJalali(),
+  });
+  if (announce) {
+    await createNotifications(await audienceIds([], emp.id), {
+      title: 'معرفی همکار جدید 👋',
+      message: `${name} به عنوان ${emp.position} به سازمان ملحق شد.`,
+      type: 'welcome',
+      linkTab: 'dashboard',
+    });
+  }
+}
+
 async function assertRoleExists(roleId: string) {
   if (!(await roleExists(roleId))) throw new HttpError(400, 'نقش انتخاب‌شده وجود ندارد.');
 }
@@ -73,7 +95,7 @@ employeesRouter.get(
       return;
     }
     const visible = can(viewer, 'users.manage') ? rows : rows.filter((e) => e.isActive);
-    res.json(visible.map((e) => serializeEmployee(e, viewer.id, byId)));
+    res.json(visible.map((e) => serializeEmployee(e, viewer, byId)));
   }),
 );
 
@@ -85,6 +107,7 @@ const contactFields = {
   location: optionalText(200),
   avatar: assetUrl,
   birthDate: optionalJalaliDate,
+  hideBirthday: z.boolean().default(false),
 };
 
 const createSchema = z.object({
@@ -136,32 +159,20 @@ employeesRouter.post(
         location: body.location,
         avatarUrl: body.avatar,
         birthDate: body.birthDate,
+        hideBirthday: body.hideBirthday,
         hireDate: body.hireDate || todayJalali(),
         directManagerId: body.directManagerId || null,
       })
       .returning();
 
     if (body.isNewColleague) {
-      const name = fullName(emp);
-      await db.insert(newColleagues).values({
-        id: newId('nc'),
-        userId: emp.id,
-        welcomeMessage:
-          body.newColleagueMessage || `خوش‌آمدگویی گرم به ${name} که به عنوان ${emp.position} به تیم ما پیوسته است.`,
-        joinDate: emp.hireDate,
-      });
-      await createNotifications(await audienceIds([], emp.id), {
-        title: 'معرفی همکار جدید 👋',
-        message: `${name} به عنوان ${emp.position} به سازمان ملحق شد.`,
-        type: 'welcome',
-        linkTab: 'dashboard',
-      });
+      await introduceColleague(emp, body.newColleagueMessage, emp.hireDate);
       broadcastChange('new_colleagues');
     }
 
     broadcastChange('employees');
     res.status(201).json({
-      employee: serializeEmployee(emp, currentUser(req).id),
+      employee: serializeEmployee(emp, currentUser(req)),
       // Returned once so the manager can hand it to the new colleague.
       temporaryPassword: initialPassword,
     });
@@ -177,6 +188,7 @@ const contactUpdateFields = {
   location: textValue(200),
   avatar: assetUrlValue,
   birthDate: jalaliDateValue,
+  hideBirthday: z.boolean(),
 };
 const managerOnlyFields = {
   firstName: requiredText(100),
@@ -222,7 +234,7 @@ employeesRouter.patch(
       .where(eq(employees.id, target.id))
       .returning();
     broadcastChange('employees');
-    res.json(serializeEmployee(updated, viewer.id));
+    res.json(serializeEmployee(updated, viewer));
   }),
 );
 
@@ -271,7 +283,7 @@ employeesRouter.post(
       workExperiences: [{ id: newId('we'), ...exp }, ...emp.workExperiences],
     }));
     broadcastChange('employees');
-    res.json(serializeEmployee(updated, viewer.id));
+    res.json(serializeEmployee(updated, viewer));
   }),
 );
 
@@ -284,7 +296,7 @@ employeesRouter.delete(
       workExperiences: emp.workExperiences.filter((w) => w.id !== req.params.expId),
     }));
     broadcastChange('employees');
-    res.json(serializeEmployee(updated, viewer.id));
+    res.json(serializeEmployee(updated, viewer));
   }),
 );
 
@@ -300,7 +312,7 @@ employeesRouter.post(
       skills: [...emp.skills, { id: newId('sk'), name: skill.name, category: skill.category || 'تخصصی', endorsedBy: [] }],
     }));
     broadcastChange('employees');
-    res.json(serializeEmployee(updated, viewer.id));
+    res.json(serializeEmployee(updated, viewer));
   }),
 );
 
@@ -313,7 +325,7 @@ employeesRouter.delete(
       skills: emp.skills.filter((s) => s.id !== req.params.skillId),
     }));
     broadcastChange('employees');
-    res.json(serializeEmployee(updated, viewer.id));
+    res.json(serializeEmployee(updated, viewer));
   }),
 );
 
@@ -330,11 +342,54 @@ employeesRouter.post(
       }),
     }));
     broadcastChange('employees');
-    res.json(serializeEmployee(updated, viewer.id));
+    res.json(serializeEmployee(updated, viewer));
   }),
 );
 
 // --- New colleagues & birthday wishes ---
+
+const introduceSchema = z.object({ message: optionalText(1000), joinDate: optionalJalaliDate });
+
+/** Introduces an existing account, e.g. one that came from the Excel import or Active Directory. */
+employeesRouter.post(
+  '/employees/:id/introduce',
+  requirePermission('users.manage'),
+  route(async (req, res) => {
+    const body = parse(introduceSchema, req.body);
+    const target = await loadEmployee(req.params.id);
+    if (!target.isActive) throw new HttpError(400, 'حساب این همکار غیرفعال است.');
+    const [existing] = await db.select({ id: newColleagues.id }).from(newColleagues).where(eq(newColleagues.userId, target.id)).limit(1);
+    if (existing) throw new HttpError(409, 'این همکار قبلاً معرفی شده است؛ کارت معرفی او را ویرایش کنید.');
+    await introduceColleague(target, body.message, body.joinDate);
+    broadcastChange('new_colleagues');
+    res.status(201).json({ success: true });
+  }),
+);
+
+const introductionUpdateSchema = z.object({ welcomeMessage: requiredText(1000), joinDate: jalaliDateValue }).partial();
+
+employeesRouter.patch(
+  '/new_colleagues/:id',
+  requirePermission('users.manage'),
+  route(async (req, res) => {
+    const body = parse(introductionUpdateSchema, req.body);
+    const [updated] = await db.update(newColleagues).set(body).where(eq(newColleagues.id, req.params.id)).returning({ id: newColleagues.id });
+    if (!updated) throw new HttpError(404, 'کارت معرفی یافت نشد.');
+    broadcastChange('new_colleagues');
+    res.json({ success: true });
+  }),
+);
+
+employeesRouter.delete(
+  '/new_colleagues/:id',
+  requirePermission('users.manage'),
+  route(async (req, res) => {
+    const deleted = await db.delete(newColleagues).where(eq(newColleagues.id, req.params.id)).returning({ id: newColleagues.id });
+    if (deleted.length === 0) throw new HttpError(404, 'کارت معرفی یافت نشد.');
+    broadcastChange('new_colleagues');
+    res.status(204).end();
+  }),
+);
 
 employeesRouter.get(
   '/new_colleagues',
@@ -398,7 +453,8 @@ employeesRouter.post(
 employeesRouter.get(
   '/birthday_wishes',
   route(async (req, res) => {
-    if (!viewerOf(req) && !(await guestSettings()).guestDirectory) {
+    // Birthdays are never shown to guests, even with the directory open to them.
+    if (!viewerOf(req)) {
       res.json({});
       return;
     }
@@ -436,6 +492,7 @@ employeesRouter.post(
     const viewer = currentUser(req);
     const { message } = parse(wishSchema, req.body);
     const target = await loadEmployee(req.params.id);
+    if (target.hideBirthday && target.id !== viewer.id) throw new HttpError(403, 'این همکار تاریخ تولدش را نمایش نمی‌دهد.');
     await db.insert(birthdayWishes).values({
       targetUserId: target.id,
       senderId: viewer.id,
@@ -509,7 +566,6 @@ employeesRouter.post(
             ...value,
             passwordHash: hash,
             mustChangePassword: true,
-            hireDate: value.hireDate || todayJalali(),
           })
           // A username taken since the check is skipped rather than overwritten.
           .onConflictDoNothing({ target: employees.username })
@@ -525,6 +581,18 @@ employeesRouter.post(
       .map((r) => ({ row: r.row, username: r.data.username ?? '', errors: r.errors.length ? r.errors : ['نام کاربری هم‌زمان ثبت شد.'] }));
 
     if (created.length > 0) broadcastChange('employees');
+    if (body.introduce && created.length > 0) {
+      for (const { emp } of created) await introduceColleague(emp, '', emp.hireDate, false);
+      const createdIds = new Set(created.map((c) => c.emp.id));
+      const names = created.slice(0, 3).map((c) => fullName(c.emp)).join('، ');
+      await createNotifications((await audienceIds()).filter((id) => !createdIds.has(id)), {
+        title: 'معرفی همکاران جدید 👋',
+        message: created.length > 3 ? `${names} و ${created.length - 3} همکار دیگر به سازمان ملحق شدند.` : `${names} به سازمان ملحق شدند.`,
+        type: 'welcome',
+        linkTab: 'dashboard',
+      });
+      broadcastChange('new_colleagues');
+    }
     res.status(201).json({
       created: created.map(({ emp, temporary }) => ({
         id: emp.id,

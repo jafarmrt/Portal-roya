@@ -1,12 +1,31 @@
-import type { Employee, SessionUser } from './auth.js';
+import { can, type Employee, type SessionUser } from './auth.js';
 
 export function fullName(e: Pick<Employee, 'firstName' | 'lastName'>) {
   return `${e.firstName} ${e.lastName}`.trim();
 }
 
+type Viewer = Pick<SessionUser, 'id' | 'permissions'>;
+
+/**
+ * Birthdays are personal: the full date (with the year) goes only to the colleague and to user
+ * managers, who edit it. Other colleagues get the month and day ('MM/DD'), unless the colleague
+ * hid it. Guests get neither.
+ */
+function birthdayFields(e: Employee, viewer: Viewer | null) {
+  const isSelf = viewer?.id === e.id;
+  const full = isSelf || can(viewer, 'users.manage');
+  const shown = viewer && (isSelf || !e.hideBirthday);
+  return {
+    birthDate: full ? e.birthDate : '',
+    birthDay: shown ? e.birthDate.slice(5) : '',
+    hideBirthday: full ? e.hideBirthday : false,
+  };
+}
+
 /** Public profile shape shared with the client. Never includes credentials. */
-export function serializeEmployee(e: Employee, viewerId: string, managersById?: Map<string, Employee>) {
+export function serializeEmployee(e: Employee, viewer: Viewer | null, managersById?: Map<string, Employee>) {
   const manager = e.directManagerId ? managersById?.get(e.directManagerId) : undefined;
+  const viewerId = viewer?.id ?? '';
   return {
     id: e.id,
     username: e.username,
@@ -23,7 +42,7 @@ export function serializeEmployee(e: Employee, viewerId: string, managersById?: 
     bio: e.bio,
     location: e.location,
     avatar: e.avatarUrl,
-    birthDate: e.birthDate,
+    ...birthdayFields(e, viewer),
     hireDate: e.hireDate,
     directManagerId: e.directManagerId,
     directManager: manager ? fullName(manager) : '',
@@ -40,9 +59,9 @@ export function serializeEmployee(e: Employee, viewerId: string, managersById?: 
 
 /** What a visitor sees when the directory is open to guests: no login name or personal mobile. */
 export function serializeForGuest(e: Employee, managersById?: Map<string, Employee>) {
-  return { ...serializeEmployee(e, '', managersById), username: '', mobile: '' };
+  return { ...serializeEmployee(e, null, managersById), username: '', mobile: '' };
 }
 
 export function serializeMe(e: SessionUser) {
-  return { ...serializeEmployee(e, e.id), mustChangePassword: e.mustChangePassword, permissions: e.permissions };
+  return { ...serializeEmployee(e, e), mustChangePassword: e.mustChangePassword, permissions: e.permissions };
 }
