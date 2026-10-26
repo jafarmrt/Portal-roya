@@ -32,6 +32,8 @@ docker compose up -d --build
 
 ## نصب بدون Docker
 
+راهنمای کامل و گام‌به‌گام نصب با PM2 کنار برنامه‌های دیگر و پشت nginx در [`deploy/INSTALL-PM2.md`](deploy/INSTALL-PM2.md) آمده است. خلاصه:
+
 ```bash
 # PostgreSQL 16 را نصب کنید و یک پایگاه داده و کاربر بسازید
 sudo -u postgres psql -c "create user portal with password 'رمز‌قوی';"
@@ -104,6 +106,8 @@ gunzip -c backup-2026-10-26.sql.gz | docker compose exec -T db psql -U portal po
 (نام volume ممکن است بسته به نام پوشه متفاوت باشد؛ با `docker volume ls` ببینید.) پیشنهاد می‌شود این دستورها با cron هر شب اجرا شوند.
 
 ## به‌روزرسانی
+
+در نصب بدون Docker، دستور `deploy/update.sh` به‌روزرسانی از GitHub را با پشتیبان‌گیری و بازگشت خودکار انجام می‌دهد و می‌تواند با cron خودکار شود. جزئیات در [`deploy/INSTALL-PM2.md`](deploy/INSTALL-PM2.md) آمده است. با Docker:
 
 ```bash
 git pull
