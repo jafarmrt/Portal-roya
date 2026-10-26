@@ -8,7 +8,13 @@ import { app, createEmployee, resetDatabase, setupAdmin } from './helpers';
 type Agent = Awaited<ReturnType<typeof setupAdmin>>;
 type Person = Awaited<ReturnType<typeof createEmployee>>;
 
-const find = <T extends { id: string }>(list: T[], id: string) => list.find((e) => e.id === id)!;
+interface Profile {
+  id: string;
+  birthDate: string;
+  birthDay: string;
+}
+
+const find = (list: Profile[], id: string) => list.find((e) => e.id === id)!;
 
 async function notificationsOf(agent: Agent) {
   return (await agent.get('/api/notifications').expect(200)).body as { title: string; type: string }[];
