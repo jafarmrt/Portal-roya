@@ -149,6 +149,8 @@ export const AccountAccessModal: React.FC<{ user: UserProfile; onClose: () => vo
 
   const grant = async (e: React.FormEvent) => {
     e.preventDefault();
+    // React bubbles events through portals, so without this the edit form around this dialog would submit and close too.
+    e.stopPropagation();
     setBusy(true);
     const result = await grantAccess(user.id, { ...account, username: account.username.trim().toLowerCase() });
     setBusy(false);
