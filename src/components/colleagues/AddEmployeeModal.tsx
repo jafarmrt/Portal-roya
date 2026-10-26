@@ -5,6 +5,7 @@ import { todayJalali } from '../../lib/jalali';
 import { FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
 import { JalaliDateInput } from '../common/JalaliDateInput';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
+import { RoleSelect } from './RoleSelect';
 import { Avatar } from '../common/Avatar';
 
 interface AddEmployeeModalProps {
@@ -146,11 +147,8 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
             </select>
           </div>
           <div>
-            <label htmlFor="emp-role" className={labelClass}>سطح دسترسی</label>
-            <select id="emp-role" value={form.role} onChange={(e) => set('role', e.target.value as NewEmployeeInput['role'])} className={inputClass}>
-              <option value="employee">کارمند</option>
-              <option value="manager">مدیر پرتال (انتشار خبر و مدیریت همکاران)</option>
-            </select>
+            <label htmlFor="emp-role" className={labelClass}>نقش</label>
+            <RoleSelect id="emp-role" value={form.role} onChange={(role) => set('role', role)} />
           </div>
           <div>
             <label htmlFor="emp-manager" className={labelClass}>مدیر مستقیم</label>

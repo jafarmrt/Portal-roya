@@ -23,8 +23,8 @@ import {
 import { IRANIAN_HOLIDAYS, JALALI_MONTHS, JALALI_WEEKDAYS } from '../../data/holidays';
 
 export const CalendarModule: React.FC = () => {
-  const { calendarEvents, addCalendarEvent, deleteCalendarEvent, userRole, employees, customHolidays, setCustomHoliday, removeCustomHoliday } = usePortal();
-  const isManager = userRole === 'manager';
+  const { calendarEvents, addCalendarEvent, deleteCalendarEvent, can, employees, customHolidays, setCustomHoliday, removeCustomHoliday } = usePortal();
+  const isManager = can('calendar.manage');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   // State for editing public holiday/event

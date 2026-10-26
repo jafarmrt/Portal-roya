@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireManager } from '../auth.js';
+import { requirePermission } from '../auth.js';
 import { db } from '../db/index.js';
 import { calendarEvents, customHolidays } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
@@ -30,7 +30,7 @@ const eventSchema = z.object({
 
 calendarRouter.post(
   '/calendar_events',
-  requireManager,
+  requirePermission('calendar.manage'),
   route(async (req, res) => {
     const body = parse(eventSchema, req.body);
     const [event] = await db
@@ -44,7 +44,7 @@ calendarRouter.post(
 
 calendarRouter.delete(
   '/calendar_events/:id',
-  requireManager,
+  requirePermission('calendar.manage'),
   route(async (req, res) => {
     const deleted = await db.delete(calendarEvents).where(eq(calendarEvents.id, req.params.id)).returning({ id: calendarEvents.id });
     if (deleted.length === 0) throw new HttpError(404, 'رویداد یافت نشد.');
@@ -67,7 +67,7 @@ const holidaySchema = z.object({ title: optionalText(200), isHoliday: z.boolean(
 
 calendarRouter.put(
   '/holidays/:date',
-  requireManager,
+  requirePermission('calendar.manage'),
   route(async (req, res) => {
     const date = parse(holidayKey, req.params.date);
     const body = parse(holidaySchema, req.body);
@@ -82,7 +82,7 @@ calendarRouter.put(
 
 calendarRouter.delete(
   '/holidays/:date',
-  requireManager,
+  requirePermission('calendar.manage'),
   route(async (req, res) => {
     const date = parse(holidayKey, req.params.date);
     await db.delete(customHolidays).where(eq(customHolidays.date, date));

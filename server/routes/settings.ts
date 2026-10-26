@@ -1,11 +1,11 @@
 import { eq } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireManager } from '../auth.js';
+import { can } from '../auth.js';
 import { db } from '../db/index.js';
 import { settings } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
-import { parse, route } from '../http.js';
+import { currentUser, HttpError, parse, route } from '../http.js';
 import { ensureSettings } from '../settings.js';
 import { requiredText } from '../validation.js';
 
@@ -54,9 +54,17 @@ const updateSchema = z
 
 settingsRouter.put(
   '/settings',
-  requireManager,
   route(async (req, res) => {
+    const viewer = currentUser(req);
     const body = parse(updateSchema, req.body);
+    // App links have their own permission; everything else is portal configuration.
+    const { systems, ...lists } = body;
+    if (systems !== undefined && !can(viewer, 'systems.manage')) {
+      throw new HttpError(403, 'شما اجازهٔ ویرایش سامانه‌ها را ندارید.');
+    }
+    if (Object.keys(lists).length > 0 && !can(viewer, 'settings.manage')) {
+      throw new HttpError(403, 'شما اجازهٔ تغییر تنظیمات پرتال را ندارید.');
+    }
     await ensureSettings();
     const [updated] = await db.update(settings).set(body).where(eq(settings.id, 'global')).returning();
     broadcastChange('settings');

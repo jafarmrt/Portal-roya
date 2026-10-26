@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { Send, UserPlus, MessageSquare, Check } from 'lucide-react';
+import { Send, UserPlus, MessageSquare, Check, Trash2 } from 'lucide-react';
 import { Avatar } from '../common/Avatar';
 import { formatDate, timeAgo, toPersianDigits } from '../../lib/jalali';
 
 export const WelcomeNewColleagueCard: React.FC = () => {
-  const { newColleagues, employees, sendWelcomeWish, currentUser } = usePortal();
+  const { newColleagues, employees, sendWelcomeWish, deleteWelcomeWish, currentUser, can } = usePortal();
   const [wishInputs, setWishInputs] = useState<Record<string, string>>({});
   const [submittedStatus, setSubmittedStatus] = useState<Record<string, boolean>>({});
 
@@ -87,7 +87,14 @@ export const WelcomeNewColleagueCard: React.FC = () => {
                     {nc.wishes.map((w) => (
                       <div key={w.id} className="p-2 bg-white rounded-lg border border-[#E6E0D5] text-[11px] flex justify-between gap-2">
                         <span><strong>{w.userName}:</strong> {w.message}</span>
-                        <span className="text-[10px] text-[#8C867A] whitespace-nowrap">{timeAgo(w.time)}</span>
+                        <span className="flex items-start gap-1.5 text-[10px] text-[#8C867A] whitespace-nowrap">
+                          {timeAgo(w.time)}
+                          {(w.senderId === currentUser?.id || can('comments.moderate')) && (
+                            <button type="button" onClick={() => deleteWelcomeWish(w.id)} aria-label={`حذف پیام ${w.userName}`} title="حذف پیام" className="text-[#8C867A] hover:text-red-700">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </span>
                       </div>
                     ))}
                   </div>

@@ -7,6 +7,7 @@ import { JalaliDateInput } from '../common/JalaliDateInput';
 import { Avatar } from '../common/Avatar';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { TemporaryPasswordNotice } from './AddEmployeeModal';
+import { RoleSelect } from './RoleSelect';
 
 interface EditProfileModalProps {
   user: UserProfile;
@@ -14,8 +15,9 @@ interface EditProfileModalProps {
 }
 
 export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClose }) => {
-  const { updateUserProfile, resetEmployeePassword, userRole, appSettings, employees, currentUser } = usePortal();
-  const isAdmin = userRole === 'manager';
+  const { updateUserProfile, resetEmployeePassword, can, isAdmin: viewerIsAdmin, appSettings, employees, currentUser } = usePortal();
+  // Admin accounts can only be changed by an admin; the server enforces the same rule.
+  const isAdmin = can('users.manage') && (viewerIsAdmin || user.role !== 'admin');
   const isSelf = currentUser?.id === user.id;
 
   const [form, setForm] = useState<Required<ProfileUpdate>>({
@@ -85,7 +87,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
     >
       <form id="edit-profile" onSubmit={handleSubmit} className="space-y-4">
         {!isAdmin && (
-          <p className="p-3 bg-[#F5F2ED] rounded-xl text-[11px] text-[#6E6A60]">نام، سمت و واحد را فقط مدیر پرتال می‌تواند تغییر دهد.</p>
+          <p className="p-3 bg-[#F5F2ED] rounded-xl text-[11px] text-[#6E6A60]">نام، سمت، واحد و نقش را فقط مدیر کاربران می‌تواند تغییر دهد{user.role === 'admin' ? ' (حساب ادمین را فقط ادمین برنامه)' : ''}.</p>
         )}
         <div className="flex items-center gap-3">
           <Avatar src={form.avatar} firstName={form.firstName} lastName={form.lastName} className="w-14 h-14 rounded-2xl text-base" />
@@ -135,11 +137,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
             <legend className="text-xs font-black px-1">تنظیمات مدیر</legend>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label htmlFor="edit-role" className={labelClass}>سطح دسترسی</label>
-                <select id="edit-role" value={form.role} onChange={(e) => set('role', e.target.value as UserProfile['role'])} className={inputClass}>
-                  <option value="employee">کارمند</option>
-                  <option value="manager">مدیر پرتال</option>
-                </select>
+                <label htmlFor="edit-role" className={labelClass}>نقش</label>
+                <RoleSelect id="edit-role" value={form.role} onChange={(role) => set('role', role)} />
               </div>
               <div>
                 <label htmlFor="edit-manager" className={labelClass}>مدیر مستقیم</label>

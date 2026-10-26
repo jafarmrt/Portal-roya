@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
 import { jalaliEndOfDay, toJalali } from '../../shared/jalali.js';
-import { type Employee, requireManager } from '../auth.js';
+import { can, type SessionUser, requirePermission } from '../auth.js';
 import { db } from '../db/index.js';
 import { employees, pollOptions, polls, pollVotes } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
@@ -17,7 +17,7 @@ type PollRow = typeof polls.$inferSelect;
 
 const isOpen = (p: PollRow) => p.isActive && (!p.expiresAt || p.expiresAt > new Date());
 
-async function serializePolls(rows: PollRow[], viewer: Employee | null) {
+async function serializePolls(rows: PollRow[], viewer: SessionUser | null) {
   if (rows.length === 0) return [];
   const ids = rows.map((p) => p.id);
   const [options, counts, mine, freeTexts, creators] = await Promise.all([
@@ -76,7 +76,7 @@ pollsRouter.get(
     const rows = await db
       .select()
       .from(polls)
-      .where(viewer?.role === 'manager' ? undefined : audience)
+      .where(can(viewer, 'polls.manage') ? undefined : audience)
       .orderBy(desc(polls.createdAt));
     res.json(await serializePolls(rows, viewer));
   }),
@@ -98,7 +98,7 @@ const createSchema = z
 
 pollsRouter.post(
   '/polls',
-  requireManager,
+  requirePermission('polls.manage'),
   route(async (req, res) => {
     const viewer = currentUser(req);
     const body = parse(createSchema, req.body);
@@ -151,7 +151,7 @@ pollsRouter.post(
     const body = parse(voteSchema, req.body);
     const [poll] = await db.select().from(polls).where(eq(polls.id, req.params.id));
     if (!poll) throw new HttpError(404, 'نظرسنجی یافت نشد.');
-    if (poll.department !== 'all' && poll.department !== viewer.department && viewer.role !== 'manager') {
+    if (poll.department !== 'all' && poll.department !== viewer.department && !can(viewer, 'polls.manage')) {
       throw new HttpError(403, 'این نظرسنجی برای واحد شما نیست.');
     }
     if (!isOpen(poll)) throw new HttpError(400, 'مهلت این نظرسنجی به پایان رسیده است.');
@@ -188,7 +188,7 @@ pollsRouter.post(
 
 pollsRouter.patch(
   '/polls/:id/status',
-  requireManager,
+  requirePermission('polls.manage'),
   route(async (req, res) => {
     const { isActive } = parse(z.object({ isActive: z.boolean() }), req.body);
     const [poll] = await db.update(polls).set({ isActive }).where(eq(polls.id, req.params.id)).returning();
@@ -201,7 +201,7 @@ pollsRouter.patch(
 
 pollsRouter.delete(
   '/polls/:id',
-  requireManager,
+  requirePermission('polls.manage'),
   route(async (req, res) => {
     const deleted = await db.delete(polls).where(eq(polls.id, req.params.id)).returning({ id: polls.id });
     if (deleted.length === 0) throw new HttpError(404, 'نظرسنجی یافت نشد.');

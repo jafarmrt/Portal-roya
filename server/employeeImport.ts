@@ -2,7 +2,8 @@ import { inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { toLatinDigits } from '../shared/jalali.js';
 import { db } from './db/index.js';
-import { employees } from './db/schema.js';
+import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID } from '../shared/permissions.js';
+import { employees, roles } from './db/schema.js';
 import { optionalJalaliDate, optionalText, requiredText, username } from './validation.js';
 
 export const MAX_IMPORT_ROWS = 300;
@@ -59,7 +60,7 @@ const rowSchema = z.object({
   username,
   position: requiredText(100),
   department: requiredText(100),
-  role: z.enum(['employee', 'manager']).default('employee'),
+  role: z.string().min(1).default(DEFAULT_ROLE_ID),
   email: optionalText(200),
   mobile: optionalText(30),
   extension: optionalText(20),
@@ -77,9 +78,24 @@ export interface CheckedRow {
   value?: ImportRow;
 }
 
-function roleValue(value: string) {
-  const v = value.trim().toLowerCase();
-  return v === 'مدیر' || v === 'manager' || v === 'admin' ? 'manager' : 'employee';
+// Common spellings of the built-in roles, besides their ids and current names.
+const ROLE_ALIASES: Record<string, string> = {
+  ادمین: ADMIN_ROLE_ID,
+  'ادمین برنامه': ADMIN_ROLE_ID,
+  مدیر: 'manager',
+  کارشناس: DEFAULT_ROLE_ID,
+  کارمند: DEFAULT_ROLE_ID,
+};
+
+/** Maps a role cell (id or Persian name) to role ids; an empty cell means the default role. */
+async function roleResolver() {
+  const rows = await db.select({ id: roles.id, name: roles.name }).from(roles);
+  const lookup = new Map<string, string>(Object.entries(ROLE_ALIASES).map(([k, v]) => [normalizeHeader(k), v]));
+  for (const r of rows) {
+    lookup.set(normalizeHeader(r.id), r.id);
+    lookup.set(normalizeHeader(r.name), r.id);
+  }
+  return (value: string) => (value.trim() === '' ? DEFAULT_ROLE_ID : lookup.get(normalizeHeader(value)));
 }
 
 /** Turns spreadsheet rows (header first) into field records. */
@@ -114,16 +130,23 @@ function firstIssue(error: z.ZodError) {
  * Validates import rows and checks usernames against the database and each other.
  * Existing usernames are never overwritten, so an account (local or linked to Active Directory) stays as it is.
  */
-export async function checkRows(records: { row: number; data: Record<string, unknown> }[]): Promise<CheckedRow[]> {
+export async function checkRows(
+  records: { row: number; data: Record<string, unknown> }[],
+  { allowAdmin }: { allowAdmin: boolean },
+): Promise<CheckedRow[]> {
+  const resolveRole = await roleResolver();
   const checked: CheckedRow[] = records.map(({ row, data }) => {
     const text: Record<string, string> = {};
     for (const [k, v] of Object.entries(data)) if (k in COLUMNS && v != null) text[k] = String(v).trim();
+    const role = resolveRole(text.role ?? '');
+    if (!role) return { row, data: text, errors: [`نقش: «${text.role}» در فهرست نقش‌های پرتال نیست`] };
+    if (role === ADMIN_ROLE_ID && !allowAdmin) return { row, data: text, errors: ['نقش: فقط ادمین برنامه می‌تواند نقش ادمین بدهد'] };
     const candidate = {
       // Missing required cells become '' so the error reads "required" rather than a type error.
       ...Object.fromEntries(REQUIRED.map((f) => [f, ''])),
       ...text,
       username: (text.username ?? '').replace(/^.*\\/, '').replace(/@.*$/, ''),
-      role: roleValue(text.role ?? ''),
+      role,
       // Excel drops the leading zero when a mobile number is typed as a number.
       mobile: toLatinDigits(text.mobile ?? '').replace(/^9\d{9}$/, '0$&'),
       extension: toLatinDigits(text.extension ?? ''),

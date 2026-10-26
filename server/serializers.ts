@@ -1,4 +1,4 @@
-import type { Employee } from './auth.js';
+import type { Employee, SessionUser } from './auth.js';
 
 export function fullName(e: Pick<Employee, 'firstName' | 'lastName'>) {
   return `${e.firstName} ${e.lastName}`.trim();
@@ -42,6 +42,6 @@ export function serializeForGuest(e: Employee, managersById?: Map<string, Employ
   return { ...serializeEmployee(e, '', managersById), username: '', mobile: '' };
 }
 
-export function serializeMe(e: Employee) {
-  return { ...serializeEmployee(e, e.id), mustChangePassword: e.mustChangePassword };
+export function serializeMe(e: SessionUser) {
+  return { ...serializeEmployee(e, e.id), mustChangePassword: e.mustChangePassword, permissions: e.permissions };
 }

@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireManager } from '../auth.js';
+import { requirePermission } from '../auth.js';
 import { db } from '../db/index.js';
 import { calendarEvents, trainingEnrollments, trainings } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
@@ -47,7 +47,7 @@ const trainingSchema = z.object({
 
 trainingsRouter.post(
   '/trainings',
-  requireManager,
+  requirePermission('trainings.manage'),
   route(async (req, res) => {
     const viewer = currentUser(req);
     const body = parse(trainingSchema, req.body);
@@ -81,7 +81,7 @@ trainingsRouter.post(
 
 trainingsRouter.delete(
   '/trainings/:id',
-  requireManager,
+  requirePermission('trainings.manage'),
   route(async (req, res) => {
     const deleted = await db.delete(trainings).where(eq(trainings.id, req.params.id)).returning({ id: trainings.id });
     if (deleted.length === 0) throw new HttpError(404, 'دوره یافت نشد.');

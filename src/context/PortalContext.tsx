@@ -17,7 +17,9 @@ import type {
   NotificationItem,
   Poll,
   PollType,
+  Permission,
   PortalDocument,
+  RoleInfo,
   SearchResultItem,
   TrainingProgram,
   UserMood,
@@ -84,7 +86,11 @@ interface PortalContextType {
   loginPrompt: string | null;
   requestLogin: (reason?: string) => void;
   closeLoginPrompt: () => void;
-  userRole: UserRole;
+  /** Whether the signed-in user's role grants the permission. */
+  can: (permission: Permission) => boolean;
+  isAdmin: boolean;
+  roles: RoleInfo[];
+  roleName: (roleId: string) => string;
   login: (username: string, password: string) => Promise<CurrentUser>;
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -143,6 +149,10 @@ interface PortalContextType {
   deleteTraining: (trainingId: string) => Promise<void>;
   sendBirthdayWish: (userId: string, text: string) => Promise<boolean>;
   sendWelcomeWish: (newColleagueId: string, message: string) => Promise<boolean>;
+  deleteBirthdayWish: (wishId: string) => Promise<void>;
+  deleteWelcomeWish: (wishId: string) => Promise<void>;
+  saveRole: (role: { id?: string; name: string; description: string; permissions?: Permission[] }) => Promise<boolean>;
+  deleteRole: (roleId: string) => Promise<boolean>;
   addCalendarEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<boolean>;
   deleteCalendarEvent: (id: string) => Promise<void>;
   setCustomHoliday: (date: string, title: string, isHoliday: boolean) => Promise<void>;
@@ -206,6 +216,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [documents, setDocuments] = useState<PortalDocument[]>([]);
   const [userMoods, setUserMoods] = useState<UserMood[]>([]);
+  const [roles, setRoles] = useState<RoleInfo[]>([]);
   const newsCount = useRef(NEWS_PAGE_SIZE);
 
   const isGuest = !currentUser && guestAccess;
@@ -302,6 +313,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       notifications: () => api.get<NotificationItem[]>('/api/notifications').then(setNotifications),
       documents: () => api.get<PortalDocument[]>('/api/documents').then(setDocuments),
       moods: () => api.get<UserMood[]>('/api/moods/me').then(setUserMoods),
+      roles: () => api.get<RoleInfo[]>('/api/roles').then(setRoles),
+      // An admin may change this user's role or the role's permissions at any time.
+      me: () => api.get<{ user: CurrentUser }>('/api/auth/me').then(({ user }) => setCurrentUser(user)),
     }),
     [],
   );
@@ -336,8 +350,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     source.addEventListener('changed', (e) => {
       try {
         const { resource } = JSON.parse((e as MessageEvent).data) as { resource: string };
-        if (resource === 'settings') void refresh('settings');
-        else if (resource in loaders) void refresh(resource as Resource);
+        if (resource === 'roles' || resource === 'employees') void refresh('me');
+        if (resource in loaders) void refresh(resource as Resource);
       } catch {
         // Ignore malformed events.
       }
@@ -352,6 +366,21 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     if (appSettings) setGuestAccess(appSettings.guestAccess);
   }, [appSettings]);
+
+  // When this user's permissions change, what the server shows them changes too (scheduled news, other departments' polls...).
+  const permissionKey = currentUser?.permissions.join(',') ?? null;
+  const lastPermissionKey = useRef(permissionKey);
+  useEffect(() => {
+    if (lastPermissionKey.current === permissionKey) return;
+    const hadSession = lastPermissionKey.current !== null;
+    lastPermissionKey.current = permissionKey;
+    if (hadSession && permissionKey !== null && isReady) {
+      void Promise.all(Object.values(loaders).map((load) => load())).catch(() => undefined);
+    }
+  }, [permissionKey, isReady, loaders]);
+
+  const can = useCallback((permission: Permission) => Boolean(currentUser?.permissions.includes(permission)), [currentUser]);
+  const roleName = useCallback((roleId: string) => roles.find((r) => r.id === roleId)?.name ?? roleId, [roles]);
 
   const loadMoreNews = async () => {
     newsCount.current += NEWS_PAGE_SIZE;
@@ -506,6 +535,31 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return Boolean(ok);
   };
 
+  const deleteBirthdayWish = async (wishId: string) => {
+    const ok = await attempt(() => api.delete(`/api/birthday_wishes/${wishId}`), 'پیام حذف شد.');
+    if (ok !== undefined) await refresh('birthday_wishes');
+  };
+
+  const deleteWelcomeWish = async (wishId: string) => {
+    const ok = await attempt(() => api.delete(`/api/colleague_wishes/${wishId}`), 'پیام حذف شد.');
+    if (ok !== undefined) await refresh('new_colleagues');
+  };
+
+  const saveRole: PortalContextType['saveRole'] = async ({ id, ...role }) => {
+    const ok = await attempt(
+      () => (id ? api.patch(`/api/roles/${id}`, role) : api.post('/api/roles', role)),
+      id ? 'نقش ذخیره شد.' : 'نقش جدید ساخته شد.',
+    );
+    if (ok) await Promise.all([refresh('roles'), refresh('me')]);
+    return Boolean(ok);
+  };
+
+  const deleteRole = async (roleId: string) => {
+    const ok = await attempt(() => api.delete(`/api/roles/${roleId}`), 'نقش حذف شد.');
+    if (ok !== undefined) await refresh('roles');
+    return ok !== undefined;
+  };
+
   const addCalendarEvent = async (event: Omit<CalendarEvent, 'id'>) => {
     const ok = await attempt(() => api.post('/api/calendar_events', event), 'رویداد به تقویم اضافه شد.');
     if (ok) await refresh('calendar');
@@ -575,7 +629,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         loginPrompt,
         requestLogin,
         closeLoginPrompt,
-        userRole: currentUser?.role ?? 'employee',
+        can,
+        isAdmin: currentUser?.role === 'admin',
+        roles,
+        roleName,
         login,
         logout,
         changePassword,
@@ -626,6 +683,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         deleteTraining,
         sendBirthdayWish,
         sendWelcomeWish,
+        deleteBirthdayWish,
+        deleteWelcomeWish,
+        saveRole,
+        deleteRole,
         addCalendarEvent,
         deleteCalendarEvent,
         setCustomHoliday,

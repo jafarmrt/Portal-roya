@@ -82,7 +82,7 @@ const GuestBanner: React.FC = () => {
 };
 
 const MainContent: React.FC = () => {
-  const { activeTab, isSetupComplete, authChecked, currentUser, isGuest, appSettings, isLoading, error } = usePortal();
+  const { activeTab, isSetupComplete, authChecked, currentUser, isGuest, appSettings, isLoading, error, can, isAdmin } = usePortal();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   if (!authChecked) return <FullScreenLoader text="در حال اتصال به پرتال..." />;
@@ -94,7 +94,6 @@ const MainContent: React.FC = () => {
   if (isLoading && !appSettings) return <FullScreenLoader text="در حال دریافت اطلاعات پرتال..." />;
   if (error) return <ErrorScreen message={error} />;
 
-  const isManager = currentUser?.role === 'manager';
   const directoryHidden = isGuest && !appSettings?.guestDirectory;
   const directoryNotice = 'دفتر تلفن و اطلاعات همکاران فقط برای کاربران واردشده نمایش داده می‌شود.';
 
@@ -122,8 +121,8 @@ const MainContent: React.FC = () => {
           {activeTab === 'notifications' &&
             (isGuest ? <LoginRequired message="برای دیدن اعلان‌های خود وارد حساب کاربری شوید." /> : <NotificationsInbox />)}
           {activeTab === 'systems' && <SystemsModule />}
-          {activeTab === 'reports' && isManager && <ReportsModule />}
-          {activeTab === 'admin' && isManager && <AdminSettingsModule />}
+          {activeTab === 'reports' && can('reports.view') && <ReportsModule />}
+          {activeTab === 'admin' && (isAdmin || can('settings.manage')) && <AdminSettingsModule />}
         </Suspense>
       </main>
 

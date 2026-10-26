@@ -90,8 +90,8 @@ const UploadDocumentModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
 };
 
 export const DocumentsModule: React.FC = () => {
-  const { documents, appSettings, userRole, deleteDocument, focusId } = usePortal();
-  const isManager = userRole === 'manager';
+  const { documents, appSettings, can, deleteDocument, focusId } = usePortal();
+  const isManager = can('documents.manage');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [uploadOpen, setUploadOpen] = useState(false);

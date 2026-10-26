@@ -2,7 +2,7 @@ import { and, arrayOverlaps, desc, eq, gt, ilike, inArray, isNull, lte, or, sql,
 import { Router } from 'express';
 import { z } from 'zod';
 import { jalaliEndOfDay, jalaliToDate } from '../../shared/jalali.js';
-import { type Employee, requireManager } from '../auth.js';
+import { can, type SessionUser, requirePermission } from '../auth.js';
 import { db } from '../db/index.js';
 import { employees, news, newsLikes, newsReads } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
@@ -16,11 +16,11 @@ export const newsRouter = Router();
 type NewsRow = typeof news.$inferSelect;
 
 /**
- * What a non-manager may see: published, not expired, and aimed at their department.
+ * What a viewer without news.manage may see: published, not expired, and aimed at their department.
  * Visitors who are not signed in only see items addressed to everyone.
  */
-function visibleTo(viewer: Employee | null): SQL | undefined {
-  if (viewer?.role === 'manager') return undefined;
+function visibleTo(viewer: SessionUser | null): SQL | undefined {
+  if (can(viewer, 'news.manage')) return undefined;
   const now = new Date();
   const forEveryone = sql`cardinality(${news.targetDepartments}) = 0`;
   return and(
@@ -37,7 +37,7 @@ function statusOf(item: NewsRow) {
   return 'published';
 }
 
-async function serializeMany(items: NewsRow[], viewer: Employee | null) {
+async function serializeMany(items: NewsRow[], viewer: SessionUser | null) {
   if (items.length === 0) return [];
   const ids = items.map((n) => n.id);
 
@@ -60,7 +60,7 @@ async function serializeMany(items: NewsRow[], viewer: Employee | null) {
   const reads = new Map(myReads.map((r) => [r.newsId, r]));
 
   let readStats = new Map<string, { read: number; acknowledged: number; audience: number }>();
-  if (viewer?.role === 'manager') {
+  if (can(viewer, 'news.manage')) {
     const active = authors.filter((a) => a.isActive);
     const counts = await db
       .select({
@@ -116,7 +116,7 @@ async function serializeMany(items: NewsRow[], viewer: Employee | null) {
   });
 }
 
-async function loadVisible(id: string, viewer: Employee | null) {
+async function loadVisible(id: string, viewer: SessionUser | null) {
   const [item] = await db.select().from(news).where(and(eq(news.id, id), visibleTo(viewer)));
   if (!item) throw new HttpError(404, 'خبر یافت نشد.');
   return item;
@@ -212,7 +212,7 @@ export async function announceNews(item: NewsRow) {
 
 newsRouter.post(
   '/news',
-  requireManager,
+  requirePermission('news.manage'),
   route(async (req, res) => {
     const viewer = currentUser(req);
     const body = parse(newsSchema, req.body);
@@ -246,7 +246,7 @@ newsRouter.post(
 
 newsRouter.patch(
   '/news/:id',
-  requireManager,
+  requirePermission('news.manage'),
   route(async (req, res) => {
     const viewer = currentUser(req);
     const [existing] = await db.select().from(news).where(eq(news.id, req.params.id));
@@ -282,7 +282,7 @@ newsRouter.patch(
 
 newsRouter.delete(
   '/news/:id',
-  requireManager,
+  requirePermission('news.manage'),
   route(async (req, res) => {
     const deleted = await db.delete(news).where(eq(news.id, req.params.id)).returning({ id: news.id });
     if (deleted.length === 0) throw new HttpError(404, 'خبر یافت نشد.');
@@ -340,7 +340,7 @@ newsRouter.post(
 
 newsRouter.get(
   '/news/:id/receipts',
-  requireManager,
+  requirePermission('news.manage'),
   route(async (req, res) => {
     const [item] = await db.select().from(news).where(eq(news.id, req.params.id));
     if (!item) throw new HttpError(404, 'خبر یافت نشد.');

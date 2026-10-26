@@ -38,7 +38,7 @@ export const SystemTile: React.FC<{ system: ExternalSystem; compact?: boolean; o
 
 /** All organisation apps, shown right under the welcome banner so nobody has to scroll for them. */
 export const QuickSystemsWidget: React.FC = () => {
-  const { setActiveTab, appSettings, userRole } = usePortal();
+  const { setActiveTab, appSettings, can } = usePortal();
   const systems = appSettings?.systems ?? [];
   if (systems.length === 0) return null;
 
@@ -50,8 +50,8 @@ export const QuickSystemsWidget: React.FC = () => {
           سامانه‌های سازمان
         </h2>
         <button onClick={() => setActiveTab('systems')} className="text-xs font-bold text-[#dc2626] hover:underline flex items-center gap-1">
-          {userRole === 'manager' && <Settings2 className="w-3.5 h-3.5" />}
-          {userRole === 'manager' ? 'مدیریت سامانه‌ها' : 'همه سامانه‌ها'}
+          {can('systems.manage') && <Settings2 className="w-3.5 h-3.5" />}
+          {can('systems.manage') ? 'مدیریت سامانه‌ها' : 'همه سامانه‌ها'}
         </button>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">

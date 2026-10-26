@@ -1,0 +1,34 @@
+// Permissions are granted to roles; every user has exactly one role. The admin
+// role always holds every permission and cannot be edited, so the portal can
+// never be locked out of its own settings.
+
+export const PERMISSIONS = [
+  { key: 'news.manage', label: 'انتشار و مدیریت اخبار و اطلاعیه‌ها', hint: 'ثبت، ویرایش و حذف اطلاعیه‌ها، دیدن اطلاعیه‌های زمان‌بندی‌شده و آمار خوانده‌شدن' },
+  { key: 'polls.manage', label: 'مدیریت نظرسنجی‌ها', hint: 'ایجاد، بستن و حذف نظرسنجی‌ها و دیدن نظرسنجی همهٔ واحدها' },
+  { key: 'trainings.manage', label: 'مدیریت دوره‌های آموزشی', hint: 'ثبت و حذف دوره‌ها' },
+  { key: 'calendar.manage', label: 'مدیریت تقویم', hint: 'ثبت رویداد و تعیین تعطیلات سازمانی' },
+  { key: 'documents.manage', label: 'مدیریت اسناد و فرم‌ها', hint: 'بارگذاری و حذف اسناد' },
+  { key: 'systems.manage', label: 'مدیریت لینک سامانه‌ها', hint: 'افزودن و ویرایش لینک سامانه‌های سازمانی' },
+  { key: 'comments.moderate', label: 'مدیریت پیام‌های همکاران', hint: 'حذف پیام‌های تبریک تولد و خوش‌آمدگویی' },
+  { key: 'reports.view', label: 'مشاهدهٔ گزارش‌ها', hint: 'گزارش مشارکت و حال‌وهوای کلی سازمان' },
+  { key: 'users.manage', label: 'مدیریت کاربران', hint: 'ثبت همکار، ویرایش مشخصات، تعیین نقش، غیرفعال‌سازی و بازنشانی رمز' },
+  { key: 'settings.manage', label: 'تنظیمات پرتال', hint: 'واحدهای سازمانی و دسته‌بندی‌ها' },
+] as const;
+
+export type Permission = (typeof PERMISSIONS)[number]['key'];
+
+export const ALL_PERMISSIONS: Permission[] = PERMISSIONS.map((p) => p.key);
+
+export const ADMIN_ROLE_ID = 'admin';
+export const MANAGER_ROLE_ID = 'manager';
+export const DEFAULT_ROLE_ID = 'employee';
+
+export function isPermission(value: string): value is Permission {
+  return (ALL_PERMISSIONS as string[]).includes(value);
+}
+
+/** Effective permissions of a role: admin always has everything, unknown keys are dropped. */
+export function effectivePermissions(roleId: string, stored: readonly string[]): Permission[] {
+  if (roleId === ADMIN_ROLE_ID) return [...ALL_PERMISSIONS];
+  return ALL_PERMISSIONS.filter((p) => stored.includes(p));
+}

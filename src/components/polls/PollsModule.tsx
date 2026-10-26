@@ -20,7 +20,7 @@ import { toPersianDigits } from '../../lib/jalali';
 export const PollsModule: React.FC = () => {
   const {
     polls,
-    userRole,
+    can,
     focusId,
     votePoll,
     togglePollActiveStatus,
@@ -86,7 +86,7 @@ export const PollsModule: React.FC = () => {
           </div>
 
           {/* Admin Create Poll Button */}
-          {userRole === 'manager' && (
+          {can('polls.manage') && (
             <button
               onClick={() => setIsCreateOpen(true)}
               className="px-5 py-3 text-xs font-bold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-2xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap self-start sm:self-auto"
@@ -281,7 +281,7 @@ export const PollsModule: React.FC = () => {
                     </button>
 
                     {/* Admin Actions */}
-                    {userRole === 'manager' && (
+                    {can('polls.manage') && (
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => togglePollActiveStatus(poll.id)}

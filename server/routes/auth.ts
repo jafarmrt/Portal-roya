@@ -11,13 +11,17 @@ import {
   MAX_FAILED_LOGINS,
   requireAuth,
   verifyPassword,
+  withPermissions,
 } from '../auth.js';
+import { ADMIN_ROLE_ID } from '../../shared/permissions.js';
 import { config } from '../config.js';
 import { db } from '../db/index.js';
 import { employees } from '../db/schema.js';
 import { currentUser, HttpError, newId, parse, route } from '../http.js';
 import { serializeMe } from '../serializers.js';
 import { ensureSettings, guestSettings } from '../settings.js';
+import { ensureRoles } from '../roles.js';
+import { ensureSettings } from '../settings.js';
 import { optionalText, password, requiredText, username } from '../validation.js';
 
 export const authRouter = Router();
@@ -66,6 +70,7 @@ authRouter.post(
     }
 
     const passwordHash = await hashPassword(body.password);
+    await ensureRoles();
     // The advisory lock prevents two simultaneous setup requests from both succeeding.
     const created = await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(724001)`);
@@ -78,7 +83,7 @@ authRouter.post(
           username: body.username,
           passwordHash,
           mustChangePassword: false,
-          role: 'manager',
+          role: ADMIN_ROLE_ID,
           firstName: body.firstName,
           lastName: body.lastName,
           position: body.position,
@@ -93,7 +98,7 @@ authRouter.post(
     if (!created) throw new HttpError(409, 'پرتال قبلاً راه‌اندازی شده است.');
     await ensureSettings();
     issueSession(res, created.id);
-    res.json({ user: serializeMe(created) });
+    res.json({ user: serializeMe(await withPermissions(created)) });
   }),
 );
 
@@ -132,7 +137,7 @@ authRouter.post(
 
     await db.update(employees).set({ failedLogins: 0, lockedUntil: null }).where(eq(employees.id, user.id));
     issueSession(res, user.id);
-    res.json({ user: serializeMe(user) });
+    res.json({ user: serializeMe(await withPermissions(user)) });
   }),
 );
 
@@ -171,6 +176,6 @@ authRouter.post(
       .set({ passwordHash: await hashPassword(body.newPassword), mustChangePassword: false })
       .where(eq(employees.id, user.id))
       .returning();
-    res.json({ user: serializeMe(updated) });
+    res.json({ user: serializeMe(await withPermissions(updated)) });
   }),
 );

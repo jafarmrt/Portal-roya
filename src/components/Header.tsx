@@ -46,7 +46,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
     logout,
     appSettings,
     isGuest,
-    requestLogin
+    requestLogin,
+    can,
+    roleName
   } = usePortal();
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -179,7 +181,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                               onClick={() => { setActiveTab('systems'); setIsAppsOpen(false); }}
                               className="text-xs text-[#991b1b] font-bold hover:underline cursor-pointer py-1"
                             >
-                              {currentUser.role === 'manager' ? 'مدیریت و ویرایش سامانه‌ها' : 'مشاهده صفحه سامانه‌ها'}
+                              {can('systems.manage') ? 'مدیریت و ویرایش سامانه‌ها' : 'مشاهده صفحه سامانه‌ها'}
                             </button>
                           </div>
                         </div>
@@ -305,11 +307,11 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                         <div className="text-xs font-bold text-[#1E1E1E] flex items-center gap-1.5">
                           <span>{currentUser.firstName} {currentUser.lastName}</span>
                           <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
-                            currentUser.role === 'manager' 
+                            currentUser.role !== 'employee'
                               ? 'bg-[#FEF2F2] text-[#991b1b] border border-[#FCA5A5]' 
                               : 'bg-[#F5F2ED] text-[#605C54]'
                           }`}>
-                            {currentUser.role === 'manager' ? 'مدیر' : 'کارمند'}
+                            {roleName(currentUser.role)}
                           </span>
                         </div>
                         <div className="text-[10px] text-[#7A756D] truncate max-w-[130px]">
@@ -365,7 +367,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                             <span>تغییر رمز عبور</span>
                           </button>
 
-                          {currentUser.role === 'manager' && (
+                          {can('reports.view') && (
                             <button
                               onClick={() => {
                                 setActiveTab('reports');
