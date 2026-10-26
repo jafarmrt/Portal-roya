@@ -186,7 +186,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
                 </button>
               </div>
             )}
-            {accessOpen && <AccountAccessModal user={live} onClose={() => setAccessOpen(false)} />}
             {!isSelf && (
               <label className="flex items-center gap-2 font-bold cursor-pointer">
                 <input type="checkbox" checked={!form.isActive} onChange={(e) => set('isActive', !e.target.checked)} className="accent-red-700" />
@@ -213,6 +212,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
           </fieldset>
         )}
       </form>
+      {/* Outside the form, so its own form cannot submit this one (React events bubble through portals). */}
+      {accessOpen && <AccountAccessModal user={live} onClose={() => setAccessOpen(false)} />}
     </Modal>
   );
 };
