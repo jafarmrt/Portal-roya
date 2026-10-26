@@ -106,4 +106,19 @@ describe('news, circulars and polls', () => {
     expect(typeof res.body.error).toBe('string');
     await admin.post('/api/polls').send({ title: 'تک گزینه', type: 'multiple_choice', options: ['فقط یکی'] }).expect(400);
   });
+
+  it('stores an uploaded logo for an organisation app and rejects outside images', async () => {
+    const upload = await admin
+      .post('/api/uploads')
+      .attach('file', Buffer.from('89504e470d0a1a0a', 'hex'), { filename: 'crm.png', contentType: 'image/png' })
+      .expect(201);
+    const app = { id: 'crm', name: 'CRM', description: '', iconName: 'Database', url: 'http://crm.local', bgColor: 'bg-red-50', textColor: 'text-red-700' };
+
+    const saved = await admin.put('/api/settings').send({ systems: [{ ...app, imageUrl: upload.body.url }, { ...app, id: 'hr' }] }).expect(200);
+    expect(saved.body.systems[0].imageUrl).toBe(upload.body.url);
+    expect(saved.body.systems[1].imageUrl).toBe('');
+
+    await admin.put('/api/settings').send({ systems: [{ ...app, imageUrl: 'https://example.com/logo.png' }] }).expect(400);
+    await admin.put('/api/settings').send({ systems: [{ ...app, imageUrl: '/uploads/../secret.png' }] }).expect(400);
+  });
 });

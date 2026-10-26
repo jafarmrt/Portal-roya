@@ -43,6 +43,8 @@ export interface ExternalSystemRecord {
   name: string;
   description: string;
   iconName: string;
+  /** Optional logo uploaded to this server; shown instead of the icon when set. */
+  imageUrl?: string;
   url: string;
   bgColor: string;
   textColor: string;

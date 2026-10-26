@@ -252,6 +252,8 @@ export interface ExternalSystem {
   name: string;
   description: string;
   iconName: string;
+  /** Optional logo uploaded to the portal server; shown instead of the icon when set. */
+  imageUrl?: string;
   url: string;
   bgColor: string;
   textColor: string;
