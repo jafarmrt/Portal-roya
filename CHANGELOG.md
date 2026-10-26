@@ -3,6 +3,14 @@
 All notable changes to the Roya Tarh Dakheli Organization Portal will be documented in this file.
 
 
+## [2.1.0] - 2026-10-26
+
+### Changed
+- The server is bundled with all its dependencies into `server-dist/index.cjs`, so the build runs without `node_modules`.
+- GitHub Actions publishes a ready-to-run bundle (`roya-portal.tar.gz`) as a release for every green commit on `main`.
+- `deploy/update.sh` installs or updates from that release with no git or npm on the server. It backs up the database, keeps the last 3 versions, rolls back if the health check fails, and under cron skips a version that already failed.
+- `deploy/INSTALL-PM2.md` rewritten for the release-based install.
+
 ## [2.0.0] - 2026-10-26
 بازنویسی برای استقرار روی سرور داخلی شرکت.
 

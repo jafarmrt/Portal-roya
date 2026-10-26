@@ -32,18 +32,18 @@ docker compose up -d --build
 
 ## نصب بدون Docker
 
-راهنمای کامل و گام‌به‌گام نصب با PM2 کنار برنامه‌های دیگر و پشت nginx در [`deploy/INSTALL-PM2.md`](deploy/INSTALL-PM2.md) آمده است. خلاصه:
+راهنمای کامل و گام‌به‌گام نصب با PM2 کنار برنامه‌های دیگر و پشت nginx در [`deploy/INSTALL-PM2.md`](deploy/INSTALL-PM2.md) آمده است. در این روش سرور نیازی به npm ندارد: GitHub بعد از موفق بودن تست‌ها، بستهٔ آمادهٔ برنامه را در بخش Releases منتشر می‌کند و `deploy/update.sh` همان را دانلود و نصب می‌کند.
+
+برای اجرا از روی کد (مثلاً روی سیستم توسعه):
 
 ```bash
-# PostgreSQL 16 را نصب کنید و یک پایگاه داده و کاربر بسازید
-sudo -u postgres psql -c "create user portal with password 'رمز‌قوی';"
-sudo -u postgres psql -c "create database portal owner portal;"
-
 npm ci
 cp .env.example .env      # DATABASE_URL و SESSION_SECRET را تنظیم کنید
 npm run build
 TZ=Asia/Tehran npm start
 ```
+
+خروجی ساخت (`dist/` و `server-dist/index.cjs` و `drizzle/`) بدون `node_modules` اجرا می‌شود، چون همهٔ وابستگی‌های سرور داخل همان یک فایل قرار گرفته‌اند.
 
 برای اجرای دائمی از systemd یا pm2 استفاده کنید. نمونهٔ سرویس systemd:
 
@@ -56,7 +56,7 @@ After=network.target postgresql.service
 WorkingDirectory=/opt/portal
 EnvironmentFile=/opt/portal/.env
 Environment=NODE_ENV=production TZ=Asia/Tehran
-ExecStart=/usr/bin/node --enable-source-maps server-dist/index.mjs
+ExecStart=/usr/bin/node --enable-source-maps server-dist/index.cjs
 Restart=always
 User=portal
 
@@ -107,7 +107,7 @@ gunzip -c backup-2026-10-26.sql.gz | docker compose exec -T db psql -U portal po
 
 ## به‌روزرسانی
 
-در نصب بدون Docker، دستور `deploy/update.sh` به‌روزرسانی از GitHub را با پشتیبان‌گیری و بازگشت خودکار انجام می‌دهد و می‌تواند با cron خودکار شود. جزئیات در [`deploy/INSTALL-PM2.md`](deploy/INSTALL-PM2.md) آمده است. با Docker:
+در نصب بدون Docker، دستور `deploy/update.sh` آخرین بستهٔ منتشرشده در GitHub را با پشتیبان‌گیری و بازگشت خودکار نصب می‌کند و می‌تواند با cron خودکار شود. جزئیات در [`deploy/INSTALL-PM2.md`](deploy/INSTALL-PM2.md) آمده است. با Docker:
 
 ```bash
 git pull
