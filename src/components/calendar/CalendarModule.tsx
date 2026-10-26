@@ -121,7 +121,7 @@ export const CalendarModule: React.FC = () => {
 
   const getDayBirthdays = (month: number, day: number) => {
     const dateFormatted = `${String(month + 1).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
-    return employees.filter(e => e.birthDate && e.birthDate.endsWith(dateFormatted));
+    return employees.filter(e => e.birthDay === dateFormatted);
   };
 
   const isToday = (year: number, month: number, day: number) =>
@@ -133,7 +133,7 @@ export const CalendarModule: React.FC = () => {
   );
 
   const todayBirthdays = useMemo(
-    () => employees.filter((e) => e.isActive && e.birthDate && e.birthDate.slice(5) === today.slice(5)),
+    () => employees.filter((e) => e.isActive && e.birthDay === today.slice(5)),
     [employees, today],
   );
 

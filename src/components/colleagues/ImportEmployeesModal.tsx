@@ -67,6 +67,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
   const [fileName, setFileName] = useState('');
   const [preview, setPreview] = useState<PreviewRow[] | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [introduce, setIntroduce] = useState(false);
 
   const validRows = preview?.filter((r) => r.errors.length === 0) ?? [];
   const invalidCount = (preview?.length ?? 0) - validRows.length;
@@ -92,7 +93,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
   const handleImport = async () => {
     setBusy(true);
     try {
-      const res = await api.post<ImportResult>('/api/employees/import', { rows: validRows.map((r) => r.data) });
+      const res = await api.post<ImportResult>('/api/employees/import', { rows: validRows.map((r) => r.data), introduce });
       setResult(res);
       toast.success(`${toPersianDigits(res.created.length)} حساب کاربری ساخته شد.`);
     } catch (err) {
@@ -206,6 +207,13 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
               <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800">{toPersianDigits(validRows.length)} ردیف آماده</span>
               {invalidCount > 0 && <span className="px-3 py-1 rounded-full bg-red-50 text-red-700">{toPersianDigits(invalidCount)} ردیف با خطا (ساخته نمی‌شود)</span>}
             </div>
+            <label className="flex items-start gap-2 p-3 bg-[#F5F2ED] rounded-xl cursor-pointer leading-relaxed">
+              <input type="checkbox" checked={introduce} onChange={(e) => setIntroduce(e.target.checked)} className="accent-red-700 mt-0.5" />
+              <span>
+                <strong>این افراد همکار جدید هستند؛ در داشبورد معرفی شوند.</strong>
+                <span className="block text-[#6E6A60]">برای ورود اولیهٔ همهٔ کارکنان فعلی این گزینه را خاموش بگذارید. به همه یک اعلان جمعی داده می‌شود.</span>
+              </span>
+            </label>
             <div className="overflow-x-auto border border-[#E6E0D5] rounded-2xl max-h-[45dvh]">
               <table className="w-full text-xs">
                 <thead className="bg-[#F5F2ED] text-[#4B4740] sticky top-0">

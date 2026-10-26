@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { Send, UserPlus, MessageSquare, Check, Trash2 } from 'lucide-react';
+import { Send, UserPlus, MessageSquare, Check, Trash2, Edit3 } from 'lucide-react';
 import { Avatar } from '../common/Avatar';
 import { formatDate, timeAgo, toPersianDigits } from '../../lib/jalali';
+import type { NewColleagueWelcome } from '../../types';
+import { IntroduceColleagueModal } from '../colleagues/IntroduceColleagueModal';
 
 export const WelcomeNewColleagueCard: React.FC = () => {
-  const { newColleagues, employees, sendWelcomeWish, deleteWelcomeWish, currentUser, can } = usePortal();
+  const { newColleagues, employees, sendWelcomeWish, deleteWelcomeWish, deleteIntroduction, currentUser, can, isGuest } = usePortal();
   const [wishInputs, setWishInputs] = useState<Record<string, string>>({});
   const [submittedStatus, setSubmittedStatus] = useState<Record<string, boolean>>({});
+  const [editing, setEditing] = useState<NewColleagueWelcome | null>(null);
+  const canManage = can('users.manage');
 
-  // Only colleagues who joined in the last 60 days are introduced on the dashboard.
+  // Only colleagues introduced in the last 60 days are shown on the dashboard.
   const recent = newColleagues.filter(nc => Date.now() - new Date(nc.createdAt).getTime() < 60 * 864e5).slice(0, 3);
-  if (recent.length === 0) return null;
+  const editingColleague = editing ? employees.find((e) => e.id === editing.userId) : undefined;
 
   const handleSendWish = async (ncId: string) => {
     const text = wishInputs[ncId]?.trim() || 'ورودتان به رویا طرح داخلی را صمیمانه تبریک می‌گوییم! 🎉';
@@ -37,12 +41,25 @@ export const WelcomeNewColleagueCard: React.FC = () => {
             <p className="text-xs text-[#6E6A60]">ارسال پیام خوش‌آمدگویی به اعضای جدید سازمان</p>
           </div>
         </div>
-        <span className="text-xs bg-[#EFEFEA] text-[#991b1b] px-3 py-1 rounded-full font-bold border border-[#991b1b]/30">
-          جدیدترین همکار
-        </span>
+        {recent.length > 0 && (
+          <span className="text-xs bg-[#EFEFEA] text-[#991b1b] px-3 py-1 rounded-full font-bold border border-[#991b1b]/30">
+            {toPersianDigits(recent.length)} همکار جدید
+          </span>
+        )}
       </div>
 
-      {/* Cards List */}
+      {editing && editingColleague && <IntroduceColleagueModal colleague={editingColleague} card={editing} onClose={() => setEditing(null)} />}
+
+      {recent.length === 0 ? (
+        <div className="py-4 text-center space-y-1.5 text-xs">
+          <p className="text-[#6E6A60]">
+            {isGuest && newColleagues.length === 0 ? 'معرفی همکاران جدید پس از ورود به پرتال نمایش داده می‌شود.' : 'در دو ماه گذشته همکار جدیدی معرفی نشده است.'}
+          </p>
+          {canManage && (
+            <p className="text-[#8C867A]">برای معرفی، هنگام «ثبت همکار جدید» تیک معرفی را بزنید یا از پروفایل همکار «معرفی به عنوان همکار جدید» را انتخاب کنید.</p>
+          )}
+        </div>
+      ) : (
       <div className="space-y-4">
         {recent.map((nc) => {
           const colleague = employees.find(e => e.id === nc.userId);
@@ -69,6 +86,24 @@ export const WelcomeNewColleagueCard: React.FC = () => {
                     تاریخ پیوستن: <strong>{formatDate(nc.joinDate)}</strong>
                   </p>
                 </div>
+                {canManage && (
+                  <div className="sm:mr-auto flex items-center gap-1">
+                    <button type="button" onClick={() => setEditing(nc)} aria-label="ویرایش کارت معرفی" title="ویرایش کارت معرفی" className="p-1.5 text-[#8C867A] hover:text-[#991b1b] rounded-lg hover:bg-white">
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(`کارت معرفی ${colleague.firstName} ${colleague.lastName} و پیام‌های آن حذف شود؟`)) void deleteIntroduction(nc.id);
+                      }}
+                      aria-label="حذف کارت معرفی"
+                      title="حذف کارت معرفی"
+                      className="p-1.5 text-[#8C867A] hover:text-red-700 rounded-lg hover:bg-white"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Welcome Official Message */}
@@ -140,6 +175,7 @@ export const WelcomeNewColleagueCard: React.FC = () => {
           );
         })}
       </div>
+      )}
 
     </div>
   );

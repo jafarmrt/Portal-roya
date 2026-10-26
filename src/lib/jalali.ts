@@ -1,6 +1,7 @@
 import moment from 'moment-jalaali';
 
 export * from '../../shared/jalali';
+import { toPersianDigits } from '../../shared/jalali';
 
 export const JALALI_MONTH_NAMES = [
   'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
@@ -32,9 +33,17 @@ export function timeAgo(value: string): string {
   return formatDate(value);
 }
 
-/** Days until the next occurrence of a Jalali birthday (0 = today), or null if unknown. */
-export function daysUntilBirthday(birthDate: string): number | null {
-  const match = /^\d{4}\/(\d{2})\/(\d{2})$/.exec(birthDate);
+/** "۵ آبان" for a Jalali 'MM/DD' (or full 'YYYY/MM/DD') birthday, without the year. */
+export function formatBirthDay(value: string): string {
+  const match = /(\d{2})\/(\d{2})$/.exec(value);
+  if (!match) return '';
+  const month = JALALI_MONTH_NAMES[Number(match[1]) - 1];
+  return month ? `${toPersianDigits(Number(match[2]))} ${month}` : '';
+}
+
+/** Days until the next occurrence of a Jalali birthday ('MM/DD' or 'YYYY/MM/DD'; 0 = today), or null if unknown. */
+export function daysUntilBirthday(birthDay: string): number | null {
+  const match = /^(?:\d{4}\/)?(\d{2})\/(\d{2})$/.exec(birthDay);
   if (!match) return null;
   const today = moment().startOf('day');
   const month = Number(match[1]);

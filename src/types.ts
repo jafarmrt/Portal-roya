@@ -46,7 +46,12 @@ export interface UserProfile {
   extension: string;
   mobile: string;
   email: string;
-  birthDate: string; // Jalali 'YYYY/MM/DD' or ''
+  /** Full Jalali 'YYYY/MM/DD'; only sent for your own profile or to user managers, otherwise ''. */
+  birthDate: string;
+  /** Jalali 'MM/DD' for birthday cards and the calendar; '' when unknown or hidden. */
+  birthDay: string;
+  /** The colleague chose not to show their birthday to others. */
+  hideBirthday: boolean;
   hireDate: string; // Jalali 'YYYY/MM/DD' or ''
   bio: string;
   avatar: string;

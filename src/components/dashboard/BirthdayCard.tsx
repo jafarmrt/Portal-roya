@@ -1,25 +1,31 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { UserProfile } from '../../types';
-import { Cake, Send, Check, Trash2 } from 'lucide-react';
+import { Cake, Send, Check, Trash2, CalendarDays } from 'lucide-react';
 import { Avatar } from '../common/Avatar';
-import { daysUntilBirthday, formatDate, timeAgo, toPersianDigits } from '../../lib/jalali';
+import { daysUntilBirthday, formatBirthDay, timeAgo, toPersianDigits } from '../../lib/jalali';
+import { EditProfileModal } from '../colleagues/EditProfileModal';
 
 const UPCOMING_DAYS = 14;
+const MAX_SHOWN = 4;
+
+const daysLabel = (days: number) => (days === 0 ? 'امروز 🎉' : days === 1 ? 'فردا' : `${toPersianDigits(days)} روز دیگر`);
 
 export const BirthdayCard: React.FC = () => {
-  const { employees, sendBirthdayWish, deleteBirthdayWish, birthdayWishes, currentUser, can } = usePortal();
+  const { employees, sendBirthdayWish, deleteBirthdayWish, birthdayWishes, currentUser, can, isGuest, setActiveTab } = usePortal();
   const [wishTexts, setWishTexts] = useState<Record<string, string>>({});
   const [sentStatus, setSentStatus] = useState<Record<string, boolean>>({});
+  const [editingOwnProfile, setEditingOwnProfile] = useState(false);
 
-  // Colleagues whose birthday is today or within the next two weeks, soonest first.
-  const birthdayColleagues = employees
+  // Every known birthday, soonest first; the card lists today and the next two weeks.
+  const allBirthdays = employees
     .filter(e => e.isActive)
-    .map(e => ({ emp: e, days: daysUntilBirthday(e.birthDate) }))
-    .filter((x): x is { emp: UserProfile; days: number } => x.days !== null && x.days <= UPCOMING_DAYS)
+    .map(e => ({ emp: e, days: daysUntilBirthday(e.birthDay) }))
+    .filter((x): x is { emp: UserProfile; days: number } => x.days !== null)
     .sort((a, b) => a.days - b.days);
-
-  if (birthdayColleagues.length === 0) return null;
+  const birthdayColleagues = allBirthdays.filter((x) => x.days <= UPCOMING_DAYS);
+  const nextBirthday = allBirthdays[0];
+  const missingOwnBirthday = Boolean(currentUser && !currentUser.birthDate);
 
   const handleSendWish = async (userId: string) => {
     const text = wishTexts[userId]?.trim();
@@ -46,14 +52,37 @@ export const BirthdayCard: React.FC = () => {
             <p className="text-xs text-[#6E6A60]">تولدهای امروز و دو هفتهٔ آینده</p>
           </div>
         </div>
-        <span className="text-xs bg-[#FBF0EC] text-[#D97B5F] px-3 py-1 rounded-full font-bold border border-[#D97B5F]/30">
-          {toPersianDigits(birthdayColleagues.length)} همکار
-        </span>
+        {birthdayColleagues.length > 0 && (
+          <span className="text-xs bg-[#FBF0EC] text-[#D97B5F] px-3 py-1 rounded-full font-bold border border-[#D97B5F]/30">
+            {toPersianDigits(birthdayColleagues.length)} همکار
+          </span>
+        )}
       </div>
 
-      {/* List */}
+      {missingOwnBirthday && (
+        <div className="p-3 bg-[#FBF0EC]/60 rounded-2xl border border-dashed border-[#D97B5F]/40 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <span className="text-[#6E6A60]">تاریخ تولد شما ثبت نشده است. ثبت کنید تا همکاران روز تولدتان را بدانند.</span>
+          <button type="button" onClick={() => setEditingOwnProfile(true)} className="px-3 py-1.5 bg-[#D97B5F] hover:bg-[#C2684D] text-white font-bold rounded-xl">
+            ثبت تاریخ تولد
+          </button>
+        </div>
+      )}
+      {editingOwnProfile && currentUser && <EditProfileModal user={currentUser} onClose={() => setEditingOwnProfile(false)} />}
+
+      {isGuest ? (
+        <p className="py-4 text-center text-xs text-[#6E6A60] leading-relaxed">تولد همکاران پس از ورود به پرتال نمایش داده می‌شود.</p>
+      ) : birthdayColleagues.length === 0 ? (
+        <div className="py-4 text-center space-y-1.5">
+          <p className="text-xs text-[#6E6A60]">در دو هفتهٔ آینده تولدی در پیش نیست.</p>
+          {nextBirthday && (
+            <p className="text-xs text-[#2D2D2D]">
+              نزدیک‌ترین تولد: <strong>{nextBirthday.emp.firstName} {nextBirthday.emp.lastName}</strong>، {formatBirthDay(nextBirthday.emp.birthDay)} ({daysLabel(nextBirthday.days)})
+            </p>
+          )}
+        </div>
+      ) : (
       <div className="space-y-4">
-        {birthdayColleagues.slice(0, 4).map(({ emp, days }) => (
+        {birthdayColleagues.slice(0, MAX_SHOWN).map(({ emp, days }) => (
           <div key={emp.id} className="p-4 bg-[#F5F2ED]/70 rounded-2xl border border-[#E6E0D5] space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -68,9 +97,9 @@ export const BirthdayCard: React.FC = () => {
 
               <div className="text-right">
                 <span className="text-xs font-black text-[#D97B5F] bg-[#FBF0EC] px-2.5 py-1 rounded-xl border border-[#D97B5F]/20">
-                  {days === 0 ? 'امروز 🎉' : days === 1 ? 'فردا' : `${toPersianDigits(days)} روز دیگر`}
+                  {daysLabel(days)}
                 </span>
-                <div className="text-[10px] text-[#8C867A] mt-1">{formatDate(emp.birthDate).replace(/ [۰-۹]+$/, '')}</div>
+                <div className="text-[10px] text-[#8C867A] mt-1">{formatBirthDay(emp.birthDay)}</div>
               </div>
             </div>
 
@@ -134,7 +163,14 @@ export const BirthdayCard: React.FC = () => {
             )}
           </div>
         ))}
+        {birthdayColleagues.length > MAX_SHOWN && (
+          <button type="button" onClick={() => setActiveTab('calendar')} className="w-full text-xs font-bold text-[#D97B5F] hover:underline flex items-center justify-center gap-1">
+            <CalendarDays className="w-3.5 h-3.5" />
+            {toPersianDigits(birthdayColleagues.length - MAX_SHOWN)} تولد دیگر در تقویم
+          </button>
+        )}
       </div>
+      )}
 
     </div>
   );
