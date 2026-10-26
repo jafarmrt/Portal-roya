@@ -4,9 +4,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-RUN npm run build && npm prune --omit=dev
+RUN npm run build
 
-# Runtime stage: only production dependencies and build output.
+# Runtime stage: the server is bundled with its dependencies, so no node_modules are needed.
 FROM node:22-bookworm-slim
 ENV NODE_ENV=production \
     TZ=Asia/Tehran \
@@ -15,7 +15,6 @@ ENV NODE_ENV=production \
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends tzdata && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /data/uploads && chown -R node:node /data
-COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --from=build --chown=node:node /app/server-dist ./server-dist
 COPY --from=build --chown=node:node /app/drizzle ./drizzle
@@ -24,4 +23,4 @@ USER node
 VOLUME ["/data/uploads"]
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s CMD node -e "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["node", "--enable-source-maps", "server-dist/index.mjs"]
+CMD ["node", "--enable-source-maps", "server-dist/index.cjs"]
