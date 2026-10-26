@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
-import { ArrowDown, ArrowUp, Eye, Plus, Settings, X } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ArrowDown, ArrowUp, Check, Eye, Pencil, Plus, Settings, X } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { departmentKey, findDepartment } from '../../../shared/departments';
 import { usePortal } from '../../context/PortalContext';
+import { api, errorMessage } from '../../lib/api';
+import { toPersianDigits } from '../../lib/jalali';
 import type { AppSettings } from '../../types';
-import { inputClass, primaryButtonClass } from '../common/Modal';
+import { inputClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { RolesEditor } from './RolesEditor';
 
-type ListKey = 'departments' | 'newsCategories' | 'trainingCategories' | 'documentCategories';
+type ListKey = 'newsCategories' | 'trainingCategories' | 'documentCategories';
 
 const SECTIONS: { key: ListKey; title: string; hint: string }[] = [
-  { key: 'departments', title: 'واحدهای سازمانی', hint: 'در پروفایل همکاران، هدف‌گیری اخبار و نظرسنجی‌ها استفاده می‌شود.' },
   { key: 'newsCategories', title: 'دسته‌های اخبار و اطلاعیه‌ها', hint: 'فیلترهای صفحهٔ اخبار.' },
   { key: 'documentCategories', title: 'دسته‌های اسناد و فرم‌ها', hint: 'گروه‌بندی کتابخانهٔ اسناد.' },
   { key: 'trainingCategories', title: 'دسته‌های دوره‌های آموزشی', hint: 'فیلترهای صفحهٔ آموزش.' },
@@ -76,6 +79,168 @@ const ListEditor: React.FC<{ settings: AppSettings; section: (typeof SECTIONS)[n
           </button>
         </div>
       )}
+    </section>
+  );
+};
+
+interface DepartmentUsage {
+  name: string;
+  employees: number;
+  activeEmployees: number;
+  news: number;
+  polls: number;
+}
+
+/**
+ * The one list of departments used everywhere in the portal. Changes are saved at once: renaming
+ * updates every colleague, news item and poll; a department in use is removed by merging it into another.
+ */
+const DepartmentsEditor: React.FC<{ settings: AppSettings }> = ({ settings }) => {
+  const { updateSettings } = usePortal();
+  const list = settings.departments;
+  const [usage, setUsage] = useState<DepartmentUsage[]>([]);
+  const [draft, setDraft] = useState('');
+  const [renaming, setRenaming] = useState<{ name: string; value: string } | null>(null);
+  const [merging, setMerging] = useState<{ name: string; into: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    api.get<DepartmentUsage[]>('/api/settings/departments').then(setUsage, (err) => toast.error(errorMessage(err)));
+  }, []);
+  const listKey = list.join('|');
+  useEffect(load, [load, listKey]);
+
+  const usageOf = (name: string) => usage.find((u) => u.name === name);
+  const inUse = (name: string) => {
+    const u = usageOf(name);
+    return Boolean(u && (u.employees || u.news || u.polls));
+  };
+
+  const run = async (action: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await action();
+    } finally {
+      setBusy(false);
+      load();
+    }
+  };
+  const saveList = (next: string[]) => run(() => updateSettings({ departments: next }));
+  const rename = (from: string, to: string) =>
+    run(async () => {
+      try {
+        const res = await api.post<{ to: string; merged: boolean }>('/api/settings/departments/rename', { from, to });
+        toast.success(res.merged ? `«${from}» در «${res.to}» ادغام شد.` : `نام واحد به «${res.to}» تغییر کرد.`);
+        setRenaming(null);
+        setMerging(null);
+      } catch (err) {
+        toast.error(errorMessage(err));
+      }
+    });
+
+  const add = () => {
+    const existing = findDepartment(list, draft);
+    if (!draft.trim()) return;
+    if (existing) {
+      toast.error(`واحد «${existing}» از قبل در فهرست هست.`);
+      return;
+    }
+    setDraft('');
+    saveList([...list, draft.trim()]);
+  };
+  const move = (index: number, delta: number) => {
+    const next = [...list];
+    const [item] = next.splice(index, 1);
+    next.splice(index + delta, 0, item);
+    saveList(next);
+  };
+  const remove = (name: string) => {
+    if (inUse(name)) setMerging({ name, into: list.find((d) => d !== name) ?? '' });
+    else saveList(list.filter((d) => d !== name));
+  };
+
+  const describe = (name: string) => {
+    const u = usageOf(name);
+    if (!u || (!u.employees && !u.news && !u.polls)) return 'بدون همکار';
+    const parts = [`${toPersianDigits(u.activeEmployees)} همکار`];
+    if (u.employees > u.activeEmployees) parts.push(`${toPersianDigits(u.employees - u.activeEmployees)} غیرفعال`);
+    if (u.news) parts.push(`${toPersianDigits(u.news)} خبر`);
+    if (u.polls) parts.push(`${toPersianDigits(u.polls)} نظرسنجی`);
+    return parts.join('، ');
+  };
+
+  return (
+    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3" aria-labelledby="departments-title">
+      <div>
+        <h3 id="departments-title" className="text-sm font-black text-[#2D2D2D]">واحدهای سازمانی</h3>
+        <p className="text-[11px] text-[#6E6A60] leading-relaxed">
+          تنها فهرست واحدهای پرتال: پروفایل همکاران، فیلتر دفتر تلفن، چارت سازمانی، ورود از اکسل و اکتیو دایرکتوری و مخاطبان اخبار و نظرسنجی‌ها از همین فهرست استفاده می‌کنند. تغییر نام، همه‌جا اعمال می‌شود.
+        </p>
+      </div>
+      <ul className="space-y-1.5">
+        {list.map((item, i) => (
+          <li key={item} className="p-2 bg-[#F5F2ED] rounded-xl text-xs font-bold space-y-2">
+            {renaming?.name === item ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const value = renaming.value.trim();
+                  if (!value || value === item) return setRenaming(null);
+                  // Renaming to another department's name merges the two.
+                  const other = list.find((d) => d !== item && departmentKey(d) === departmentKey(value));
+                  if (other && !window.confirm(`واحد «${other}» از قبل هست. همهٔ همکاران «${item}» به «${other}» منتقل و دو واحد یکی شوند؟`)) return;
+                  rename(item, value);
+                }}
+                className="flex items-center gap-1"
+              >
+                <input
+                  autoFocus
+                  aria-label={`نام تازهٔ ${item}`}
+                  value={renaming.value}
+                  maxLength={100}
+                  onChange={(e) => setRenaming({ name: item, value: e.target.value })}
+                  className={inputClass}
+                />
+                <button type="submit" disabled={busy} aria-label="ذخیرهٔ نام" className="p-1.5 text-emerald-700"><Check className="w-4 h-4" /></button>
+                <button type="button" onClick={() => setRenaming(null)} aria-label="انصراف" className="p-1.5"><X className="w-4 h-4" /></button>
+              </form>
+            ) : (
+              <div className="flex items-center gap-1">
+                <span className="flex-1">
+                  <span>{item}</span>
+                  <span className="block text-[10px] font-normal text-[#6E6A60]">{describe(item)}</span>
+                </span>
+                <button onClick={() => move(i, -1)} disabled={busy || i === 0} aria-label={`بالا بردن ${item}`} className="p-1 disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
+                <button onClick={() => move(i, 1)} disabled={busy || i === list.length - 1} aria-label={`پایین بردن ${item}`} className="p-1 disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setRenaming({ name: item, value: item })} disabled={busy} aria-label={`تغییر نام ${item}`} className="p-1"><Pencil className="w-3.5 h-3.5" /></button>
+                <button onClick={() => remove(item)} disabled={busy || list.length === 1} aria-label={`حذف ${item}`} className="p-1 text-red-700 disabled:opacity-30"><X className="w-3.5 h-3.5" /></button>
+              </div>
+            )}
+            {merging?.name === item && (
+              <div className="p-2 bg-white rounded-lg border border-amber-300 space-y-2 font-normal">
+                <p className="text-amber-900 leading-relaxed">این واحد استفاده می‌شود ({describe(item)}). برای حذف، همه را به واحد دیگری منتقل کنید:</p>
+                <div className="flex gap-2">
+                  <select aria-label={`واحد مقصد برای ${item}`} value={merging.into} onChange={(e) => setMerging({ name: item, into: e.target.value })} className={inputClass}>
+                    {list.filter((d) => d !== item).map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <button type="button" disabled={busy || !merging.into} onClick={() => rename(item, merging.into)} className={primaryButtonClass}>انتقال و حذف</button>
+                  <button type="button" onClick={() => setMerging(null)} className={secondaryButtonClass}>انصراف</button>
+                </div>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          add();
+        }}
+        className="flex gap-2"
+      >
+        <input aria-label="واحد جدید" value={draft} maxLength={100} onChange={(e) => setDraft(e.target.value)} placeholder="واحد جدید" className={inputClass} />
+        <button type="submit" disabled={busy} className="px-3 rounded-xl bg-[#F5F2ED] hover:bg-[#E6E0D5]" aria-label="افزودن واحد"><Plus className="w-4 h-4" /></button>
+      </form>
     </section>
   );
 };
@@ -154,6 +319,7 @@ export const AdminSettingsModule: React.FC = () => {
       {can('settings.manage') && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <GuestAccessSettings settings={appSettings} />
+          <DepartmentsEditor settings={appSettings} />
           {SECTIONS.map((s) => <ListEditor key={`${s.key}-${appSettings[s.key].join('|')}`} settings={appSettings} section={s} />)}
         </div>
       )}

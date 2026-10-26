@@ -6,7 +6,8 @@ import { z } from 'zod';
 import { currentJalaliYear, todayJalali } from '../../shared/jalali.js';
 import { can, type Employee, hashPassword, isAdmin, requirePermission, type SessionUser } from '../auth.js';
 import { db } from '../db/index.js';
-import { checkRows, type ImportRow, importRowsSchema, type ImportUpdate, MAX_IMPORT_ROWS, rowsToRecords } from '../employeeImport.js';
+import { addDepartments, departmentList, requireDepartment } from '../departments.js';
+import { checkRows, type ImportRow, importRowsSchema, type ImportUpdate, MAX_IMPORT_ROWS, newDepartments, rowsToRecords } from '../employeeImport.js';
 import { birthdayWishes, colleagueWishes, employees, newColleagues } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
@@ -178,6 +179,7 @@ employeesRouter.post(
   requirePermission('users.manage'),
   route(async (req, res) => {
     const body = parse(createSchema, req.body);
+    body.department = await requireDepartment(body.department);
     const account = body.hasAccount
       ? await prepareAccount(currentUser(req), null, {
           username: body.username || (body.email ? body.email.split('@')[0].toLowerCase() : ''),
@@ -319,6 +321,7 @@ employeesRouter.patch(
     if (losesAdminAccess && (await activeAdminCount(target.id)) === 0) {
       throw new HttpError(400, 'پرتال باید حداقل یک ادمین فعال داشته باشد.');
     }
+    if (body.department !== undefined && body.department !== target.department) body.department = await requireDepartment(body.department);
     if (body.directManagerId === target.id) {
       throw new HttpError(400, 'همکار نمی‌تواند مدیر مستقیم خودش باشد.');
     }
@@ -637,6 +640,7 @@ employeesRouter.post(
     const rows = await checkRows(records, { allowAdmin: isAdmin(currentUser(req)) });
     res.json({
       rows: rows.map(({ row, data, errors, warnings, action, target, changes }) => ({ row, data, errors, warnings, action, target, changes })),
+      newDepartments: newDepartments(rows, await departmentList()),
     });
   }),
 );
@@ -646,8 +650,18 @@ employeesRouter.post(
   requirePermission('users.manage'),
   route(async (req, res) => {
     const body = parse(importRowsSchema, req.body);
-    const checked = await checkRows(body.rows.map((data, i) => ({ row: i + 1, data })), { allowAdmin: isAdmin(currentUser(req)) });
+    const checked = await checkRows(body.rows.map((data, i) => ({ row: i + 1, data })), {
+      allowAdmin: isAdmin(currentUser(req)),
+      departments: body.departments,
+    });
     const valid = checked.filter((r) => r.value);
+
+    // Departments the manager chose to create join the list before anyone is put in them.
+    const added = await addDepartments([...new Set(checked.flatMap((r) => (r.newDepartment ? [r.newDepartment] : [])))]);
+    for (const r of checked) {
+      if (r.value && added.has(r.value.department)) r.value.department = added.get(r.value.department)!;
+      if (r.update?.set.department && added.has(r.update.set.department)) r.update.set.department = added.get(r.update.set.department)!;
+    }
 
     // Rows with a username get an account and a temporary password; the rest join the phone book only.
     const prepared: { row: number; value: ImportRow; temporary: string | null; hash: string }[] = [];

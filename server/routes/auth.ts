@@ -18,6 +18,7 @@ import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID } from '../../shared/permissions.js';
 import { config } from '../config.js';
 import { db } from '../db/index.js';
 import { employees } from '../db/schema.js';
+import { ensureDepartment } from '../departments.js';
 import { currentUser, HttpError, newId, parse, route } from '../http.js';
 import {
   authenticateWithDirectory,
@@ -109,8 +110,13 @@ authRouter.post(
 
     if (!created) throw new HttpError(409, 'پرتال قبلاً راه‌اندازی شده است.');
     await ensureSettings();
-    issueSession(res, created.id);
-    res.json({ user: serializeMe(await withPermissions(created)) });
+    // The first admin's department joins the department list (or takes its spelling there).
+    const department = await ensureDepartment(created.department);
+    const [admin] = department === created.department
+      ? [created]
+      : await db.update(employees).set({ department }).where(eq(employees.id, created.id)).returning();
+    issueSession(res, admin.id);
+    res.json({ user: serializeMe(await withPermissions(admin)) });
   }),
 );
 
@@ -138,7 +144,8 @@ async function syncDirectoryUser(dir: DirectoryUser, existing: Employee | undefi
     ...(dir.lastName ? { lastName: dir.lastName } : {}),
     ...(dir.email ? { email: dir.email } : {}),
     ...(dir.position ? { position: dir.position } : {}),
-    ...(dir.department ? { department: dir.department } : {}),
+    // A department AD knows but the portal does not is added to the list, so the two stay in step.
+    ...(dir.department ? { department: await ensureDepartment(dir.department) } : {}),
     ...(dir.extension ? { extension: dir.extension } : {}),
     ...(dir.mobile ? { mobile: dir.mobile } : {}),
   };
@@ -168,7 +175,7 @@ async function syncDirectoryUser(dir: DirectoryUser, existing: Employee | undefi
       firstName: dir.username,
       lastName: '',
       position: 'نامشخص',
-      department: 'نامشخص',
+      department: profile.department ?? (await ensureDepartment('نامشخص')),
       ...profile,
       ...session,
     })

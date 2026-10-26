@@ -126,7 +126,7 @@ export const CreatePollModal: React.FC<CreatePollModalProps> = ({ isOpen, onClos
           {/* Department & Type Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">دپارتمان هدف</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">واحد هدف</label>
               <select
               value={department}
               onChange={(e) => setDepartment(e.target.value)}

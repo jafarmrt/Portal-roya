@@ -10,6 +10,7 @@ import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.j
 import { audienceIds, createNotifications } from '../notify.js';
 import { fullName } from '../serializers.js';
 import { jalaliDate, optionalText, requiredText } from '../validation.js';
+import { requireDepartment } from '../departments.js';
 
 export const pollsRouter = Router();
 
@@ -102,6 +103,7 @@ pollsRouter.post(
   route(async (req, res) => {
     const viewer = currentUser(req);
     const body = parse(createSchema, req.body);
+    if (body.department !== 'all') body.department = await requireDepartment(body.department);
     const expiresAt = body.expiryDate ? jalaliEndOfDay(body.expiryDate) : null;
     if (expiresAt && expiresAt <= new Date()) throw new HttpError(400, 'مهلت نظرسنجی باید در آینده باشد.');
 

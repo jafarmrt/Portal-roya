@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import { cleanDepartmentName, departmentKey, findDepartment, suggestDepartment } from '../shared/departments.js';
 import { toLatinDigits } from '../shared/jalali.js';
 import { db } from './db/index.js';
+import { departmentList } from './departments.js';
 import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID } from '../shared/permissions.js';
 import { employees, roles } from './db/schema.js';
 import { jalaliDateValue, optionalJalaliDate, optionalText, requiredText, textValue, username } from './validation.js';
@@ -76,6 +78,9 @@ export const importRowsSchema = z.object({
   rows: z.array(z.record(z.string(), z.unknown())).min(1).max(MAX_IMPORT_ROWS),
   // Also put the imported colleagues on the dashboard's "new colleagues" wall.
   introduce: z.boolean().default(false),
+  // What to do with each department the file names but the portal does not have, as chosen in the
+  // preview: the name itself creates that department, another department's name moves the rows there.
+  departments: z.record(z.string().max(100), requiredText(100)).default({}),
 });
 
 // Columns an update may change; an empty cell keeps the current value.
@@ -115,6 +120,48 @@ export interface CheckedRow {
   changes?: string[];
   value?: ImportRow;
   update?: ImportUpdate;
+  /** A department this row would add to the portal's list. */
+  newDepartment?: string;
+}
+
+/** A department named in the file but missing from the portal, for the preview to decide about. */
+export interface NewDepartment {
+  name: string;
+  rows: number[];
+  /** An existing department that is probably meant. */
+  suggestion?: string;
+}
+
+/** Groups the new departments of the rows that would be imported. */
+export function newDepartments(rows: CheckedRow[], list: string[]): NewDepartment[] {
+  const out = new Map<string, NewDepartment>();
+  for (const r of rows) {
+    if (!r.newDepartment || r.errors.length > 0) continue;
+    if (!out.has(r.newDepartment)) out.set(r.newDepartment, { name: r.newDepartment, rows: [], suggestion: suggestDepartment(list, r.newDepartment) });
+    out.get(r.newDepartment)!.rows.push(r.row);
+  }
+  return [...out.values()];
+}
+
+/**
+ * Maps a department cell to a department of the portal. A name the portal does not have is either
+ * decided by `choices` (create it, or use another department), or, when `choices` is 'ask' (the
+ * preview), accepted for now and reported so the manager can decide.
+ */
+function departmentResolver(list: string[], choices: Record<string, string> | 'ask') {
+  const chosen = choices === 'ask' ? new Map<string, string>() : new Map(Object.entries(choices).map(([k, v]) => [departmentKey(k), v]));
+  return (cell: string): { name: string; isNew: boolean } | { error: string } => {
+    const existing = findDepartment(list, cell);
+    if (existing) return { name: existing, isNew: false };
+    const name = cleanDepartmentName(cell);
+    const choice = chosen.get(departmentKey(name));
+    if (choice === undefined) {
+      return choices === 'ask' ? { name, isNew: true } : { error: `واحد: «${name}» در فهرست واحدهای سازمان نیست` };
+    }
+    if (departmentKey(choice) === departmentKey(name)) return { name, isNew: true };
+    const target = findDepartment(list, choice);
+    return target ? { name: target, isNew: false } : { error: `واحد: «${cleanDepartmentName(choice)}» در فهرست واحدهای سازمان نیست` };
+  };
 }
 
 // Common spellings of the built-in roles, besides their ids and current names.
@@ -241,8 +288,9 @@ function checkUpdate(
  */
 export async function checkRows(
   records: { row: number; data: Record<string, unknown> }[],
-  { allowAdmin }: { allowAdmin: boolean },
+  { allowAdmin, departments = 'ask' }: { allowAdmin: boolean; departments?: Record<string, string> | 'ask' },
 ): Promise<CheckedRow[]> {
+  const resolveDepartment = departmentResolver(await departmentList(), departments);
   const resolveRole = await roleResolver();
   const roleNames = new Map((await db.select({ id: roles.id, name: roles.name }).from(roles)).map((r) => [r.id, r.name]));
   const roleName = (id: string) => roleNames.get(id) ?? id;
@@ -255,9 +303,23 @@ export async function checkRows(
     for (const [k, v] of Object.entries(data)) if (k in COLUMNS && v != null) text[k] = String(v).trim();
     const login = cleanLogin(text.username ?? '');
 
+    // The department is written the way the portal's list spells it, so the preview shows that too.
+    let newDepartment: string | undefined;
+    if (text.department) {
+      const department = resolveDepartment(text.department);
+      if ('error' in department) return { row, data: text, errors: [department.error], warnings: [] };
+      text.department = department.name;
+      if (department.isNew) newDepartment = department.name;
+    }
+    const withDepartment = (r: CheckedRow): CheckedRow => {
+      if (!newDepartment || !(r.value || r.update?.set.department)) return r;
+      if (departments === 'ask') r.warnings.push(`واحد «${newDepartment}» در فهرست واحدهای سازمان نیست؛ بالای جدول مشخص کنید ساخته شود یا به واحد دیگری برود.`);
+      return { ...r, newDepartment };
+    };
+
     const target = text.id ? byId.get(text.id) : byUsername.get(login.toLowerCase());
     if (text.id && !target) return { row, data: text, errors: [`شناسه «${text.id}» در پرتال پیدا نشد؛ برای افراد جدید ستون شناسه را خالی بگذارید.`], warnings: [] };
-    if (target) return checkUpdate(row, text, target, resolveRole, roleName, allowAdmin);
+    if (target) return withDepartment(checkUpdate(row, text, target, resolveRole, roleName, allowAdmin));
 
     // Without a username there is no account, so the role cell does not apply.
     const role = login ? resolveRole(text.role ?? '') : DEFAULT_ROLE_ID;
@@ -275,7 +337,7 @@ export async function checkRows(
     const parsed = rowSchema.safeParse(candidate);
     const warnings = !login && text.role ? ['بدون نام کاربری حساب پورتال ساخته نمی‌شود؛ ستون نقش نادیده گرفته شد.'] : [];
     return parsed.success
-      ? { row, data: text, errors: [], warnings, action: 'create', value: parsed.data }
+      ? withDepartment({ row, data: text, errors: [], warnings, action: 'create', value: parsed.data })
       : { row, data: text, errors: firstIssue(parsed.error), warnings };
   });
 
@@ -315,6 +377,7 @@ export async function checkRows(
       delete r.value;
       delete r.update;
       delete r.action;
+      delete r.newDepartment;
     }
   }
   return checked;

@@ -8,6 +8,8 @@ export const app = createApp();
 
 export const ADMIN = { username: 'admin', password: 'Admin-pass-123' };
 
+export const TEST_DEPARTMENTS = ['فناوری اطلاعات', 'فروش', 'طراحی', 'تولید', 'd'];
+
 /** Brings the test database to the latest schema and empties every table. */
 export async function resetDatabase() {
   await runMigrations();
@@ -31,6 +33,8 @@ export async function setupAdmin() {
     department: 'فناوری اطلاعات',
   });
   if (res.status !== 201 && res.status !== 200) throw new Error(`setup failed: ${res.status} ${JSON.stringify(res.body)}`);
+  // Colleagues may only be put in departments from the list, so the tests' departments are added to it.
+  await agent.put('/api/settings').send({ departments: TEST_DEPARTMENTS }).expect(200);
   return agent;
 }
 

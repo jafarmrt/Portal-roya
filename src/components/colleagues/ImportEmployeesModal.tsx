@@ -1,10 +1,11 @@
 import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Loader2, Printer, Upload, Users } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, Download, FileSpreadsheet, Loader2, Printer, Upload, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, errorMessage } from '../../lib/api';
+import { usePortal } from '../../context/PortalContext';
 import { toPersianDigits } from '../../lib/jalali';
-import { Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
+import { inputClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 
 interface PreviewRow {
   row: number;
@@ -15,6 +16,13 @@ interface PreviewRow {
   action?: 'create' | 'update' | 'unchanged';
   target?: string;
   changes?: string[];
+}
+
+/** A department the file names that the portal does not have yet. */
+interface NewDepartment {
+  name: string;
+  rows: number[];
+  suggestion?: string;
 }
 
 interface CreatedAccount {
@@ -81,6 +89,10 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
   const [preview, setPreview] = useState<PreviewRow[] | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [introduce, setIntroduce] = useState(false);
+  const { appSettings } = usePortal();
+  const [newDepartments, setNewDepartments] = useState<NewDepartment[]>([]);
+  // For each new department: its own name creates it, another department's name moves its rows there.
+  const [departmentChoices, setDepartmentChoices] = useState<Record<string, string>>({});
 
   const validRows = preview?.filter((r) => r.errors.length === 0) ?? [];
   const invalidCount = (preview?.length ?? 0) - validRows.length;
@@ -100,9 +112,11 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
     try {
       const form = new FormData();
       form.append('file', file);
-      const res = await api.post<{ rows: PreviewRow[] }>('/api/employees/import/preview', form);
+      const res = await api.post<{ rows: PreviewRow[]; newDepartments: NewDepartment[] }>('/api/employees/import/preview', form);
       setFileName(file.name);
       setPreview(res.rows);
+      setNewDepartments(res.newDepartments);
+      setDepartmentChoices(Object.fromEntries(res.newDepartments.map((d) => [d.name, d.suggestion ?? d.name])));
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -113,7 +127,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
   const handleImport = async () => {
     setBusy(true);
     try {
-      const res = await api.post<ImportResult>('/api/employees/import', { rows: toSend.map((r) => r.data), introduce });
+      const res = await api.post<ImportResult>('/api/employees/import', { rows: toSend.map((r) => r.data), introduce, departments: departmentChoices });
       setResult(res);
       toast.success(`${toPersianDigits(res.created.length)} نفر اضافه و ${toPersianDigits(res.updated.length)} نفر به‌روز شد.`);
     } catch (err) {
@@ -258,6 +272,33 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                 <span className="block text-[#6E6A60]">فقط برای افراد جدید این فایل. برای ورود اولیهٔ همهٔ کارکنان فعلی این گزینه را خاموش بگذارید. به همه یک اعلان جمعی داده می‌شود.</span>
               </span>
             </label>}
+            {newDepartments.length > 0 && (
+              <section aria-label="واحدهای جدید" className="p-3 bg-amber-50 border border-amber-300 rounded-2xl space-y-2">
+                <p className="font-bold text-amber-900 flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4" /> {toPersianDigits(newDepartments.length)} واحد این فایل در فهرست واحدهای سازمان نیست
+                </p>
+                <p className="text-amber-900 leading-relaxed">برای هر کدام مشخص کنید واحد تازه ساخته شود یا ردیف‌هایش در یکی از واحدهای موجود قرار بگیرند.</p>
+                {newDepartments.map((d) => (
+                  <div key={d.name} className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <span className="sm:w-1/2">
+                      <strong>«{d.name}»</strong>
+                      <span className="text-[#6E6A60]"> — ردیف {d.rows.map((r) => toPersianDigits(r)).join('، ')}</span>
+                    </span>
+                    <select
+                      aria-label={`واحد برای «${d.name}»`}
+                      value={departmentChoices[d.name] ?? d.name}
+                      onChange={(e) => setDepartmentChoices({ ...departmentChoices, [d.name]: e.target.value })}
+                      className={`${inputClass} sm:w-1/2`}
+                    >
+                      <option value={d.name}>ساخت واحد جدید «{d.name}»</option>
+                      {(appSettings?.departments ?? []).map((existing) => (
+                        <option key={existing} value={existing}>قرار دادن در «{existing}»</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </section>
+            )}
             <div className="overflow-x-auto border border-[#E6E0D5] rounded-2xl max-h-[45dvh]">
               <table className="w-full text-xs">
                 <thead className="bg-[#F5F2ED] text-[#4B4740] sticky top-0">
@@ -273,7 +314,12 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                       <td className="p-2">{r.target ?? `${r.data.firstName ?? ''} ${r.data.lastName ?? ''}`}</td>
                       <td className="p-2">{r.data.username ? <code dir="ltr">{r.data.username}</code> : <span className="text-[#8C867A]">بدون حساب</span>}</td>
                       <td className="p-2">{r.data.position}</td>
-                      <td className="p-2">{r.data.department}</td>
+                      <td className="p-2">
+                        {r.data.department}
+                        {departmentChoices[r.data.department] && departmentChoices[r.data.department] !== r.data.department && (
+                          <span className="block text-[#6E6A60]">← {departmentChoices[r.data.department]}</span>
+                        )}
+                      </td>
                       <td className="p-2">
                         {r.errors.length === 0 ? (
                           <>

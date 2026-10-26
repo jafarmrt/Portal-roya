@@ -10,6 +10,7 @@ import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.j
 import { audienceIds, createNotifications } from '../notify.js';
 import { fullName } from '../serializers.js';
 import { assetUrl, attachment, jalaliDate, requiredText, timeOfDay } from '../validation.js';
+import { requireDepartments } from '../departments.js';
 
 export const newsRouter = Router();
 
@@ -216,6 +217,7 @@ newsRouter.post(
   route(async (req, res) => {
     const viewer = currentUser(req);
     const body = parse(newsSchema, req.body);
+    body.targetDepartments = await requireDepartments(body.targetDepartments);
     const { publishAt, expiresAt } = scheduleFrom(body);
     const [item] = await db
       .insert(news)
@@ -252,6 +254,7 @@ newsRouter.patch(
     const [existing] = await db.select().from(news).where(eq(news.id, req.params.id));
     if (!existing) throw new HttpError(404, 'خبر یافت نشد.');
     const body = parse(newsSchema, req.body);
+    body.targetDepartments = await requireDepartments(body.targetDepartments);
     const { publishAt, expiresAt } = scheduleFrom(body);
     const [item] = await db
       .update(news)
