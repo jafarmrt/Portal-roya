@@ -1,15 +1,9 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import {
-  ExternalLink, Database, Globe, CalendarClock, CreditCard, HeadphonesIcon, BookOpen, Settings, Plus, X, Save, Edit, Trash2,
-  Mail, Users, Calculator, Package, Truck, FileText, ShoppingCart, Phone, Briefcase, ChevronUp, ChevronDown,
-} from 'lucide-react';
+import { ExternalLink, Plus, X, Save, Edit, Trash2, ChevronUp, ChevronDown, ImageOff } from 'lucide-react';
 import { ExternalSystem } from '../../types';
-
-export const iconMap: Record<string, React.ElementType> = {
-  Database, Globe, CalendarClock, CreditCard, HeadphonesIcon, BookOpen, Settings, ExternalLink,
-  Mail, Users, Calculator, Package, Truck, FileText, ShoppingCart, Phone, Briefcase,
-};
+import { FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
+import { iconMap, SystemIcon } from './SystemIcon';
 
 const iconLabels: Record<string, string> = {
   Database: 'پایگاه داده / CRM', Globe: 'وب / اتوماسیون', CalendarClock: 'حضور و غیاب', CreditCard: 'مالی و پرداخت',
@@ -36,6 +30,7 @@ export const SystemsModule: React.FC = () => {
       name: 'سامانه جدید',
       description: 'توضیحات سامانه جدید',
       iconName: 'Settings',
+      imageUrl: '',
       url: '#',
       bgColor: 'bg-gray-50',
       textColor: 'text-gray-700'
@@ -120,7 +115,6 @@ export const SystemsModule: React.FC = () => {
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {editedSystems.map((system, index) => {
-              const Icon = iconMap[system.iconName] || Settings;
               return (
                 <div key={system.id} className="bg-white rounded-3xl p-6 pt-12 border border-[#dc2626]/30 shadow-xs relative">
                   <div className="absolute top-3 left-3 flex items-center gap-1">
@@ -143,9 +137,7 @@ export const SystemsModule: React.FC = () => {
                   <span className="absolute top-4 right-6 text-[11px] font-bold text-[#8C867A]">ترتیب نمایش: {index + 1}</span>
                   <div className="space-y-4">
                     <div className="flex items-start gap-4">
-                      <div className={`p-4 rounded-2xl ${system.bgColor} ${system.textColor}`}>
-                        <Icon className="w-6 h-6" />
-                      </div>
+                      <SystemIcon system={system} size="md" />
                       <div className="flex-1 space-y-3">
                         <input
                           value={system.name}
@@ -198,6 +190,24 @@ export const SystemsModule: React.FC = () => {
                         </select>
                       </div>
                     </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold text-[#6E6A60]">تصویر یا لوگو (اختیاری):</span>
+                      <FileUpload
+                        accept={IMAGE_ACCEPT}
+                        label={system.imageUrl ? 'تغییر تصویر' : 'بارگذاری تصویر'}
+                        onUploaded={(f) => handleUpdateSystem(system.id, 'imageUrl', f.url)}
+                      />
+                      {system.imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateSystem(system.id, 'imageUrl', '')}
+                          className="px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl flex items-center gap-1.5"
+                        >
+                          <ImageOff className="w-4 h-4" /> حذف تصویر و استفاده از آیکون
+                        </button>
+                      )}
+                      <p className="w-full text-[11px] text-[#8C867A]">اگر تصویر بگذارید به‌جای آیکون نمایش داده می‌شود. تصویر مربعی (مثلاً ۲۵۶×۲۵۶) با فرمت PNG، JPG یا WebP بهتر دیده می‌شود.</p>
+                    </div>
                   </div>
                 </div>
               );
@@ -214,7 +224,6 @@ export const SystemsModule: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {currentSystems.map((system) => {
-            const Icon = iconMap[system.iconName] || Settings;
             const ready = Boolean(system.url) && system.url !== '#';
             return (
               <a
@@ -227,9 +236,7 @@ export const SystemsModule: React.FC = () => {
                 className={`group block bg-white rounded-3xl p-6 border transition-all ${ready ? 'border-[#E6E0D5] hover:border-[#dc2626]/40 hover:shadow-lg' : 'border-dashed border-[#D9D4CB] opacity-70 cursor-not-allowed'}`}
               >
                 <div className="flex items-start gap-4">
-                  <div className={`p-4 rounded-2xl ${system.bgColor} ${system.textColor} group-hover:scale-110 transition-transform`}>
-                    <Icon className="w-8 h-8" />
-                  </div>
+                  <SystemIcon system={system} size="lg" className="group-hover:scale-110 transition-transform" />
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <h3 className="text-base font-bold text-[#2D2D2D] group-hover:text-[#dc2626] transition-colors">

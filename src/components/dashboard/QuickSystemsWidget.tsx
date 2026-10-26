@@ -2,13 +2,12 @@ import React from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { ExternalLink, LayoutGrid, Settings2 } from 'lucide-react';
 import type { ExternalSystem } from '../../types';
-import { iconMap } from '../systems/SystemsModule';
+import { SystemIcon } from '../systems/SystemIcon';
 
 export const isSystemLinkSet = (system: ExternalSystem) => Boolean(system.url) && system.url !== '#';
 
 /** One organisation app as a launch tile; opens in a new tab so the portal stays open. */
 export const SystemTile: React.FC<{ system: ExternalSystem; compact?: boolean; onLaunch?: () => void }> = ({ system, compact, onLaunch }) => {
-  const Icon = iconMap[system.iconName] || ExternalLink;
   const ready = isSystemLinkSet(system);
   return (
     <a
@@ -27,9 +26,7 @@ export const SystemTile: React.FC<{ system: ExternalSystem; compact?: boolean; o
           : 'bg-[#F5F2ED]/60 border-dashed border-[#D9D4CB] opacity-70 cursor-not-allowed'
       }`}
     >
-      <span className={`p-2 rounded-xl shrink-0 ${system.bgColor} ${system.textColor}`}>
-        <Icon className="w-5 h-5" />
-      </span>
+      <SystemIcon system={system} size="sm" />
       <span className="min-w-0 flex-1">
         <span className="block text-xs sm:text-sm font-bold text-[#2D2D2D] group-hover:text-[#dc2626] transition-colors line-clamp-2 leading-snug">{system.name}</span>
         {!compact && system.description && <span className="block text-[11px] text-[#6E6A60] truncate">{system.description}</span>}

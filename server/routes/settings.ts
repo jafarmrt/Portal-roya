@@ -24,6 +24,13 @@ const systemSchema = z.object({
   name: requiredText(100),
   description: z.string().trim().max(300).default(''),
   iconName: requiredText(50),
+  // Logos must live on this server: only images returned by /api/uploads are accepted.
+  imageUrl: z
+    .string()
+    .trim()
+    .max(200)
+    .refine((v) => v === '' || /^\/uploads\/[\w-]+\.(jpg|png|webp|gif)$/.test(v), 'تصویر سامانه باید روی همین سرور بارگذاری شده باشد')
+    .default(''),
   url: z
     .string()
     .trim()
