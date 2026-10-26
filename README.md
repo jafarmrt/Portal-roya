@@ -32,6 +32,8 @@ docker compose up -d --build
 
 ## نصب بدون Docker
 
+راهنمای کامل و گام‌به‌گام نصب با PM2 کنار برنامه‌های دیگر و پشت nginx در [`deploy/INSTALL-PM2.md`](deploy/INSTALL-PM2.md) آمده است. خلاصه:
+
 ```bash
 # PostgreSQL 16 را نصب کنید و یک پایگاه داده و کاربر بسازید
 sudo -u postgres psql -c "create user portal with password 'رمز‌قوی';"
