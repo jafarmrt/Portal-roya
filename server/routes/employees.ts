@@ -9,10 +9,11 @@ import { db } from '../db/index.js';
 import { checkRows, type ImportRow, importRowsSchema, MAX_IMPORT_ROWS, rowsToRecords } from '../employeeImport.js';
 import { birthdayWishes, colleagueWishes, employees, newColleagues } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
-import { currentUser, HttpError, newId, parse, route } from '../http.js';
+import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
 import { audienceIds, createNotifications } from '../notify.js';
+import { fullName, serializeEmployee, serializeForGuest } from '../serializers.js';
+import { guestSettings } from '../settings.js';
 import { readSpreadsheet, SpreadsheetError } from '../spreadsheet.js';
-import { fullName, serializeEmployee } from '../serializers.js';
 import { assetUrl, assetUrlValue, jalaliDateValue, optionalJalaliDate, optionalText, password, requiredText, textValue, username } from '../validation.js';
 
 export const employeesRouter = Router();
@@ -45,9 +46,17 @@ async function activeManagerCount(excludeId: string) {
 employeesRouter.get(
   '/employees',
   route(async (req, res) => {
-    const viewer = currentUser(req);
+    const viewer = viewerOf(req);
+    if (!viewer && !(await guestSettings()).guestDirectory) {
+      res.json([]);
+      return;
+    }
     const rows = await db.select().from(employees).orderBy(employees.firstName, employees.lastName);
     const byId = new Map(rows.map((e) => [e.id, e]));
+    if (!viewer) {
+      res.json(rows.filter((e) => e.isActive).map((e) => serializeForGuest(e, byId)));
+      return;
+    }
     const visible = viewer.role === 'manager' ? rows : rows.filter((e) => e.isActive);
     res.json(visible.map((e) => serializeEmployee(e, viewer.id, byId)));
   }),
@@ -306,7 +315,11 @@ employeesRouter.post(
 
 employeesRouter.get(
   '/new_colleagues',
-  route(async (_req, res) => {
+  route(async (req, res) => {
+    if (!viewerOf(req) && !(await guestSettings()).guestDirectory) {
+      res.json([]);
+      return;
+    }
     const cards = await db.select().from(newColleagues).orderBy(desc(newColleagues.createdAt)).limit(20);
     const wishes = await db
       .select({
@@ -360,7 +373,11 @@ employeesRouter.post(
 
 employeesRouter.get(
   '/birthday_wishes',
-  route(async (_req, res) => {
+  route(async (req, res) => {
+    if (!viewerOf(req) && !(await guestSettings()).guestDirectory) {
+      res.json({});
+      return;
+    }
     const rows = await db
       .select({
         id: birthdayWishes.id,

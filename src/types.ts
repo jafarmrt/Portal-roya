@@ -266,6 +266,10 @@ export interface AppSettings {
   trainingCategories: string[];
   documentCategories: string[];
   systems: ExternalSystem[];
+  /** Visitors who are not signed in may read news, polls, documents, trainings and the calendar. */
+  guestAccess: boolean;
+  /** Also show the staff directory (phone book, org chart, birthdays) to guests. */
+  guestDirectory: boolean;
 }
 
 export type CustomHolidays = Record<string, { title: string; isHoliday: boolean }>;

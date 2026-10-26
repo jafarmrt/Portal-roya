@@ -1,12 +1,12 @@
 import React, { lazy, Suspense, useState } from 'react';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, LogIn } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 import { PortalProvider, usePortal } from './context/PortalContext';
 import { Header } from './components/Header';
 import { Navigation } from './components/Navigation';
 import { MobileBottomBar } from './components/common/MobileBottomBar';
 import { Setup } from './components/Setup';
-import { LoginPage } from './components/LoginPage';
+import { LoginModal, LoginPage } from './components/LoginPage';
 import { ForcePasswordChangePage } from './components/ChangePasswordModal';
 import { DashboardModule } from './components/dashboard/DashboardModule';
 import { currentJalaliYear, toPersianDigits } from './lib/jalali';
@@ -50,19 +50,53 @@ const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
   </div>
 );
 
+/** Shown to guests in place of a page that needs a signed-in user. */
+const LoginRequired: React.FC<{ message: string }> = ({ message }) => {
+  const { requestLogin } = usePortal();
+  return (
+    <div className="max-w-md mx-auto my-12 bg-white p-8 rounded-3xl border border-[#E6E0D5] text-center space-y-4">
+      <div className="w-12 h-12 bg-[#fef2f2] text-[#991b1b] rounded-2xl flex items-center justify-center mx-auto">
+        <LogIn className="w-6 h-6" />
+      </div>
+      <p className="text-sm text-[#4B4740] leading-relaxed">{message}</p>
+      <button onClick={() => requestLogin()} className="w-full py-3 bg-[#991b1b] hover:bg-[#7f1d1d] text-white font-bold rounded-xl transition-colors">
+        ورود به پرتال
+      </button>
+    </div>
+  );
+};
+
+/** Reminds guests they are reading in view-only mode. */
+const GuestBanner: React.FC = () => {
+  const { requestLogin } = usePortal();
+  return (
+    <div className="bg-amber-50 border-b border-amber-200 text-amber-900" role="status">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <span>شما به صورت مهمان در حال مشاهدهٔ پرتال هستید. برای ثبت نظر، رأی، تبریک و دیدن اعلان‌های خود وارد شوید.</span>
+        <button onClick={() => requestLogin()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-900 text-white font-bold hover:bg-amber-950">
+          <LogIn className="w-3.5 h-3.5" /> ورود
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const MainContent: React.FC = () => {
-  const { activeTab, isSetupComplete, authChecked, currentUser, isLoading, error } = usePortal();
+  const { activeTab, isSetupComplete, authChecked, currentUser, isGuest, appSettings, isLoading, error } = usePortal();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   if (!authChecked) return <FullScreenLoader text="در حال اتصال به پرتال..." />;
   if (error && isSetupComplete === null) return <ErrorScreen message={error} />;
   if (isSetupComplete === false) return <Setup />;
-  if (!currentUser) return <LoginPage />;
-  if (currentUser.mustChangePassword) return <ForcePasswordChangePage />;
-  if (isLoading) return <FullScreenLoader text="در حال دریافت اطلاعات پرتال..." />;
+  if (!currentUser && !isGuest) return <LoginPage />;
+  if (currentUser?.mustChangePassword) return <ForcePasswordChangePage />;
+  // Keep the page on screen while it reloads after signing in or out.
+  if (isLoading && !appSettings) return <FullScreenLoader text="در حال دریافت اطلاعات پرتال..." />;
   if (error) return <ErrorScreen message={error} />;
 
-  const isManager = currentUser.role === 'manager';
+  const isManager = currentUser?.role === 'manager';
+  const directoryHidden = isGuest && !appSettings?.guestDirectory;
+  const directoryNotice = 'دفتر تلفن و اطلاعات همکاران فقط برای کاربران واردشده نمایش داده می‌شود.';
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#2D2D2D] flex flex-col font-sans pb-16 lg:pb-0" dir="rtl">
@@ -72,19 +106,21 @@ const MainContent: React.FC = () => {
 
       <Header onToggleMobileNav={() => setIsMobileNavOpen(!isMobileNavOpen)} isMobileNavOpen={isMobileNavOpen} />
       <Navigation isMobileNavOpen={isMobileNavOpen} onCloseMobileNav={() => setIsMobileNavOpen(false)} />
+      {isGuest && <GuestBanner />}
 
       <main id="main" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Suspense fallback={<div className="py-20 flex justify-center"><Loader2 className="w-8 h-8 text-red-600 animate-spin" /></div>}>
           {activeTab === 'dashboard' && <DashboardModule />}
           {activeTab === 'polls' && <PollsModule />}
-          {activeTab === 'colleagues' && <ColleaguesDirectory />}
-          {activeTab === 'orgchart' && <OrgChartModule />}
+          {activeTab === 'colleagues' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <ColleaguesDirectory />)}
+          {activeTab === 'orgchart' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <OrgChartModule />)}
           {activeTab === 'search' && <GlobalSearchModule />}
           {activeTab === 'news' && <NewsModule />}
           {activeTab === 'documents' && <DocumentsModule />}
           {activeTab === 'training' && <TrainingModule />}
           {activeTab === 'calendar' && <CalendarModule />}
-          {activeTab === 'notifications' && <NotificationsInbox />}
+          {activeTab === 'notifications' &&
+            (isGuest ? <LoginRequired message="برای دیدن اعلان‌های خود وارد حساب کاربری شوید." /> : <NotificationsInbox />)}
           {activeTab === 'systems' && <SystemsModule />}
           {activeTab === 'reports' && isManager && <ReportsModule />}
           {activeTab === 'admin' && isManager && <AdminSettingsModule />}
@@ -92,6 +128,7 @@ const MainContent: React.FC = () => {
       </main>
 
       <MobileBottomBar />
+      {isGuest && <LoginModal />}
 
       <footer className="bg-[#7f1d1d] text-[#E6E0D5] border-t border-[#7f1d1d] py-6 mt-12 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right">

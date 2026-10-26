@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowDown, ArrowUp, Plus, Settings, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Eye, Plus, Settings, X } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import type { AppSettings } from '../../types';
 import { inputClass, primaryButtonClass } from '../common/Modal';
@@ -79,6 +79,61 @@ const ListEditor: React.FC<{ settings: AppSettings; section: (typeof SECTIONS)[n
   );
 };
 
+const Toggle: React.FC<{ label: string; hint: string; checked: boolean; disabled?: boolean; onChange: (value: boolean) => void }> = ({
+  label,
+  hint,
+  checked,
+  disabled,
+  onChange,
+}) => (
+  <label className={`flex items-start gap-3 p-3 rounded-xl bg-[#F5F2ED] ${disabled ? 'opacity-50' : 'cursor-pointer'}`}>
+    <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className="mt-0.5 w-4 h-4 accent-red-700" />
+    <span>
+      <span className="block text-xs font-bold text-[#2D2D2D]">{label}</span>
+      <span className="block text-[11px] text-[#6E6A60] mt-0.5 leading-relaxed">{hint}</span>
+    </span>
+  </label>
+);
+
+/** Whether visitors who are not signed in can read the portal. */
+const GuestAccessSettings: React.FC<{ settings: AppSettings }> = ({ settings }) => {
+  const { updateSettings } = usePortal();
+  const [busy, setBusy] = useState(false);
+  const save = async (update: Partial<AppSettings>) => {
+    setBusy(true);
+    await updateSettings(update);
+    setBusy(false);
+  };
+
+  return (
+    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3 lg:col-span-2">
+      <div className="flex items-center gap-2">
+        <Eye className="w-4 h-4 text-red-700" />
+        <h3 className="text-sm font-black text-[#2D2D2D]">دسترسی مهمان (بدون ورود)</h3>
+      </div>
+      <p className="text-[11px] text-[#6E6A60]">
+        مهمان فقط می‌بیند و نمی‌تواند نظر، رأی، لایک یا تبریک ثبت کند؛ برای هر تعامل از او خواسته می‌شود وارد شود. اخبار و نظرسنجی‌هایی که برای یک واحد خاص هدف‌گیری شده‌اند به مهمان نشان داده نمی‌شوند.
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <Toggle
+          label="نمایش پرتال به کاربران واردنشده"
+          hint="اخبار و اطلاعیه‌های عمومی، نظرسنجی‌ها (بدون پاسخ‌های متنی)، اسناد، آموزش، تقویم و سامانه‌ها."
+          checked={settings.guestAccess}
+          disabled={busy}
+          onChange={(guestAccess) => save({ guestAccess })}
+        />
+        <Toggle
+          label="نمایش دفتر تلفن و چارت سازمانی به مهمان"
+          hint="نام، سمت، واحد، داخلی و ایمیل همکاران و کارت‌های تولد و خوش‌آمد. شمارهٔ همراه و نام کاربری هرگز نشان داده نمی‌شود."
+          checked={settings.guestDirectory}
+          disabled={busy || !settings.guestAccess}
+          onChange={(guestDirectory) => save({ guestDirectory })}
+        />
+      </div>
+    </section>
+  );
+};
+
 export const AdminSettingsModule: React.FC = () => {
   const { appSettings } = usePortal();
   if (!appSettings) return null;
@@ -95,6 +150,7 @@ export const AdminSettingsModule: React.FC = () => {
         </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <GuestAccessSettings settings={appSettings} />
         {SECTIONS.map((s) => <ListEditor key={`${s.key}-${appSettings[s.key].join('|')}`} settings={appSettings} section={s} />)}
       </div>
     </div>

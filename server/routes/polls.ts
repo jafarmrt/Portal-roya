@@ -6,7 +6,7 @@ import { type Employee, requireManager } from '../auth.js';
 import { db } from '../db/index.js';
 import { employees, pollOptions, polls, pollVotes } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
-import { currentUser, HttpError, newId, parse, route } from '../http.js';
+import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
 import { audienceIds, createNotifications } from '../notify.js';
 import { fullName } from '../serializers.js';
 import { jalaliDate, optionalText, requiredText } from '../validation.js';
@@ -17,7 +17,7 @@ type PollRow = typeof polls.$inferSelect;
 
 const isOpen = (p: PollRow) => p.isActive && (!p.expiresAt || p.expiresAt > new Date());
 
-async function serializePolls(rows: PollRow[], viewer: Employee) {
+async function serializePolls(rows: PollRow[], viewer: Employee | null) {
   if (rows.length === 0) return [];
   const ids = rows.map((p) => p.id);
   const [options, counts, mine, freeTexts, creators] = await Promise.all([
@@ -27,13 +27,15 @@ async function serializePolls(rows: PollRow[], viewer: Employee) {
       .from(pollVotes)
       .where(inArray(pollVotes.pollId, ids))
       .groupBy(pollVotes.pollId, pollVotes.optionId),
-    db.select().from(pollVotes).where(and(inArray(pollVotes.pollId, ids), eq(pollVotes.userId, viewer.id))),
-    // Free-text answers are returned without any link to the person who wrote them.
-    db
-      .select({ id: pollVotes.id, pollId: pollVotes.pollId, freeText: pollVotes.freeText, submittedAt: pollVotes.submittedAt })
-      .from(pollVotes)
-      .where(and(inArray(pollVotes.pollId, ids), sql`${pollVotes.freeText} is not null`))
-      .orderBy(sql`random()`),
+    viewer ? db.select().from(pollVotes).where(and(inArray(pollVotes.pollId, ids), eq(pollVotes.userId, viewer.id))) : [],
+    // Free-text answers are returned without any link to the person who wrote them, and only to staff.
+    viewer
+      ? db
+          .select({ id: pollVotes.id, pollId: pollVotes.pollId, freeText: pollVotes.freeText, submittedAt: pollVotes.submittedAt })
+          .from(pollVotes)
+          .where(and(inArray(pollVotes.pollId, ids), sql`${pollVotes.freeText} is not null`))
+          .orderBy(sql`random()`)
+      : [],
     db.select().from(employees).where(inArray(employees.id, rows.map((p) => p.createdById))),
   ]);
   const creatorById = new Map(creators.map((c) => [c.id, c]));
@@ -69,11 +71,12 @@ async function serializePolls(rows: PollRow[], viewer: Employee) {
 pollsRouter.get(
   '/polls',
   route(async (req, res) => {
-    const viewer = currentUser(req);
+    const viewer = viewerOf(req);
+    const audience = viewer ? or(eq(polls.department, 'all'), eq(polls.department, viewer.department)) : eq(polls.department, 'all');
     const rows = await db
       .select()
       .from(polls)
-      .where(viewer.role === 'manager' ? undefined : or(eq(polls.department, 'all'), eq(polls.department, viewer.department)))
+      .where(viewer?.role === 'manager' ? undefined : audience)
       .orderBy(desc(polls.createdAt));
     res.json(await serializePolls(rows, viewer));
   }),

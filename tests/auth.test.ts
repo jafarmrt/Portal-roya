@@ -21,15 +21,17 @@ describe('authentication', () => {
       .expect(409);
   });
 
-  it('rejects every data API without a session', async () => {
-    for (const path of ['/api/employees', '/api/news', '/api/polls', '/api/notifications', '/api/documents', '/api/settings']) {
+  it('rejects personal data and every write without a session', async () => {
+    for (const path of ['/api/notifications', '/api/moods/me', '/api/events', '/api/auth/me']) {
       await request(app).get(path).expect(401);
     }
+    await request(app).post('/api/news').send({}).expect(401);
+    await request(app).put('/api/settings').send({ guestAccess: true }).expect(401);
   });
 
   it('ignores a spoofed X-User-Id header', async () => {
     const me = await admin.get('/api/auth/me').expect(200);
-    await request(app).get('/api/employees').set('X-User-Id', me.body.user.id).expect(401);
+    await request(app).get('/api/notifications').set('X-User-Id', me.body.user.id).expect(401);
   });
 
   it('never returns password hashes', async () => {
@@ -46,7 +48,7 @@ describe('authentication', () => {
     expect(res.headers['set-cookie']?.[0]).toMatch(/HttpOnly/i);
     await agent.get('/api/employees').expect(200);
     await agent.post('/api/auth/logout').expect(200);
-    await agent.get('/api/employees').expect(401);
+    await agent.get('/api/notifications').expect(401);
   });
 
   it('locks an account after repeated wrong passwords', async () => {
