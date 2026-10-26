@@ -1,22 +1,23 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { TrainingProgram } from '../../types';
+import { formatDate, todayJalali, toPersianDigits } from '../../lib/jalali';
+import { Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { AddTrainingModal } from './AddTrainingModal';
 import {
   GraduationCap,
   Plus,
   Calendar,
-  Clock,
   MapPin,
-  Users,
   CheckCircle2,
   UserCheck,
   BookOpen,
-  Award
+  Trash2
 } from 'lucide-react';
 
 export const TrainingModule: React.FC = () => {
-  const { trainings, currentUser, userRole, enrollTraining, appSettings } = usePortal();
+  const { trainings, currentUser, userRole, enrollTraining, deleteTraining, appSettings } = usePortal();
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+  const today = todayJalali();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -28,12 +29,15 @@ export const TrainingModule: React.FC = () => {
 
   const filteredTrainings = trainings.filter(t => {
     if (selectedCategory === 'all') return true;
-    return t.category === selectedCategory || t.category?.includes(selectedCategory);
+    return t.category === selectedCategory;
   });
+  // Upcoming courses first (soonest on top), then past ones (most recent on top).
+  const upcoming = filteredTrainings.filter((t) => t.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+  const past = filteredTrainings.filter((t) => t.date < today).sort((a, b) => b.date.localeCompare(a.date));
+  const ordered = [...upcoming, ...past];
 
   return (
     <div className="space-y-6">
-      
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -85,11 +89,12 @@ export const TrainingModule: React.FC = () => {
             <p className="text-sm font-bold text-[#6E6A60]">دوره‌ای در این بخش یافت نشد.</p>
           </div>
         ) : (
-          filteredTrainings.map((program) => {
+          ordered.map((program) => {
             const isEnrolled = currentUser ? program.enrolledUserIds.includes(currentUser.id) : false;
             const enrolledCount = program.enrolledUserIds.length;
             const percentage = Math.min(100, Math.round((enrolledCount / program.capacity) * 100));
             const isFull = enrolledCount >= program.capacity;
+            const isPast = program.date < today;
 
             return (
               <div
@@ -97,12 +102,21 @@ export const TrainingModule: React.FC = () => {
                 className="bg-white rounded-2xl border border-[#E6E0D5] overflow-hidden hover:border-[#991b1b] hover:shadow-xl transition-all flex flex-col justify-between"
               >
                 {/* Course Cover Image */}
-                <div className="relative h-44 overflow-hidden bg-[#F5F2ED]">
-                  <img
-                    src={program.coverImage || undefined}
-                    alt={program.title}
-                    className="w-full h-full object-cover"
-                  />
+                <div className="relative h-44 overflow-hidden bg-[#F5F2ED] flex items-center justify-center">
+                  {program.coverImage ? (
+                    <img src={program.coverImage} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <GraduationCap className="w-12 h-12 text-[#D9D4CB]" />
+                  )}
+                  {userRole === 'manager' && (
+                    <button
+                      onClick={() => setPendingDelete({ id: program.id, title: program.title })}
+                      aria-label={`حذف دوره ${program.title}`}
+                      className="absolute top-3 left-3 p-1.5 bg-white/90 hover:bg-white text-red-700 rounded-lg"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                   <span className="absolute top-3 right-3 px-3 py-1 text-[10px] font-bold bg-[#7f1d1d]/80 text-white backdrop-blur-xs rounded-full">
                     {program.category}
                   </span>
@@ -123,18 +137,24 @@ export const TrainingModule: React.FC = () => {
                     <div className="space-y-1.5 pt-2 text-xs text-[#6E6A60]">
                       <div className="flex items-center gap-2">
                         <UserCheck className="w-3.5 h-3.5 text-[#991b1b]" />
-                        <span>مدرس: <strong>{program.instructor}</strong> ({program.instructorRole})</span>
+                        <span>مدرس: <strong>{program.instructor}</strong>{program.instructorRole && ` (${program.instructorRole})`}</span>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <Calendar className="w-3.5 h-3.5 text-[#991b1b]" />
-                        <span>تاریخ: {program.date} | ساعت: {program.time}</span>
+                        <span>تاریخ: {formatDate(program.date)}{program.time && ` | ساعت: ${toPersianDigits(program.time)}`}{program.duration && ` | ${program.duration}`}</span>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <MapPin className="w-3.5 h-3.5 text-[#991b1b]" />
-                        <span>مکان: {program.location}</span>
+                        <span>مکان: {program.location || '—'}</span>
                       </div>
+                      {program.prerequisites && (
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="w-3.5 h-3.5 text-[#991b1b]" />
+                          <span>پیش‌نیاز: {program.prerequisites}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -143,7 +163,7 @@ export const TrainingModule: React.FC = () => {
                     <div>
                       <div className="flex items-center justify-between text-[11px] font-bold mb-1">
                         <span className="text-[#6E6A60]">تکمیل ظرفیت ثبت‌نام:</span>
-                        <span className="text-[#991b1b]">{enrolledCount} از {program.capacity} نفر ({percentage}%)</span>
+                        <span className="text-[#991b1b]">{toPersianDigits(`${enrolledCount} از ${program.capacity} نفر (${percentage}٪)`)}</span>
                       </div>
                       <div className="w-full h-2.5 bg-[#F5F2ED] rounded-full overflow-hidden">
                         <div
@@ -155,16 +175,18 @@ export const TrainingModule: React.FC = () => {
 
                     <button
                       onClick={() => enrollTraining(program.id)}
-                      disabled={isFull && !isEnrolled}
+                      disabled={isPast || (isFull && !isEnrolled)}
                       className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
                         isEnrolled
                           ? 'bg-[#EBF2E8] text-[#991b1b] border border-[#991b1b]/30 hover:bg-[#DEEAD9]'
-                          : isFull
+                          : isFull || isPast
                           ? 'bg-[#F5F2ED] text-[#8C867A] cursor-not-allowed'
                           : 'bg-[#991b1b] hover:bg-[#495040] text-white shadow-md'
                       }`}
                     >
-                      {isEnrolled ? (
+                      {isPast ? (
+                        <span>{isEnrolled ? 'برگزار شد (شرکت کردید)' : 'برگزار شد'}</span>
+                      ) : isEnrolled ? (
                         <>
                           <CheckCircle2 className="w-4 h-4 text-[#991b1b]" />
                           <span>ثبت‌نام شده‌اید (جهت لغو کلیک کنید)</span>
@@ -187,6 +209,31 @@ export const TrainingModule: React.FC = () => {
           })
         )}
       </div>
+
+      {pendingDelete && (
+        <Modal
+          title="حذف دورهٔ آموزشی"
+          icon={<Trash2 className="w-5 h-5" />}
+          onClose={() => setPendingDelete(null)}
+          size="md"
+          footer={
+            <>
+              <button onClick={() => setPendingDelete(null)} className={secondaryButtonClass}>انصراف</button>
+              <button
+                onClick={async () => {
+                  await deleteTraining(pendingDelete.id);
+                  setPendingDelete(null);
+                }}
+                className={primaryButtonClass}
+              >
+                حذف
+              </button>
+            </>
+          }
+        >
+          <p>دورهٔ «{pendingDelete.title}» و ثبت‌نام‌های آن حذف می‌شود. ادامه می‌دهید؟</p>
+        </Modal>
+      )}
 
       <AddTrainingModal
         isOpen={isAddModalOpen}

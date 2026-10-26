@@ -1,17 +1,13 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { MoodState } from '../../types';
-import { Smile, Frown, Meh, Sparkles, Heart, Lock } from 'lucide-react';
+import { Smile, Frown, Meh, Sparkles, Heart } from 'lucide-react';
 
 export const MoodTrackerWidget: React.FC = () => {
-  const { submitMood, todayMoodSubmitted, isLoggedIn, openLoginModal } = usePortal();
+  const { submitMood, todayMoodSubmitted } = usePortal();
   const [selectedMood, setSelectedMood] = useState<MoodState | null>(null);
 
   const handleMoodSelect = (mood: MoodState) => {
-    if (!isLoggedIn) {
-      openLoginModal('برای ثبت حس و حال روزانه خود، لطفاً وارد حساب کاربری شوید.');
-      return;
-    }
     setSelectedMood(mood);
     submitMood(mood);
   };
@@ -54,19 +50,10 @@ export const MoodTrackerWidget: React.FC = () => {
           </div>
           <div>
             <h3 className="text-sm font-bold text-[#1E1E1E]">حال و هوای کاری امروز شما</h3>
-            <p className="text-[11px] text-[#7A756D]">بازخورد روزانه روحیه‌ی همکاران خانواده رویا</p>
+            <p className="text-[11px] text-[#7A756D]">ناشناس است؛ مدیران فقط آمار کلی را می‌بینند.</p>
           </div>
         </div>
 
-        {!isLoggedIn && (
-          <button
-            onClick={() => openLoginModal('برای ثبت حس و حال روزانه خود، وارد شوید.')}
-            className="flex items-center gap-1 text-[10px] font-semibold text-[#991b1b] bg-[#FEF2F2] hover:bg-[#FEE2E2] px-2.5 py-1 rounded-full border border-[#FCA5A5]/40 transition-colors cursor-pointer"
-          >
-            <Lock className="w-3 h-3" />
-            <span>نیاز به ورود</span>
-          </button>
-        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1">

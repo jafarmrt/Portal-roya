@@ -1,22 +1,21 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
+import { timeAgo } from '../../lib/jalali';
 import {
   Bell,
   CheckCircle2,
   Trash2,
-  Filter,
   Cake,
   Vote,
   Newspaper,
   GraduationCap,
   User,
-  Sparkles
+  FileText
 } from 'lucide-react';
 
 export const NotificationsInbox: React.FC = () => {
   const {
     notifications,
-    currentUser,
     markNotificationRead,
     markAllNotificationsRead,
     deleteNotification,
@@ -25,9 +24,7 @@ export const NotificationsInbox: React.FC = () => {
 
   const [typeFilter, setTypeFilter] = useState<string>('all');
 
-  const userNotifs = notifications.filter(
-    n => n.targetUserId === 'all' || (currentUser && n.targetUserId === currentUser.id)
-  );
+  const userNotifs = notifications;
 
   const filteredNotifs = userNotifs.filter(n => {
     if (typeFilter === 'all') return true;
@@ -45,6 +42,8 @@ export const NotificationsInbox: React.FC = () => {
         return <GraduationCap className="w-5 h-5 text-blue-600" />;
       case 'welcome':
         return <User className="w-5 h-5 text-emerald-600" />;
+      case 'document':
+        return <FileText className="w-5 h-5 text-stone-600" />;
       default:
         return <Newspaper className="w-5 h-5 text-red-600" />;
     }
@@ -52,7 +51,6 @@ export const NotificationsInbox: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -163,7 +161,7 @@ export const NotificationsInbox: React.FC = () => {
                       <span className="w-2 h-2 rounded-full bg-[#dc2626] inline-block animate-pulse"></span>
                     )}
                     <h3 className="text-sm font-bold text-[#2D2D2D]">{notif.title}</h3>
-                    <span className="text-[10px] text-[#8C867A] mr-auto">{notif.date}</span>
+                    <span className="text-[10px] text-[#8C867A] mr-auto">{timeAgo(notif.date)}</span>
                   </div>
 
                   <p className="text-xs text-[#6E6A60] leading-relaxed">{notif.message}</p>
@@ -172,7 +170,7 @@ export const NotificationsInbox: React.FC = () => {
                     <button
                       onClick={() => {
                         markNotificationRead(notif.id);
-                        setActiveTab(notif.linkTab!);
+                        setActiveTab(notif.linkTab!, notif.linkId);
                       }}
                       className="text-xs font-bold text-[#dc2626] hover:underline pt-1 inline-block"
                     >

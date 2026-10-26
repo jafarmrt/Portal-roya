@@ -1,9 +1,7 @@
-export type UserRole = 'employee' | 'manager' | 'guest';
+export type UserRole = 'employee' | 'manager';
 
 export interface WorkExperience {
   id: string;
-  username?: string;
-  password?: string;
   company: string;
   role: string;
   startYear: string;
@@ -13,131 +11,148 @@ export interface WorkExperience {
 
 export interface Skill {
   id: string;
-  username?: string;
-  password?: string;
   name: string;
   category: string;
   endorsements: number;
+  endorsedByMe: boolean;
 }
 
 export interface UserProfile {
   id: string;
-  username?: string;
-  password?: string;
+  username: string;
   firstName: string;
   lastName: string;
   position: string;
   department: string;
+  role: UserRole;
+  isActive: boolean;
   extension: string;
   mobile: string;
   email: string;
-  birthDate: string; // e.g. "1368/02/15" or "15 اردیبهشت"
-  birthDateIso?: string; // MM-DD for calendar lookup
-  hireDate: string;
+  birthDate: string; // Jalali 'YYYY/MM/DD' or ''
+  hireDate: string; // Jalali 'YYYY/MM/DD' or ''
   bio: string;
   avatar: string;
-  role: UserRole;
+  location: string;
+  directManagerId: string | null;
+  directManager: string;
   workExperiences: WorkExperience[];
   skills: Skill[];
-  isNewColleague?: boolean;
-  newColleagueMessage?: string;
-  location?: string;
-  directManager?: string;
+}
+
+export interface CurrentUser extends UserProfile {
+  mustChangePassword: boolean;
 }
 
 export type PollType = 'multiple_choice' | 'free_text';
 
 export interface PollOption {
   id: string;
-  username?: string;
-  password?: string;
   text: string;
   votesCount: number;
 }
 
 export interface FreeTextResponse {
   id: string;
-  username?: string;
-  password?: string;
-  anonymousUserHash: string;
   responseText: string;
   submittedAt: string;
 }
 
 export interface Poll {
   id: string;
-  username?: string;
-  password?: string;
   title: string;
   description: string;
-  department: string; // 'all' or specific department
+  department: string; // 'all' or a department name
   createdBy: string;
   createdAt: string;
-  expiryDate: string;
+  expiresAt: string | null;
+  expiryDate: string; // Jalali, '' when open-ended
   type: PollType;
   options: PollOption[];
   freeTextResponses: FreeTextResponse[];
   totalVotes: number;
   isActive: boolean;
-  votedUserIds: string[]; // Track user IDs to enforce single vote per user
+  hasVoted: boolean;
+  myOptionId: string | null;
 }
 
-export interface PollVotePayload {
-  pollId: string;
-  userId: string;
-  optionId?: string;
-  freeText?: string;
+export interface Attachment {
+  name: string;
+  url: string;
+  size: number;
+  mimeType: string;
 }
 
 export interface NewsItem {
   id: string;
-  username?: string;
-  password?: string;
   title: string;
   summary: string;
   content: string;
   category: string;
+  authorId: string;
   author: string;
   authorRole: string;
-  date: string;
+  date: string; // ISO publish time
+  publishAt: string;
+  expiresAt: string | null;
   image: string;
-  isPinned?: boolean;
+  isPinned: boolean;
+  isUrgent: boolean;
+  requiresAck: boolean;
   tags: string[];
+  targetDepartments: string[];
+  attachments: Attachment[];
   likesCount: number;
-  likedBy: string[];
-  commentsCount: number;
+  likedByMe: boolean;
+  isRead: boolean;
+  acknowledgedAt: string | null;
+  status: 'published' | 'scheduled' | 'expired';
+  readStats?: { read: number; acknowledged: number; audience: number };
+}
+
+export interface NewsInput {
+  title: string;
+  summary: string;
+  content: string;
+  category: string;
+  image: string;
+  isPinned: boolean;
+  isUrgent: boolean;
+  requiresAck: boolean;
+  tags: string[];
+  targetDepartments: string[];
+  attachments: Attachment[];
+  publishDate: string;
+  publishTime: string;
+  expiresDate: string;
+}
+
+export interface ReadReceipt {
+  userId: string;
+  name: string;
+  department: string;
+  readAt: string | null;
+  acknowledgedAt: string | null;
 }
 
 export interface NewColleagueWelcome {
   id: string;
-  username?: string;
-  password?: string;
   userId: string;
   welcomeMessage: string;
   joinDate: string;
-  department: string;
-  position: string;
-  likes: number;
-  wishes: { id: string;
-  username?: string;
-  password?: string; userName: string; message: string; time: string }[];
+  createdAt: string;
+  wishes: { id: string; userName: string; message: string; time: string }[];
 }
 
-export interface BirthdayCard {
+export interface BirthdayWish {
   id: string;
-  username?: string;
-  password?: string;
-  userId: string;
-  birthDate: string;
-  wishes: { id: string;
-  username?: string;
-  password?: string; senderName: string; text: string; time: string }[];
+  senderName: string;
+  text: string;
+  time: string;
 }
 
 export interface TrainingProgram {
   id: string;
-  username?: string;
-  password?: string;
   title: string;
   instructor: string;
   instructorRole: string;
@@ -150,15 +165,13 @@ export interface TrainingProgram {
   description: string;
   coverImage: string;
   category: string;
-  prerequisites?: string;
+  prerequisites: string;
 }
 
 export interface CalendarEvent {
   id: string;
-  username?: string;
-  password?: string;
   title: string;
-  date: string; // e.g. "1403/05/20"
+  date: string; // Jalali 'YYYY/MM/DD'
   type: 'holiday' | 'training' | 'birthday' | 'meeting' | 'event';
   description: string;
   time?: string;
@@ -166,36 +179,50 @@ export interface CalendarEvent {
   badgeColor?: string;
 }
 
+export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'profile' | 'welcome' | 'document';
+
 export interface NotificationItem {
   id: string;
-  username?: string;
-  password?: string;
-  targetUserId: string; // 'all' or specific user ID
   title: string;
   message: string;
-  type: 'birthday' | 'poll' | 'announcement' | 'training' | 'profile' | 'welcome';
-  date: string;
+  type: NotificationType;
+  date: string; // ISO
   isRead: boolean;
-  linkTab?: string;
+  linkTab?: ActiveTab;
+  linkId?: string;
 }
 
-export type ActiveTab = 
+export interface PortalDocument {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  fileUrl: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  uploadedBy: string;
+  createdAt: string;
+}
+
+export type ActiveTab =
   | 'dashboard'
   | 'polls'
   | 'colleagues'
+  | 'orgchart'
   | 'search'
   | 'news'
+  | 'documents'
   | 'training'
   | 'calendar'
   | 'notifications'
   | 'systems'
-  | 'reports';
+  | 'reports'
+  | 'admin';
 
 export interface SearchResultItem {
   id: string;
-  username?: string;
-  password?: string;
-  type: 'همکاران' | 'اخبار' | 'اطلاعیه' | 'نظرسنجی' | 'آموزش' | 'تقویم';
+  type: 'همکاران' | 'اخبار' | 'اطلاعیه' | 'نظرسنجی' | 'آموزش' | 'تقویم' | 'اسناد';
   title: string;
   subtitle: string;
   snippet: string;
@@ -214,6 +241,12 @@ export interface UserMood {
   mood: MoodState;
 }
 
+export interface MoodSummaryRow {
+  date: string;
+  mood: MoodState;
+  count: number;
+}
+
 export interface ExternalSystem {
   id: string;
   name: string;
@@ -229,5 +262,8 @@ export interface AppSettings {
   departments: string[];
   newsCategories: string[];
   trainingCategories: string[];
-  systems?: ExternalSystem[];
+  documentCategories: string[];
+  systems: ExternalSystem[];
 }
+
+export type CustomHolidays = Record<string, { title: string; isHoliday: boolean }>;

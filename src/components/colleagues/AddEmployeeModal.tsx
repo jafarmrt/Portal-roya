@@ -1,255 +1,222 @@
 import React, { useState } from 'react';
-import { usePortal } from '../../context/PortalContext';
-import { UserRole } from '../../types';
-import { X, UserPlus, CheckCircle2, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Check, CheckCircle2, Copy, KeyRound, UserPlus } from 'lucide-react';
+import { usePortal, type NewEmployeeInput } from '../../context/PortalContext';
+import { todayJalali } from '../../lib/jalali';
+import { FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
+import { JalaliDateInput } from '../common/JalaliDateInput';
+import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
+import { Avatar } from '../common/Avatar';
 
 interface AddEmployeeModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onClose }) => {
-  const { addEmployee, appSettings } = usePortal();
+/** Shows a one-time password so the manager can hand it to the colleague. */
+export const TemporaryPasswordNotice: React.FC<{ username?: string; password: string }> = ({ username, password }) => {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl space-y-2 text-xs">
+      <p className="font-bold text-amber-900 flex items-center gap-1.5"><KeyRound className="w-4 h-4" /> این رمز فقط یک بار نمایش داده می‌شود</p>
+      <p className="text-amber-900 leading-relaxed">آن را به همکار بدهید. در اولین ورود از او خواسته می‌شود رمز شخصی انتخاب کند.</p>
+      <div className="flex flex-wrap items-center gap-2">
+        {username && <code dir="ltr" className="px-2 py-1 bg-white rounded-lg border border-amber-200">{username}</code>}
+        <code dir="ltr" className="px-2 py-1 bg-white rounded-lg border border-amber-200 font-bold select-all">{password}</code>
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(password);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            } catch {
+              // The code above is selectable as a fallback.
+            }
+          }}
+          className={secondaryButtonClass}
+        >
+          {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />} کپی رمز
+        </button>
+      </div>
+    </div>
+  );
+};
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [position, setPosition] = useState('');
-  const [department, setDepartment] = useState(appSettings?.departments[0] || '');
-  const [extension, setExtension] = useState('');
-  const [mobile, setMobile] = useState('');
-  const [email, setEmail] = useState('');
-  const [birthDate, setBirthDate] = useState('15 اردیبهشت 1372');
-  const [hireDate, setHireDate] = useState(new Date().toLocaleDateString('fa-IR'));
-  const [bio, setBio] = useState('');
-  const [location, setLocation] = useState('دفتر مرکزی - طبقه ۲');
-  const [avatar, setAvatar] = useState('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80');
-  const [role, setRole] = useState<UserRole>('employee');
-  const [isNewColleague, setIsNewColleague] = useState(true);
-  const [newColleagueMessage, setNewColleagueMessage] = useState('');
+const emptyForm = (department: string): NewEmployeeInput => ({
+  firstName: '',
+  lastName: '',
+  username: '',
+  position: '',
+  department,
+  role: 'employee',
+  extension: '',
+  mobile: '',
+  email: '',
+  birthDate: '',
+  hireDate: todayJalali(),
+  bio: '',
+  location: '',
+  avatar: '',
+  directManagerId: null,
+  isNewColleague: true,
+  newColleagueMessage: '',
+});
+
+export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onClose }) => {
+  const { addEmployee, appSettings, employees } = usePortal();
+  const [form, setForm] = useState<NewEmployeeInput>(() => emptyForm(appSettings?.departments[0] ?? ''));
+  const [busy, setBusy] = useState(false);
+  const [created, setCreated] = useState<{ username: string; password: string } | null>(null);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!firstName.trim() || !lastName.trim() || !position.trim() || !extension.trim()) return;
-
-    addEmployee({
-      firstName,
-      lastName,
-      position,
-      department,
-      extension,
-      mobile,
-      email: email || `${firstName.toLowerCase()}.${lastName.toLowerCase()}@roya.ir`,
-      birthDate,
-      hireDate,
-      bio,
-      location,
-      avatar,
-      role,
-      isNewColleague,
-      newColleagueMessage
-    });
-
+  const set = <K extends keyof NewEmployeeInput>(key: K, value: NewEmployeeInput[K]) => setForm((f) => ({ ...f, [key]: value }));
+  const close = () => {
+    setCreated(null);
+    setForm(emptyForm(appSettings?.departments[0] ?? ''));
     onClose();
-    // Reset
-    setFirstName('');
-    setLastName('');
-    setPosition('');
-    setExtension('');
-    setMobile('');
-    setEmail('');
-    setBio('');
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    const password = await addEmployee({ ...form, username: form.username.trim().toLowerCase() });
+    setBusy(false);
+    if (password) setCreated({ username: form.username.trim().toLowerCase(), password });
+  };
+
+  if (created) {
+    return (
+      <Modal title="همکار اضافه شد" icon={<CheckCircle2 className="w-5 h-5" />} onClose={close} size="md" footer={<button onClick={close} className={primaryButtonClass}>بستن</button>}>
+        <TemporaryPasswordNotice username={created.username} password={created.password} />
+      </Modal>
+    );
+  }
+
+  const managers = employees.filter((e) => e.isActive);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden text-right">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-slate-50 border-b border-slate-200">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-red-100 text-red-600 rounded-xl">
-              <UserPlus className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-800">ثبت همکار جدید در پرتال سازمان</h3>
-              <p className="text-xs text-slate-500">افزودن همکار به دفترچه تلفن و انتشار تصویر در دیوار خوش‌آمدگویی</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
-          >
-            <X className="w-5 h-5" />
+    <Modal
+      title="ثبت همکار جدید"
+      subtitle="ساخت حساب کاربری، افزودن به دفتر تلفن و معرفی در داشبورد"
+      icon={<UserPlus className="w-5 h-5" />}
+      onClose={close}
+      size="xl"
+      footer={
+        <>
+          <button type="button" onClick={close} className={secondaryButtonClass}>انصراف</button>
+          <button type="submit" form="add-employee" disabled={busy} className={primaryButtonClass}>
+            <CheckCircle2 className="w-4 h-4" /> {busy ? 'در حال ثبت...' : 'ثبت همکار'}
           </button>
+        </>
+      }
+    >
+      <form id="add-employee" onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor="emp-first" className={labelClass}>نام *</label>
+            <input id="emp-first" required value={form.firstName} onChange={(e) => set('firstName', e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="emp-last" className={labelClass}>نام خانوادگی *</label>
+            <input id="emp-last" required value={form.lastName} onChange={(e) => set('lastName', e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="emp-username" className={labelClass}>نام کاربری (انگلیسی) *</label>
+            <input
+              id="emp-username"
+              required
+              dir="ltr"
+              pattern="[a-zA-Z0-9._\-]{3,40}"
+              title="حروف انگلیسی، عدد و . _ - (۳ تا ۴۰ کاراکتر)"
+              placeholder="m.rezaei"
+              value={form.username}
+              onChange={(e) => set('username', e.target.value)}
+              className={`${inputClass} text-left`}
+            />
+          </div>
+          <div>
+            <label htmlFor="emp-position" className={labelClass}>سمت *</label>
+            <input id="emp-position" required value={form.position} onChange={(e) => set('position', e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="emp-department" className={labelClass}>واحد *</label>
+            <select id="emp-department" value={form.department} onChange={(e) => set('department', e.target.value)} className={inputClass}>
+              {appSettings?.departments.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="emp-role" className={labelClass}>سطح دسترسی</label>
+            <select id="emp-role" value={form.role} onChange={(e) => set('role', e.target.value as NewEmployeeInput['role'])} className={inputClass}>
+              <option value="employee">کارمند</option>
+              <option value="manager">مدیر پرتال (انتشار خبر و مدیریت همکاران)</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="emp-manager" className={labelClass}>مدیر مستقیم</label>
+            <select id="emp-manager" value={form.directManagerId ?? ''} onChange={(e) => set('directManagerId', e.target.value || null)} className={inputClass}>
+              <option value="">—</option>
+              {managers.map((m) => <option key={m.id} value={m.id}>{m.firstName} {m.lastName} ({m.position})</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="emp-extension" className={labelClass}>تلفن داخلی</label>
+            <input id="emp-extension" dir="ltr" value={form.extension} onChange={(e) => set('extension', e.target.value)} className={`${inputClass} text-left`} />
+          </div>
+          <div>
+            <label htmlFor="emp-mobile" className={labelClass}>شماره همراه</label>
+            <input id="emp-mobile" dir="ltr" type="tel" value={form.mobile} onChange={(e) => set('mobile', e.target.value)} className={`${inputClass} text-left`} />
+          </div>
+          <div>
+            <label htmlFor="emp-email" className={labelClass}>ایمیل سازمانی</label>
+            <input id="emp-email" dir="ltr" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} className={`${inputClass} text-left`} />
+          </div>
+          <div>
+            <label htmlFor="emp-birth" className={labelClass}>تاریخ تولد</label>
+            <JalaliDateInput id="emp-birth" value={form.birthDate} onChange={(v) => set('birthDate', v)} defaultYear={1370} />
+          </div>
+          <div>
+            <label htmlFor="emp-hire" className={labelClass}>تاریخ استخدام</label>
+            <JalaliDateInput id="emp-hire" value={form.hireDate} onChange={(v) => set('hireDate', v)} />
+          </div>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">نام *</label>
-              <input
-                type="text"
-                required
-                placeholder="مثال: کیارش"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-red-500 outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">نام خانوادگی *</label>
-              <input
-                type="text"
-                required
-                placeholder="مثال: حسینی"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-red-500 outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">سمت سازمانی *</label>
-              <input
-                type="text"
-                required
-                placeholder="مثال: طراح سه بعدی"
-                value={position}
-                onChange={(e) => setPosition(e.target.value)}
-                className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-red-500 outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">دپارتمان / بخش *</label>
-              <select
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-red-500 bg-white outline-hidden"
-              >
-                {appSettings?.departments.map(dep => (
-                  <option key={dep} value={dep}>{dep}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">تلفن داخلی (Extension) *</label>
-              <input
-                type="text"
-                required
-                placeholder="مثال: 108"
-                value={extension}
-                onChange={(e) => setExtension(e.target.value)}
-                className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-red-500 outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">شماره همراه *</label>
-              <input
-                type="text"
-                required
-                placeholder="0912..."
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
-                className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-red-500 outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">پست الکترونیکی</label>
-              <input
-                type="email"
-                placeholder="k.hosseini@roya.ir"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-red-500 outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">تاریخ تولد *</label>
-              <input
-                type="text"
-                required
-                placeholder="05 اسفند 1373"
-                value={birthDate}
-                onChange={(e) => setBirthDate(e.target.value)}
-                className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-red-500 outline-hidden"
-              />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="emp-location" className={labelClass}>محل استقرار</label>
+            <input id="emp-location" value={form.location} onChange={(e) => set('location', e.target.value)} placeholder="دفتر مرکزی - طبقه ۲" className={inputClass} />
+          </div>
+          <div>
+            <span className={labelClass}>عکس پرسنلی</span>
+            <div className="flex items-center gap-3">
+              <Avatar src={form.avatar} firstName={form.firstName || '?'} lastName={form.lastName} className="w-11 h-11 rounded-xl text-sm" />
+              <FileUpload accept={IMAGE_ACCEPT} label={form.avatar ? 'تغییر عکس' : 'بارگذاری عکس'} onUploaded={(f) => set('avatar', f.url)} />
             </div>
           </div>
+        </div>
 
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">تصویر پرتره همکار (URL)</label>
-            <input
-              type="text"
-              value={avatar}
-              onChange={(e) => setAvatar(e.target.value)}
-              className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-red-500 outline-hidden"
-            />
-          </div>
+        <div>
+          <label htmlFor="emp-bio" className={labelClass}>معرفی کوتاه</label>
+          <textarea id="emp-bio" rows={2} value={form.bio} onChange={(e) => set('bio', e.target.value)} className={inputClass} />
+        </div>
 
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">معرفی کوتاه / بیوگرافی</label>
+        <div className="p-4 bg-[#F5F2ED] rounded-2xl space-y-2">
+          <label className="flex items-center gap-2 font-bold cursor-pointer">
+            <input type="checkbox" checked={form.isNewColleague} onChange={(e) => set('isNewColleague', e.target.checked)} className="accent-red-700" />
+            معرفی در داشبورد به عنوان همکار جدید (به همه اعلان داده می‌شود)
+          </label>
+          {form.isNewColleague && (
             <textarea
               rows={2}
-              placeholder="توضیحات کوتاه درباره سوابق و تخصص‌های همکار..."
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-red-500 outline-hidden"
+              aria-label="پیام خوش‌آمدگویی"
+              placeholder="پیام خوش‌آمدگویی (اختیاری؛ در صورت خالی بودن متن پیش‌فرض استفاده می‌شود)"
+              value={form.newColleagueMessage}
+              onChange={(e) => set('newColleagueMessage', e.target.value)}
+              className={inputClass}
             />
-          </div>
-
-          {/* New Colleague Welcome Option */}
-          <div className="p-4 bg-red-50/70 rounded-2xl border border-red-200 space-y-2">
-            <label className="flex items-center gap-2 cursor-pointer font-bold text-red-900">
-              <input
-                type="checkbox"
-                checked={isNewColleague}
-                onChange={(e) => setIsNewColleague(e.target.checked)}
-                className="w-4 h-4 accent-red-600"
-              />
-              <span>معرفی همکار جدید در بخش داشبورد با تصویر و پیام خوش‌آمدگویی</span>
-            </label>
-
-            {isNewColleague && (
-              <textarea
-                rows={2}
-                placeholder="متن پیام خوش‌آمدگویی رسمی سازمان..."
-                value={newColleagueMessage}
-                onChange={(e) => setNewColleagueMessage(e.target.value)}
-                className="w-full p-2.5 border border-red-300 rounded-xl bg-white outline-hidden"
-              />
-            )}
-          </div>
-
-          <div className="pt-4 border-t border-slate-200 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
-            >
-              انصراف
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md shadow-red-600/20 flex items-center gap-1.5"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>ثبت و ذخیره همکار</span>
-            </button>
-          </div>
-
-        </form>
-
-      </div>
-    </div>
+          )}
+        </div>
+      </form>
+    </Modal>
   );
 };

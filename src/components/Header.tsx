@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { usePortal } from '../context/PortalContext';
 import { RoyaLogo } from './common/RoyaLogo';
 import { CommandPalette } from './common/CommandPalette';
+import { Avatar } from './common/Avatar';
+import { ChangePasswordModal } from './ChangePasswordModal';
+import { timeAgo, toPersianDigits } from '../lib/jalali';
+import { useEscapeKey } from '../lib/useEscapeKey';
 import {
   Search,
   Bell,
@@ -10,7 +14,7 @@ import {
   X,
   ChevronDown,
   ShieldAlert,
-  LogIn,
+  KeyRound,
   CheckCircle2,
   Trash2,
   SlidersHorizontal
@@ -25,7 +29,6 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
   const {
     currentUser,
     isLoggedIn,
-    openLoginModal,
     notifications,
     markNotificationRead,
     markAllNotificationsRead,
@@ -37,6 +40,11 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isCmdPaletteOpen, setIsCmdPaletteOpen] = useState(false);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
+  useEscapeKey(() => {
+    setIsNotifOpen(false);
+    setIsUserMenuOpen(false);
+  }, isNotifOpen || isUserMenuOpen);
 
   // Global Ctrl+K / Cmd+K listener
   useEffect(() => {
@@ -50,13 +58,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const unreadCount = isLoggedIn && currentUser
-    ? notifications.filter(n => !n.isRead && (n.targetUserId === 'all' || n.targetUserId === currentUser.id)).length
-    : 0;
-
-  const userNotifications = isLoggedIn && currentUser
-    ? notifications.filter(n => n.targetUserId === 'all' || n.targetUserId === currentUser.id)
-    : [];
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const userNotifications = notifications.slice(0, 20);
 
   return (
     <>
@@ -120,14 +123,16 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                   <div className="relative">
                     <button
                       type="button"
-                      onClick={() => setIsNotifOpen(!isNotifOpen)}
+                      onClick={() => { setIsNotifOpen(!isNotifOpen); setIsUserMenuOpen(false); }}
                       className="relative p-2 rounded-xl text-[#2D2D2D] hover:bg-[#F5F2ED] transition-colors cursor-pointer"
                       title="اعلان‌ها"
+                      aria-label={`اعلان‌ها${unreadCount ? ` (${unreadCount} خوانده‌نشده)` : ''}`}
+                      aria-expanded={isNotifOpen}
                     >
                       <Bell className="w-5 h-5 text-[#4B4740]" />
                       {unreadCount > 0 && (
                         <span className="absolute top-1 right-1 flex items-center justify-center min-w-4 h-4 px-1 text-[10px] font-bold text-white bg-[#dc2626] rounded-full animate-pulse">
-                          {unreadCount}
+                          {toPersianDigits(unreadCount > 99 ? '99+' : unreadCount)}
                         </span>
                       )}
                     </button>
@@ -166,13 +171,14 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                                 className={`p-3.5 hover:bg-[#F9F7F4] transition-colors ${!notif.isRead ? 'bg-[#FEF2F2]/60' : ''}`}
                               >
                                 <div className="flex items-start justify-between gap-2">
-                                  <div 
+                                  <button
+                                    type="button"
                                     onClick={() => {
                                       markNotificationRead(notif.id);
-                                      if (notif.linkTab) setActiveTab(notif.linkTab as any);
+                                      if (notif.linkTab) setActiveTab(notif.linkTab, notif.linkId);
                                       setIsNotifOpen(false);
                                     }}
-                                    className="cursor-pointer flex-1"
+                                    className="cursor-pointer flex-1 text-right"
                                   >
                                     <div className="flex items-center gap-1.5 mb-1">
                                       {!notif.isRead && (
@@ -181,12 +187,13 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                                       <h4 className="text-xs font-bold text-[#1E1E1E]">{notif.title}</h4>
                                     </div>
                                     <p className="text-xs text-[#605C54] leading-relaxed mb-1">{notif.message}</p>
-                                    <span className="text-[10px] text-[#9C968B]">{notif.date}</span>
-                                  </div>
+                                    <span className="text-[10px] text-[#9C968B]">{timeAgo(notif.date)}</span>
+                                  </button>
                                   <button
                                     onClick={() => deleteNotification(notif.id)}
                                     className="text-[#9C968B] hover:text-[#dc2626] p-1 cursor-pointer"
                                     title="حذف"
+                                    aria-label="حذف اعلان"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -215,13 +222,16 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                   <div className="relative">
                     <button
                       type="button"
-                      onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                      onClick={() => { setIsUserMenuOpen(!isUserMenuOpen); setIsNotifOpen(false); }}
+                      aria-expanded={isUserMenuOpen}
+                      aria-label="منوی حساب کاربری"
                       className="flex items-center gap-2.5 p-1.5 pl-2.5 rounded-2xl hover:bg-[#F5F2ED] border border-transparent hover:border-[#EAE6DF] transition-all text-right cursor-pointer"
                     >
-                      <img
-                        src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
-                        alt={currentUser.firstName}
-                        className="w-8 h-8 rounded-full object-cover border-2 border-[#991b1b]"
+                      <Avatar
+                        src={currentUser.avatar}
+                        firstName={currentUser.firstName}
+                        lastName={currentUser.lastName}
+                        className="w-8 h-8 rounded-full border-2 border-[#991b1b] text-[11px]"
                       />
                       <div className="hidden sm:block text-right">
                         <div className="text-xs font-bold text-[#1E1E1E] flex items-center gap-1.5">
@@ -231,7 +241,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                               ? 'bg-[#FEF2F2] text-[#991b1b] border border-[#FCA5A5]' 
                               : 'bg-[#F5F2ED] text-[#605C54]'
                           }`}>
-                            {currentUser.role === 'manager' ? 'مدیر ارشد' : 'کارمند'}
+                            {currentUser.role === 'manager' ? 'مدیر' : 'کارمند'}
                           </span>
                         </div>
                         <div className="text-[10px] text-[#7A756D] truncate max-w-[130px]">
@@ -249,20 +259,31 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                             {currentUser.firstName} {currentUser.lastName}
                           </div>
                           <div className="text-[10px] text-[#7A756D] mt-0.5">
-                            داخلی: {currentUser.extension} | {currentUser.department}
+                            {currentUser.extension ? `داخلی: ${currentUser.extension} | ` : ''}{currentUser.department}
                           </div>
                         </div>
 
                         <div className="p-1.5 space-y-0.5">
                           <button
                             onClick={() => {
-                              setActiveTab('colleagues');
+                              setActiveTab('colleagues', currentUser.id);
                               setIsUserMenuOpen(false);
                             }}
                             className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#2D2D2D] hover:bg-[#F5F2ED] rounded-xl transition-colors text-right cursor-pointer"
                           >
                             <UserCheck className="w-4 h-4 text-[#7A756D]" />
                             <span>پروفایل من در دایرکتوری</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setIsPasswordOpen(true);
+                              setIsUserMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#2D2D2D] hover:bg-[#F5F2ED] rounded-xl transition-colors text-right cursor-pointer"
+                          >
+                            <KeyRound className="w-4 h-4 text-[#7A756D]" />
+                            <span>تغییر رمز عبور</span>
                           </button>
 
                           {currentUser.role === 'manager' && (
@@ -295,24 +316,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                     )}
                   </div>
                 </>
-              ) : (
-                /* Guest Mode Section */
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium bg-[#F5F2ED] text-[#7A756D] border border-[#EAE6DF]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                    <span>حالت مشاهده میهمان</span>
-                  </span>
-
-                  <button
-                    id="header-login-btn"
-                    onClick={() => openLoginModal()}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#991b1b] hover:bg-[#7f1d1d] active:bg-[#6b1414] text-white rounded-xl text-xs font-bold shadow-xs hover:shadow-md transition-all cursor-pointer"
-                  >
-                    <LogIn className="w-4 h-4" />
-                    <span>ورود به حساب</span>
-                  </button>
-                </div>
-              )}
+              ) : null}
 
             </div>
 
@@ -325,6 +329,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
         isOpen={isCmdPaletteOpen}
         onClose={() => setIsCmdPaletteOpen(false)}
       />
+      {isPasswordOpen && <ChangePasswordModal onClose={() => setIsPasswordOpen(false)} />}
     </>
   );
 };

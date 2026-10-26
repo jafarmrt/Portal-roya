@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { Search, Users, ExternalLink, Newspaper, Calendar, GraduationCap, Vote, PhoneCall, ArrowRight, X, Command } from 'lucide-react';
-import { ActiveTab } from '../../types';
+import { Search, Users, ExternalLink, Newspaper, Calendar, GraduationCap, Vote, PhoneCall, ArrowRight, X, FolderOpen } from 'lucide-react';
+import { matches } from '../../lib/search';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -12,10 +12,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   const {
     employees,
     news,
-    trainings,
     appSettings,
     setActiveTab,
-    polls
+    documents
   } = usePortal();
 
   const [query, setQuery] = useState('');
@@ -44,26 +43,21 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   if (!isOpen) return null;
 
   // Search items calculation
-  const cleanQ = query.trim().toLowerCase();
+  const cleanQ = query.trim();
+  const hit = (...fields: (string | undefined)[]) => matches(cleanQ, ...fields);
 
   const colleagueResults = cleanQ
     ? employees
-        .filter(e =>
-          e.firstName.toLowerCase().includes(cleanQ) ||
-          e.lastName.toLowerCase().includes(cleanQ) ||
-          e.position.toLowerCase().includes(cleanQ) ||
-          e.department.toLowerCase().includes(cleanQ) ||
-          e.extension.includes(cleanQ)
-        )
+        .filter(e => e.isActive && hit(`${e.firstName} ${e.lastName}`, e.position, e.department, e.extension, e.mobile))
         .slice(0, 4)
         .map(e => ({
           id: `emp-${e.id}`,
           type: 'همکاران' as const,
           title: `${e.firstName} ${e.lastName}`,
-          subtitle: `${e.position} | داخلی: ${e.extension}`,
+          subtitle: `${e.position}${e.extension ? ` | داخلی: ${e.extension}` : ''}`,
           icon: <PhoneCall className="w-4 h-4 text-[#991b1b]" />,
           action: () => {
-            setActiveTab('colleagues');
+            setActiveTab('colleagues', e.id);
             onClose();
           }
         }))
@@ -71,7 +65,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
 
   const systemResults = (appSettings?.systems || [])
     .filter(s =>
-      cleanQ ? s.name.toLowerCase().includes(cleanQ) || s.description.toLowerCase().includes(cleanQ) : true
+      cleanQ ? hit(s.name, s.description) : true
     )
     .slice(0, 3)
     .map(s => ({
@@ -81,8 +75,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       subtitle: s.description,
       icon: <ExternalLink className="w-4 h-4 text-emerald-600" />,
       action: () => {
-        if (s.url && s.url.startsWith('http')) {
-          window.open(s.url, '_blank');
+        if (s.url && /^https?:\/\//.test(s.url)) {
+          window.open(s.url, '_blank', 'noopener,noreferrer');
         } else {
           setActiveTab('systems');
         }
@@ -92,7 +86,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
 
   const newsResults = cleanQ
     ? news
-        .filter(n => n.title.toLowerCase().includes(cleanQ) || n.summary.toLowerCase().includes(cleanQ))
+        .filter(n => hit(n.title, n.summary, ...n.tags))
         .slice(0, 3)
         .map(n => ({
           id: `news-${n.id}`,
@@ -101,7 +95,24 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           subtitle: n.category,
           icon: <Newspaper className="w-4 h-4 text-amber-600" />,
           action: () => {
-            setActiveTab('news');
+            setActiveTab('news', n.id);
+            onClose();
+          }
+        }))
+    : [];
+
+  const documentResults = cleanQ
+    ? documents
+        .filter(d => hit(d.title, d.description, d.category, d.fileName))
+        .slice(0, 3)
+        .map(d => ({
+          id: `doc-${d.id}`,
+          type: 'اسناد' as const,
+          title: d.title,
+          subtitle: d.category,
+          icon: <FolderOpen className="w-4 h-4 text-stone-600" />,
+          action: () => {
+            setActiveTab('documents', d.id);
             onClose();
           }
         }))
@@ -113,10 +124,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     { id: 'nav-colleagues', type: 'ناوبری' as const, title: 'دفترچه همکاران و داخلی‌ها', subtitle: 'جستجوی شماره تلفن و داخلی پرسنل', icon: <Users className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('colleagues'); onClose(); } },
     { id: 'nav-calendar', type: 'ناوبری' as const, title: 'تقویم و رویدادها', subtitle: 'تعطیلات رسمی و برنامه‌های سازمانی', icon: <Calendar className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('calendar'); onClose(); } },
     { id: 'nav-training', type: 'ناوبری' as const, title: 'دوره‌های آموزشی', subtitle: 'ثبت‌نام و یادگیری درون‌سازمانی', icon: <GraduationCap className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('training'); onClose(); } },
+    { id: 'nav-documents', type: 'ناوبری' as const, title: 'اسناد و فرم‌ها', subtitle: 'آیین‌نامه‌ها، فرم‌ها و دستورالعمل‌ها', icon: <FolderOpen className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('documents'); onClose(); } },
+    { id: 'nav-orgchart', type: 'ناوبری' as const, title: 'چارت سازمانی', subtitle: 'ساختار واحدها و مدیران', icon: <Users className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('orgchart'); onClose(); } },
     { id: 'nav-polls', type: 'ناوبری' as const, title: 'نظرسنجی‌ها', subtitle: 'مشارکت در تصمیم‌گیری‌ها', icon: <Vote className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('polls'); onClose(); } },
-  ].filter(item => cleanQ ? item.title.includes(cleanQ) || item.subtitle.includes(cleanQ) : true).slice(0, cleanQ ? 3 : 4);
+  ].filter(item => cleanQ ? hit(item.title, item.subtitle) : true).slice(0, cleanQ ? 3 : 4);
 
-  const allResults = [...colleagueResults, ...systemResults, ...newsResults, ...navigationResults];
+  const allResults = [...colleagueResults, ...systemResults, ...newsResults, ...documentResults, ...navigationResults];
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {

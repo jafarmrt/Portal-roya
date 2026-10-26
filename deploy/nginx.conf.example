@@ -1,0 +1,26 @@
+# Optional reverse proxy in front of the portal (for HTTPS or a friendly host name).
+# When using it, set TRUST_PROXY=true in .env, and COOKIE_SECURE=true if served over HTTPS.
+server {
+    listen 80;
+    server_name portal.roya.local;
+
+    client_max_body_size 25m;   # keep >= MAX_UPLOAD_MB
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Live updates (Server-Sent Events) must not be buffered.
+    location /api/events {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1h;
+    }
+}
