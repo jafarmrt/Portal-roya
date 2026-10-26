@@ -144,6 +144,20 @@ describe('Active Directory sign-in', () => {
     }
   });
 
+  it('keeps AD departments in step with the portal department list', async () => {
+    // A spelling variant of a listed department uses the list's spelling.
+    directory.authenticate.mockResolvedValue(adUser({ username: 'variant.user', department: 'فروش ' }));
+    const variant = await request(app).post('/api/auth/login').send({ username: 'variant.user', password: 'ad-password' }).expect(200);
+    expect(variant.body.user.department).toBe('فروش');
+    // A department only AD knows is added to the list, so filters and audiences can use it.
+    directory.authenticate.mockResolvedValue(adUser({ username: 'new.dept', department: 'بازاريابي' }));
+    const added = await request(app).post('/api/auth/login').send({ username: 'new.dept', password: 'ad-password' }).expect(200);
+    expect(added.body.user.department).toBe('بازاریابی');
+    const settings = await admin.get('/api/settings').expect(200);
+    expect(settings.body.departments.filter((d: string) => d.startsWith('فروش'))).toEqual(['فروش']);
+    expect(settings.body.departments).toContain('بازاریابی');
+  });
+
   it('answers 503 when AD is down, but local accounts still sign in', async () => {
     directory.down = true;
     vi.spyOn(console, 'error').mockImplementation(() => undefined);

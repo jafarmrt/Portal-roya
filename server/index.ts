@@ -3,6 +3,7 @@ import path from 'path';
 import { createApp } from './app.js';
 import { config } from './config.js';
 import { runMigrations } from './db/index.js';
+import { reconcileDepartments } from './departments.js';
 import { describeDirectoryUser } from './ldap.js';
 import { isMailEnabled } from './mailer.js';
 import { ensureRoles } from './roles.js';
@@ -11,6 +12,14 @@ import { startScheduler } from './scheduler.js';
 async function main() {
   await runMigrations();
   await ensureRoles();
+  // Brings departments typed before the list was enforced into the list; a failure must not keep the portal down.
+  try {
+    const departments = await reconcileDepartments();
+    if (departments.added.length > 0) console.log(`Departments added to the list from existing data: ${departments.added.join(', ')}`);
+    for (const r of departments.renamed) console.log(`Department "${r.from}" now written as "${r.to}"`);
+  } catch (err) {
+    console.error('Could not reconcile departments:', err);
+  }
   const app = createApp();
 
   if (config.isProduction) {

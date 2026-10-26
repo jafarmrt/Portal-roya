@@ -30,9 +30,13 @@ export const ColleaguesDirectory: React.FC = () => {
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<UserProfile | null>(null);
   const [copiedExtension, setCopiedExtension] = useState<string | null>(null);
 
+  // The tabs follow the department list in settings; departments nobody is in are left out.
+  const active = employees.filter(emp => emp.isActive);
   const departments = [
-    { id: 'all', label: 'همه دپارتمان‌ها' },
-    ...(appSettings?.departments || []).map(d => ({ id: d, label: d }))
+    { id: 'all', label: 'همه واحدها', count: active.length },
+    ...(appSettings?.departments || [])
+      .map(d => ({ id: d, label: d, count: active.filter(emp => emp.department === d).length }))
+      .filter(d => d.count > 0),
   ];
 
   const filteredEmployees = employees.filter(emp => {
@@ -111,6 +115,7 @@ export const ColleaguesDirectory: React.FC = () => {
             <button
               key={dept.id}
               onClick={() => setSelectedDept(dept.id)}
+              aria-pressed={selectedDept === dept.id}
               className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl whitespace-nowrap transition-all ${
                 selectedDept === dept.id
                   ? 'bg-[#dc2626] text-white shadow-xs'
@@ -118,6 +123,7 @@ export const ColleaguesDirectory: React.FC = () => {
               }`}
             >
               {dept.label}
+              <span className={`mr-1.5 text-[10px] ${selectedDept === dept.id ? 'text-white/80' : 'text-[#8C867A]'}`}>{toPersianDigits(dept.count)}</span>
             </button>
           ))}
         </div>

@@ -17,7 +17,7 @@ export default async function globalSetup(config: FullConfig) {
   await ok(await admin.post('/api/system/setup', {
     data: { username: 'admin', password: 'Admin-pass-123', firstName: 'مدیر', lastName: 'سیستم', position: 'مدیر فناوری', department: 'فناوری اطلاعات' },
   }));
-  await ok(await admin.put('/api/settings', { data: { guestAccess: true, guestDirectory: true } }));
+  await ok(await admin.put('/api/settings', { data: { guestAccess: true, guestDirectory: true, departments: ['فناوری اطلاعات', 'فروش', 'تولید'] } }));
 
   const created = await ok(await admin.post('/api/employees', {
     data: { username: 'sara', firstName: 'سارا', lastName: 'احمدی', position: 'کارشناس', department: 'فروش', role: 'employee' },

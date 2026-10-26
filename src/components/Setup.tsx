@@ -141,7 +141,7 @@ export const Setup: React.FC = () => {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-[#2D2D2D] mb-2">دپارتمان</label>
+              <label className="block text-sm font-semibold text-[#2D2D2D] mb-2">واحد</label>
               <div className="relative">
                 <Building className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A8A295]" />
                 <input

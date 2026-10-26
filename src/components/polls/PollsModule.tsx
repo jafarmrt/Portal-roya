@@ -171,7 +171,7 @@ export const PollsModule: React.FC = () => {
 
                     <div className="flex items-center gap-2 text-xs text-slate-400">
                       <Building2 className="w-3.5 h-3.5" />
-                      <span>دپارتمان: {poll.department === 'all' ? 'همه دپارتمان‌ها' : poll.department}</span>
+                      <span>واحد: {poll.department === 'all' ? 'همه واحدها' : poll.department}</span>
                     </div>
                   </div>
 

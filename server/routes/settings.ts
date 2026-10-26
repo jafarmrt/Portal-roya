@@ -1,9 +1,10 @@
 import { eq } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
-import { can } from '../auth.js';
+import { can, requirePermission } from '../auth.js';
 import { db } from '../db/index.js';
 import { settings } from '../db/schema.js';
+import { checkDepartmentList, departmentList, departmentUsage, renameDepartment } from '../departments.js';
 import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, parse, route } from '../http.js';
 import { ensureSettings } from '../settings.js';
@@ -66,8 +67,32 @@ settingsRouter.put(
       throw new HttpError(403, 'شما اجازهٔ تغییر تنظیمات پرتال را ندارید.');
     }
     await ensureSettings();
+    if (body.departments) body.departments = await checkDepartmentList(body.departments);
     const [updated] = await db.update(settings).set(body).where(eq(settings.id, 'global')).returning();
     broadcastChange('settings');
     res.json(updated);
+  }),
+);
+
+/** Each department in the list with how many colleagues, news items and polls use it. */
+settingsRouter.get(
+  '/settings/departments',
+  requirePermission('settings.manage'),
+  route(async (_req, res) => {
+    const usage = await departmentUsage();
+    const list = await departmentList();
+    res.json(list.map((name) => ({ name, ...(usage.get(name) ?? { employees: 0, activeEmployees: 0, news: 0, polls: 0 }) })));
+  }),
+);
+
+const renameSchema = z.object({ from: requiredText(100), to: requiredText(100) });
+
+/** Renames a department everywhere, or merges it into another one when `to` is already in the list. */
+settingsRouter.post(
+  '/settings/departments/rename',
+  requirePermission('settings.manage'),
+  route(async (req, res) => {
+    const body = parse(renameSchema, req.body);
+    res.json(await renameDepartment(body.from, body.to));
   }),
 );
