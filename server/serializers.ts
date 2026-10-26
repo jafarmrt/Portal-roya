@@ -37,6 +37,11 @@ export function serializeEmployee(e: Employee, viewerId: string, managersById?: 
   };
 }
 
+/** What a visitor sees when the directory is open to guests: no login name or personal mobile. */
+export function serializeForGuest(e: Employee, managersById?: Map<string, Employee>) {
+  return { ...serializeEmployee(e, '', managersById), username: '', mobile: '' };
+}
+
 export function serializeMe(e: Employee) {
   return { ...serializeEmployee(e, e.id), mustChangePassword: e.mustChangePassword };
 }

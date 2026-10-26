@@ -6,7 +6,7 @@ import { type Employee, requireManager } from '../auth.js';
 import { db } from '../db/index.js';
 import { employees, news, newsLikes, newsReads } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
-import { currentUser, HttpError, newId, parse, route } from '../http.js';
+import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
 import { audienceIds, createNotifications } from '../notify.js';
 import { fullName } from '../serializers.js';
 import { assetUrl, attachment, jalaliDate, requiredText, timeOfDay } from '../validation.js';
@@ -15,14 +15,18 @@ export const newsRouter = Router();
 
 type NewsRow = typeof news.$inferSelect;
 
-/** What a non-manager may see: published, not expired, and aimed at their department. */
-function visibleTo(viewer: Employee): SQL | undefined {
-  if (viewer.role === 'manager') return undefined;
+/**
+ * What a non-manager may see: published, not expired, and aimed at their department.
+ * Visitors who are not signed in only see items addressed to everyone.
+ */
+function visibleTo(viewer: Employee | null): SQL | undefined {
+  if (viewer?.role === 'manager') return undefined;
   const now = new Date();
+  const forEveryone = sql`cardinality(${news.targetDepartments}) = 0`;
   return and(
     lte(news.publishAt, now),
     or(isNull(news.expiresAt), gt(news.expiresAt, now)),
-    or(sql`cardinality(${news.targetDepartments}) = 0`, arrayOverlaps(news.targetDepartments, [viewer.department])),
+    viewer ? or(forEveryone, arrayOverlaps(news.targetDepartments, [viewer.department])) : forEveryone,
   );
 }
 
@@ -33,7 +37,7 @@ function statusOf(item: NewsRow) {
   return 'published';
 }
 
-async function serializeMany(items: NewsRow[], viewer: Employee) {
+async function serializeMany(items: NewsRow[], viewer: Employee | null) {
   if (items.length === 0) return [];
   const ids = items.map((n) => n.id);
 
@@ -44,8 +48,10 @@ async function serializeMany(items: NewsRow[], viewer: Employee) {
       .from(newsLikes)
       .where(inArray(newsLikes.newsId, ids))
       .groupBy(newsLikes.newsId),
-    db.select({ newsId: newsLikes.newsId }).from(newsLikes).where(and(eq(newsLikes.userId, viewer.id), inArray(newsLikes.newsId, ids))),
-    db.select().from(newsReads).where(and(eq(newsReads.userId, viewer.id), inArray(newsReads.newsId, ids))),
+    viewer
+      ? db.select({ newsId: newsLikes.newsId }).from(newsLikes).where(and(eq(newsLikes.userId, viewer.id), inArray(newsLikes.newsId, ids)))
+      : [],
+    viewer ? db.select().from(newsReads).where(and(eq(newsReads.userId, viewer.id), inArray(newsReads.newsId, ids))) : [],
   ]);
 
   const authorById = new Map(authors.map((a) => [a.id, a]));
@@ -54,7 +60,7 @@ async function serializeMany(items: NewsRow[], viewer: Employee) {
   const reads = new Map(myReads.map((r) => [r.newsId, r]));
 
   let readStats = new Map<string, { read: number; acknowledged: number; audience: number }>();
-  if (viewer.role === 'manager') {
+  if (viewer?.role === 'manager') {
     const active = authors.filter((a) => a.isActive);
     const counts = await db
       .select({
@@ -101,7 +107,8 @@ async function serializeMany(items: NewsRow[], viewer: Employee) {
       date: n.publishAt.toISOString(),
       likesCount: likes.get(n.id) ?? 0,
       likedByMe: liked.has(n.id),
-      isRead: Boolean(read),
+      // Guests have no read history; reporting items as read keeps "unread" markers off their screen.
+      isRead: viewer ? Boolean(read) : true,
       acknowledgedAt: read?.acknowledgedAt?.toISOString() ?? null,
       status: statusOf(n),
       readStats: readStats.get(n.id),
@@ -109,7 +116,7 @@ async function serializeMany(items: NewsRow[], viewer: Employee) {
   });
 }
 
-async function loadVisible(id: string, viewer: Employee) {
+async function loadVisible(id: string, viewer: Employee | null) {
   const [item] = await db.select().from(news).where(and(eq(news.id, id), visibleTo(viewer)));
   if (!item) throw new HttpError(404, 'خبر یافت نشد.');
   return item;
@@ -125,7 +132,7 @@ const listQuery = z.object({
 newsRouter.get(
   '/news',
   route(async (req, res) => {
-    const viewer = currentUser(req);
+    const viewer = viewerOf(req);
     const query = parse(listQuery, req.query);
     const filters = [visibleTo(viewer)];
     if (query.category && query.category !== 'all') filters.push(eq(news.category, query.category));
@@ -148,7 +155,7 @@ newsRouter.get(
 newsRouter.get(
   '/news/:id',
   route(async (req, res) => {
-    const viewer = currentUser(req);
+    const viewer = viewerOf(req);
     const [item] = await serializeMany([await loadVisible(req.params.id, viewer)], viewer);
     res.json(item);
   }),

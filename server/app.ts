@@ -1,7 +1,7 @@
 import cookieParser from 'cookie-parser';
 import express, { Router } from 'express';
 import helmet from 'helmet';
-import { requireAuth, requirePasswordChanged, type AuthedRequest } from './auth.js';
+import { attachUser, isReadRequest, requirePasswordChanged, requireUserOrGuest, type AuthedRequest } from './auth.js';
 import { config } from './config.js';
 import { pool } from './db/index.js';
 import { addClient } from './events.js';
@@ -52,8 +52,9 @@ export function createApp() {
   // Public: setup status, first-run setup, login/logout. /auth/me and change-password check the session themselves.
   api.use(authRouter);
 
-  // Everything below requires a signed-in user who has replaced their temporary password.
-  api.use(requireAuth, requirePasswordChanged);
+  // Everything below requires a signed-in user who has replaced their temporary password,
+  // except the read-only endpoints that visitors may open while guest access is enabled.
+  api.use(attachUser, requireUserOrGuest(), requirePasswordChanged);
   api.get('/events', (req, res) => addClient(currentUser(req as AuthedRequest).id, res));
   api.use(employeesRouter);
   api.use(newsRouter);
@@ -69,10 +70,11 @@ export function createApp() {
 
   app.use('/api', api);
 
-  // Uploaded files are only served to signed-in users.
+  // Uploaded files (news images, document downloads) follow the same rule as the API.
   app.use(
     '/uploads',
-    requireAuth,
+    attachUser,
+    requireUserOrGuest(isReadRequest),
     express.static(config.uploadDir, {
       index: false,
       dotfiles: 'deny',

@@ -21,7 +21,8 @@ import {
   Trash2,
   SlidersHorizontal,
   LayoutGrid,
-  UserPen
+  UserPen,
+  LogIn
 } from 'lucide-react';
 
 // Header drop-downs: full width under the header on phones, anchored to their button from sm up.
@@ -43,7 +44,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
     deleteNotification,
     setActiveTab,
     logout,
-    appSettings
+    appSettings,
+    isGuest,
+    requestLogin
   } = usePortal();
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -392,6 +395,15 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                     )}
                   </div>
                 </>
+              ) : isGuest ? (
+                <button
+                  type="button"
+                  onClick={() => requestLogin()}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#991b1b] hover:bg-[#7f1d1d] text-white text-xs font-bold transition-colors cursor-pointer"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>ورود</span>
+                </button>
               ) : null}
 
             </div>

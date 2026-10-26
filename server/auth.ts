@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { config } from './config.js';
 import { db } from './db/index.js';
 import { employees } from './db/schema.js';
+import { guestSettings } from './settings.js';
 
 export const SESSION_COOKIE = 'roya_session';
 const BCRYPT_ROUNDS = 12;
@@ -63,6 +64,12 @@ async function loadUserFromRequest(req: Request): Promise<Employee | null> {
   }
 }
 
+/** Attaches the signed-in user when there is a valid session, without rejecting visitors. */
+export async function attachUser(req: AuthedRequest, _res: Response, next: NextFunction) {
+  req.user = (await loadUserFromRequest(req)) ?? undefined;
+  next();
+}
+
 /** Requires a valid session. Users who must change their password can only reach the auth routes. */
 export async function requireAuth(req: AuthedRequest, res: Response, next: NextFunction) {
   const user = await loadUserFromRequest(req);
@@ -72,6 +79,44 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
   }
   req.user = user;
   next();
+}
+
+// Read-only endpoints a visitor may open when guest access is enabled in the settings.
+const GUEST_READABLE = [
+  /^\/settings$/,
+  /^\/news(\/[^/]+)?$/,
+  /^\/polls$/,
+  /^\/trainings$/,
+  /^\/calendar_events$/,
+  /^\/holidays$/,
+  /^\/documents$/,
+  /^\/employees$/,
+  /^\/new_colleagues$/,
+  /^\/birthday_wishes$/,
+];
+
+/** True for any read, e.g. downloading an uploaded file. */
+export const isReadRequest = (req: Request) => req.method === 'GET' || req.method === 'HEAD';
+
+/** True for the public read-only API endpoints. */
+export const isGuestReadable = (req: Request) => isReadRequest(req) && GUEST_READABLE.some((re) => re.test(req.path));
+
+/**
+ * Lets signed-in users through and admits visitors to the requests `isPublic` allows
+ * while guest access is on. Everything else (any write, personal data) needs a session.
+ */
+export function requireUserOrGuest(isPublic: (req: Request) => boolean = isGuestReadable) {
+  return async (req: AuthedRequest, res: Response, next: NextFunction) => {
+    try {
+      if (req.user || (isPublic(req) && (await guestSettings()).guestAccess)) {
+        next();
+        return;
+      }
+      res.status(401).json({ error: 'برای این کار ابتدا وارد حساب کاربری خود شوید.', code: 'LOGIN_REQUIRED' });
+    } catch (err) {
+      next(err);
+    }
+  };
 }
 
 export function requirePasswordChanged(req: AuthedRequest, res: Response, next: NextFunction) {
