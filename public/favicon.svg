@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="14" fill="#dc2626"/>
-  <text x="32" y="47" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="42" fill="#fff">R</text>
+  <!-- The "R" of the ROYA wordmark as an outline, so it looks the same without any font installed. -->
+  <path fill="#fff" d="M25.84 34.6V46.46L30.2 47.15V49H13.8V47.15L17.83 46.46V17.51L13.47 16.85V15H29.72Q37.22 15 40.92 17.31Q44.63 19.61 44.63 24.51Q44.63 31.81 37.78 33.89L46.86 46.46L50.53 47.15V49H39.53L30.05 34.6ZM36.72 24.56Q36.72 20.76 35.14 19.27Q33.57 17.79 29.39 17.79H25.84V31.81H29.52Q33.42 31.81 35.07 30.19Q36.72 28.56 36.72 24.56Z"/>
 </svg>

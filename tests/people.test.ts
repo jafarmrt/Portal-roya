@@ -16,6 +16,8 @@ interface Profile {
 
 const worker = { firstName: 'حسن', lastName: 'کارگر', position: 'اپراتور تولید', department: 'تولید', extension: '310' };
 
+afterAll(() => pool.end());
+
 async function notificationCount(userId: string) {
   const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(notifications).where(eq(notifications.userId, userId));
   return row.count;
@@ -29,7 +31,6 @@ describe('people without a portal account', () => {
     await resetDatabase();
     admin = await setupAdmin();
   });
-  afterAll(() => pool.end());
 
   it('adds someone to the phone book without a username, password or role', async () => {
     const res = await admin.post('/api/employees').send({ ...worker, hasAccount: false, role: 'manager' }).expect(201);
@@ -126,3 +127,62 @@ async function loginAs(username: string) {
   await agent.post('/api/auth/login').send({ username, password: `${username}-Pass-123` }).expect(200);
   return agent;
 }
+
+describe('updating people from Excel', () => {
+  let admin: Agent;
+  let hasanId: string;
+  let saraId: string;
+
+  beforeAll(async () => {
+    await resetDatabase();
+    admin = await setupAdmin();
+    hasanId = (await admin.post('/api/employees').send({ ...worker, hasAccount: false }).expect(201)).body.employee.id;
+    saraId = (await createEmployee(admin, { username: 'sara' })).id;
+  });
+
+  const run = (rows: Record<string, string>[]) => admin.post('/api/employees/import').send({ rows }).expect(201);
+
+  it('previews changes for rows matched by id or username', async () => {
+    const csv = `شناسه,نام کاربری,موبایل,سمت\n${hasanId},,09130000000,\n,sara,,سرپرست فروش\n`;
+    const res = await admin.post('/api/employees/import/preview').attach('file', Buffer.from(csv), 'staff.csv').expect(200);
+    expect(res.body.rows.map((r: { action: string }) => r.action)).toEqual(['update', 'update']);
+    expect(res.body.rows[0].changes.join(' ')).toContain('09130000000');
+    expect(res.body.rows[1].changes.join(' ')).toContain('سرپرست فروش');
+  });
+
+  it('changes only the filled cells and gives an account to someone without one', async () => {
+    const res = await run([{ id: hasanId, username: 'H.Kargar', mobile: '9130000000', role: 'مدیر' }]);
+    expect(res.body.created).toEqual([]);
+    expect(res.body.updated[0]).toMatchObject({ id: hasanId, hasAccount: true, username: 'h.kargar' });
+    await request(app).post('/api/auth/login').send({ username: 'h.kargar', password: res.body.updated[0].temporaryPassword }).expect(200);
+
+    const list = (await admin.get('/api/employees').expect(200)).body as (Profile & { mobile: string; position: string; extension: string })[];
+    const hasan = list.find((e) => e.id === hasanId)!;
+    expect(hasan).toMatchObject({ mobile: '09130000000', role: 'manager', position: worker.position, extension: worker.extension });
+  });
+
+  it('leaves unchanged rows alone and refuses unsafe changes', async () => {
+    const same = await run([{ id: saraId, username: 'sara' }]);
+    expect(same.body).toMatchObject({ updated: [], unchanged: 1, skipped: [] });
+
+    const bad = await run([
+      { id: 'emp-unknown', mobile: '09120000000' },
+      { id: saraId, username: 'someone.else' },
+      { id: hasanId, username: 'sara' },
+      { id: saraId, extension: '200' },
+      { id: saraId, extension: '201' },
+    ]);
+    expect(bad.body.updated.map((u: { id: string }) => u.id)).toEqual([saraId]);
+    const errors = bad.body.skipped.map((s: { errors: string[] }) => s.errors.join(' '));
+    expect(errors[0]).toContain('پیدا نشد');
+    expect(errors[1]).toContain('عوض نمی‌شود');
+    expect(errors[2]).toContain('عوض نمی‌شود');
+    expect(errors[3]).toContain('ردیف 4');
+  });
+
+  it('does not change an admin role from Excel', async () => {
+    const me = (await admin.get('/api/auth/me').expect(200)).body.user as Profile;
+    const res = await run([{ id: me.id, role: 'کارشناس' }]);
+    expect(res.body.skipped[0].errors.join(' ')).toContain('ادمین');
+  });
+});
