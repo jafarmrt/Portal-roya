@@ -8,6 +8,7 @@ import { audienceIds, createNotifications } from './notify.js';
 import { processDocumentReviews } from './routes/documents.js';
 import { processGuideReviews } from './routes/guides.js';
 import { processPollDeadlines } from './routes/polls.js';
+import { processEventReminders } from './routes/calendar.js';
 import { indexMissingDocumentTexts } from './textExtract.js';
 import { announceNews, processAckDeadlines } from './routes/news.js';
 import { fullName } from './serializers.js';
@@ -83,6 +84,7 @@ export function startScheduler() {
     processDocumentReviews().catch((err) => console.error('Document review error:', err));
     processGuideReviews().catch((err) => console.error('Guide review error:', err));
     processPollDeadlines().catch((err) => console.error('Poll reminder error:', err));
+    processEventReminders().catch((err) => console.error('Event reminder error:', err));
     runNightlyMaintenance().catch((err) => console.error('Maintenance error:', err));
   }, INTERVAL_MS);
   timer.unref();

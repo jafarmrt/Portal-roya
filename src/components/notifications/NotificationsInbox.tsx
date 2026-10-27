@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Trash2,
   Cake,
+  CalendarDays,
   Vote,
   Newspaper,
   GraduationCap,
@@ -41,6 +42,8 @@ export const NotificationsInbox: React.FC = () => {
         return <Vote className="w-5 h-5 text-indigo-600" />;
       case 'training':
         return <GraduationCap className="w-5 h-5 text-blue-600" />;
+      case 'calendar':
+        return <CalendarDays className="w-5 h-5 text-sky-700" />;
       case 'welcome':
         return <User className="w-5 h-5 text-emerald-600" />;
       case 'document':
@@ -122,6 +125,17 @@ export const NotificationsInbox: React.FC = () => {
           }`}
         >
           آموزش
+        </button>
+
+        <button
+          onClick={() => setTypeFilter('calendar')}
+          className={`px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${
+            typeFilter === 'calendar'
+              ? 'bg-[#991b1b] text-white shadow-xs'
+              : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D]'
+          }`}
+        >
+          تقویم
         </button>
 
         <button

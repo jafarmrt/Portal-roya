@@ -57,6 +57,8 @@ const calendarEntryFor = (body: TrainingInput) => ({
   time: body.time || null,
   location: body.location || null,
   badgeColor: 'bg-blue-600',
+  // The training tells its own enrollees about changes.
+  notify: false,
 });
 
 trainingsRouter.post(

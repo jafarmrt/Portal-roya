@@ -1,6 +1,6 @@
 import React from 'react';
 import moment from 'moment-jalaali';
-import { CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, FileCheck2, FileText, GraduationCap, LifeBuoy, ListTodo, Vote } from 'lucide-react';
+import { CalendarCheck, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, FileCheck2, FileText, GraduationCap, LifeBuoy, ListTodo, Vote } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { dayLabel, formatDate, toPersianDigits, todayJalali } from '../../lib/jalali';
 import { deadlineState } from '../news/NewsBody';
@@ -21,8 +21,8 @@ const WEEK_EVENT_TYPES = new Set(['meeting', 'event', 'holiday']);
 
 /**
  * What this person still has to do or attend: circulars and mandatory documents to acknowledge,
- * documents of theirs due for review, polls to answer, and their trainings and the organisation's
- * events in the coming seven days. Sits at the top of the dashboard.
+ * documents of theirs due for review, polls to answer, events asking whether they will attend, and
+ * their trainings and events in the coming seven days. Sits at the top of the dashboard.
  */
 export const MyTasksCard: React.FC = () => {
   const { currentUser, news, polls, trainings, calendarEvents, documents, guides, can, setActiveTab } = usePortal();
@@ -109,7 +109,22 @@ export const MyTasksCard: React.FC = () => {
     });
   }
   for (const e of calendarEvents) {
-    if (!WEEK_EVENT_TYPES.has(e.type) || e.trainingId || !inWeek(e.date)) continue;
+    if (!e.forMe || e.trainingId || e.date < today) continue;
+    // Asked whether they attend and not answered yet: a task until the day itself.
+    if (e.rsvp && e.myRsvp === null) {
+      tasks.push({
+        key: `event-${e.id}`,
+        icon: <CalendarCheck className="w-4 h-4 text-sky-700" />,
+        kind: 'شرکت می‌کنید؟',
+        title: e.title,
+        when: `${dayLabel(e.date)}${e.time ? `، ساعت ${toPersianDigits(e.time)}` : ''}`,
+        urgent: e.date === today,
+        rank: `1-${e.date}`,
+        open: () => setActiveTab('calendar', e.id),
+      });
+      continue;
+    }
+    if (!WEEK_EVENT_TYPES.has(e.type) || !inWeek(e.date) || e.myRsvp === false) continue;
     tasks.push({
       key: `event-${e.id}`,
       icon: <CalendarDays className="w-4 h-4 text-sky-700" />,
@@ -117,7 +132,7 @@ export const MyTasksCard: React.FC = () => {
       title: e.title,
       when: `${dayLabel(e.date)}${e.time ? `، ساعت ${toPersianDigits(e.time)}` : ''}`,
       rank: `2-${e.date}-${e.time ?? ''}`,
-      open: () => setActiveTab('calendar'),
+      open: () => setActiveTab('calendar', e.id),
     });
   }
   tasks.sort((a, b) => Number(Boolean(b.urgent)) - Number(Boolean(a.urgent)) || a.rank.localeCompare(b.rank));

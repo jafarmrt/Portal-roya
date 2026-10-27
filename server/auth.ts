@@ -106,6 +106,7 @@ const GUEST_READABLE = [
   /^\/polls$/,
   /^\/trainings$/,
   /^\/calendar_events$/,
+  /^\/calendar_events\/[^/]+\/ics$/,
   /^\/holidays$/,
   /^\/documents$/,
   /^\/documents\/[^/]+\/versions$/,

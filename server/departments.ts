@@ -195,10 +195,10 @@ function managedList(kind: ListKind) {
   return { list, require, ensure, add, rename, checkList, reconcile, requireMany, usage: kind.usage };
 }
 
-/** Replaces `from` by `to` in an audience column of news, documents and polls, keeping each name once. */
+/** Replaces `from` by `to` in an audience column of news, documents, polls and events, keeping each name once. */
 async function replaceInAudiences(tx: Tx, column: 'target_departments' | 'target_locations', from: string, to: string) {
   const col = sql.identifier(column);
-  for (const table of ['news', 'documents', 'polls']) {
+  for (const table of ['news', 'documents', 'polls', 'calendar_events']) {
     await tx.execute(sql`
       update ${sql.identifier(table)}
       set ${col} = array(select distinct d from unnest(array_replace(${col}, ${from}, ${to})) as d)
@@ -222,13 +222,14 @@ const departments = managedList({
   noun: 'واحد',
   listName: 'فهرست واحدهای سازمان',
   mayBeEmpty: false,
-  usedIn: '(همکاران، اخبار، اسناد، راهنماها یا نظرسنجی‌ها)',
+  usedIn: '(همکاران، اخبار، اسناد، راهنماها، نظرسنجی‌ها یا رویدادهای تقویم)',
   usedNames: async (tx) => {
     const used = await tx.execute<{ name: string }>(sql`
       select department as name from employees
       union select d from news, unnest(target_departments) as d
       union select d from documents, unnest(target_departments) as d
       union select d from polls, unnest(target_departments) as d
+      union select d from calendar_events, unnest(target_departments) as d
       union select department from guides where department <> ''
     `);
     return used.rows.map((r) => r.name);
@@ -263,7 +264,7 @@ const departments = managedList({
     await audienceUsage('target_departments', entry);
     return usage;
   },
-  renames: ['employees', 'news', 'documents', 'polls', 'guides', 'department_pages', 'settings'],
+  renames: ['employees', 'news', 'documents', 'polls', 'calendar', 'guides', 'department_pages', 'settings'],
 });
 
 const locations = managedList({
@@ -271,13 +272,14 @@ const locations = managedList({
   noun: 'محل استقرار',
   listName: 'فهرست محل‌های استقرار',
   mayBeEmpty: true,
-  usedIn: '(همکاران یا مخاطبان اخبار، اسناد و نظرسنجی‌ها)',
+  usedIn: '(همکاران یا مخاطبان اخبار، اسناد، نظرسنجی‌ها و رویدادها)',
   usedNames: async (tx) => {
     const used = await tx.execute<{ name: string }>(sql`
       select location as name from employees where location <> ''
       union select d from news, unnest(target_locations) as d
       union select d from documents, unnest(target_locations) as d
       union select d from polls, unnest(target_locations) as d
+      union select d from calendar_events, unnest(target_locations) as d
     `);
     return used.rows.map((r) => r.name);
   },
@@ -301,7 +303,7 @@ const locations = managedList({
     await audienceUsage('target_locations', entry);
     return usage;
   },
-  renames: ['employees', 'news', 'documents', 'polls'],
+  renames: ['employees', 'news', 'documents', 'polls', 'calendar'],
 });
 
 /** The managed list of departments, in the order set in the portal settings. */

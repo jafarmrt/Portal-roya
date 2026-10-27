@@ -320,10 +320,34 @@ export const calendarEvents = pgTable('calendar_events', {
   time: text('time'),
   location: text('location'),
   badgeColor: text('badge_color'),
+  endTime: text('end_time'),
   // Set for the calendar entry of a training, so it follows the training when it is edited or deleted.
   trainingId: text('training_id').references(() => trainings.id, { onDelete: 'cascade' }),
+  // Who sees the event, with the rules of news (shared/audience.ts); empty lists mean everyone.
+  targetDepartments: text('target_departments').array().notNull().default([]),
+  targetLocations: text('target_locations').array().notNull().default([]),
+  targetRoles: text('target_roles').array().notNull().default([]),
+  targetUserIds: text('target_user_ids').array().notNull().default([]),
+  /** The audience is told when it is added, moved or cancelled, and reminded the day before. */
+  notify: boolean('notify').notNull().default(true),
+  /** Colleagues are asked "attending or not" and the answers are counted. */
+  rsvp: boolean('rsvp').notNull().default(false),
+  remindedAt: timestamp('reminded_at', { withTimezone: true }),
+  createdById: text('created_by_id').references(() => employees.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** "Attending or not" answers to an event that asks for them; one per person, changeable until the day. */
+export const calendarRsvps = pgTable(
+  'calendar_rsvps',
+  {
+    eventId: text('event_id').notNull().references(() => calendarEvents.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    attending: boolean('attending').notNull(),
+    respondedAt: timestamp('responded_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.eventId, t.userId] })],
+);
 
 // Organization-specific overrides of the built-in holiday table, keyed by 'YYYY-MM-DD' (Jalali).
 export const customHolidays = pgTable('custom_holidays', {

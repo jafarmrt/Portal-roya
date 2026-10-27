@@ -33,8 +33,8 @@ export function hiddenResultsReason(poll: Poll) {
 export const anonymityNote = (anonymous: boolean) =>
   anonymous ? 'نام پاسخ‌دهنده به هیچ‌کس، حتی طراح نظرسنجی، نشان داده نمی‌شود.' : 'طراح نظرسنجی و مدیران می‌بینند هر کس چه پاسخی داده است.';
 
-/** "همهٔ سازمان", or the chosen departments and locations, and how many people were added by name. */
-export function audienceLabel(poll: Poll) {
+/** "همهٔ سازمان", or the chosen departments and locations, and how many people were added by name (polls, calendar events). */
+export function audienceLabel(poll: Pick<Poll, 'targetDepartments' | 'targetLocations' | 'targetRoles' | 'targetUserCount'>) {
   const groups = [...poll.targetDepartments, ...poll.targetLocations];
   const parts = groups.length > 0 ? [groups.join('، ')] : poll.targetRoles.length > 0 ? ['نقش‌های مشخص'] : [];
   if (poll.targetUserCount > 0) parts.push(`${toPersianDigits(poll.targetUserCount)} همکار`);
