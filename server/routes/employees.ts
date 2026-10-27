@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { currentJalaliYear, todayJalali } from '../../shared/jalali.js';
 import { can, type Employee, hashPassword, isAdmin, requirePermission, type SessionUser } from '../auth.js';
 import { db } from '../db/index.js';
-import { addDepartments, departmentList, requireDepartment } from '../departments.js';
+import { addDepartments, departmentList, requireDepartment, requireLocation } from '../departments.js';
 import { checkRows, type ImportRow, importRowsSchema, type ImportUpdate, MAX_IMPORT_ROWS, newDepartments, rowsToRecords } from '../employeeImport.js';
 import { birthdayWishes, colleagueWishes, employees, newColleagues } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
@@ -180,6 +180,7 @@ employeesRouter.post(
   route(async (req, res) => {
     const body = parse(createSchema, req.body);
     body.department = await requireDepartment(body.department);
+    body.location = await requireLocation(body.location);
     const account = body.hasAccount
       ? await prepareAccount(currentUser(req), null, {
           username: body.username || (body.email ? body.email.split('@')[0].toLowerCase() : ''),
@@ -322,6 +323,7 @@ employeesRouter.patch(
       throw new HttpError(400, 'پرتال باید حداقل یک ادمین فعال داشته باشد.');
     }
     if (body.department !== undefined && body.department !== target.department) body.department = await requireDepartment(body.department);
+    if (body.location !== undefined && body.location !== target.location) body.location = await requireLocation(body.location);
     if (body.directManagerId === target.id) {
       throw new HttpError(400, 'همکار نمی‌تواند مدیر مستقیم خودش باشد.');
     }

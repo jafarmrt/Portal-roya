@@ -144,11 +144,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                     <Building2 className="w-3 h-3 text-[#8C867A]" />
                     <span>بخش: {user.department}</span>
                   </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-[#8C867A]" />
-                    <span>{user.location || 'دفتر مرکزی'}</span>
-                  </span>
+                  {user.location && (
+                    <>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-[#8C867A]" />
+                        <span>{user.location}</span>
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

@@ -114,3 +114,26 @@
     color: #444;
   }
 }
+
+/* News text written in the editor (and the editor itself). */
+.rich-text { line-height: 2; color: #2D2D2D; overflow-wrap: anywhere; }
+.rich-text > * + * { margin-top: 0.75em; }
+.rich-text > :first-child { margin-top: 0; }
+.rich-text h2 { font-size: 1.15rem; font-weight: 900; color: #7f1d1d; margin-top: 1.25em; }
+.rich-text h3 { font-size: 1rem; font-weight: 800; margin-top: 1em; }
+.rich-text ul { list-style: disc; padding-inline-start: 1.5em; }
+.rich-text ol { list-style: persian; padding-inline-start: 1.5em; }
+.rich-text li > p { margin: 0; }
+.rich-text a { color: #b91c1c; text-decoration: underline; text-underline-offset: 3px; }
+.rich-text blockquote { border-inline-start: 4px solid #E6E0D5; padding-inline-start: 1em; color: #4B4740; }
+.rich-text hr { border: 0; border-top: 1px solid #E6E0D5; margin: 1.25em 0; }
+.rich-text img { max-width: 100%; height: auto; border-radius: 1rem; }
+.rich-text table { width: 100%; border-collapse: collapse; font-size: 0.85em; display: block; overflow-x: auto; }
+.rich-text th, .rich-text td { border: 1px solid #D9D4CB; padding: 0.4em 0.7em; text-align: right; vertical-align: top; min-width: 4em; }
+.rich-text th { background: #F5F2ED; font-weight: 800; }
+.rich-text td > p, .rich-text th > p { margin: 0; }
+.rich-text .selectedCell { background: #FEE2E2; }
+.rich-text-editor .ProseMirror { outline: none; min-height: 14rem; padding: 0.75rem 1rem; }
+.rich-text-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder); color: #A8A196; float: right; height: 0; pointer-events: none;
+}

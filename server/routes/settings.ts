@@ -4,7 +4,16 @@ import { z } from 'zod';
 import { can, requirePermission } from '../auth.js';
 import { db } from '../db/index.js';
 import { settings } from '../db/schema.js';
-import { checkDepartmentList, departmentList, departmentUsage, renameDepartment } from '../departments.js';
+import {
+  checkDepartmentList,
+  checkLocationList,
+  departmentList,
+  departmentUsage,
+  locationList,
+  locationUsage,
+  renameDepartment,
+  renameLocation,
+} from '../departments.js';
 import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, parse, route } from '../http.js';
 import { serverStatus } from '../maintenance.js';
@@ -57,6 +66,9 @@ const updateSchema = z
     systems: z.array(systemSchema).max(50),
     guestAccess: z.boolean(),
     guestDirectory: z.boolean(),
+    locations: list,
+    // Dashboard cards switched on or off, by card id.
+    dashboardCards: z.record(z.string().max(50), z.boolean()),
   })
   .partial();
 
@@ -75,6 +87,7 @@ settingsRouter.put(
     }
     await ensureSettings();
     if (body.departments) body.departments = await checkDepartmentList(body.departments);
+    if (body.locations) body.locations = await checkLocationList(body.locations);
     const [updated] = await db.update(settings).set(body).where(eq(settings.id, 'global')).returning();
     broadcastChange('settings');
     res.json(publicSettings(updated));
@@ -149,5 +162,26 @@ settingsRouter.post(
   route(async (req, res) => {
     const body = parse(renameSchema, req.body);
     res.json(await renameDepartment(body.from, body.to));
+  }),
+);
+
+/** Each location in the list with how many colleagues and news items use it. */
+settingsRouter.get(
+  '/settings/locations',
+  requirePermission('settings.manage'),
+  route(async (_req, res) => {
+    const usage = await locationUsage();
+    const list = await locationList();
+    res.json(list.map((name) => ({ name, ...(usage.get(name) ?? { employees: 0, activeEmployees: 0, news: 0, polls: 0 }) })));
+  }),
+);
+
+/** Renames a location everywhere, or merges it into another one when `to` is already in the list. */
+settingsRouter.post(
+  '/settings/locations/rename',
+  requirePermission('settings.manage'),
+  route(async (req, res) => {
+    const body = parse(renameSchema, req.body);
+    res.json(await renameLocation(body.from, body.to));
   }),
 );

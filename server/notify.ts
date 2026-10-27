@@ -4,6 +4,7 @@ import { db } from './db/index.js';
 import { employees, notifications } from './db/schema.js';
 import { notifyUsers } from './events.js';
 import { sendMail } from './mailer.js';
+import { type Audience, EVERYONE, inAudience } from '../shared/audience.js';
 
 export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'profile' | 'welcome' | 'document' | 'system';
 
@@ -17,17 +18,16 @@ export interface NotificationInput {
 
 /** Active employees who can sign in, optionally limited to departments (an empty list means everyone). */
 export async function audienceIds(departments: string[] = [], excludeId?: string) {
+  return audienceIdsFor({ ...EVERYONE, departments }, excludeId);
+}
+
+/** Active employees who can sign in and are in the audience (e.g. of a news item). */
+export async function audienceIdsFor(audience: Audience, excludeId?: string) {
   const rows = await db
-    .select({ id: employees.id })
+    .select({ id: employees.id, department: employees.department, location: employees.location, role: employees.role })
     .from(employees)
-    .where(
-      and(
-        eq(employees.isActive, true),
-        eq(employees.hasAccount, true),
-        departments.length > 0 ? inArray(employees.department, departments) : undefined,
-      ),
-    );
-  return rows.map((r) => r.id).filter((id) => id !== excludeId);
+    .where(and(eq(employees.isActive, true), eq(employees.hasAccount, true)));
+  return rows.filter((r) => r.id !== excludeId && inAudience(r, audience)).map((r) => r.id);
 }
 
 export async function createNotifications(requested: string[], input: NotificationInput, options: { email?: boolean } = {}) {

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowDown, ArrowUp, Check, Eye, HardDrive, Pencil, Plus, RefreshCw, Settings, X } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, Check, Eye, HardDrive, LayoutDashboard, Pencil, Plus, RefreshCw, Settings, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { departmentKey, findDepartment } from '../../../shared/departments';
 import { usePortal } from '../../context/PortalContext';
@@ -7,6 +7,7 @@ import { api, errorMessage } from '../../lib/api';
 import { formatDateTime, formatFileSize, toPersianDigits } from '../../lib/jalali';
 import type { AppSettings, BackupFile, ServerStatus } from '../../types';
 import { inputClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
+import { DASHBOARD_CARDS, isCardOn } from '../dashboard/dashboardCards';
 import { RolesEditor } from './RolesEditor';
 
 type ListKey = 'newsCategories' | 'trainingCategories' | 'documentCategories';
@@ -83,7 +84,7 @@ const ListEditor: React.FC<{ settings: AppSettings; section: (typeof SECTIONS)[n
   );
 };
 
-interface DepartmentUsage {
+interface ListUsage {
   name: string;
   employees: number;
   activeEmployees: number;
@@ -91,22 +92,48 @@ interface DepartmentUsage {
   polls: number;
 }
 
+interface ManagedList {
+  key: 'departments' | 'locations';
+  title: string;
+  hint: string;
+  /** "واحد", "محل استقرار": used in the messages. */
+  noun: string;
+  mayBeEmpty: boolean;
+}
+
+const DEPARTMENTS: ManagedList = {
+  key: 'departments',
+  title: 'واحدهای سازمانی',
+  hint: 'تنها فهرست واحدهای پرتال: پروفایل همکاران، فیلتر دفتر تلفن، چارت سازمانی، ورود از اکسل و اکتیو دایرکتوری و مخاطبان اخبار و نظرسنجی‌ها از همین فهرست استفاده می‌کنند. تغییر نام، همه‌جا اعمال می‌شود.',
+  noun: 'واحد',
+  mayBeEmpty: false,
+};
+
+const LOCATIONS: ManagedList = {
+  key: 'locations',
+  title: 'محل‌های استقرار',
+  hint: 'شعبه، انبار یا طبقه‌ای که همکاران در آن کار می‌کنند. در پروفایل، دفتر تلفن، ورود از اکسل و انتخاب مخاطبان اخبار (مثلاً فقط شعبهٔ شیراز) استفاده می‌شود. تغییر نام، همه‌جا اعمال می‌شود.',
+  noun: 'محل استقرار',
+  mayBeEmpty: true,
+};
+
 /**
- * The one list of departments used everywhere in the portal. Changes are saved at once: renaming
- * updates every colleague, news item and poll; a department in use is removed by merging it into another.
+ * One of the lists used everywhere in the portal (departments, locations). Changes are saved at once:
+ * renaming updates every colleague and news item; an entry in use is removed by merging it into another.
  */
-const DepartmentsEditor: React.FC<{ settings: AppSettings }> = ({ settings }) => {
+const ManagedListEditor: React.FC<{ settings: AppSettings; config: ManagedList }> = ({ settings, config }) => {
   const { updateSettings } = usePortal();
-  const list = settings.departments;
-  const [usage, setUsage] = useState<DepartmentUsage[]>([]);
+  const { key, noun } = config;
+  const list = settings[key];
+  const [usage, setUsage] = useState<ListUsage[]>([]);
   const [draft, setDraft] = useState('');
   const [renaming, setRenaming] = useState<{ name: string; value: string } | null>(null);
   const [merging, setMerging] = useState<{ name: string; into: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
-    api.get<DepartmentUsage[]>('/api/settings/departments').then(setUsage, (err) => toast.error(errorMessage(err)));
-  }, []);
+    api.get<ListUsage[]>(`/api/settings/${key}`).then(setUsage, (err) => toast.error(errorMessage(err)));
+  }, [key]);
   const listKey = list.join('|');
   useEffect(load, [load, listKey]);
 
@@ -125,12 +152,12 @@ const DepartmentsEditor: React.FC<{ settings: AppSettings }> = ({ settings }) =>
       load();
     }
   };
-  const saveList = (next: string[]) => run(() => updateSettings({ departments: next }));
+  const saveList = (next: string[]) => run(() => updateSettings({ [key]: next }));
   const rename = (from: string, to: string) =>
     run(async () => {
       try {
-        const res = await api.post<{ to: string; merged: boolean }>('/api/settings/departments/rename', { from, to });
-        toast.success(res.merged ? `«${from}» در «${res.to}» ادغام شد.` : `نام واحد به «${res.to}» تغییر کرد.`);
+        const res = await api.post<{ to: string; merged: boolean }>(`/api/settings/${key}/rename`, { from, to });
+        toast.success(res.merged ? `«${from}» در «${res.to}» ادغام شد.` : `نام ${noun} به «${res.to}» تغییر کرد.`);
         setRenaming(null);
         setMerging(null);
       } catch (err) {
@@ -142,7 +169,7 @@ const DepartmentsEditor: React.FC<{ settings: AppSettings }> = ({ settings }) =>
     const existing = findDepartment(list, draft);
     if (!draft.trim()) return;
     if (existing) {
-      toast.error(`واحد «${existing}» از قبل در فهرست هست.`);
+      toast.error(`${noun} «${existing}» از قبل در فهرست هست.`);
       return;
     }
     setDraft('');
@@ -170,13 +197,12 @@ const DepartmentsEditor: React.FC<{ settings: AppSettings }> = ({ settings }) =>
   };
 
   return (
-    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3" aria-labelledby="departments-title">
+    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3" aria-labelledby={`${key}-title`}>
       <div>
-        <h3 id="departments-title" className="text-sm font-black text-[#2D2D2D]">واحدهای سازمانی</h3>
-        <p className="text-[11px] text-[#6E6A60] leading-relaxed">
-          تنها فهرست واحدهای پرتال: پروفایل همکاران، فیلتر دفتر تلفن، چارت سازمانی، ورود از اکسل و اکتیو دایرکتوری و مخاطبان اخبار و نظرسنجی‌ها از همین فهرست استفاده می‌کنند. تغییر نام، همه‌جا اعمال می‌شود.
-        </p>
+        <h3 id={`${key}-title`} className="text-sm font-black text-[#2D2D2D]">{config.title}</h3>
+        <p className="text-[11px] text-[#6E6A60] leading-relaxed">{config.hint}</p>
       </div>
+      {list.length === 0 && <p className="text-[11px] text-[#8C867A]">فهرست خالی است.</p>}
       <ul className="space-y-1.5">
         {list.map((item, i) => (
           <li key={item} className="p-2 bg-[#F5F2ED] rounded-xl text-xs font-bold space-y-2">
@@ -188,7 +214,7 @@ const DepartmentsEditor: React.FC<{ settings: AppSettings }> = ({ settings }) =>
                   if (!value || value === item) return setRenaming(null);
                   // Renaming to another department's name merges the two.
                   const other = list.find((d) => d !== item && departmentKey(d) === departmentKey(value));
-                  if (other && !window.confirm(`واحد «${other}» از قبل هست. همهٔ همکاران «${item}» به «${other}» منتقل و دو واحد یکی شوند؟`)) return;
+                  if (other && !window.confirm(`${noun} «${other}» از قبل هست. همهٔ همکاران «${item}» به «${other}» منتقل و این دو یکی شوند؟`)) return;
                   rename(item, value);
                 }}
                 className="flex items-center gap-1"
@@ -213,14 +239,14 @@ const DepartmentsEditor: React.FC<{ settings: AppSettings }> = ({ settings }) =>
                 <button onClick={() => move(i, -1)} disabled={busy || i === 0} aria-label={`بالا بردن ${item}`} className="p-1 disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
                 <button onClick={() => move(i, 1)} disabled={busy || i === list.length - 1} aria-label={`پایین بردن ${item}`} className="p-1 disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
                 <button onClick={() => setRenaming({ name: item, value: item })} disabled={busy} aria-label={`تغییر نام ${item}`} className="p-1"><Pencil className="w-3.5 h-3.5" /></button>
-                <button onClick={() => remove(item)} disabled={busy || list.length === 1} aria-label={`حذف ${item}`} className="p-1 text-red-700 disabled:opacity-30"><X className="w-3.5 h-3.5" /></button>
+                <button onClick={() => remove(item)} disabled={busy || (list.length === 1 && !config.mayBeEmpty)} aria-label={`حذف ${item}`} className="p-1 text-red-700 disabled:opacity-30"><X className="w-3.5 h-3.5" /></button>
               </div>
             )}
             {merging?.name === item && (
               <div className="p-2 bg-white rounded-lg border border-amber-300 space-y-2 font-normal">
-                <p className="text-amber-900 leading-relaxed">این واحد استفاده می‌شود ({describe(item)}). برای حذف، همه را به واحد دیگری منتقل کنید:</p>
+                <p className="text-amber-900 leading-relaxed">این {noun} استفاده می‌شود ({describe(item)}). برای حذف، همه را به {noun} دیگری منتقل کنید:</p>
                 <div className="flex gap-2">
-                  <select aria-label={`واحد مقصد برای ${item}`} value={merging.into} onChange={(e) => setMerging({ name: item, into: e.target.value })} className={inputClass}>
+                  <select aria-label={`${noun} مقصد برای ${item}`} value={merging.into} onChange={(e) => setMerging({ name: item, into: e.target.value })} className={inputClass}>
                     {list.filter((d) => d !== item).map((d) => <option key={d} value={d}>{d}</option>)}
                   </select>
                   <button type="button" disabled={busy || !merging.into} onClick={() => rename(item, merging.into)} className={primaryButtonClass}>انتقال و حذف</button>
@@ -238,8 +264,8 @@ const DepartmentsEditor: React.FC<{ settings: AppSettings }> = ({ settings }) =>
         }}
         className="flex gap-2"
       >
-        <input aria-label="واحد جدید" value={draft} maxLength={100} onChange={(e) => setDraft(e.target.value)} placeholder="واحد جدید" className={inputClass} />
-        <button type="submit" disabled={busy} className="px-3 rounded-xl bg-[#F5F2ED] hover:bg-[#E6E0D5]" aria-label="افزودن واحد"><Plus className="w-4 h-4" /></button>
+        <input aria-label={`${noun} جدید`} value={draft} maxLength={100} onChange={(e) => setDraft(e.target.value)} placeholder={`${noun} جدید`} className={inputClass} />
+        <button type="submit" disabled={busy} className="px-3 rounded-xl bg-[#F5F2ED] hover:bg-[#E6E0D5]" aria-label={`افزودن ${noun}`}><Plus className="w-4 h-4" /></button>
       </form>
     </section>
   );
@@ -278,7 +304,7 @@ const GuestAccessSettings: React.FC<{ settings: AppSettings }> = ({ settings }) 
         <h3 className="text-sm font-black text-[#2D2D2D]">دسترسی مهمان (بدون ورود)</h3>
       </div>
       <p className="text-[11px] text-[#6E6A60]">
-        مهمان فقط می‌بیند و نمی‌تواند نظر، رأی، لایک یا تبریک ثبت کند؛ برای هر تعامل از او خواسته می‌شود وارد شود. اخبار و نظرسنجی‌هایی که برای یک واحد خاص هدف‌گیری شده‌اند به مهمان نشان داده نمی‌شوند.
+        مهمان فقط می‌بیند و نمی‌تواند نظر، رأی، لایک یا تبریک ثبت کند؛ برای هر تعامل از او خواسته می‌شود وارد شود. اخباری که برای گروه یا افراد مشخص فرستاده شده‌اند و نظرسنجی‌های مخصوص یک واحد به مهمان نشان داده نمی‌شوند.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         <Toggle
@@ -295,6 +321,32 @@ const GuestAccessSettings: React.FC<{ settings: AppSettings }> = ({ settings }) 
           disabled={busy || !settings.guestAccess}
           onChange={(guestDirectory) => save({ guestDirectory })}
         />
+      </div>
+    </section>
+  );
+};
+
+/** Which cards everyone sees on the dashboard. */
+const DashboardCardsSettings: React.FC<{ settings: AppSettings }> = ({ settings }) => {
+  const { updateSettings } = usePortal();
+  const [busy, setBusy] = useState(false);
+  const set = async (id: string, value: boolean) => {
+    setBusy(true);
+    await updateSettings({ dashboardCards: { ...settings.dashboardCards, [id]: value } });
+    setBusy(false);
+  };
+
+  return (
+    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3 lg:col-span-2">
+      <div className="flex items-center gap-2">
+        <LayoutDashboard className="w-4 h-4 text-red-700" />
+        <h3 className="text-sm font-black text-[#2D2D2D]">کارت‌های داشبورد</h3>
+      </div>
+      <p className="text-[11px] text-[#6E6A60]">کارت‌های خاموش برای هیچ‌کس نمایش داده نمی‌شوند. «آخرین اخبار» همیشه روشن است.</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        {DASHBOARD_CARDS.map((card) => (
+          <Toggle key={card.id} label={card.label} hint={card.hint} checked={isCardOn(settings, card.id)} disabled={busy} onChange={(value) => set(card.id, value)} />
+        ))}
       </div>
     </section>
   );
@@ -422,7 +474,9 @@ export const AdminSettingsModule: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ServerStatusCard />
           <GuestAccessSettings settings={appSettings} />
-          <DepartmentsEditor settings={appSettings} />
+          <DashboardCardsSettings settings={appSettings} />
+          <ManagedListEditor settings={appSettings} config={DEPARTMENTS} />
+          <ManagedListEditor settings={appSettings} config={LOCATIONS} />
           {SECTIONS.map((s) => <ListEditor key={`${s.key}-${appSettings[s.key].join('|')}`} settings={appSettings} section={s} />)}
         </div>
       )}

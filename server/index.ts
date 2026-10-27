@@ -3,7 +3,7 @@ import path from 'path';
 import { createApp } from './app.js';
 import { config } from './config.js';
 import { runMigrations } from './db/index.js';
-import { reconcileDepartments } from './departments.js';
+import { reconcileDepartments, reconcileLocations } from './departments.js';
 import { describeDirectoryUser } from './ldap.js';
 import { isMailEnabled } from './mailer.js';
 import { ensureRoles } from './roles.js';
@@ -19,6 +19,14 @@ async function main() {
     for (const r of departments.renamed) console.log(`Department "${r.from}" now written as "${r.to}"`);
   } catch (err) {
     console.error('Could not reconcile departments:', err);
+  }
+  // The same for the locations colleagues typed in their profiles before the list existed.
+  try {
+    const locations = await reconcileLocations();
+    if (locations.added.length > 0) console.log(`Locations added to the list from existing data: ${locations.added.join(', ')}`);
+    for (const r of locations.renamed) console.log(`Location "${r.from}" now written as "${r.to}"`);
+  } catch (err) {
+    console.error('Could not reconcile locations:', err);
   }
   const app = createApp();
 

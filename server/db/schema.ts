@@ -119,8 +119,19 @@ export const news = pgTable(
     isUrgent: boolean('is_urgent').notNull().default(false),
     requiresAck: boolean('requires_ack').notNull().default(false),
     tags: text('tags').array().notNull().default([]),
-    // Empty array means the whole organization.
+    // Who the item is for. All empty means the whole organization. The department, location and role
+    // lists narrow each other (e.g. sales staff in the Shiraz branch); targetUserIds adds people on top.
     targetDepartments: text('target_departments').array().notNull().default([]),
+    targetLocations: text('target_locations').array().notNull().default([]),
+    targetRoles: text('target_roles').array().notNull().default([]),
+    targetUserIds: text('target_user_ids').array().notNull().default([]),
+    // 'html' for text written in the editor (sanitized when saved); older items are plain 'text'.
+    contentFormat: text('content_format').notNull().default('text'),
+    // Circulars: acknowledge by the end of this day. Reminder and overdue report are sent once each.
+    ackDeadline: timestamp('ack_deadline', { withTimezone: true }),
+    ackRemindedAt: timestamp('ack_reminded_at', { withTimezone: true }),
+    ackAutoRemindedAt: timestamp('ack_auto_reminded_at', { withTimezone: true }),
+    ackReportedAt: timestamp('ack_reported_at', { withTimezone: true }),
     attachments: jsonb('attachments').$type<AttachmentRecord[]>().notNull().default([]),
     publishAt: timestamp('publish_at', { withTimezone: true }).notNull().defaultNow(),
     expiresAt: timestamp('expires_at', { withTimezone: true }),
@@ -322,4 +333,8 @@ export const settings = pgTable('settings', {
   guestDirectory: boolean('guest_directory').notNull().default(false),
   // Short message shown above every page until it expires (e.g. "the internet is down until noon").
   banner: jsonb('banner').$type<BannerRecord | null>(),
+  // Where colleagues work (branches, warehouse, floors); a managed list like departments.
+  locations: text('locations').array().notNull().default([]),
+  // Dashboard cards an admin switched off, e.g. { mood: false }. Missing keys are shown.
+  dashboardCards: jsonb('dashboard_cards').$type<Record<string, boolean>>().notNull().default({}),
 });

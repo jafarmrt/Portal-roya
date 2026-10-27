@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { cleanDepartmentName, departmentKey, findDepartment, suggestDepartment } from '../shared/departments.js';
 import { toLatinDigits } from '../shared/jalali.js';
 import { db } from './db/index.js';
-import { departmentList } from './departments.js';
+import { departmentList, locationList } from './departments.js';
 import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID } from '../shared/permissions.js';
 import { employees, roles } from './db/schema.js';
 import { jalaliDateValue, optionalJalaliDate, optionalText, requiredText, textValue, username } from './validation.js';
@@ -22,6 +22,7 @@ const COLUMNS = {
   email: ['ایمیل', 'پست الکترونیک', 'email', 'e-mail'],
   mobile: ['موبایل', 'تلفن همراه', 'شماره موبایل', 'mobile', 'phone'],
   extension: ['داخلی', 'شماره داخلی', 'تلفن داخلی', 'extension', 'ext'],
+  location: ['محل استقرار', 'محل کار', 'محل خدمت', 'شعبه', 'location', 'office'],
   birthDate: ['تاریخ تولد', 'birthdate', 'birth date'],
   hireDate: ['تاریخ استخدام', 'تاریخ شروع همکاری', 'hiredate', 'hire date'],
 } as const;
@@ -41,6 +42,7 @@ export const FIELD_LABELS: Record<Field, string> = {
   email: 'ایمیل',
   mobile: 'موبایل',
   extension: 'داخلی',
+  location: 'محل استقرار',
   birthDate: 'تاریخ تولد',
   hireDate: 'تاریخ استخدام',
 };
@@ -69,6 +71,7 @@ const rowSchema = z.object({
   email: optionalText(200),
   mobile: optionalText(30),
   extension: optionalText(20),
+  location: optionalText(200),
   birthDate: optionalJalaliDate,
   hireDate: optionalJalaliDate,
 });
@@ -93,6 +96,7 @@ const updateSchema = z
     email: textValue(200),
     mobile: textValue(30),
     extension: textValue(20),
+    location: textValue(200),
     birthDate: jalaliDateValue,
     hireDate: jalaliDateValue,
   })
@@ -291,6 +295,7 @@ export async function checkRows(
   { allowAdmin, departments = 'ask' }: { allowAdmin: boolean; departments?: Record<string, string> | 'ask' },
 ): Promise<CheckedRow[]> {
   const resolveDepartment = departmentResolver(await departmentList(), departments);
+  const locations = await locationList();
   const resolveRole = await roleResolver();
   const roleNames = new Map((await db.select({ id: roles.id, name: roles.name }).from(roles)).map((r) => [r.id, r.name]));
   const roleName = (id: string) => roleNames.get(id) ?? id;
@@ -310,6 +315,22 @@ export async function checkRows(
       if ('error' in department) return { row, data: text, errors: [department.error], warnings: [] };
       text.department = department.name;
       if (department.isNew) newDepartment = department.name;
+    }
+    // Locations must come from the list in the settings; a close spelling is suggested.
+    if (text.location) {
+      const location = findDepartment(locations, text.location);
+      if (!location) {
+        const suggestion = suggestDepartment(locations, text.location);
+        return {
+          row,
+          data: text,
+          errors: [
+            `محل استقرار: «${cleanDepartmentName(text.location)}» در فهرست محل‌های استقرار نیست${suggestion ? `؛ منظور «${suggestion}» است؟` : ''} (فهرست در تنظیمات پرتال)`,
+          ],
+          warnings: [],
+        };
+      }
+      text.location = location;
     }
     const withDepartment = (r: CheckedRow): CheckedRow => {
       if (!newDepartment || !(r.value || r.update?.set.department)) return r;

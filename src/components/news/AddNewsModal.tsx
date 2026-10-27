@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
-import { CalendarClock, CheckCircle2, FileText, Image as ImageIcon, Newspaper, Paperclip, Trash2, Users } from 'lucide-react';
+import React, { lazy, Suspense, useState } from 'react';
+import { CalendarClock, CheckCircle2, Eye, FileText, Image as ImageIcon, Newspaper, Paperclip, PenLine, Trash2 } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import type { Attachment, NewsInput, NewsItem } from '../../types';
 import { toJalali, formatFileSize } from '../../lib/jalali';
+import { loadModule } from '../common/ErrorBoundary';
 import { DOCUMENT_ACCEPT, FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
 import { JalaliDateInput } from '../common/JalaliDateInput';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
+import { AudiencePicker } from './AudiencePicker';
+import { NewsContent, plainTextToHtml } from './NewsBody';
+
+// The editor is only downloaded by people who write news.
+const RichTextEditor = lazy(loadModule(() => import('./RichTextEditor')));
 
 interface NewsEditorModalProps {
   onClose: () => void;
@@ -26,7 +32,12 @@ function initialState(item: NewsItem | undefined, defaultCategory: string): News
       requiresAck: false,
       tags: [],
       targetDepartments: [],
+      targetLocations: [],
+      targetRoles: [],
+      targetUserIds: [],
+      contentFormat: 'html',
       attachments: [],
+      ackDate: '',
       publishDate: '',
       publishTime: '',
       expiresDate: '',
@@ -36,7 +47,9 @@ function initialState(item: NewsItem | undefined, defaultCategory: string): News
   return {
     title: item.title,
     summary: item.summary,
-    content: item.content,
+    // Older items are plain text; they are opened in the editor as paragraphs.
+    content: item.contentFormat === 'html' ? item.content : plainTextToHtml(item.content),
+    contentFormat: 'html',
     category: item.category,
     image: item.image,
     isPinned: item.isPinned,
@@ -44,7 +57,11 @@ function initialState(item: NewsItem | undefined, defaultCategory: string): News
     requiresAck: item.requiresAck,
     tags: item.tags,
     targetDepartments: item.targetDepartments,
+    targetLocations: item.targetLocations,
+    targetRoles: item.targetRoles,
+    targetUserIds: item.targetUserIds,
     attachments: item.attachments,
+    ackDate: item.ackDeadline ? toJalali(item.ackDeadline) : '',
     publishDate: scheduled ? toJalali(item.publishAt) : '',
     publishTime: scheduled ? toJalali(item.publishAt, 'HH:mm') : '',
     expiresDate: item.expiresAt ? toJalali(item.expiresAt) : '',
@@ -52,24 +69,25 @@ function initialState(item: NewsItem | undefined, defaultCategory: string): News
 }
 
 export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) => {
-  const { saveNews, appSettings } = usePortal();
+  const { saveNews, appSettings, currentUser } = usePortal();
   const categories = appSettings?.newsCategories ?? [];
-  const departments = appSettings?.departments ?? [];
   const [form, setForm] = useState<NewsInput>(() => initialState(item, categories[0] ?? 'اخبار سازمان'));
+  const [contentEmpty, setContentEmpty] = useState(() => !form.content.replace(/<[^>]*>/g, '').trim() && !form.content.includes('<img'));
+  const [preview, setPreview] = useState(false);
   const [tagsText, setTagsText] = useState(form.tags.join('، '));
   const [scheduleOpen, setScheduleOpen] = useState(Boolean(form.publishDate || form.expiresDate));
   const [busy, setBusy] = useState(false);
 
   const set = <K extends keyof NewsInput>(key: K, value: NewsInput[K]) => setForm((f) => ({ ...f, [key]: value }));
 
-  const toggleDepartment = (dep: string) =>
-    set('targetDepartments', form.targetDepartments.includes(dep) ? form.targetDepartments.filter((d) => d !== dep) : [...form.targetDepartments, dep]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     const tags = tagsText.split(/[,،]/).map((t) => t.trim()).filter(Boolean);
-    const ok = await saveNews({ ...form, tags, publishTime: form.publishDate ? form.publishTime || '08:00' : '' }, item?.id);
+    const ok = await saveNews(
+      { ...form, tags, publishTime: form.publishDate ? form.publishTime || '08:00' : '', ackDate: form.requiresAck ? form.ackDate : '' },
+      item?.id,
+    );
     setBusy(false);
     if (ok) onClose();
   };
@@ -84,14 +102,31 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
       footer={
         <>
           <button type="button" onClick={onClose} className={secondaryButtonClass}>انصراف</button>
-          <button type="submit" form="news-editor" disabled={busy} className={primaryButtonClass}>
+          <button type="button" onClick={() => setPreview((p) => !p)} className={`${secondaryButtonClass} ml-auto`}>
+            {preview ? <PenLine className="w-4 h-4" /> : <Eye className="w-4 h-4" />} {preview ? 'بازگشت به ویرایش' : 'پیش‌نمایش'}
+          </button>
+          <button type="submit" form="news-editor" disabled={busy || contentEmpty} className={primaryButtonClass}>
             <CheckCircle2 className="w-4 h-4" />
             <span>{busy ? 'در حال ذخیره...' : item ? 'ذخیرهٔ تغییرات' : form.publishDate ? 'زمان‌بندی انتشار' : 'انتشار'}</span>
           </button>
         </>
       }
     >
-      <form id="news-editor" onSubmit={handleSubmit} className="space-y-5">
+      {preview && (
+        <div className="space-y-4 text-sm leading-loose" aria-label="پیش‌نمایش">
+          <p className="text-[11px] text-[#8C867A]">همکاران خبر را این‌طور می‌بینند:</p>
+          <h2 className="text-lg font-black text-[#2D2D2D]">{form.title || 'بدون عنوان'}</h2>
+          {form.image && <img src={form.image} alt="" className="w-full max-h-80 object-cover rounded-2xl" />}
+          {form.summary && <div className="p-4 bg-[#F5F2ED] rounded-2xl border-r-4 border-[#dc2626] font-semibold">{form.summary}</div>}
+          <NewsContent content={form.content} format="html" />
+          {form.attachments.length > 0 && (
+            <ul className="pt-4 border-t border-[#E6E0D5] space-y-1 text-xs">
+              {form.attachments.map((a) => <li key={a.url} className="flex items-center gap-1.5"><Paperclip className="w-3.5 h-3.5" />{a.name}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+      <form id="news-editor" onSubmit={handleSubmit} className={`space-y-5 ${preview ? 'hidden' : ''}`}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2">
             <label htmlFor="news-title" className={labelClass}>عنوان *</label>
@@ -112,7 +147,16 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
 
         <div>
           <label htmlFor="news-content" className={labelClass}>متن کامل *</label>
-          <textarea id="news-content" required rows={8} maxLength={20000} value={form.content} onChange={(e) => set('content', e.target.value)} className={`${inputClass} leading-loose`} />
+          <Suspense fallback={<div className="h-64 rounded-xl border border-[#D9D4CB] bg-[#F5F2ED] animate-pulse" />}>
+            <RichTextEditor
+              id="news-content"
+              value={form.content}
+              onChange={(html, isEmpty) => {
+                set('content', html);
+                setContentEmpty(isEmpty);
+              }}
+            />
+          </Suspense>
         </div>
 
         {/* Delivery options: these decide who is notified and how. */}
@@ -125,6 +169,15 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
               <span className="block text-[11px] text-[#6E6A60]">هر همکار باید روی «مطالعه کردم» بزند و شما فهرست خوانده‌ها و نخوانده‌ها را می‌بینید.</span>
             </span>
           </label>
+          {form.requiresAck && (
+            <div className="mr-6 max-w-xs">
+              <label htmlFor="news-ack-date" className={labelClass}>مهلت تأیید (اختیاری)</label>
+              <JalaliDateInput id="news-ack-date" value={form.ackDate} onChange={(v) => set('ackDate', v)} />
+              <p className="text-[11px] text-[#6E6A60] mt-1 leading-relaxed">
+                یک روز پیش از مهلت به کسانی که تأیید نکرده‌اند یادآوری می‌شود. بعد از مهلت، فهرست آن‌ها به تفکیک واحد برای شما و برای مدیر مستقیم هر نفر فرستاده می‌شود.
+              </p>
+            </div>
+          )}
           <label className="flex items-start gap-2 cursor-pointer">
             <input type="checkbox" checked={form.isUrgent} onChange={(e) => set('isUrgent', e.target.checked)} className="mt-0.5 accent-red-700" />
             <span>
@@ -138,35 +191,11 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
           </label>
         </fieldset>
 
-        <fieldset className="space-y-2">
-          <legend className={`${labelClass} flex items-center gap-1.5`}>
-            <Users className="w-4 h-4" /> مخاطبان
-          </legend>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => set('targetDepartments', [])}
-              aria-pressed={form.targetDepartments.length === 0}
-              className={`px-3 py-1.5 rounded-xl font-bold border ${form.targetDepartments.length === 0 ? 'bg-red-700 text-white border-red-700' : 'bg-white border-[#D9D4CB]'}`}
-            >
-              همهٔ سازمان
-            </button>
-            {departments.map((dep) => {
-              const active = form.targetDepartments.includes(dep);
-              return (
-                <button
-                  key={dep}
-                  type="button"
-                  onClick={() => toggleDepartment(dep)}
-                  aria-pressed={active}
-                  className={`px-3 py-1.5 rounded-xl font-bold border ${active ? 'bg-red-700 text-white border-red-700' : 'bg-white border-[#D9D4CB]'}`}
-                >
-                  {dep}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
+        <AudiencePicker
+          authorId={item?.authorId ?? currentUser?.id ?? ''}
+          value={{ departments: form.targetDepartments, locations: form.targetLocations, roles: form.targetRoles, userIds: form.targetUserIds }}
+          onChange={(a) => setForm((f) => ({ ...f, targetDepartments: a.departments, targetLocations: a.locations, targetRoles: a.roles, targetUserIds: a.userIds }))}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">

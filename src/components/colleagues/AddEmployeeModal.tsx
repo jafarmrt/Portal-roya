@@ -7,6 +7,7 @@ import { FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
 import { JalaliDateInput } from '../common/JalaliDateInput';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { Avatar } from '../common/Avatar';
+import { LocationSelect } from './LocationSelect';
 
 interface AddEmployeeModalProps {
   isOpen: boolean;
@@ -139,7 +140,7 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor="emp-location" className={labelClass}>محل استقرار</label>
-            <input id="emp-location" value={form.location} onChange={(e) => set('location', e.target.value)} placeholder="دفتر مرکزی - طبقه ۲" className={inputClass} />
+            <LocationSelect id="emp-location" value={form.location} onChange={(v) => set('location', v)} />
           </div>
           <div>
             <span className={labelClass}>عکس پرسنلی</span>

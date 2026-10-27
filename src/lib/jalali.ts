@@ -65,3 +65,15 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 ** 3) return decimal(bytes / 1024 ** 2, 'مگابایت');
   return decimal(bytes / 1024 ** 3, 'گیگابایت');
 }
+
+const WEEKDAY_NAMES = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
+
+/** "امروز", "فردا" or "شنبه ۱۰ آبان" for a day in the coming week (ISO or Jalali 'YYYY/MM/DD'). */
+export function dayLabel(value: string, now = moment()): string {
+  const m = /^\d{4}\/\d{2}\/\d{2}$/.test(value) ? moment(value, 'jYYYY/jMM/jDD') : moment(value);
+  if (!m.isValid()) return value;
+  const days = m.clone().startOf('day').diff(now.clone().startOf('day'), 'days');
+  if (days === 0) return 'امروز';
+  if (days === 1) return 'فردا';
+  return toPersianDigits(`${WEEKDAY_NAMES[m.day()]} ${m.jDate()} ${JALALI_MONTH_NAMES[m.jMonth()]}`);
+}

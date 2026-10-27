@@ -50,6 +50,13 @@
       "when": 1793077865472,
       "tag": "0006_training_events_banner",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793080124481,
+      "tag": "0007_news_audience_locations",
+      "breakpoints": true
     }
   ]
 }

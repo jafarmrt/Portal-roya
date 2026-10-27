@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AlarmClock,
   AlertTriangle,
   BarChart3,
   Calendar,
@@ -28,6 +29,7 @@ import { formatDate, formatDateTime, formatFileSize, toPersianDigits } from '../
 import { Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { BannerEditorModal } from '../common/SiteBanner';
 import { AddNewsModal } from './AddNewsModal';
+import { audienceSummary, deadlineState, NewsContent } from './NewsBody';
 import { ReadReceiptsModal } from './ReadReceiptsModal';
 
 type Filter = 'all' | 'unread' | 'ack' | string;
@@ -272,6 +274,7 @@ const StatusBadges: React.FC<{ article: NewsItem }> = ({ article }) => (
         <FileCheck2 className="w-3 h-3" /> {article.acknowledgedAt ? 'تأیید شده' : 'نیاز به تأیید'}
       </span>
     )}
+    {article.requiresAck && !article.acknowledgedAt && <DeadlineBadge article={article} />}
     {article.isPinned && (
       <span className="px-2.5 py-1 text-[10px] font-bold bg-[#7f1d1d] text-white rounded-full flex items-center gap-1">
         <Pin className="w-3 h-3" /> سنجاق‌شده
@@ -279,6 +282,19 @@ const StatusBadges: React.FC<{ article: NewsItem }> = ({ article }) => (
     )}
   </>
 );
+
+/** "تا ۱۰ آبان" on a circular this person still has to acknowledge; red on the last day and after. */
+const DeadlineBadge: React.FC<{ article: NewsItem }> = ({ article }) => {
+  const state = deadlineState(article);
+  if (state === 'none') return null;
+  const tone = state === 'open' ? 'bg-white text-amber-900 border border-amber-300' : 'bg-red-700 text-white';
+  return (
+    <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full flex items-center gap-1 ${tone}`}>
+      <AlarmClock className="w-3 h-3" />
+      {state === 'overdue' ? `مهلت تأیید گذشته (${formatDate(article.ackDeadline!)})` : `مهلت تأیید: ${formatDate(article.ackDeadline!)}`}
+    </span>
+  );
+};
 
 interface NewsCardProps {
   article: NewsItem;
@@ -290,77 +306,81 @@ interface NewsCardProps {
   onReceipts: () => void;
 }
 
-const NewsCard: React.FC<NewsCardProps> = ({ article, isManager, onOpen, onLike, onEdit, onDelete, onReceipts }) => (
-  <article className={`bg-white rounded-2xl border overflow-hidden hover:shadow-lg transition-all flex flex-col ${article.isRead ? 'border-[#E6E0D5]' : 'border-red-300'}`}>
-    {article.image ? (
-      <button type="button" onClick={onOpen} className="relative h-44 overflow-hidden bg-[#F5F2ED]" aria-label={article.title}>
-        <img src={article.image} alt="" loading="lazy" className="w-full h-full object-cover" />
-        <span className="absolute top-3 right-3 px-3 py-1 text-[10px] font-bold bg-[#7f1d1d]/85 text-white rounded-full">{article.category}</span>
-      </button>
-    ) : (
-      <div className="px-5 pt-5">
-        <span className="px-3 py-1 text-[10px] font-bold bg-[#F5F2ED] text-[#7f1d1d] rounded-full">{article.category}</span>
-      </div>
-    )}
-
-    <div className="p-5 flex-1 flex flex-col justify-between gap-3">
-      <div className="space-y-2">
-        <div className="flex flex-wrap gap-1.5"><StatusBadges article={article} /></div>
-        <div className="flex items-center gap-2 text-[11px] text-[#6E6A60] flex-wrap">
-          {!article.isRead && <span className="w-2 h-2 rounded-full bg-red-600" aria-label="نخوانده" />}
-          <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{formatDate(article.publishAt)}</span>
-          <span>•</span>
-          <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" />{article.author}</span>
-          {article.targetDepartments.length > 0 && (
-            <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{article.targetDepartments.join('، ')}</span>
-          )}
-        </div>
-        <h3>
-          <button type="button" onClick={onOpen} className={`text-sm text-right text-[#2D2D2D] hover:text-[#dc2626] leading-snug line-clamp-2 ${article.isRead ? 'font-bold' : 'font-black'}`}>
-            {article.title}
-          </button>
-        </h3>
-        <p className="text-xs text-[#6E6A60] leading-relaxed line-clamp-3">{article.summary}</p>
-        {article.attachments.length > 0 && (
-          <p className="text-[11px] text-[#6E6A60] flex items-center gap-1"><Paperclip className="w-3.5 h-3.5" />{toPersianDigits(article.attachments.length)} پیوست</p>
-        )}
-      </div>
-
-      {isManager && article.readStats && (
-        <button type="button" onClick={onReceipts} className="text-[11px] text-right p-2 bg-[#F5F2ED] hover:bg-[#E6E0D5] rounded-xl flex items-center gap-1.5">
-          <BarChart3 className="w-3.5 h-3.5 text-red-700" />
-          خوانده: {toPersianDigits(article.readStats.read)} از {toPersianDigits(article.readStats.audience)}
-          {article.requiresAck && ` • تأیید: ${toPersianDigits(article.readStats.acknowledged)}`}
+const NewsCard: React.FC<NewsCardProps> = ({ article, isManager, onOpen, onLike, onEdit, onDelete, onReceipts }) => {
+  const { roleName } = usePortal();
+  const audience = audienceSummary(article, roleName);
+  return (
+    <article className={`bg-white rounded-2xl border overflow-hidden hover:shadow-lg transition-all flex flex-col ${article.isRead ? 'border-[#E6E0D5]' : 'border-red-300'}`}>
+      {article.image ? (
+        <button type="button" onClick={onOpen} className="relative h-44 overflow-hidden bg-[#F5F2ED]" aria-label={article.title}>
+          <img src={article.image} alt="" loading="lazy" className="w-full h-full object-cover" />
+          <span className="absolute top-3 right-3 px-3 py-1 text-[10px] font-bold bg-[#7f1d1d]/85 text-white rounded-full">{article.category}</span>
         </button>
+      ) : (
+        <div className="px-5 pt-5">
+          <span className="px-3 py-1 text-[10px] font-bold bg-[#F5F2ED] text-[#7f1d1d] rounded-full">{article.category}</span>
+        </div>
       )}
 
-      <div className="pt-3 border-t border-[#E6E0D5] flex items-center justify-between gap-2">
-        <button
-          onClick={onLike}
-          aria-pressed={article.likedByMe}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-            article.likedByMe ? 'bg-[#FBF0EC] text-[#C2553A] border border-[#D97B5F]/30' : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#6E6A60]'
-          }`}
-        >
-          <Heart className={`w-3.5 h-3.5 ${article.likedByMe ? 'fill-current' : ''}`} />
-          <span>{toPersianDigits(article.likesCount)}</span>
-        </button>
-        <div className="flex items-center gap-1">
-          {isManager && (
-            <>
-              <button onClick={onEdit} aria-label="ویرایش" className="p-1.5 text-[#6E6A60] hover:text-red-700 rounded-lg hover:bg-[#F5F2ED]"><Edit3 className="w-4 h-4" /></button>
-              <button onClick={onDelete} aria-label="حذف" className="p-1.5 text-[#6E6A60] hover:text-red-700 rounded-lg hover:bg-[#F5F2ED]"><Trash2 className="w-4 h-4" /></button>
-            </>
+      <div className="p-5 flex-1 flex flex-col justify-between gap-3">
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-1.5"><StatusBadges article={article} /></div>
+          <div className="flex items-center gap-2 text-[11px] text-[#6E6A60] flex-wrap">
+            {!article.isRead && <span className="w-2 h-2 rounded-full bg-red-600" aria-label="نخوانده" />}
+            <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{formatDate(article.publishAt)}</span>
+            <span>•</span>
+            <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" />{article.author}</span>
+            {audience && (
+              <span className="flex items-center gap-1" title="مخاطبان"><Users className="w-3.5 h-3.5" />{audience}</span>
+            )}
+          </div>
+          <h3>
+            <button type="button" onClick={onOpen} className={`text-sm text-right text-[#2D2D2D] hover:text-[#dc2626] leading-snug line-clamp-2 ${article.isRead ? 'font-bold' : 'font-black'}`}>
+              {article.title}
+            </button>
+          </h3>
+          <p className="text-xs text-[#6E6A60] leading-relaxed line-clamp-3">{article.summary}</p>
+          {article.attachments.length > 0 && (
+            <p className="text-[11px] text-[#6E6A60] flex items-center gap-1"><Paperclip className="w-3.5 h-3.5" />{toPersianDigits(article.attachments.length)} پیوست</p>
           )}
-          <button onClick={onOpen} className="text-xs font-bold text-[#dc2626] hover:underline flex items-center gap-1">
-            <span>ادامه مطلب</span>
-            <ChevronLeft className="w-3.5 h-3.5" />
+        </div>
+
+        {isManager && article.readStats && (
+          <button type="button" onClick={onReceipts} className="text-[11px] text-right p-2 bg-[#F5F2ED] hover:bg-[#E6E0D5] rounded-xl flex items-center gap-1.5">
+            <BarChart3 className="w-3.5 h-3.5 text-red-700" />
+            خوانده: {toPersianDigits(article.readStats.read)} از {toPersianDigits(article.readStats.audience)}
+            {article.requiresAck && ` • تأیید: ${toPersianDigits(article.readStats.acknowledged)}`}
           </button>
+        )}
+
+        <div className="pt-3 border-t border-[#E6E0D5] flex items-center justify-between gap-2">
+          <button
+            onClick={onLike}
+            aria-pressed={article.likedByMe}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              article.likedByMe ? 'bg-[#FBF0EC] text-[#C2553A] border border-[#D97B5F]/30' : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#6E6A60]'
+            }`}
+          >
+            <Heart className={`w-3.5 h-3.5 ${article.likedByMe ? 'fill-current' : ''}`} />
+            <span>{toPersianDigits(article.likesCount)}</span>
+          </button>
+          <div className="flex items-center gap-1">
+            {isManager && (
+              <>
+                <button onClick={onEdit} aria-label="ویرایش" className="p-1.5 text-[#6E6A60] hover:text-red-700 rounded-lg hover:bg-[#F5F2ED]"><Edit3 className="w-4 h-4" /></button>
+                <button onClick={onDelete} aria-label="حذف" className="p-1.5 text-[#6E6A60] hover:text-red-700 rounded-lg hover:bg-[#F5F2ED]"><Trash2 className="w-4 h-4" /></button>
+              </>
+            )}
+            <button onClick={onOpen} className="text-xs font-bold text-[#dc2626] hover:underline flex items-center gap-1">
+              <span>ادامه مطلب</span>
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  </article>
-);
+    </article>
+  );
+};
 
 interface ArticleModalProps {
   article: NewsItem;
@@ -371,81 +391,101 @@ interface ArticleModalProps {
   onReceipts: () => void;
 }
 
-const ArticleModal: React.FC<ArticleModalProps> = ({ article, isManager, onClose, onLike, onAcknowledge, onReceipts }) => (
-  <Modal
-    title={article.title}
-    subtitle={`${article.category} • ${article.author}${article.authorRole ? ` (${article.authorRole})` : ''} • ${formatDate(article.publishAt)}`}
-    icon={<Newspaper className="w-5 h-5" />}
-    onClose={onClose}
-    size="xl"
-    footer={
-      <div className="w-full flex flex-wrap items-center justify-between gap-2">
-        <button
-          onClick={onLike}
-          aria-pressed={article.likedByMe}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold ${article.likedByMe ? 'bg-[#dc2626] text-white' : 'bg-white border border-[#E6E0D5]'}`}
-        >
-          <Heart className={`w-4 h-4 ${article.likedByMe ? 'fill-white' : ''}`} />
-          <span>پسندیدن ({toPersianDigits(article.likesCount)})</span>
-        </button>
-        <div className="flex items-center gap-2">
-          {isManager && (
-            <button onClick={onReceipts} className={secondaryButtonClass}>
-              <BarChart3 className="w-4 h-4" /> چه کسانی خوانده‌اند؟
-            </button>
-          )}
-          <button onClick={onClose} className={secondaryButtonClass}>بستن</button>
+const ArticleModal: React.FC<ArticleModalProps> = ({ article, isManager, onClose, onLike, onAcknowledge, onReceipts }) => {
+  const { roleName } = usePortal();
+  const audience = audienceSummary(article, roleName);
+  const deadline = deadlineState(article);
+  return (
+    <Modal
+      title={article.title}
+      subtitle={`${article.category} • ${article.author}${article.authorRole ? ` (${article.authorRole})` : ''} • ${formatDate(article.publishAt)}`}
+      icon={<Newspaper className="w-5 h-5" />}
+      onClose={onClose}
+      size="xl"
+      footer={
+        <div className="w-full flex flex-wrap items-center justify-between gap-2">
+          <button
+            onClick={onLike}
+            aria-pressed={article.likedByMe}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold ${article.likedByMe ? 'bg-[#dc2626] text-white' : 'bg-white border border-[#E6E0D5]'}`}
+          >
+            <Heart className={`w-4 h-4 ${article.likedByMe ? 'fill-white' : ''}`} />
+            <span>پسندیدن ({toPersianDigits(article.likesCount)})</span>
+          </button>
+          <div className="flex items-center gap-2">
+            {isManager && (
+              <button onClick={onReceipts} className={secondaryButtonClass}>
+                <BarChart3 className="w-4 h-4" /> چه کسانی خوانده‌اند؟
+              </button>
+            )}
+            <button onClick={onClose} className={secondaryButtonClass}>بستن</button>
+          </div>
         </div>
-      </div>
-    }
-  >
-    <div className="space-y-4 text-sm leading-loose">
-      <div className="flex flex-wrap gap-1.5"><StatusBadges article={article} /></div>
-      {article.image && <img src={article.image} alt="" className="w-full max-h-80 object-cover rounded-2xl" />}
+      }
+    >
+      <div className="space-y-4 text-sm leading-loose">
+        <div className="flex flex-wrap gap-1.5"><StatusBadges article={article} /></div>
+        {article.image && <img src={article.image} alt="" className="w-full max-h-80 object-cover rounded-2xl" />}
 
-      {article.requiresAck && (
-        <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${article.acknowledgedAt ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-300'}`}>
-          {article.acknowledgedAt ? (
-            <p className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4" /> مطالعهٔ این بخشنامه را در {formatDateTime(article.acknowledgedAt)} تأیید کرده‌اید.
-            </p>
-          ) : (
-            <>
-              <p className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4" /> این بخشنامه نیاز به تأیید مطالعه دارد.
+        {article.requiresAck && (
+          <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${article.acknowledgedAt ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-300'}`}>
+            {article.acknowledgedAt ? (
+              <p className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4" /> مطالعهٔ این بخشنامه را در {formatDateTime(article.acknowledgedAt)} تأیید کرده‌اید.
               </p>
-              {article.status === 'published' && (
-                <button onClick={onAcknowledge} className={primaryButtonClass}>
-                  <FileCheck2 className="w-4 h-4" /> مطالعه کردم و آگاه هستم
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      )}
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4" /> این بخشنامه نیاز به تأیید مطالعه دارد.
+                  </p>
+                  {deadline !== 'none' && (
+                    <p className={`text-xs flex items-center gap-1.5 ${deadline === 'open' ? 'text-amber-900' : 'text-red-700 font-bold'}`}>
+                      <AlarmClock className="w-4 h-4" />
+                      {deadline === 'overdue'
+                        ? `مهلت تأیید (${formatDate(article.ackDeadline!)}) گذشته است؛ لطفاً هر چه زودتر تأیید کنید.`
+                        : `لطفاً تا پایان ${formatDate(article.ackDeadline!)} تأیید کنید.`}
+                    </p>
+                  )}
+                </div>
+                {article.status === 'published' && (
+                  <button onClick={onAcknowledge} className={primaryButtonClass}>
+                    <FileCheck2 className="w-4 h-4" /> مطالعه کردم و آگاه هستم
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
-      <div className="p-4 bg-[#F5F2ED] rounded-2xl border-r-4 border-[#dc2626] font-semibold">{article.summary}</div>
-      <div className="whitespace-pre-line text-[#2D2D2D]">{article.content}</div>
+        <div className="p-4 bg-[#F5F2ED] rounded-2xl border-r-4 border-[#dc2626] font-semibold">{article.summary}</div>
+        <NewsContent content={article.content} format={article.contentFormat} />
 
-      {article.attachments.length > 0 && (
-        <div className="pt-4 border-t border-[#E6E0D5] space-y-2">
-          <h4 className="text-xs font-bold text-[#6E6A60] flex items-center gap-1.5"><Paperclip className="w-4 h-4" /> پیوست‌ها</h4>
-          {article.attachments.map((a) => (
-            <a key={a.url} href={a.url} download={a.name} className="flex items-center justify-between gap-2 p-3 bg-[#F5F2ED] hover:bg-[#E6E0D5] rounded-xl text-xs">
-              <span className="flex items-center gap-2 min-w-0"><FileText className="w-4 h-4 text-red-700 shrink-0" /><span className="truncate font-bold">{a.name}</span></span>
-              <span className="text-[#8C867A] whitespace-nowrap">{formatFileSize(a.size)}</span>
-            </a>
-          ))}
-        </div>
-      )}
+        {article.attachments.length > 0 && (
+          <div className="pt-4 border-t border-[#E6E0D5] space-y-2">
+            <h4 className="text-xs font-bold text-[#6E6A60] flex items-center gap-1.5"><Paperclip className="w-4 h-4" /> پیوست‌ها</h4>
+            {article.attachments.map((a) => (
+              <a key={a.url} href={a.url} download={a.name} className="flex items-center justify-between gap-2 p-3 bg-[#F5F2ED] hover:bg-[#E6E0D5] rounded-xl text-xs">
+                <span className="flex items-center gap-2 min-w-0"><FileText className="w-4 h-4 text-red-700 shrink-0" /><span className="truncate font-bold">{a.name}</span></span>
+                <span className="text-[#8C867A] whitespace-nowrap">{formatFileSize(a.size)}</span>
+              </a>
+            ))}
+          </div>
+        )}
 
-      {article.tags.length > 0 && (
-        <div className="pt-4 border-t border-[#E6E0D5] flex items-center gap-2 flex-wrap text-xs">
-          <Tag className="w-4 h-4 text-[#8C867A]" />
-          {article.tags.map((t) => <span key={t} className="px-2.5 py-1 bg-[#F5F2ED] rounded-lg">#{t}</span>)}
-        </div>
-      )}
-      {article.expiresAt && <p className="text-[11px] text-[#8C867A]">نمایش تا {formatDate(article.expiresAt)}</p>}
-    </div>
-  </Modal>
-);
+        {article.tags.length > 0 && (
+          <div className="pt-4 border-t border-[#E6E0D5] flex items-center gap-2 flex-wrap text-xs">
+            <Tag className="w-4 h-4 text-[#8C867A]" />
+            {article.tags.map((t) => <span key={t} className="px-2.5 py-1 bg-[#F5F2ED] rounded-lg">#{t}</span>)}
+          </div>
+        )}
+        {(audience || article.expiresAt) && (
+          <div className="text-[11px] text-[#8C867A] space-y-1">
+            {audience && <p className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> مخاطبان: {audience}</p>}
+            {article.expiresAt && <p>نمایش تا {formatDate(article.expiresAt)}</p>}
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+};
