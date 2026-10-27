@@ -3,6 +3,7 @@ import { usePortal } from '../../context/PortalContext';
 import { formatDate, todayJalali, toPersianDigits } from '../../lib/jalali';
 import { Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { AddTrainingModal } from './AddTrainingModal';
+import { EnrollmentsModal } from './EnrollmentsModal';
 import {
   GraduationCap,
   Plus,
@@ -11,7 +12,9 @@ import {
   CheckCircle2,
   UserCheck,
   BookOpen,
-  Trash2
+  Trash2,
+  Pencil,
+  Users
 } from 'lucide-react';
 
 export const TrainingModule: React.FC = () => {
@@ -20,6 +23,10 @@ export const TrainingModule: React.FC = () => {
   const today = todayJalali();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [enrollmentsId, setEnrollmentsId] = useState<string | null>(null);
+  const editing = trainings.find((t) => t.id === editingId);
+  const enrollmentsFor = trainings.find((t) => t.id === enrollmentsId);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   const categories = [
@@ -109,13 +116,24 @@ export const TrainingModule: React.FC = () => {
                     <GraduationCap className="w-12 h-12 text-[#D9D4CB]" />
                   )}
                   {can('trainings.manage') && (
-                    <button
-                      onClick={() => setPendingDelete({ id: program.id, title: program.title })}
-                      aria-label={`حذف دوره ${program.title}`}
-                      className="absolute top-3 left-3 p-1.5 bg-white/90 hover:bg-white text-red-700 rounded-lg"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                      <button
+                        onClick={() => setEditingId(program.id)}
+                        aria-label={`ویرایش دوره ${program.title}`}
+                        title="ویرایش دوره"
+                        className="p-1.5 bg-white/90 hover:bg-white text-[#2D2D2D] rounded-lg"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setPendingDelete({ id: program.id, title: program.title })}
+                        aria-label={`حذف دوره ${program.title}`}
+                        title="حذف دوره"
+                        className="p-1.5 bg-white/90 hover:bg-white text-red-700 rounded-lg"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   )}
                   <span className="absolute top-3 right-3 px-3 py-1 text-[10px] font-bold bg-[#7f1d1d]/80 text-white backdrop-blur-xs rounded-full">
                     {program.category}
@@ -163,7 +181,18 @@ export const TrainingModule: React.FC = () => {
                     <div>
                       <div className="flex items-center justify-between text-[11px] font-bold mb-1">
                         <span className="text-[#6E6A60]">تکمیل ظرفیت ثبت‌نام:</span>
-                        <span className="text-[#991b1b]">{toPersianDigits(`${enrolledCount} از ${program.capacity} نفر (${percentage}٪)`)}</span>
+                        {can('trainings.manage') ? (
+                          <button
+                            onClick={() => setEnrollmentsId(program.id)}
+                            className="text-[#991b1b] hover:underline flex items-center gap-1"
+                            title="دیدن فهرست ثبت‌نام‌شده‌ها"
+                          >
+                            <Users className="w-3.5 h-3.5" />
+                            {toPersianDigits(`${enrolledCount} از ${program.capacity} نفر (${percentage}٪)`)}
+                          </button>
+                        ) : (
+                          <span className="text-[#991b1b]">{toPersianDigits(`${enrolledCount} از ${program.capacity} نفر (${percentage}٪)`)}</span>
+                        )}
                       </div>
                       <div className="w-full h-2.5 bg-[#F5F2ED] rounded-full overflow-hidden">
                         <div
@@ -235,10 +264,9 @@ export const TrainingModule: React.FC = () => {
         </Modal>
       )}
 
-      <AddTrainingModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-      />
+      {isAddModalOpen && <AddTrainingModal onClose={() => setIsAddModalOpen(false)} />}
+      {editing && <AddTrainingModal key={editing.id} training={editing} onClose={() => setEditingId(null)} />}
+      {enrollmentsFor && <EnrollmentsModal training={enrollmentsFor} onClose={() => setEnrollmentsId(null)} />}
 
     </div>
   );

@@ -72,6 +72,15 @@ export interface CurrentUser extends UserProfile {
 
 export type PollType = 'multiple_choice' | 'free_text';
 
+/** Edits to a poll: existing options keep their id (and votes); options without an id are added. */
+export interface PollUpdate {
+  title: string;
+  description: string;
+  department: string;
+  expiryDate: string;
+  options: { id?: string; text: string }[];
+}
+
 export interface PollOption {
   id: string;
   text: string;
@@ -195,6 +204,15 @@ export interface TrainingProgram {
   prerequisites: string;
 }
 
+export interface TrainingEnrollment {
+  userId: string;
+  name: string;
+  position: string;
+  department: string;
+  extension: string;
+  enrolledAt: string;
+}
+
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -204,9 +222,11 @@ export interface CalendarEvent {
   time?: string;
   location?: string;
   badgeColor?: string;
+  /** Set when the entry belongs to a training; it is edited from the training page. */
+  trainingId?: string | null;
 }
 
-export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'profile' | 'welcome' | 'document';
+export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'profile' | 'welcome' | 'document' | 'system';
 
 export interface NotificationItem {
   id: string;
@@ -298,6 +318,39 @@ export interface AppSettings {
   guestAccess: boolean;
   /** Also show the staff directory (phone book, org chart, birthdays) to guests. */
   guestDirectory: boolean;
+  /** A short message shown above every page until it expires; null when there is none. */
+  banner: SiteBanner | null;
+}
+
+export interface SiteBanner {
+  text: string;
+  /** 'warning' is for urgent, short-lived news such as an outage. */
+  level: 'info' | 'warning';
+  expiresAt: string; // ISO
+  updatedById: string;
+  updatedAt: string; // ISO
+}
+
+export interface ServerStatus {
+  version: string;
+  disk: { free: number; total: number } | null;
+  lowDiskBytes: number;
+  uploads: { count: number; bytes: number };
+  backups: {
+    dir: string;
+    database: BackupFile | null;
+    uploads: BackupFile | null;
+    lastError: { at: string; message: string } | null;
+  };
+  cleanup: { at: string; removed: number; freedBytes: number } | null;
+}
+
+export interface BackupFile {
+  name: string;
+  at: string; // ISO
+  size: number;
+  /** How many backups of this kind are kept on the server. */
+  count: number;
 }
 
 export type CustomHolidays = Record<string, { title: string; isHoliday: boolean }>;

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Download, FileSpreadsheet, FileText, FolderOpen, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, FolderOpen, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import type { UploadedFile } from '../../lib/api';
 import { formatDate, formatFileSize, toPersianDigits } from '../../lib/jalali';
@@ -89,6 +89,59 @@ const UploadDocumentModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
   );
 };
 
+/** Fixes a document's title, description or category without uploading it again. */
+const EditDocumentModal: React.FC<{ doc: PortalDocument; onClose: () => void }> = ({ doc, onClose }) => {
+  const { updateDocument, appSettings } = usePortal();
+  const categories = [...new Set([...(appSettings?.documentCategories ?? []), doc.category])];
+  const [title, setTitle] = useState(doc.title);
+  const [description, setDescription] = useState(doc.description);
+  const [category, setCategory] = useState(doc.category);
+  const [busy, setBusy] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    const ok = await updateDocument(doc.id, { title, description, category });
+    setBusy(false);
+    if (ok) onClose();
+  };
+
+  return (
+    <Modal
+      title="ویرایش مشخصات سند"
+      subtitle={doc.fileName}
+      icon={<Pencil className="w-5 h-5" />}
+      onClose={onClose}
+      size="md"
+      footer={
+        <>
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>انصراف</button>
+          <button type="submit" form="edit-document" disabled={busy} className={primaryButtonClass}>
+            {busy ? 'در حال ذخیره...' : 'ذخیرهٔ تغییرات'}
+          </button>
+        </>
+      }
+    >
+      <form id="edit-document" onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="edit-doc-title" className={labelClass}>عنوان *</label>
+          <input id="edit-doc-title" required value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
+        </div>
+        <div>
+          <label htmlFor="edit-doc-category" className={labelClass}>دسته‌بندی</label>
+          <select id="edit-doc-category" value={category} onChange={(e) => setCategory(e.target.value)} className={inputClass}>
+            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="edit-doc-description" className={labelClass}>توضیح</label>
+          <textarea id="edit-doc-description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className={inputClass} />
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
 export const DocumentsModule: React.FC = () => {
   const { documents, appSettings, can, deleteDocument, focusId } = usePortal();
   const isManager = can('documents.manage');
@@ -96,6 +149,7 @@ export const DocumentsModule: React.FC = () => {
   const [category, setCategory] = useState('all');
   const [uploadOpen, setUploadOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<PortalDocument | null>(null);
+  const [editing, setEditing] = useState<PortalDocument | null>(null);
 
   // Deep links from search and notifications highlight one document.
   useEffect(() => {
@@ -185,9 +239,14 @@ export const DocumentsModule: React.FC = () => {
                       <Download className="w-4 h-4" />
                     </a>
                     {isManager && (
-                      <button onClick={() => setPendingDelete(doc)} className="p-2 rounded-xl text-red-700 hover:bg-red-50" aria-label={`حذف ${doc.title}`}>
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <>
+                        <button onClick={() => setEditing(doc)} className="p-2 rounded-xl text-[#2D2D2D] hover:bg-[#F5F2ED]" aria-label={`ویرایش ${doc.title}`} title="ویرایش مشخصات">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setPendingDelete(doc)} className="p-2 rounded-xl text-red-700 hover:bg-red-50" aria-label={`حذف ${doc.title}`} title="حذف سند">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </li>
@@ -198,6 +257,7 @@ export const DocumentsModule: React.FC = () => {
       )}
 
       {uploadOpen && <UploadDocumentModal onClose={() => setUploadOpen(false)} />}
+      {editing && <EditDocumentModal key={editing.id} doc={editing} onClose={() => setEditing(null)} />}
       {pendingDelete && (
         <Modal
           title="حذف سند"

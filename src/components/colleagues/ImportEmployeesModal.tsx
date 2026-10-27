@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { AlertTriangle, Building2, CheckCircle2, Download, FileSpreadsheet, Loader2, Printer, Upload, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, errorMessage } from '../../lib/api';
+import { downloadCsv } from '../../lib/download';
 import { usePortal } from '../../context/PortalContext';
 import { toPersianDigits } from '../../lib/jalali';
 import { inputClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
@@ -50,19 +51,6 @@ const TEMPLATE_SAMPLES = [
   // No username: listed in the phone book without a portal account.
   ['حسن', 'محمدی', '', 'اپراتور تولید', 'تولید', '', '', '09131234567', '310', '1368/11/02', '1398/06/01'],
 ];
-
-const csvCell = (value: string) => (/[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
-
-/** Saves a UTF-8 CSV with a BOM so Excel shows the Persian text correctly. */
-export function downloadCsv(filename: string, rows: string[][]) {
-  const blob = new Blob(['\uFEFF' + rows.map((r) => r.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 /** One card per person, only visible when printing (see .print-sheet in index.css). */
 const PrintSheet: React.FC<{ accounts: CreatedAccount[] }> = ({ accounts }) =>

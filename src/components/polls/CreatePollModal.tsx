@@ -1,39 +1,43 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { PollType } from '../../types';
-import { Plus, Trash2, Vote, FileText, CheckCircle2 } from 'lucide-react';
+import type { Poll, PollType } from '../../types';
+import { Plus, Trash2, Vote, FileText, CheckCircle2, Pencil } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { JalaliDateInput } from '../common/JalaliDateInput';
 import { Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 
 interface CreatePollModalProps {
-  isOpen: boolean;
+  /** The poll to edit; a new poll is created when omitted. */
+  poll?: Poll;
   onClose: () => void;
 }
 
-export const CreatePollModal: React.FC<CreatePollModalProps> = ({ isOpen, onClose }) => {
-  const { addPoll, appSettings } = usePortal();
+const MAX_OPTIONS = 6;
+const freshOptions = () => [{ text: 'گزینه ۱' }, { text: 'گزینه ۲' }];
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [department, setDepartment] = useState('all');
-  const [type, setType] = useState<PollType>('multiple_choice');
-  const [expiryDate, setExpiryDate] = useState('');
+/** Creates a poll, or edits one: its type stays fixed and existing options (with their votes) can only be reworded. */
+export const CreatePollModal: React.FC<CreatePollModalProps> = ({ poll, onClose }) => {
+  const { addPoll, updatePoll, appSettings } = usePortal();
+  const isEdit = Boolean(poll);
+
+  const [title, setTitle] = useState(poll?.title ?? '');
+  const [description, setDescription] = useState(poll?.description ?? '');
+  const [department, setDepartment] = useState(poll?.department ?? 'all');
+  const [type, setType] = useState<PollType>(poll?.type ?? 'multiple_choice');
+  const [expiryDate, setExpiryDate] = useState(poll?.expiryDate ?? '');
   const [busy, setBusy] = useState(false);
-  const [options, setOptions] = useState<string[]>(['گزینه ۱', 'گزینه ۲']);
-
-  if (!isOpen) return null;
+  const [options, setOptions] = useState<{ id?: string; text: string }[]>(
+    poll ? poll.options.map((o) => ({ id: o.id, text: o.text })) : freshOptions(),
+  );
 
   const handleAddOption = () => {
-    if (options.length < 6) {
-      setOptions([...options, `گزینه ${options.length + 1}`]);
+    if (options.length < MAX_OPTIONS) {
+      setOptions([...options, { text: `گزینه ${options.length + 1}` }]);
     }
   };
 
   const handleOptionChange = (index: number, value: string) => {
-    const updated = [...options];
-    updated[index] = value;
-    setOptions(updated);
+    setOptions(options.map((o, i) => (i === index ? { ...o, text: value } : o)));
   };
 
   const handleRemoveOption = (index: number) => {
@@ -46,38 +50,32 @@ export const CreatePollModal: React.FC<CreatePollModalProps> = ({ isOpen, onClos
     e.preventDefault();
     if (!title.trim()) return;
 
-    if (type === 'multiple_choice' && options.filter(o => o.trim()).length < 2) {
+    const filled = options.map((o) => ({ ...o, text: o.text.trim() })).filter((o) => o.text);
+    if (type === 'multiple_choice' && filled.length < 2) {
       toast.error('حداقل دو گزینه باید وارد شود.');
       return;
     }
 
     setBusy(true);
-    const ok = await addPoll({
-      title,
-      description,
-      department,
-      type,
-      expiryDate,
-      options: type === 'multiple_choice' ? options.map(o => o.trim()).filter(Boolean) : []
-    });
+    const ok = poll
+      ? await updatePoll(poll.id, { title, description, department, expiryDate, options: poll.type === 'multiple_choice' ? filled : [] })
+      : await addPoll({
+          title,
+          description,
+          department,
+          type,
+          expiryDate,
+          options: type === 'multiple_choice' ? filled.map((o) => o.text) : []
+        });
     setBusy(false);
-    if (!ok) return;
-
-    onClose();
-    setExpiryDate('');
-    // Reset form
-    setTitle('');
-    setDescription('');
-    setDepartment('all');
-    setType('multiple_choice');
-    setOptions(['گزینه ۱', 'گزینه ۲']);
+    if (ok) onClose();
   };
 
   return (
     <Modal
-      title="ایجاد نظرسنجی جدید"
-      subtitle="تعریف نظرسنجی با پاسخ‌های چندگزینه‌ای یا متنی آزاد"
-      icon={<Vote className="w-5 h-5" />}
+      title={isEdit ? 'ویرایش نظرسنجی' : 'ایجاد نظرسنجی جدید'}
+      subtitle={isEdit ? 'رأی‌های ثبت‌شده حفظ می‌شوند؛ گزینه‌های موجود فقط قابل اصلاح متن هستند' : 'تعریف نظرسنجی با پاسخ‌های چندگزینه‌ای یا متنی آزاد'}
+      icon={isEdit ? <Pencil className="w-5 h-5" /> : <Vote className="w-5 h-5" />}
       onClose={onClose}
       size="md"
       footer={
@@ -85,7 +83,7 @@ export const CreatePollModal: React.FC<CreatePollModalProps> = ({ isOpen, onClos
           <button type="button" onClick={onClose} className={secondaryButtonClass}>انصراف</button>
           <button type="submit" form="create-poll" disabled={busy} className={primaryButtonClass}>
             <CheckCircle2 className="w-4 h-4" />
-            <span>{busy ? 'در حال انتشار...' : 'انتشار نظرسنجی'}</span>
+            <span>{busy ? 'در حال ذخیره...' : isEdit ? 'ذخیرهٔ تغییرات' : 'انتشار نظرسنجی'}</span>
           </button>
         </>
       }
@@ -145,8 +143,8 @@ export const CreatePollModal: React.FC<CreatePollModalProps> = ({ isOpen, onClos
             </div>
           </div>
 
-          {/* Poll Type Selector */}
-          <div>
+          {/* Poll Type Selector; the type of an existing poll can't change because answers depend on it */}
+          {!isEdit && <div>
             <label className="block text-xs font-bold text-slate-700 mb-2">نوع نظرسنجی و نحوه پاسخگویی</label>
             <div className="grid grid-cols-2 gap-3">
               <button
@@ -177,7 +175,7 @@ export const CreatePollModal: React.FC<CreatePollModalProps> = ({ isOpen, onClos
                 <span className="text-[10px] text-slate-400 font-normal mt-0.5">ارسال نظر متنی ناشناس</span>
               </button>
             </div>
-          </div>
+          </div>}
 
           {/* Dynamic Options if Multiple Choice */}
           {type === 'multiple_choice' && (
@@ -187,7 +185,8 @@ export const CreatePollModal: React.FC<CreatePollModalProps> = ({ isOpen, onClos
                 <button
                   type="button"
                   onClick={handleAddOption}
-                  className="text-xs text-red-600 hover:underline flex items-center gap-1 font-medium"
+                  disabled={options.length >= MAX_OPTIONS}
+                  className="text-xs text-red-600 hover:underline flex items-center gap-1 font-medium disabled:opacity-40 disabled:no-underline"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>افزودن گزینه جدید</span>
@@ -200,12 +199,12 @@ export const CreatePollModal: React.FC<CreatePollModalProps> = ({ isOpen, onClos
                   <input
                     type="text"
                     required
-                    value={option}
+                    value={option.text}
                     onChange={(e) => handleOptionChange(index, e.target.value)}
                     placeholder={`متن گزینه ${index + 1}`}
                     className="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:border-red-500 outline-hidden"
                   />
-                  {options.length > 2 && (
+                  {options.length > 2 && !(isEdit && option.id) && (
                     <button
                       type="button"
                       onClick={() => handleRemoveOption(index)}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { usePortal } from '../context/PortalContext';
 import { ActiveTab } from '../types';
 import { Avatar } from './common/Avatar';
@@ -17,13 +17,99 @@ import {
   Network,
   LayoutGrid,
   LogIn,
-  UserCog
+  UserCog,
+  ChevronDown,
+  Contact,
+  ShieldCheck
 } from 'lucide-react';
 
 interface NavigationProps {
   isMobileNavOpen: boolean;
   onCloseMobileNav: () => void;
 }
+
+interface NavItem {
+  id: ActiveTab;
+  label: string;
+  icon: React.ReactNode;
+  badge?: string | number;
+  badgeColor?: string;
+}
+
+/** A desktop menu entry: a page, or a drop-down of related pages. */
+type NavEntry = { kind: 'item'; item: NavItem } | { kind: 'group'; id: string; label: string; icon: React.ReactNode; items: NavItem[] };
+
+const desktopButtonClass = (isActive: boolean) =>
+  `flex items-center gap-2 px-3 xl:px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+    isActive ? 'bg-[#dc2626] text-white shadow-md shadow-[#dc2626]/30' : 'text-[#C5BFC7] hover:text-white hover:bg-white/10'
+  }`;
+
+const Badge: React.FC<{ item: NavItem; className: string }> = ({ item, className }) =>
+  item.badge === undefined ? null : (
+    <span className={`${className} rounded-full font-bold ${item.badgeColor || 'bg-[#7f1d1d] text-[#E6E0D5]'}`}>{item.badge}</span>
+  );
+
+/** Desktop drop-down that groups related pages ("همکاران", "مدیریت") so the bar never overflows. */
+const NavGroup: React.FC<{ entry: Extract<NavEntry, { kind: 'group' }>; activeTab: ActiveTab; onSelect: (tab: ActiveTab) => void }> = ({
+  entry,
+  activeTab,
+  onSelect,
+}) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useEscapeKey(close, open);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  const active = entry.items.find((i) => i.id === activeTab);
+  const menuId = `nav-group-${entry.id}`;
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
+        aria-current={active ? 'page' : undefined}
+        className={desktopButtonClass(Boolean(active))}
+      >
+        {active?.icon ?? entry.icon}
+        <span>{active ? active.label : entry.label}</span>
+        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div id={menuId} role="menu" className="absolute top-full right-0 mt-1.5 min-w-48 bg-white rounded-2xl shadow-xl border border-[#EAE6DF] p-1.5 z-50 text-right">
+          {entry.items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onSelect(item.id);
+              }}
+              aria-current={item.id === activeTab ? 'page' : undefined}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors ${
+                item.id === activeTab ? 'bg-[#fef2f2] text-[#991b1b]' : 'text-[#2D2D2D] hover:bg-[#F5F2ED]'
+              }`}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onCloseMobileNav }) => {
   const { activeTab, setActiveTab, currentUser, isGuest, requestLogin, appSettings, can, isAdmin, polls, news } = usePortal();
@@ -34,108 +120,88 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
   const unreadNewsCount = isGuest ? 0 : news.filter(n => n.status === 'published' && !n.isRead).length;
   const pendingAckCount = isGuest ? 0 : news.filter(n => n.status === 'published' && n.requiresAck && !n.acknowledgedAt).length;
 
-  let navItems: { id: ActiveTab; label: string; icon: React.ReactNode; badge?: string | number; badgeColor?: string }[] = [
-    {
-      id: 'dashboard',
-      label: 'داشبورد',
-      icon: <LayoutDashboard className="w-4 h-4" />
-    },
-    {
-      id: 'systems',
-      label: 'سامانه‌ها',
-      icon: <LayoutGrid className="w-4 h-4" />
-    },
-    {
-      id: 'polls',
-      label: 'نظرسنجی‌ها',
-      icon: <Vote className="w-4 h-4" />,
-      badge: activePollsCount > 0 ? `${toPersianDigits(activePollsCount)} جدید` : undefined,
-      badgeColor: 'bg-[#991b1b]/30 text-[#E6E0D5]'
-    },
-    {
-      id: 'news',
-      label: 'اخبار و اطلاعیه‌ها',
-      icon: <Newspaper className="w-4 h-4" />,
-      badge: pendingAckCount > 0
-        ? `${toPersianDigits(pendingAckCount)} بخشنامه`
-        : unreadNewsCount > 0 ? `${toPersianDigits(unreadNewsCount)} نخوانده` : undefined,
-      badgeColor: pendingAckCount > 0 ? 'bg-amber-400 text-amber-950' : 'bg-[#991b1b]/30 text-[#E6E0D5]'
-    },
-    {
-      id: 'documents',
-      label: 'اسناد و فرم‌ها',
-      icon: <FolderOpen className="w-4 h-4" />
-    },
-    {
-      id: 'colleagues',
-      label: 'دفتر تلفن',
-      icon: <Users className="w-4 h-4" />
-    },
-    {
-      id: 'orgchart',
-      label: 'چارت سازمانی',
-      icon: <Network className="w-4 h-4" />
-    },
-    {
-      id: 'training',
-      label: 'آموزش',
-      icon: <GraduationCap className="w-4 h-4" />
-    },
-    {
-      id: 'calendar',
-      label: 'تقویم',
-      icon: <Calendar className="w-4 h-4" />
-    },
-
-  ];
+  const dashboard: NavItem = { id: 'dashboard', label: 'داشبورد', icon: <LayoutDashboard className="w-4 h-4" /> };
+  const systems: NavItem = { id: 'systems', label: 'سامانه‌ها', icon: <LayoutGrid className="w-4 h-4" /> };
+  const pollsItem: NavItem = {
+    id: 'polls',
+    label: 'نظرسنجی‌ها',
+    icon: <Vote className="w-4 h-4" />,
+    badge: activePollsCount > 0 ? `${toPersianDigits(activePollsCount)} جدید` : undefined,
+    badgeColor: 'bg-[#991b1b]/30 text-[#E6E0D5]'
+  };
+  const newsItem: NavItem = {
+    id: 'news',
+    label: 'اخبار و اطلاعیه‌ها',
+    icon: <Newspaper className="w-4 h-4" />,
+    badge: pendingAckCount > 0
+      ? `${toPersianDigits(pendingAckCount)} بخشنامه`
+      : unreadNewsCount > 0 ? `${toPersianDigits(unreadNewsCount)} نخوانده` : undefined,
+    badgeColor: pendingAckCount > 0 ? 'bg-amber-400 text-amber-950' : 'bg-[#991b1b]/30 text-[#E6E0D5]'
+  };
+  const documents: NavItem = { id: 'documents', label: 'اسناد و فرم‌ها', icon: <FolderOpen className="w-4 h-4" /> };
+  const training: NavItem = { id: 'training', label: 'آموزش', icon: <GraduationCap className="w-4 h-4" /> };
+  const calendar: NavItem = { id: 'calendar', label: 'تقویم', icon: <Calendar className="w-4 h-4" /> };
 
   // The phone book and org chart stay hidden from guests unless a manager opened them.
-  if (isGuest && !appSettings?.guestDirectory) {
-    navItems = navItems.filter((item) => item.id !== 'colleagues' && item.id !== 'orgchart');
-  }
+  const colleagueItems: NavItem[] =
+    isGuest && !appSettings?.guestDirectory
+      ? []
+      : [
+          { id: 'colleagues', label: 'دفتر تلفن', icon: <Users className="w-4 h-4" /> },
+          { id: 'orgchart', label: 'چارت سازمانی', icon: <Network className="w-4 h-4" /> },
+        ];
 
-  if (can('users.manage')) {
-    navItems.push({ id: 'people', label: 'مدیریت کارکنان', icon: <UserCog className="w-4 h-4" /> });
-  }
-  if (can('reports.view')) {
-    navItems.push({ id: 'reports', label: 'گزارش‌ها', icon: <BarChart2 className="w-4 h-4" /> });
-  }
-  if (isAdmin || can('settings.manage')) {
-    navItems.push({ id: 'admin', label: 'تنظیمات', icon: <Settings className="w-4 h-4" /> });
-  }
+  const adminItems: NavItem[] = [];
+  if (can('users.manage')) adminItems.push({ id: 'people', label: 'مدیریت کارکنان', icon: <UserCog className="w-4 h-4" /> });
+  if (can('reports.view')) adminItems.push({ id: 'reports', label: 'گزارش‌ها', icon: <BarChart2 className="w-4 h-4" /> });
+  if (isAdmin || can('settings.manage')) adminItems.push({ id: 'admin', label: 'تنظیمات', icon: <Settings className="w-4 h-4" /> });
+
+  // Desktop bar: the org apps already have their own "سامانه‌ها" button in the header, and related
+  // pages share a drop-down, so every entry fits on one line even for admins.
+  const groupOrItem = (id: string, label: string, icon: React.ReactNode, items: NavItem[]): NavEntry[] =>
+    items.length === 0 ? [] : items.length === 1 ? [{ kind: 'item', item: items[0] }] : [{ kind: 'group', id, label, icon, items }];
+  const desktopEntries: NavEntry[] = [
+    { kind: 'item', item: dashboard },
+    { kind: 'item', item: newsItem },
+    { kind: 'item', item: pollsItem },
+    { kind: 'item', item: documents },
+    ...groupOrItem('colleagues', 'همکاران', <Contact className="w-4 h-4" />, colleagueItems),
+    { kind: 'item', item: training },
+    { kind: 'item', item: calendar },
+    ...groupOrItem('admin', 'مدیریت', <ShieldCheck className="w-4 h-4" />, adminItems),
+  ];
+
+  // The phone drawer has room for everything, with management pages under their own heading.
+  const mobileSections: { title?: string; items: NavItem[] }[] = [
+    { items: [dashboard, systems, newsItem, pollsItem, documents, ...colleagueItems, training, calendar] },
+    ...(adminItems.length > 0 ? [{ title: 'مدیریت', items: adminItems }] : []),
+  ];
 
   return (
     <>
       {/* Desktop Navigation Top Bar / Sub-header */}
-      <nav className="hidden lg:block bg-[#7f1d1d] text-[#E6E0D5] border-b border-[#7f1d1d] shadow-inner">
+      <nav className="hidden lg:block bg-[#7f1d1d] text-[#E6E0D5] border-b border-[#7f1d1d] shadow-inner relative z-30" aria-label="منوی اصلی">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 py-1.5 min-w-0 overflow-x-auto no-scrollbar">
-              {navItems.map((item) => {
-                const isActive = activeTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveTab(item.id)}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                      isActive
-                        ? 'bg-[#dc2626] text-white shadow-md shadow-[#dc2626]/30'
-                        : 'text-[#C5BFC7] hover:text-white hover:bg-white/10'
-                    }`}
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                    {item.badge !== undefined && (
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${item.badgeColor || 'bg-[#7f1d1d] text-[#E6E0D5]'}`}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
+          <div className="flex items-center gap-1 py-1.5">
+            {desktopEntries.map((entry) => {
+              if (entry.kind === 'group') {
+                return <NavGroup key={entry.id} entry={entry} activeTab={activeTab} onSelect={(tab) => setActiveTab(tab)} />;
+              }
+              const { item } = entry;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={desktopButtonClass(isActive)}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                  <Badge item={item} className="text-[10px] px-1.5 py-0.2" />
+                </button>
+              );
+            })}
           </div>
         </div>
       </nav>
@@ -197,35 +263,37 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
               )}
 
               {/* Navigation Items */}
-              <div className="space-y-1">
-                {navItems.map((item) => {
-                  const isActive = activeTab === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setActiveTab(item.id);
-                        onCloseMobileNav();
-                      }}
-                      className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all ${
-                        isActive
-                          ? 'bg-[#dc2626] text-white shadow-md'
-                          : 'text-[#C5BFC7] hover:text-white hover:bg-white/10'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        {item.icon}
-                        <span>{item.label}</span>
-                      </div>
-                      {item.badge !== undefined && (
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${item.badgeColor || 'bg-[#7f1d1d] text-[#E6E0D5]'}`}>
-                          {item.badge}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+              {mobileSections.map((section, index) => (
+                <div key={section.title ?? index} className={index > 0 ? 'mt-4 pt-4 border-t border-white/10' : ''}>
+                  {section.title && <div className="px-3.5 pb-2 text-[11px] font-bold text-[#E6E0D5]/70">{section.title}</div>}
+                  <div className="space-y-1">
+                    {section.items.map((item) => {
+                      const isActive = activeTab === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setActiveTab(item.id);
+                            onCloseMobileNav();
+                          }}
+                          aria-current={isActive ? 'page' : undefined}
+                          className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all ${
+                            isActive
+                              ? 'bg-[#dc2626] text-white shadow-md'
+                              : 'text-[#C5BFC7] hover:text-white hover:bg-white/10'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {item.icon}
+                            <span>{item.label}</span>
+                          </div>
+                          <Badge item={item} className="text-[10px] px-2 py-0.5" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="pt-4 border-t border-white/10 text-[11px] text-[#E6E0D5]/80 text-center">

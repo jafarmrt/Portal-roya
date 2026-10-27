@@ -142,6 +142,33 @@ pm2 delete roya-portal && pm2 start current/deploy/ecosystem.config.cjs && pm2 s
 
 ## پشتیبان‌گیری
 
+پرتال خودش پشتیبان می‌گیرد و فایل‌ها را در `/opt/roya-portal/backups` می‌گذارد:
+
+| فایل | زمان | چند نسخه می‌ماند |
+| --- | --- | --- |
+| `nightly-db-YYYY-MM-DD.sql.gz` (پایگاه داده) | هر شب ساعت ۲ | ۷ |
+| `weekly-uploads-YYYY-MM-DD.tar.gz` (فایل‌های بارگذاری‌شده) | شب‌های جمعه | ۲ |
+| `db-…-<نسخه>.sql.gz` (پایگاه داده) | پیش از هر به‌روزرسانی | ۱۰ |
+
+اگر پشتیبان‌گیری شبانه انجام نشود (مثلاً `pg_dump` نصب نباشد) یا فضای خالی دیسک از ۵۰۰ مگابایت کمتر شود، به مدیران پرتال اعلان داده می‌شود. وضعیت پشتیبان‌ها و دیسک در «تنظیمات پرتال ← وضعیت سرور و پشتیبان‌ها» دیده می‌شود. پیش از پشتیبان فایل‌ها بررسی می‌شود که دیسک جا داشته باشد. برای پوشهٔ دیگر، `BACKUP_DIR` را در `.env` بگذارید.
+
+این پشتیبان‌ها روی همان دیسک سرورند؛ اگر دیسک خراب شود از دست می‌روند. هر چند وقت یک بار پوشهٔ `backups` را روی کامپیوتر یا دیسک دیگری کپی کنید، مثلاً از یک کامپیوتر ویندوزی با WinSCP یا با دستور:
+
+```bash
+scp -r user@192.168.0.21:/opt/roya-portal/backups ./portal-backups
+```
+
+برگرداندن پایگاه داده از یک پشتیبان: پرتال را متوقف کنید، پایگاه داده را خالی از نو بسازید و پشتیبان را با کاربر `portal` (همان رمز `DATABASE_URL`) در آن بریزید. همهٔ داده‌های بعد از زمان پشتیبان از دست می‌رود.
+
+```bash
+pm2 stop roya-portal
+sudo -u postgres psql -c "drop database portal;" -c "create database portal owner portal;"
+gunzip -c /opt/roya-portal/backups/nightly-db-2026-10-27.sql.gz | psql "postgresql://portal:STRONG_PASSWORD@localhost:5432/portal"
+pm2 start roya-portal
+```
+
+پشتیبان دستی در هر زمان:
+
 ```bash
 sudo -u postgres pg_dump portal | gzip > ~/portal-db-$(date +%F).sql.gz
 tar czf ~/portal-uploads-$(date +%F).tgz -C /opt/roya-portal uploads

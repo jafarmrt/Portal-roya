@@ -188,6 +188,61 @@ pollsRouter.post(
   }),
 );
 
+const updateSchema = z.object({
+  title: requiredText(200),
+  description: optionalText(2000),
+  department: requiredText(100).default('all'),
+  expiryDate: jalaliDate.optional().or(z.literal('')),
+  // Existing options keep their id (and votes) and may only be reworded; options without an id are added.
+  options: z.array(z.object({ id: z.string().max(100).optional(), text: requiredText(200) })).max(10).default([]),
+});
+
+pollsRouter.put(
+  '/polls/:id',
+  requirePermission('polls.manage'),
+  route(async (req, res) => {
+    const body = parse(updateSchema, req.body);
+    if (body.department !== 'all') body.department = await requireDepartment(body.department);
+    const expiresAt = body.expiryDate ? jalaliEndOfDay(body.expiryDate) : null;
+
+    const poll = await db.transaction(async (tx) => {
+      const [existing] = await tx.select().from(polls).where(eq(polls.id, req.params.id)).for('update');
+      if (!existing) throw new HttpError(404, 'نظرسنجی یافت نشد.');
+      // A new deadline must be in the future; keeping the current one is always fine.
+      if (expiresAt && expiresAt <= new Date() && expiresAt.getTime() !== existing.expiresAt?.getTime()) {
+        throw new HttpError(400, 'مهلت نظرسنجی باید در آینده باشد.');
+      }
+      if (existing.type === 'multiple_choice') {
+        const current = await tx.select().from(pollOptions).where(eq(pollOptions.pollId, existing.id));
+        const sent = new Map(body.options.filter((o) => o.id).map((o) => [o.id!, o.text]));
+        if (current.some((o) => !sent.has(o.id)) || sent.size !== current.length) {
+          throw new HttpError(400, 'گزینه‌های فعلی نظرسنجی را نمی‌توان حذف کرد؛ فقط متن آن‌ها قابل اصلاح است.');
+        }
+        const added = body.options.filter((o) => !o.id);
+        if (current.length + added.length > 10) throw new HttpError(400, 'نظرسنجی حداکثر ۱۰ گزینه دارد.');
+        for (const option of current) {
+          const text = sent.get(option.id)!;
+          if (text !== option.text) await tx.update(pollOptions).set({ text }).where(eq(pollOptions.id, option.id));
+        }
+        if (added.length > 0) {
+          await tx
+            .insert(pollOptions)
+            .values(added.map((o, i) => ({ id: newId('opt'), pollId: existing.id, text: o.text, position: current.length + i })));
+        }
+      }
+      const [updated] = await tx
+        .update(polls)
+        .set({ title: body.title, description: body.description, department: body.department, expiresAt })
+        .where(eq(polls.id, existing.id))
+        .returning();
+      return updated;
+    });
+    broadcastChange('polls');
+    const [serialized] = await serializePolls([poll], currentUser(req));
+    res.json(serialized);
+  }),
+);
+
 pollsRouter.patch(
   '/polls/:id/status',
   requirePermission('polls.manage'),

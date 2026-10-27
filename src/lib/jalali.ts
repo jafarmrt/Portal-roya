@@ -58,7 +58,10 @@ export function daysUntilBirthday(birthDay: string): number | null {
   return null;
 }
 
+/** "۲۴۰ کیلوبایت", "۳٫۵ مگابایت", "۲۹٫۴ گیگابایت". */
 export function formatFileSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} کیلوبایت`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} مگابایت`;
+  const decimal = (value: number, unit: string) => `${toPersianDigits(value.toFixed(1).replace(/\.0$/, '')).replace('.', '٫')} ${unit}`;
+  if (bytes < 1024 * 1024) return `${toPersianDigits(Math.max(1, Math.round(bytes / 1024)))} کیلوبایت`;
+  if (bytes < 1024 ** 3) return decimal(bytes / 1024 ** 2, 'مگابایت');
+  return decimal(bytes / 1024 ** 3, 'گیگابایت');
 }

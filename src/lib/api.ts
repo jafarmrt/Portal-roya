@@ -1,6 +1,8 @@
 // Thin JSON client for the portal API. The session lives in an HttpOnly cookie,
 // so requests only need to be same-origin.
 
+import { shrinkImage } from './image';
+
 export class ApiError extends Error {
   constructor(public status: number, message: string, public code?: string) {
     super(message);
@@ -50,9 +52,9 @@ export interface UploadedFile {
   mimeType: string;
 }
 
-export function uploadFile(file: File) {
+export async function uploadFile(file: File) {
   const form = new FormData();
-  form.append('file', file);
+  form.append('file', await shrinkImage(file));
   return request<UploadedFile>('POST', '/api/uploads', form);
 }
 

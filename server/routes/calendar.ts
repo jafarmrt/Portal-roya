@@ -42,6 +42,24 @@ calendarRouter.post(
   }),
 );
 
+calendarRouter.put(
+  '/calendar_events/:id',
+  requirePermission('calendar.manage'),
+  route(async (req, res) => {
+    const body = parse(eventSchema, req.body);
+    const [existing] = await db.select().from(calendarEvents).where(eq(calendarEvents.id, req.params.id));
+    if (!existing) throw new HttpError(404, 'رویداد یافت نشد.');
+    if (existing.trainingId) throw new HttpError(400, 'این رویداد از یک دورهٔ آموزشی ساخته شده است؛ خود دوره را در صفحهٔ آموزش ویرایش کنید.');
+    const [event] = await db
+      .update(calendarEvents)
+      .set({ ...body, time: body.time || null, location: body.location || null, badgeColor: body.badgeColor || null })
+      .where(eq(calendarEvents.id, existing.id))
+      .returning();
+    broadcastChange('calendar');
+    res.json(event);
+  }),
+);
+
 calendarRouter.delete(
   '/calendar_events/:id',
   requirePermission('calendar.manage'),

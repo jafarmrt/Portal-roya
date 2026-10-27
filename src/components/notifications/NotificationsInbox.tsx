@@ -10,7 +10,8 @@ import {
   Newspaper,
   GraduationCap,
   User,
-  FileText
+  FileText,
+  ServerCog
 } from 'lucide-react';
 
 export const NotificationsInbox: React.FC = () => {
@@ -44,6 +45,8 @@ export const NotificationsInbox: React.FC = () => {
         return <User className="w-5 h-5 text-emerald-600" />;
       case 'document':
         return <FileText className="w-5 h-5 text-stone-600" />;
+      case 'system':
+        return <ServerCog className="w-5 h-5 text-amber-700" />;
       default:
         return <Newspaper className="w-5 h-5 text-red-600" />;
     }

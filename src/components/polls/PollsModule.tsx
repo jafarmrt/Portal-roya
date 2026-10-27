@@ -13,6 +13,7 @@ import {
   Building2,
   Send,
   Trash2,
+  Pencil,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { toPersianDigits } from '../../lib/jalali';
@@ -28,6 +29,7 @@ export const PollsModule: React.FC = () => {
   } = usePortal();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingPoll, setEditingPoll] = useState<Poll | null>(null);
   const [resultsPollId, setResultsPollId] = useState<string | null>(null);
   const selectedPollForResults = polls.find(p => p.id === resultsPollId) ?? null;
   const [submitting, setSubmitting] = useState<string | null>(null);
@@ -296,6 +298,15 @@ export const PollsModule: React.FC = () => {
                         </button>
 
                         <button
+                          onClick={() => setEditingPoll(poll)}
+                          className="p-1.5 text-[#6E6A60] hover:text-[#991b1b] hover:bg-[#F5F2ED] rounded-lg transition-colors"
+                          title="ویرایش نظرسنجی"
+                          aria-label="ویرایش نظرسنجی"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+
+                        <button
                           onClick={() => {
                             if (confirm('آیا از حذف این نظرسنجی اطمینان دارید؟')) deletePoll(poll.id);
                           }}
@@ -318,10 +329,8 @@ export const PollsModule: React.FC = () => {
       </div>
 
       {/* Modals */}
-      <CreatePollModal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-      />
+      {isCreateOpen && <CreatePollModal onClose={() => setIsCreateOpen(false)} />}
+      {editingPoll && <CreatePollModal key={editingPoll.id} poll={editingPoll} onClose={() => setEditingPoll(null)} />}
 
       <PollResultsModal
         poll={selectedPollForResults}

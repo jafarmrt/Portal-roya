@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ArrowDown, ArrowUp, Check, Eye, Pencil, Plus, Settings, X } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, Check, Eye, HardDrive, Pencil, Plus, RefreshCw, Settings, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { departmentKey, findDepartment } from '../../../shared/departments';
 import { usePortal } from '../../context/PortalContext';
 import { api, errorMessage } from '../../lib/api';
-import { toPersianDigits } from '../../lib/jalali';
-import type { AppSettings } from '../../types';
+import { formatDateTime, formatFileSize, toPersianDigits } from '../../lib/jalali';
+import type { AppSettings, BackupFile, ServerStatus } from '../../types';
 import { inputClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { RolesEditor } from './RolesEditor';
 
@@ -300,6 +300,108 @@ const GuestAccessSettings: React.FC<{ settings: AppSettings }> = ({ settings }) 
   );
 };
 
+const StatusRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div className="p-3 rounded-xl bg-[#F5F2ED] space-y-1">
+    <dt className="text-[11px] font-bold text-[#6E6A60]">{label}</dt>
+    <dd className="text-xs text-[#2D2D2D] leading-relaxed">{children}</dd>
+  </div>
+);
+
+const describeBackup = (file: BackupFile | null, keep: string, when: string) =>
+  file ? (
+    <>
+      <span className="font-bold">{formatDateTime(file.at)}</span> · {formatFileSize(file.size)}
+      <span className="block text-[11px] text-[#6E6A60]">{toPersianDigits(file.count)} نسخه روی سرور ({keep}).</span>
+    </>
+  ) : (
+    <span className="text-[#6E6A60]">هنوز گرفته نشده است؛ {when}.</span>
+  );
+
+/** Disk space, backups and housekeeping on the server, so problems show up before they hurt. */
+const ServerStatusCard: React.FC = () => {
+  const [status, setStatus] = useState<ServerStatus | null>(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    api
+      .get<ServerStatus>('/api/settings/server-status')
+      .then((s) => {
+        setStatus(s);
+        setError('');
+      })
+      .catch((err) => setError(errorMessage(err)))
+      .finally(() => setLoading(false));
+  }, []);
+  useEffect(load, [load]);
+
+  const disk = status?.disk;
+  const lowDisk = Boolean(disk && status && disk.free < status.lowDiskBytes);
+  const usedPercent = disk && disk.total > 0 ? Math.round(((disk.total - disk.free) / disk.total) * 100) : 0;
+
+  return (
+    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3 lg:col-span-2" aria-labelledby="server-status-title">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <HardDrive className="w-4 h-4 text-red-700" />
+          <h3 id="server-status-title" className="text-sm font-black text-[#2D2D2D]">وضعیت سرور و پشتیبان‌ها</h3>
+          {status && <span className="text-[11px] text-[#6E6A60]">نسخهٔ {toPersianDigits(status.version)}</span>}
+        </div>
+        <button type="button" onClick={load} disabled={loading} aria-label="به‌روزرسانی وضعیت سرور" className="p-1.5 rounded-lg hover:bg-[#F5F2ED] disabled:opacity-40">
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+      {error && <p role="alert" className="text-xs text-red-700 font-bold">{error}</p>}
+      {status && (
+        <>
+          {status.backups.lastError && (
+            <div role="alert" className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-900 text-xs leading-relaxed">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>
+                <span className="font-bold">آخرین پشتیبان‌گیری ({formatDateTime(status.backups.lastError.at)}) انجام نشد:</span> {status.backups.lastError.message}
+                <span className="block text-[11px] mt-0.5">ساعت بعد دوباره امتحان می‌شود.</span>
+              </span>
+            </div>
+          )}
+          <dl className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <StatusRow label="فضای دیسک">
+              {disk ? (
+                <>
+                  <span className={lowDisk ? 'font-bold text-red-700' : 'font-bold'}>{formatFileSize(disk.free)} خالی</span> از {formatFileSize(disk.total)}
+                  <span className="block h-1.5 mt-1.5 rounded-full bg-[#E6E0D5] overflow-hidden" aria-hidden="true">
+                    <span className={`block h-full ${lowDisk ? 'bg-red-600' : 'bg-emerald-600'}`} style={{ width: `${usedPercent}%` }} />
+                  </span>
+                  {lowDisk && <span className="block text-[11px] text-red-700 mt-1">فضای خالی کم است؛ پشتیبان‌های قدیمی یا فایل‌های بزرگ را از سرور بردارید.</span>}
+                </>
+              ) : (
+                'نامشخص'
+              )}
+            </StatusRow>
+            <StatusRow label="فایل‌های بارگذاری‌شده">
+              <span className="font-bold">{toPersianDigits(status.uploads.count)} فایل</span> · {status.uploads.count ? formatFileSize(status.uploads.bytes) : 'خالی'}
+              <span className="block text-[11px] text-[#6E6A60]">
+                {status.cleanup
+                  ? `آخرین پاک‌سازی (${formatDateTime(status.cleanup.at)}): ${status.cleanup.removed ? `${toPersianDigits(status.cleanup.removed)} فایل بی‌استفاده حذف شد (${formatFileSize(status.cleanup.freedBytes)})` : 'فایل بی‌استفاده‌ای نبود'}.`
+                  : 'فایل‌هایی که هیچ خبر، سند یا پروفایلی از آن‌ها استفاده نمی‌کند پس از یک هفته، هر شب پاک می‌شوند.'}
+              </span>
+            </StatusRow>
+            <StatusRow label="پشتیبان پایگاه داده (هر شب ساعت ۲)">
+              {describeBackup(status.backups.database, 'هفت شب آخر نگه داشته می‌شود', 'اولین پشتیبان امشب ساعت ۲ گرفته می‌شود')}
+            </StatusRow>
+            <StatusRow label="پشتیبان فایل‌ها (شب‌های جمعه)">
+              {describeBackup(status.backups.uploads, 'دو هفتهٔ آخر نگه داشته می‌شود', 'اولین پشتیبان شب جمعه گرفته می‌شود')}
+            </StatusRow>
+          </dl>
+          <p className="text-[11px] text-[#6E6A60] leading-relaxed">
+            پشتیبان‌ها در پوشهٔ <code dir="ltr" className="px-1 bg-[#F5F2ED] rounded">{status.backups.dir}</code> روی همین سرور ذخیره می‌شوند. اگر دیسک سرور خراب شود پشتیبان‌ها هم از دست می‌روند؛ هر چند وقت یک بار این پوشه را روی کامپیوتر یا دیسک دیگری کپی کنید.
+          </p>
+        </>
+      )}
+    </section>
+  );
+};
+
 export const AdminSettingsModule: React.FC = () => {
   const { appSettings, can, isAdmin } = usePortal();
   if (!appSettings) return null;
@@ -318,6 +420,7 @@ export const AdminSettingsModule: React.FC = () => {
       {isAdmin && <RolesEditor />}
       {can('settings.manage') && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ServerStatusCard />
           <GuestAccessSettings settings={appSettings} />
           <DepartmentsEditor settings={appSettings} />
           {SECTIONS.map((s) => <ListEditor key={`${s.key}-${appSettings[s.key].join('|')}`} settings={appSettings} section={s} />)}

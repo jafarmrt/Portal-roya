@@ -5,7 +5,7 @@ import { employees, notifications } from './db/schema.js';
 import { notifyUsers } from './events.js';
 import { sendMail } from './mailer.js';
 
-export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'profile' | 'welcome' | 'document';
+export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'profile' | 'welcome' | 'document' | 'system';
 
 export interface NotificationInput {
   title: string;

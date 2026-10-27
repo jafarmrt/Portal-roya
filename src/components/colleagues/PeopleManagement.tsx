@@ -9,7 +9,8 @@ import { inputClass } from '../common/Modal';
 import { AccountAccessModal } from './AccountAccessModal';
 import { AddEmployeeModal } from './AddEmployeeModal';
 import { EditProfileModal } from './EditProfileModal';
-import { downloadCsv, ImportEmployeesModal, TEMPLATE_HEADER } from './ImportEmployeesModal';
+import { downloadCsv } from '../../lib/download';
+import { ImportEmployeesModal, TEMPLATE_HEADER } from './ImportEmployeesModal';
 
 type View = 'active' | 'account' | 'noAccount' | 'inactive' | 'all';
 
