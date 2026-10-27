@@ -5,6 +5,8 @@
 #
 #   enable-https.sh portal.royaco.com   switch the portal to https://portal.royaco.com
 #   enable-https.sh --undo              go back to the nginx site and .env from before HTTPS
+#   enable-https.sh portal.royaco.com --force   switch even though this server's DNS does not
+#                                       point the name here (only if the computers' DNS does)
 #
 # First make the certificate with that name (sudo bash make-cert.sh 192.168.0.21 portal.royaco.com),
 # have the name point to this server in the internal DNS, and install roya-ca.crt on the
@@ -75,6 +77,8 @@ if [ "${1:-}" = "--undo" ]; then
 fi
 
 NAME="${1:-}"
+FORCE=false
+[ "${2:-}" = "--force" ] && FORCE=true
 [[ $NAME =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$ ]] ||
   die "Give the portal's host name, e.g.: bash $0 portal.royaco.com"
 
@@ -87,12 +91,17 @@ openssl x509 -in "$CERT" -noout -checkhost "$NAME" | grep -q "does match" ||
 openssl x509 -in "$CERT" -noout -checkend 86400 >/dev/null || die "The certificate has expired. Renew it with make-cert.sh."
 curl -fsS --noproxy "*" --max-time 3 "http://127.0.0.1:$PORT/healthz" >/dev/null 2>&1 || die "The portal is not answering on port $PORT; start it first (pm2 status)."
 
-# The computers find the name through the internal DNS; this server may use another DNS, so only warn.
+# Old links are sent to the new name, so switching before the DNS points it here would take the
+# portal away from everyone. This server normally asks the same DNS as the computers.
 resolved="$(getent hosts "$NAME" | awk '{print $1}' | head -n1 || true)"
-if [ -z "$resolved" ]; then
-  log "Note: this server cannot look up $NAME. That is fine if the computers can (check with: ping $NAME)."
-elif ! hostname -I | tr ' ' '\n' | grep -qx "$resolved"; then
-  log "WARNING: $NAME points to $resolved, which is not this server ($(hostname -I | xargs))."
+here="$(hostname -I | xargs)"
+if [ -z "$resolved" ] || ! tr ' ' '\n' <<<"$here" | grep -qx "$resolved"; then
+  found="${resolved:-nothing}"
+  if $FORCE; then
+    log "WARNING: $NAME points to $found here, not to this server ($here); going on because of --force."
+  else
+    die "$NAME points to $found, not to this server ($here), so nothing was changed. Ask IT to point $NAME to this server in the internal DNS, then check on a computer with: ping $NAME. If the computers already reach this server by that name and only this server's DNS differs, run again with --force."
+  fi
 fi
 
 # Keep the settings from before HTTPS once, so that --undo always goes back to them.
