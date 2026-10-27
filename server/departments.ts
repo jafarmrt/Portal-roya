@@ -220,13 +220,14 @@ const departments = managedList({
   noun: 'واحد',
   listName: 'فهرست واحدهای سازمان',
   mayBeEmpty: false,
-  usedIn: '(همکاران، اخبار، اسناد یا نظرسنجی‌ها)',
+  usedIn: '(همکاران، اخبار، اسناد، راهنماها یا نظرسنجی‌ها)',
   usedNames: async (tx) => {
     const used = await tx.execute<{ name: string }>(sql`
       select department as name from employees
       union select d from news, unnest(target_departments) as d
       union select d from documents, unnest(target_departments) as d
       union select department from polls where department <> 'all'
+      union select department from guides where department <> ''
     `);
     return used.rows.map((r) => r.name);
   },
@@ -235,6 +236,16 @@ const departments = managedList({
     await tx.execute(sql`update employees set department = ${to} where department = ${from}`);
     await tx.execute(sql`update polls set department = ${to} where department = ${from}`);
     await replaceInAudiences(tx, 'target_departments', from, to);
+    await tx.execute(sql`update guides set department = ${to} where department = ${from}`);
+    // On a merge the page of the department that stays is kept.
+    await tx.execute(sql`delete from department_pages where department = ${from} and exists (select 1 from department_pages where department = ${to})`);
+    await tx.execute(sql`update department_pages set department = ${to} where department = ${from}`);
+    await tx.execute(sql`
+      update settings set systems = (
+        select coalesce(jsonb_agg(case when s->>'department' = ${from} then jsonb_set(s, '{department}', to_jsonb(${to}::text)) else s end), '[]'::jsonb)
+        from jsonb_array_elements(systems) as s
+      )
+    `);
   },
   usage: async () => {
     const usage = new Map<string, ListUsage>();
@@ -255,7 +266,7 @@ const departments = managedList({
     await documentUsage('target_departments', entry);
     return usage;
   },
-  renames: ['employees', 'news', 'documents', 'polls'],
+  renames: ['employees', 'news', 'documents', 'polls', 'guides', 'department_pages', 'settings'],
 });
 
 const locations = managedList({

@@ -12,6 +12,7 @@ import {
   locationList,
   locationUsage,
   renameDepartment,
+  requireDepartment,
   renameLocation,
 } from '../departments.js';
 import { broadcastChange } from '../events.js';
@@ -56,6 +57,8 @@ const systemSchema = z.object({
     .refine((v) => v === '#' || /^https?:\/\//.test(v), 'آدرس سامانه باید با http:// یا https:// شروع شود'),
   bgColor: requiredText(50),
   textColor: requiredText(50),
+  // The department that runs it ('' for none), shown on that department's page.
+  department: z.string().trim().max(100).optional().default(''),
 });
 
 const updateSchema = z
@@ -91,6 +94,7 @@ settingsRouter.put(
     await ensureSettings();
     if (body.departments) body.departments = await checkDepartmentList(body.departments);
     if (body.locations) body.locations = await checkLocationList(body.locations);
+    for (const system of systems ?? []) if (system.department) system.department = await requireDepartment(system.department);
     const [updated] = await db.update(settings).set(body).where(eq(settings.id, 'global')).returning();
     broadcastChange('settings');
     res.json(publicSettings(updated));

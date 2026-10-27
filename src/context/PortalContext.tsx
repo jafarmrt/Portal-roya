@@ -10,6 +10,9 @@ import type {
   CalendarEvent,
   CurrentUser,
   CustomHolidays,
+  DepartmentPage,
+  Guide,
+  GuideInput,
   MoodState,
   NewColleagueWelcome,
   NewsInput,
@@ -139,6 +142,8 @@ interface PortalContextType {
   customHolidays: CustomHolidays;
   notifications: NotificationItem[];
   documents: PortalDocument[];
+  guides: Guide[];
+  departmentPages: DepartmentPage[];
   userMoods: UserMood[];
   todayMoodSubmitted: boolean;
 
@@ -192,6 +197,13 @@ interface PortalContextType {
   addDocumentVersion: (id: string, version: { file: Attachment; note: string; reAck: boolean; notify: boolean; reviewDate: string }) => Promise<boolean>;
   markDocumentReviewed: (id: string, reviewDate: string) => Promise<boolean>;
   acknowledgeDocument: (id: string) => Promise<void>;
+  saveGuide: (guide: GuideInput, id?: string) => Promise<boolean>;
+  deleteGuide: (id: string) => Promise<boolean>;
+  markGuideReviewed: (id: string, reviewDate: string) => Promise<boolean>;
+  sendGuideFeedback: (id: string, helpful: boolean) => Promise<void>;
+  /** Resolves to the name of the colleague the question went to, or undefined when it failed. */
+  askGuideQuestion: (id: string, text: string) => Promise<string | undefined>;
+  saveDepartmentPage: (department: string, page: { headId?: string | null; about: string }) => Promise<boolean>;
   markNotificationRead: (id: string) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
@@ -200,13 +212,23 @@ interface PortalContextType {
 const PortalContext = createContext<PortalContextType | undefined>(undefined);
 
 const VALID_TABS: ActiveTab[] = [
-  'dashboard', 'polls', 'colleagues', 'orgchart', 'search', 'news', 'documents',
+  'dashboard', 'polls', 'colleagues', 'orgchart', 'departments', 'search', 'news', 'documents', 'guides',
   'training', 'calendar', 'notifications', 'systems', 'reports', 'people', 'admin',
 ];
 
+/** Ids in the address are encoded, since a department's page is named by the department. */
+function decodeId(id: string | undefined) {
+  if (!id) return null;
+  try {
+    return decodeURIComponent(id);
+  } catch {
+    return id;
+  }
+}
+
 function readHash(): { tab: ActiveTab; id: string | null } {
   const [tab, id] = window.location.hash.replace(/^#/, '').split('/');
-  return VALID_TABS.includes(tab as ActiveTab) ? { tab: tab as ActiveTab, id: id || null } : { tab: 'dashboard', id: null };
+  return VALID_TABS.includes(tab as ActiveTab) ? { tab: tab as ActiveTab, id: decodeId(id) } : { tab: 'dashboard', id: null };
 }
 
 export const DEFAULT_LOGIN_REASON = 'برای ثبت نظر، رأی، تبریک و سایر تعامل‌ها وارد حساب کاربری خود شوید.';
@@ -250,6 +272,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [customHolidays, setCustomHolidays] = useState<CustomHolidays>({});
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [documents, setDocuments] = useState<PortalDocument[]>([]);
+  const [guides, setGuides] = useState<Guide[]>([]);
+  const [departmentPages, setDepartmentPages] = useState<DepartmentPage[]>([]);
   const [userMoods, setUserMoods] = useState<UserMood[]>([]);
   const [roles, setRoles] = useState<RoleInfo[]>([]);
   const newsCount = useRef(NEWS_PAGE_SIZE);
@@ -324,7 +348,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const setActiveTab = useCallback((tab: ActiveTab, id: string | null = null) => {
-    const hash = `#${tab}${id ? `/${id}` : ''}`;
+    const hash = `#${tab}${id ? `/${encodeURIComponent(id)}` : ''}`;
     if (window.location.hash !== hash) window.history.pushState(null, '', hash);
     setRoute({ tab, id });
     window.scrollTo({ top: 0 });
@@ -351,6 +375,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       holidays: () => api.get<CustomHolidays>('/api/holidays').then(setCustomHolidays),
       notifications: () => api.get<NotificationItem[]>('/api/notifications').then(setNotifications),
       documents: () => api.get<PortalDocument[]>('/api/documents').then(setDocuments),
+      guides: () => api.get<Guide[]>('/api/guides').then(setGuides),
+      department_pages: () => api.get<DepartmentPage[]>('/api/department_pages').then(setDepartmentPages),
       moods: () => api.get<UserMood[]>('/api/moods/me').then(setUserMoods),
       roles: () => api.get<RoleInfo[]>('/api/roles').then(setRoles),
       // An admin may change this user's role or the role's permissions at any time.
@@ -736,6 +762,49 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (doc) replaceDocument(doc);
   };
 
+  const replaceGuide = (guide: Guide) => setGuides((prev) => prev.map((g) => (g.id === guide.id ? guide : g)));
+
+  const saveGuide: PortalContextType['saveGuide'] = async (guide, id) => {
+    const saved = await attempt(
+      () => (id ? api.put<Guide>(`/api/guides/${id}`, guide) : api.post<Guide>('/api/guides', guide)),
+      id ? 'راهنما ذخیره شد.' : 'راهنما منتشر شد.',
+    );
+    if (saved) await refresh('guides');
+    return Boolean(saved);
+  };
+
+  const deleteGuide = async (id: string) => {
+    const ok = await attempt(() => api.delete(`/api/guides/${id}`), 'راهنما حذف شد.');
+    if (ok !== undefined) setGuides((prev) => prev.filter((g) => g.id !== id));
+    return ok !== undefined;
+  };
+
+  const markGuideReviewed: PortalContextType['markGuideReviewed'] = async (id, reviewDate) => {
+    const guide = await attempt(() => api.post<Guide>(`/api/guides/${id}/review`, { reviewDate }), 'بازبینی ثبت شد.');
+    if (guide) replaceGuide(guide);
+    return Boolean(guide);
+  };
+
+  const sendGuideFeedback = async (id: string, helpful: boolean) => {
+    const guide = await attempt(() => api.post<Guide>(`/api/guides/${id}/feedback`, { helpful }), 'از نظرتان ممنونیم.');
+    if (guide) replaceGuide(guide);
+  };
+
+  const askGuideQuestion: PortalContextType['askGuideQuestion'] = async (id, text) => {
+    const result = await attempt(() => api.post<{ sentTo: string }>(`/api/guides/${id}/question`, { text }));
+    if (result) {
+      toast.success(`پرسش شما برای ${result.sentTo} فرستاده شد.`);
+      setGuides((prev) => prev.map((g) => (g.id === id ? { ...g, myFeedback: false } : g)));
+    }
+    return result?.sentTo;
+  };
+
+  const saveDepartmentPage: PortalContextType['saveDepartmentPage'] = async (department, page) => {
+    const ok = await attempt(() => api.put(`/api/department_pages/${encodeURIComponent(department)}`, page), 'صفحهٔ واحد ذخیره شد.');
+    if (ok) await refresh('department_pages');
+    return Boolean(ok);
+  };
+
   const markNotificationRead = async (id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
     await api.post(`/api/notifications/${id}/read`).catch(() => undefined);
@@ -752,7 +821,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const getGlobalSearchResults = (query: string) =>
-    buildSearchResults(query, { employees, news, polls, trainings, calendarEvents, documents });
+    buildSearchResults(query, { employees, news, polls, trainings, calendarEvents, documents, guides, departmentPages, departments: appSettings?.departments ?? [] });
 
   return (
     <PortalContext.Provider
@@ -797,6 +866,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         customHolidays,
         notifications,
         documents,
+        guides,
+        departmentPages,
         userMoods,
         todayMoodSubmitted,
         updateSettings,
@@ -847,6 +918,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addDocumentVersion,
         markDocumentReviewed,
         acknowledgeDocument,
+        saveGuide,
+        deleteGuide,
+        markGuideReviewed,
+        sendGuideFeedback,
+        askGuideQuestion,
+        saveDepartmentPage,
         markNotificationRead,
         markAllNotificationsRead,
         deleteNotification,

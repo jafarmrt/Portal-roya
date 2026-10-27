@@ -323,14 +323,61 @@ export interface DocumentDetails {
   targetUserIds: string[];
 }
 
+export interface Guide {
+  id: string;
+  title: string;
+  category: string;
+  summary: string;
+  /** Editor HTML, cleaned by the server. */
+  content: string;
+  /** The department it belongs to, or ''. */
+  department: string;
+  ownerId: string | null;
+  owner: string;
+  ownerExtension: string;
+  updatedBy: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Sent only to the owner and document managers. */
+  reviewAt: string | null;
+  needsReview: boolean;
+  /** This person's answer to "was this helpful?", or null. */
+  myFeedback: boolean | null;
+  /** For the owner and document managers. */
+  feedback?: { helpful: number; notHelpful: number };
+}
+
+/** What is written for a guide; the review date is Jalali or ''. */
+export interface GuideInput {
+  title: string;
+  category: string;
+  summary: string;
+  content: string;
+  department: string;
+  ownerId: string | null;
+  reviewDate: string;
+}
+
+/** The page of a department: who leads it and what to come to it for. */
+export interface DepartmentPage {
+  department: string;
+  headId: string | null;
+  /** Editor HTML. */
+  about: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
 export type ActiveTab =
   | 'dashboard'
   | 'polls'
   | 'colleagues'
   | 'orgchart'
+  | 'departments'
   | 'search'
   | 'news'
   | 'documents'
+  | 'guides'
   | 'training'
   | 'calendar'
   | 'notifications'
@@ -341,7 +388,7 @@ export type ActiveTab =
 
 export interface SearchResultItem {
   id: string;
-  type: 'همکاران' | 'اخبار' | 'اطلاعیه' | 'نظرسنجی' | 'آموزش' | 'تقویم' | 'اسناد';
+  type: 'همکاران' | 'اخبار' | 'اطلاعیه' | 'نظرسنجی' | 'آموزش' | 'تقویم' | 'اسناد' | 'راهنما' | 'واحد';
   title: string;
   subtitle: string;
   snippet: string;
@@ -376,6 +423,8 @@ export interface ExternalSystem {
   url: string;
   bgColor: string;
   textColor: string;
+  /** The department that runs it, shown on that department's page; '' for none. */
+  department?: string;
 }
 
 export interface AppSettings {

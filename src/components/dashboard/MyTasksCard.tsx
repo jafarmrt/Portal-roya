@@ -1,6 +1,6 @@
 import React from 'react';
 import moment from 'moment-jalaali';
-import { CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, FileCheck2, FileText, GraduationCap, ListTodo, Vote } from 'lucide-react';
+import { CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, FileCheck2, FileText, GraduationCap, LifeBuoy, ListTodo, Vote } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { dayLabel, formatDate, toPersianDigits, todayJalali } from '../../lib/jalali';
 import { deadlineState } from '../news/NewsBody';
@@ -25,7 +25,7 @@ const WEEK_EVENT_TYPES = new Set(['meeting', 'event', 'holiday']);
  * events in the coming seven days. Sits at the top of the dashboard.
  */
 export const MyTasksCard: React.FC = () => {
-  const { currentUser, news, polls, trainings, calendarEvents, documents, can, setActiveTab } = usePortal();
+  const { currentUser, news, polls, trainings, calendarEvents, documents, guides, can, setActiveTab } = usePortal();
   if (!currentUser) return null;
 
   const today = todayJalali();
@@ -70,6 +70,18 @@ export const MyTasksCard: React.FC = () => {
       when: formatDate(d.reviewAt),
       rank: `1-${d.reviewAt}`,
       open: () => setActiveTab('documents', d.id),
+    });
+  }
+  for (const g of guides) {
+    if (!g.needsReview || !(g.ownerId === currentUser.id || (!g.ownerId && can('documents.manage')))) continue;
+    tasks.push({
+      key: `guide-review-${g.id}`,
+      icon: <LifeBuoy className="w-4 h-4 text-red-700" />,
+      kind: 'بازبینی راهنما',
+      title: g.title,
+      when: formatDate(g.reviewAt),
+      rank: `1-${g.reviewAt}`,
+      open: () => setActiveTab('guides', g.id),
     });
   }
   for (const p of polls) {

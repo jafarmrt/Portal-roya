@@ -14,6 +14,7 @@ import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
 import { audienceIdsFor, createNotifications } from '../notify.js';
 import { fullName } from '../serializers.js';
+import { indexDocumentText } from '../textExtract.js';
 import { attachment, jalaliDate, optionalText, requiredText } from '../validation.js';
 
 export const documentsRouter = Router();
@@ -29,7 +30,7 @@ const AUDIENCE_COLUMNS = {
 };
 
 /** Document managers see every document; others the ones meant for them and the ones they look after. */
-function visibleTo(viewer: SessionUser | null): SQL | undefined {
+export function visibleTo(viewer: SessionUser | null): SQL | undefined {
   if (can(viewer, 'documents.manage')) return undefined;
   const forMe = audienceIncludes(AUDIENCE_COLUMNS, viewer);
   return viewer ? or(forMe, eq(documents.ownerId, viewer.id)) : forMe;
@@ -214,6 +215,7 @@ documentsRouter.post(
         uploadedById: viewer.id,
       })
       .returning();
+    await indexDocumentText(doc.id);
     if (doc.requiresAck) {
       await askToConfirm(doc, viewer.id, 'سند لازم‌الاجرا: لطفاً مطالعه و تأیید کنید 📌');
     } else if (body.notify) {
@@ -345,6 +347,7 @@ documentsRouter.post(
       });
       return updated;
     });
+    await indexDocumentText(doc.id);
     if (reAck) {
       await askToConfirm(doc, viewer.id, 'نسخهٔ جدید سند لازم‌الاجرا: لطفاً دوباره مطالعه و تأیید کنید 📌');
     } else if (body.notify) {

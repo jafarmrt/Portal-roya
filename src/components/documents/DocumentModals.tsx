@@ -21,8 +21,14 @@ const ChosenFile: React.FC<{ file: UploadedFile; onClear: () => void }> = ({ fil
   </div>
 );
 
-/** Colleagues who can look after a document, by department. */
-const OwnerSelect: React.FC<{ id: string; value: string | null; onChange: (id: string | null) => void }> = ({ id, value, onChange }) => {
+/** Colleagues with a portal account who can look after something (a document, a guide, a department), by department. */
+export const OwnerSelect: React.FC<{ id: string; value: string | null; onChange: (id: string | null) => void; emptyLabel?: string; disabled?: boolean }> = ({
+  id,
+  value,
+  onChange,
+  emptyLabel = 'بدون مسئول',
+  disabled,
+}) => {
   const { employees, appSettings } = usePortal();
   const groups = useMemo(() => {
     const people = employees.filter((e) => e.isActive && e.hasAccount);
@@ -35,8 +41,8 @@ const OwnerSelect: React.FC<{ id: string; value: string | null; onChange: (id: s
       .filter((g) => g.people.length > 0);
   }, [employees, appSettings]);
   return (
-    <select id={id} value={value ?? ''} onChange={(e) => onChange(e.target.value || null)} className={inputClass}>
-      <option value="">بدون مسئول</option>
+    <select id={id} value={value ?? ''} disabled={disabled} onChange={(e) => onChange(e.target.value || null)} className={inputClass}>
+      <option value="">{emptyLabel}</option>
       {groups.map((g) => (
         <optgroup key={g.department} label={g.department}>
           {g.people.map((p) => (

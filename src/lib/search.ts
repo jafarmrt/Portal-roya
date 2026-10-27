@@ -1,5 +1,6 @@
-import type { CalendarEvent, NewsItem, Poll, PortalDocument, SearchResultItem, TrainingProgram, UserProfile } from '../types';
-import { formatDate, toLatinDigits } from './jalali';
+import type { CalendarEvent, DepartmentPage, Guide, NewsItem, Poll, PortalDocument, SearchResultItem, TrainingProgram, UserProfile } from '../types';
+import { normalizeForSearch } from '../../shared/search';
+import { formatDate } from './jalali';
 
 interface SearchSources {
   employees: UserProfile[];
@@ -8,15 +9,28 @@ interface SearchSources {
   trainings: TrainingProgram[];
   calendarEvents: CalendarEvent[];
   documents: PortalDocument[];
+  guides: Guide[];
+  departmentPages: DepartmentPage[];
+  /** The department list from the settings. */
+  departments: string[];
 }
 
-/** Lowercases, unifies Arabic/Persian letter variants and digits so "علي" finds "علی". */
-export function normalizeForSearch(value: string | null | undefined): string {
-  return toLatinDigits(value ?? '')
-    .toLowerCase()
-    .replace(/ي/g, 'ی')
-    .replace(/ك/g, 'ک')
-    .replace(/‌/g, ' ');
+export { normalizeForSearch };
+
+/** The words of editor HTML, for searching and short previews. */
+export function htmlToText(html: string) {
+  return html
+    .replace(/<\/(p|h\d|li|tr|blockquote)>|<br\s*\/?>/gi, '\n')
+    .replace(/<\/(td|th)>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
 }
 
 export function matches(query: string, ...fields: (string | null | undefined)[]) {
@@ -44,7 +58,7 @@ export function buildSearchResults(query: string, s: SearchSources): SearchResul
   }
 
   for (const n of s.news) {
-    if (!matches(query, n.title, n.summary, n.content, n.category, ...n.tags)) continue;
+    if (!matches(query, n.title, n.summary, n.contentFormat === 'html' ? htmlToText(n.content) : n.content, n.category, ...n.tags)) continue;
     const isNotice = n.requiresAck || n.isUrgent;
     results.push({
       id: `res-news-${n.id}`,
@@ -114,6 +128,37 @@ export function buildSearchResults(query: string, s: SearchSources): SearchResul
       targetTab: 'documents',
       targetId: doc.id,
       badgeColor: 'bg-stone-100 text-stone-800 border-stone-300',
+    });
+  }
+
+  for (const g of s.guides) {
+    const text = htmlToText(g.content);
+    if (!matches(query, g.title, g.summary, g.category, g.department, g.owner, text)) continue;
+    results.push({
+      id: `res-guide-${g.id}`,
+      type: 'راهنما',
+      title: g.title,
+      subtitle: [g.category, g.department, g.owner && `مسئول: ${g.owner}`].filter(Boolean).join(' | '),
+      snippet: g.summary || text.slice(0, 200),
+      targetTab: 'guides',
+      targetId: g.id,
+      badgeColor: 'bg-teal-100 text-teal-800 border-teal-300',
+    });
+  }
+
+  for (const department of s.departments) {
+    const page = s.departmentPages.find((p) => p.department === department);
+    const about = page ? htmlToText(page.about) : '';
+    if (!matches(query, department, about)) continue;
+    results.push({
+      id: `res-dept-${department}`,
+      type: 'واحد',
+      title: department,
+      subtitle: 'صفحهٔ واحد',
+      snippet: about.slice(0, 200),
+      targetTab: 'departments',
+      targetId: department,
+      badgeColor: 'bg-orange-100 text-orange-800 border-orange-300',
     });
   }
 

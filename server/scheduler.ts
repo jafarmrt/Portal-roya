@@ -6,6 +6,8 @@ import { broadcastChange } from './events.js';
 import { runNightlyMaintenance } from './maintenance.js';
 import { audienceIds, createNotifications } from './notify.js';
 import { processDocumentReviews } from './routes/documents.js';
+import { processGuideReviews } from './routes/guides.js';
+import { indexMissingDocumentTexts } from './textExtract.js';
 import { announceNews, processAckDeadlines } from './routes/news.js';
 import { fullName } from './serializers.js';
 
@@ -71,11 +73,14 @@ export async function announceBirthdays(now = new Date()) {
 }
 
 export function startScheduler() {
+  // Documents uploaded before search looked inside files are read once, in the background.
+  setTimeout(() => indexMissingDocumentTexts().catch((err) => console.error('Document text error:', err)), 10_000).unref();
   const timer = setInterval(() => {
     publishDueNews().catch((err) => console.error('Scheduler error:', err));
     announceBirthdays().catch((err) => console.error('Birthday scheduler error:', err));
     processAckDeadlines().catch((err) => console.error('Circular deadline error:', err));
     processDocumentReviews().catch((err) => console.error('Document review error:', err));
+    processGuideReviews().catch((err) => console.error('Guide review error:', err));
     runNightlyMaintenance().catch((err) => console.error('Maintenance error:', err));
   }, INTERVAL_MS);
   timer.unref();

@@ -24,6 +24,8 @@ const OrgChartModule = named(() => import('./components/colleagues/OrgChartModul
 const GlobalSearchModule = named(() => import('./components/search/GlobalSearchModule'), 'GlobalSearchModule');
 const NewsModule = named(() => import('./components/news/NewsModule'), 'NewsModule');
 const DocumentsModule = named(() => import('./components/documents/DocumentsModule'), 'DocumentsModule');
+const GuidesModule = named(() => import('./components/guides/GuidesModule'), 'GuidesModule');
+const DepartmentsModule = named(() => import('./components/departments/DepartmentsModule'), 'DepartmentsModule');
 const TrainingModule = named(() => import('./components/training/TrainingModule'), 'TrainingModule');
 const CalendarModule = named(() => import('./components/calendar/CalendarModule'), 'CalendarModule');
 const NotificationsInbox = named(() => import('./components/notifications/NotificationsInbox'), 'NotificationsInbox');
@@ -120,9 +122,11 @@ const MainContent: React.FC = () => {
             {activeTab === 'polls' && <PollsModule />}
             {activeTab === 'colleagues' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <ColleaguesDirectory />)}
             {activeTab === 'orgchart' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <OrgChartModule />)}
+            {activeTab === 'departments' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <DepartmentsModule />)}
             {activeTab === 'search' && <GlobalSearchModule />}
             {activeTab === 'news' && <NewsModule />}
             {activeTab === 'documents' && <DocumentsModule />}
+            {activeTab === 'guides' && <GuidesModule />}
             {activeTab === 'training' && <TrainingModule />}
             {activeTab === 'calendar' && <CalendarModule />}
             {activeTab === 'notifications' &&

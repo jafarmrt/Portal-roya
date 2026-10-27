@@ -20,7 +20,10 @@ import {
   UserCog,
   ChevronDown,
   Contact,
-  ShieldCheck
+  ShieldCheck,
+  Building2,
+  LifeBuoy,
+  Library
 } from 'lucide-react';
 
 interface NavigationProps {
@@ -69,6 +72,8 @@ const NavGroup: React.FC<{ entry: Extract<NavEntry, { kind: 'group' }>; activeTa
   }, [open]);
 
   const active = entry.items.find((i) => i.id === activeTab);
+  // A closed group still shows that something inside it waits for this person.
+  const groupBadge = entry.items.find((i) => i.badge !== undefined);
   const menuId = `nav-group-${entry.id}`;
   return (
     <div ref={ref} className="relative">
@@ -83,6 +88,7 @@ const NavGroup: React.FC<{ entry: Extract<NavEntry, { kind: 'group' }>; activeTa
       >
         {active?.icon ?? entry.icon}
         <span>{active ? active.label : entry.label}</span>
+        {groupBadge && <Badge item={groupBadge} className="text-[10px] px-1.5 py-0.2" />}
         <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
@@ -102,7 +108,8 @@ const NavGroup: React.FC<{ entry: Extract<NavEntry, { kind: 'group' }>; activeTa
               }`}
             >
               {item.icon}
-              <span>{item.label}</span>
+              <span className="flex-1 text-right">{item.label}</span>
+              <Badge item={item} className="text-[10px] px-1.5 py-0.5" />
             </button>
           ))}
         </div>
@@ -112,13 +119,14 @@ const NavGroup: React.FC<{ entry: Extract<NavEntry, { kind: 'group' }>; activeTa
 };
 
 export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onCloseMobileNav }) => {
-  const { activeTab, setActiveTab, currentUser, isGuest, requestLogin, appSettings, can, isAdmin, polls, news } = usePortal();
+  const { activeTab, setActiveTab, currentUser, isGuest, requestLogin, appSettings, can, isAdmin, polls, news, documents: portalDocuments } = usePortal();
   useEscapeKey(onCloseMobileNav, isMobileNavOpen);
 
   // Read/vote badges are personal, so guests don't get them.
   const activePollsCount = isGuest ? 0 : polls.filter(p => p.isActive && !p.hasVoted).length;
   const unreadNewsCount = isGuest ? 0 : news.filter(n => n.status === 'published' && !n.isRead).length;
   const pendingAckCount = isGuest ? 0 : news.filter(n => n.status === 'published' && n.requiresAck && !n.acknowledgedAt).length;
+  const pendingDocumentCount = isGuest ? 0 : portalDocuments.filter(d => d.requiresAck && d.forMe && !d.acknowledgedAt).length;
 
   const dashboard: NavItem = { id: 'dashboard', label: 'داشبورد', icon: <LayoutDashboard className="w-4 h-4" /> };
   const systems: NavItem = { id: 'systems', label: 'سامانه‌ها', icon: <LayoutGrid className="w-4 h-4" /> };
@@ -138,7 +146,14 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
       : unreadNewsCount > 0 ? `${toPersianDigits(unreadNewsCount)} نخوانده` : undefined,
     badgeColor: pendingAckCount > 0 ? 'bg-amber-400 text-amber-950' : 'bg-[#991b1b]/30 text-[#E6E0D5]'
   };
-  const documents: NavItem = { id: 'documents', label: 'اسناد و فرم‌ها', icon: <FolderOpen className="w-4 h-4" /> };
+  const documents: NavItem = {
+    id: 'documents',
+    label: 'اسناد و فرم‌ها',
+    icon: <FolderOpen className="w-4 h-4" />,
+    badge: pendingDocumentCount > 0 ? `${toPersianDigits(pendingDocumentCount)} لازم‌الاجرا` : undefined,
+    badgeColor: 'bg-amber-400 text-amber-950'
+  };
+  const guides: NavItem = { id: 'guides', label: 'راهنماها و پرسش‌های رایج', icon: <LifeBuoy className="w-4 h-4" /> };
   const training: NavItem = { id: 'training', label: 'آموزش', icon: <GraduationCap className="w-4 h-4" /> };
   const calendar: NavItem = { id: 'calendar', label: 'تقویم', icon: <Calendar className="w-4 h-4" /> };
 
@@ -149,6 +164,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
       : [
           { id: 'colleagues', label: 'دفتر تلفن', icon: <Users className="w-4 h-4" /> },
           { id: 'orgchart', label: 'چارت سازمانی', icon: <Network className="w-4 h-4" /> },
+          { id: 'departments', label: 'واحدها', icon: <Building2 className="w-4 h-4" /> },
         ];
 
   const adminItems: NavItem[] = [];
@@ -164,7 +180,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
     { kind: 'item', item: dashboard },
     { kind: 'item', item: newsItem },
     { kind: 'item', item: pollsItem },
-    { kind: 'item', item: documents },
+    ...groupOrItem('library', 'اسناد و راهنماها', <Library className="w-4 h-4" />, [documents, guides]),
     ...groupOrItem('colleagues', 'همکاران', <Contact className="w-4 h-4" />, colleagueItems),
     { kind: 'item', item: training },
     { kind: 'item', item: calendar },
@@ -173,7 +189,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
 
   // The phone drawer has room for everything, with management pages under their own heading.
   const mobileSections: { title?: string; items: NavItem[] }[] = [
-    { items: [dashboard, systems, newsItem, pollsItem, documents, ...colleagueItems, training, calendar] },
+    { items: [dashboard, systems, newsItem, pollsItem, documents, guides, ...colleagueItems, training, calendar] },
     ...(adminItems.length > 0 ? [{ title: 'مدیریت', items: adminItems }] : []),
   ];
 

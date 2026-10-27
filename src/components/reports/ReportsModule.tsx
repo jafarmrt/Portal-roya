@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import moment from 'moment-jalaali';
-import { Activity, BarChart2, FileCheck2, Newspaper } from 'lucide-react';
+import { Activity, BarChart2, FileCheck2, Newspaper, SearchX } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { api, errorMessage } from '../../lib/api';
 import { formatDate, toPersianDigits } from '../../lib/jalali';
@@ -18,6 +18,60 @@ const MOODS: { name: MoodState; color: string }[] = [
   { name: 'خوب', color: '#991b1b' },
   { name: 'عالی', color: '#dc2626' },
 ];
+
+interface SearchMiss {
+  query: string;
+  count: number;
+  lastAt: string;
+}
+
+/** What colleagues searched for and did not find in the last three months: topics worth a guide. */
+const SearchMissesCard: React.FC = () => {
+  const { can, setActiveTab } = usePortal();
+  const [misses, setMisses] = useState<SearchMiss[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    api
+      .get<SearchMiss[]>('/api/search/misses')
+      .then(setMisses)
+      .catch((err) => setError(errorMessage(err)));
+  }, []);
+
+  return (
+    <section aria-labelledby="search-misses-title" className="bg-white rounded-3xl p-6 border border-[#e5e5e5] shadow-xs space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <SearchX className="w-5 h-5 text-[#991b1b]" />
+          <div>
+            <h3 id="search-misses-title" className="text-base font-black text-[#2d2d2d]">جستجوهای بی‌نتیجه</h3>
+            <p className="text-xs text-[#6e6a60]">همکاران در سه ماه اخیر این‌ها را جستجو کرده‌اند و چیزی پیدا نکرده‌اند (بدون نام جستجوکننده)</p>
+          </div>
+        </div>
+        {can('documents.manage') && misses && misses.length > 0 && (
+          <button onClick={() => setActiveTab('guides')} className="px-4 py-2 text-xs font-bold text-[#2D2D2D] bg-white hover:bg-[#F5F2ED] border border-[#D9D4CB] rounded-xl w-fit">
+            نوشتن راهنما
+          </button>
+        )}
+      </div>
+      {error ? (
+        <p role="alert" className="text-xs text-red-700">{error}</p>
+      ) : !misses ? (
+        <p className="text-xs text-[#6E6A60]">در حال دریافت...</p>
+      ) : misses.length === 0 ? (
+        <p className="text-xs text-[#6E6A60] text-center py-6 bg-[#F5F2ED] rounded-xl">جستجوی بی‌نتیجه‌ای ثبت نشده است.</p>
+      ) : (
+        <ul className="flex flex-wrap gap-2">
+          {misses.map((m) => (
+            <li key={m.query} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#F5F2ED] text-xs" title={`آخرین بار ${formatDate(m.lastAt)}`}>
+              <span className="font-bold text-[#2D2D2D]">{toPersianDigits(m.query)}</span>
+              <span className="px-1.5 py-0.5 rounded-full bg-white text-[10px] font-bold text-[#991b1b]">{toPersianDigits(m.count)} بار</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+};
 
 const percent = (part: number, total: number) => (total > 0 ? Math.round((part / total) * 100) : 0);
 
@@ -58,7 +112,7 @@ export const ReportsModule: React.FC = () => {
         </div>
         <div>
           <h2 className="text-xl font-black text-[#2d2d2d]">گزارش‌ها</h2>
-          <p className="text-sm text-[#6e6a60] mt-1">میزان دیده‌شدن اطلاعیه‌ها و حال‌وهوای سازمان</p>
+          <p className="text-sm text-[#6e6a60] mt-1">میزان دیده‌شدن اطلاعیه‌ها، جستجوهای بی‌نتیجه و حال‌وهوای سازمان</p>
         </div>
       </div>
 
@@ -120,6 +174,8 @@ export const ReportsModule: React.FC = () => {
           </div>
         )}
       </section>
+
+      <SearchMissesCard />
 
       <section className="bg-white rounded-3xl p-6 border border-[#e5e5e5] shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

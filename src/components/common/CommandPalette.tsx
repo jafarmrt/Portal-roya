@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { Search, Users, ExternalLink, Newspaper, Calendar, GraduationCap, Vote, PhoneCall, ArrowRight, X, FolderOpen } from 'lucide-react';
+import { Search, Users, ExternalLink, Newspaper, Calendar, GraduationCap, Vote, PhoneCall, ArrowRight, X, FolderOpen, LifeBuoy, Building2 } from 'lucide-react';
 import { matches } from '../../lib/search';
 
 interface CommandPaletteProps {
@@ -14,7 +14,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     news,
     appSettings,
     setActiveTab,
-    documents
+    documents,
+    guides
   } = usePortal();
 
   const [query, setQuery] = useState('');
@@ -118,6 +119,23 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         }))
     : [];
 
+  const guideResults = cleanQ
+    ? guides
+        .filter(g => hit(g.title, g.summary, g.category))
+        .slice(0, 3)
+        .map(g => ({
+          id: `guide-${g.id}`,
+          type: 'راهنما' as const,
+          title: g.title,
+          subtitle: g.summary || g.category,
+          icon: <LifeBuoy className="w-4 h-4 text-teal-700" />,
+          action: () => {
+            setActiveTab('guides', g.id);
+            onClose();
+          }
+        }))
+    : [];
+
   const navigationResults = [
     { id: 'nav-dashboard', type: 'ناوبری' as const, title: 'داشبورد اصلی', subtitle: 'مشاهده صفحه اصلی و رویدادهای روز', icon: <ArrowRight className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('dashboard'); onClose(); } },
     { id: 'nav-systems', type: 'ناوبری' as const, title: 'سامانه‌های سازمانی', subtitle: 'اتوماسیون، حضور غیاب، منابع انسانی', icon: <ExternalLink className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('systems'); onClose(); } },
@@ -125,11 +143,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     { id: 'nav-calendar', type: 'ناوبری' as const, title: 'تقویم و رویدادها', subtitle: 'تعطیلات رسمی و برنامه‌های سازمانی', icon: <Calendar className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('calendar'); onClose(); } },
     { id: 'nav-training', type: 'ناوبری' as const, title: 'دوره‌های آموزشی', subtitle: 'ثبت‌نام و یادگیری درون‌سازمانی', icon: <GraduationCap className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('training'); onClose(); } },
     { id: 'nav-documents', type: 'ناوبری' as const, title: 'اسناد و فرم‌ها', subtitle: 'آیین‌نامه‌ها، فرم‌ها و دستورالعمل‌ها', icon: <FolderOpen className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('documents'); onClose(); } },
+    { id: 'nav-guides', type: 'ناوبری' as const, title: 'راهنماها و پرسش‌های رایج', subtitle: 'چطور انجامش بدهم؟ با چه کسی تماس بگیرم؟', icon: <LifeBuoy className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('guides'); onClose(); } },
+    { id: 'nav-departments', type: 'ناوبری' as const, title: 'واحدهای سازمان', subtitle: 'مسئول هر واحد و کارهایی که انجام می‌دهد', icon: <Building2 className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('departments'); onClose(); } },
     { id: 'nav-orgchart', type: 'ناوبری' as const, title: 'چارت سازمانی', subtitle: 'ساختار واحدها و مدیران', icon: <Users className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('orgchart'); onClose(); } },
     { id: 'nav-polls', type: 'ناوبری' as const, title: 'نظرسنجی‌ها', subtitle: 'مشارکت در تصمیم‌گیری‌ها', icon: <Vote className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('polls'); onClose(); } },
   ].filter(item => cleanQ ? hit(item.title, item.subtitle) : true).slice(0, cleanQ ? 3 : 4);
 
-  const allResults = [...colleagueResults, ...systemResults, ...newsResults, ...documentResults, ...navigationResults];
+  const allResults = [...colleagueResults, ...systemResults, ...newsResults, ...documentResults, ...guideResults, ...navigationResults];
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
