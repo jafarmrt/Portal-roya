@@ -30,10 +30,16 @@ const ChipGroup: React.FC<{ title: string; options: { value: string; label: stri
   );
 
 /**
- * Chooses who a news item is for: everyone, or departments / locations / roles (which narrow each
- * other) plus people by name. Shows how many colleagues will see it, counted the way the server does.
+ * Chooses who a news item (or document) is for: everyone, or departments / locations / roles (which
+ * narrow each other) plus people by name. Shows how many colleagues will see it, counted the way the
+ * server does; `authorId` (the author, or a document's owner) is not counted.
  */
-export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audience) => void; authorId: string }> = ({ value, onChange, authorId }) => {
+export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audience) => void; authorId: string; noun?: string }> = ({
+  value,
+  onChange,
+  authorId,
+  noun = 'خبر',
+}) => {
   const { appSettings, employees, roles } = usePortal();
   const [targeted, setTargeted] = useState(!isForEveryone(value));
   const [query, setQuery] = useState('');
@@ -155,7 +161,7 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
 
       <div className="flex flex-wrap items-center gap-2 text-xs" aria-live="polite">
         <span className={`font-bold ${audience.length === 0 ? 'text-red-700' : 'text-[#2D2D2D]'}`}>
-          {audience.length === 0 ? 'هیچ همکاری این خبر را نمی‌بیند؛ مخاطبان را تغییر دهید.' : `${toPersianDigits(audience.length)} نفر این خبر را می‌بینند.`}
+          {audience.length === 0 ? `هیچ همکاری این ${noun} را نمی‌بیند؛ مخاطبان را تغییر دهید.` : `${toPersianDigits(audience.length)} نفر این ${noun} را می‌بینند.`}
         </span>
         {targeted && audience.length > 0 && (
           <button type="button" onClick={() => setShowNames((s) => !s)} aria-expanded={showNames} className="text-red-700 font-bold hover:underline">

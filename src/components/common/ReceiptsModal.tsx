@@ -5,17 +5,31 @@ import type { NewsItem, ReadReceipt } from '../../types';
 import { api, errorMessage } from '../../lib/api';
 import { downloadCsv } from '../../lib/download';
 import { formatDate, formatDateTime, toPersianDigits } from '../../lib/jalali';
-import { Modal, secondaryButtonClass } from '../common/Modal';
+import { Modal, secondaryButtonClass } from './Modal';
 
 type Tab = 'pending' | 'done';
 
 const ALL = '';
 
+/** What the report is about: a news item, or a mandatory document. */
+export interface ReceiptsSource {
+  title: string;
+  /** `${endpoint}/receipts` lists the audience, `${endpoint}/remind` reminds those still pending. */
+  endpoint: string;
+  requiresAck: boolean;
+  ackDeadline?: string | null;
+  canRemind: boolean;
+  ackRemindedAt: string | null;
+  /** Documents only record the confirmation, not opening them. */
+  tracksReads: boolean;
+  fileName: string;
+}
+
 /**
- * Manager view of who has read (and, for circulars, acknowledged) a news item: totals per
- * department, the names, a reminder to those still pending and an Excel (CSV) copy.
+ * Manager view of who has read (and, for circulars and mandatory documents, acknowledged) an item:
+ * totals per department, the names, a reminder to those still pending and an Excel (CSV) copy.
  */
-export const ReadReceiptsModal: React.FC<{ item: NewsItem; onClose: () => void }> = ({ item, onClose }) => {
+export const ReceiptsModal: React.FC<{ item: ReceiptsSource; onClose: () => void }> = ({ item, onClose }) => {
   const [receipts, setReceipts] = useState<ReadReceipt[] | null>(null);
   const [error, setError] = useState('');
   const [tab, setTab] = useState<Tab>('pending');
@@ -26,8 +40,8 @@ export const ReadReceiptsModal: React.FC<{ item: NewsItem; onClose: () => void }
   const [remindedAt, setRemindedAt] = useState(item.ackRemindedAt);
 
   useEffect(() => {
-    api.get<ReadReceipt[]>(`/api/news/${item.id}/receipts`).then(setReceipts).catch((err) => setError(errorMessage(err)));
-  }, [item.id]);
+    api.get<ReadReceipt[]>(`${item.endpoint}/receipts`).then(setReceipts).catch((err) => setError(errorMessage(err)));
+  }, [item.endpoint]);
 
   const deadline = item.requiresAck && item.ackDeadline ? new Date(item.ackDeadline).getTime() : null;
   const isDone = (r: ReadReceipt) => (item.requiresAck ? Boolean(r.acknowledgedAt) : Boolean(r.readAt));
@@ -69,13 +83,13 @@ export const ReadReceiptsModal: React.FC<{ item: NewsItem; onClose: () => void }
   };
 
   const exportCsv = () =>
-    downloadCsv('roya-portal-read-report.csv', [
-      ['نام', 'واحد', 'محل استقرار', 'زمان خواندن', ...(item.requiresAck ? ['زمان تأیید', 'وضعیت'] : [])],
+    downloadCsv(item.fileName, [
+      ['نام', 'واحد', 'محل استقرار', ...(item.tracksReads ? ['زمان خواندن'] : []), ...(item.requiresAck ? ['زمان تأیید', 'وضعیت'] : [])],
       ...all.map((r) => [
         r.name,
         r.department,
         r.location,
-        r.readAt ? formatDateTime(r.readAt) : '',
+        ...(item.tracksReads ? [r.readAt ? formatDateTime(r.readAt) : ''] : []),
         ...(item.requiresAck ? [r.acknowledgedAt ? formatDateTime(r.acknowledgedAt) : '', !r.acknowledgedAt ? 'تأیید نشده' : isLate(r) ? 'با تأخیر' : 'تأیید شده'] : []),
       ]),
     ]);
@@ -83,7 +97,7 @@ export const ReadReceiptsModal: React.FC<{ item: NewsItem; onClose: () => void }
   const remind = async () => {
     setReminding(true);
     try {
-      const { sent } = await api.post<{ sent: number }>(`/api/news/${item.id}/remind`);
+      const { sent } = await api.post<{ sent: number }>(`${item.endpoint}/remind`);
       setRemindedAt(new Date().toISOString());
       toast.success(sent > 0 ? `یادآوری برای ${toPersianDigits(sent)} نفر فرستاده شد.` : 'کسی برای یادآوری نمانده است.');
     } catch (err) {
@@ -94,7 +108,7 @@ export const ReadReceiptsModal: React.FC<{ item: NewsItem; onClose: () => void }
   };
 
   return (
-    <Modal title="گزارش خوانده‌شدن" subtitle={item.title} icon={<BarChart3 className="w-5 h-5" />} onClose={onClose} size="lg">
+    <Modal title={item.tracksReads ? 'گزارش خوانده‌شدن' : 'گزارش تأیید مطالعه'} subtitle={item.title} icon={<BarChart3 className="w-5 h-5" />} onClose={onClose} size="lg">
       {error && <p role="alert" className="text-red-700 font-bold">{error}</p>}
       {!receipts && !error && <p>در حال دریافت...</p>}
       {receipts && (
@@ -143,7 +157,7 @@ export const ReadReceiptsModal: React.FC<{ item: NewsItem; onClose: () => void }
           )}
 
           <div className="flex flex-wrap items-center gap-2">
-            {item.status === 'published' && allPending > 0 && (
+            {item.canRemind && allPending > 0 && (
               <button onClick={remind} disabled={reminding} className={secondaryButtonClass}>
                 <BellRing className="w-4 h-4" />
                 {reminding ? 'در حال فرستادن...' : `یادآوری به ${toPersianDigits(allPending)} نفر`}
@@ -193,7 +207,7 @@ export const ReadReceiptsModal: React.FC<{ item: NewsItem; onClose: () => void }
                   <th className="text-right py-2 font-medium">نام</th>
                   <th className="text-right py-2 font-medium">واحد</th>
                   <th className="text-right py-2 font-medium">محل</th>
-                  <th className="text-right py-2 font-medium">خوانده</th>
+                  {item.tracksReads && <th className="text-right py-2 font-medium">خوانده</th>}
                   {item.requiresAck && <th className="text-right py-2 font-medium">تأیید</th>}
                 </tr>
               </thead>
@@ -203,7 +217,7 @@ export const ReadReceiptsModal: React.FC<{ item: NewsItem; onClose: () => void }
                     <td className="py-2 font-bold">{r.name}</td>
                     <td className="py-2">{r.department}</td>
                     <td className="py-2">{r.location || '—'}</td>
-                    <td className="py-2">{r.readAt ? formatDateTime(r.readAt) : '—'}</td>
+                    {item.tracksReads && <td className="py-2">{r.readAt ? formatDateTime(r.readAt) : '—'}</td>}
                     {item.requiresAck && (
                       <td className="py-2">
                         {r.acknowledgedAt ? formatDateTime(r.acknowledgedAt) : '—'}
@@ -223,3 +237,20 @@ export const ReadReceiptsModal: React.FC<{ item: NewsItem; onClose: () => void }
     </Modal>
   );
 };
+
+/** The read report of a news item. */
+export const ReadReceiptsModal: React.FC<{ item: NewsItem; onClose: () => void }> = ({ item, onClose }) => (
+  <ReceiptsModal
+    item={{
+      title: item.title,
+      endpoint: `/api/news/${item.id}`,
+      requiresAck: item.requiresAck,
+      ackDeadline: item.ackDeadline,
+      canRemind: item.status === 'published',
+      ackRemindedAt: item.ackRemindedAt,
+      tracksReads: true,
+      fileName: 'roya-portal-read-report.csv',
+    }}
+    onClose={onClose}
+  />
+);
