@@ -102,7 +102,8 @@ const LinkForm: React.FC<{ editor: Editor; onDone: () => void }> = ({ editor, on
         <select aria-label="پیوند به سند" value="" onChange={(e) => e.target.value && apply(e.target.value)} className={inputClass}>
           <option value="">یا پیوند به یکی از اسناد پرتال...</option>
           {documents.map((d) => (
-            <option key={d.id} value={d.fileUrl}>{d.title}</option>
+            // The document's page, not its file: the link keeps working when a new version replaces the file.
+            <option key={d.id} value={`#documents/${d.id}`}>{d.title}</option>
           ))}
         </select>
       )}

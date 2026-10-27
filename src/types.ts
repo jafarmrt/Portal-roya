@@ -263,12 +263,64 @@ export interface PortalDocument {
   title: string;
   description: string;
   category: string;
+  /** The current version's file. */
   fileUrl: string;
   fileName: string;
   fileSize: number;
   mimeType: string;
+  /** Who uploaded the current version. */
   uploadedBy: string;
   createdAt: string;
+  /** When the current version was uploaded. */
+  updatedAt: string;
+  version: number;
+  versionNote: string;
+  /** Mandatory: colleagues confirm they have read it, like a circular. */
+  requiresAck: boolean;
+  /** The viewer is among the people who must confirm it. */
+  forMe: boolean;
+  acknowledgedAt: string | null;
+  /** Confirmed an earlier version; the current one must be confirmed again. */
+  acknowledgedEarlier: boolean;
+  ownerId: string | null;
+  owner: string;
+  ownerDepartment: string;
+  reviewAt: string | null;
+  /** The review date has come (sent only to the owner and document managers). */
+  needsReview: boolean;
+  targetDepartments: string[];
+  targetLocations: string[];
+  targetRoles: string[];
+  targetUserIds: string[];
+  targetUserCount: number;
+  /** For the owner and document managers of a mandatory document. */
+  ackStats?: { acknowledged: number; audience: number };
+  ackRemindedAt: string | null;
+}
+
+export interface DocumentVersion {
+  version: number;
+  fileUrl: string;
+  fileName: string;
+  fileSize: number;
+  note: string;
+  uploadedBy: string;
+  createdAt: string;
+  current: boolean;
+}
+
+/** What a document manager fills in for a document (the file is chosen separately). */
+export interface DocumentDetails {
+  title: string;
+  description: string;
+  category: string;
+  requiresAck: boolean;
+  ownerId: string | null;
+  reviewDate: string;
+  targetDepartments: string[];
+  targetLocations: string[];
+  targetRoles: string[];
+  targetUserIds: string[];
 }
 
 export type ActiveTab =

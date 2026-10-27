@@ -1,6 +1,6 @@
 import React from 'react';
 import moment from 'moment-jalaali';
-import { CalendarDays, CheckCircle2, ChevronLeft, FileCheck2, GraduationCap, ListTodo, Vote } from 'lucide-react';
+import { CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, FileCheck2, FileText, GraduationCap, ListTodo, Vote } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { dayLabel, formatDate, toPersianDigits, todayJalali } from '../../lib/jalali';
 import { deadlineState } from '../news/NewsBody';
@@ -20,11 +20,12 @@ interface Task {
 const WEEK_EVENT_TYPES = new Set(['meeting', 'event', 'holiday']);
 
 /**
- * What this person still has to do or attend: circulars to acknowledge, polls to answer, and their
- * trainings and the organisation's events in the coming seven days. Sits at the top of the dashboard.
+ * What this person still has to do or attend: circulars and mandatory documents to acknowledge,
+ * documents of theirs due for review, polls to answer, and their trainings and the organisation's
+ * events in the coming seven days. Sits at the top of the dashboard.
  */
 export const MyTasksCard: React.FC = () => {
-  const { currentUser, news, polls, trainings, calendarEvents, setActiveTab } = usePortal();
+  const { currentUser, news, polls, trainings, calendarEvents, documents, can, setActiveTab } = usePortal();
   if (!currentUser) return null;
 
   const today = todayJalali();
@@ -44,6 +45,31 @@ export const MyTasksCard: React.FC = () => {
       urgent: state === 'overdue' || state === 'soon',
       rank: `0-${n.ackDeadline ?? '9'}`,
       open: () => setActiveTab('news', n.id),
+    });
+  }
+  for (const d of documents) {
+    if (!d.requiresAck || !d.forMe || d.acknowledgedAt) continue;
+    tasks.push({
+      key: `doc-${d.id}`,
+      icon: <FileText className="w-4 h-4 text-amber-700" />,
+      kind: d.acknowledgedEarlier ? 'نسخهٔ جدید سند لازم‌الاجرا' : 'سند لازم‌الاجرا',
+      title: d.title,
+      when: formatDate(d.updatedAt),
+      rank: `0-${d.updatedAt}`,
+      open: () => setActiveTab('documents', d.id),
+    });
+  }
+  // Managers see every overdue review in the documents page; here only the ones they look after.
+  for (const d of documents) {
+    if (!d.needsReview || !(d.ownerId === currentUser.id || (!d.ownerId && can('documents.manage')))) continue;
+    tasks.push({
+      key: `review-${d.id}`,
+      icon: <CalendarClock className="w-4 h-4 text-red-700" />,
+      kind: 'بازبینی سند',
+      title: d.title,
+      when: formatDate(d.reviewAt),
+      rank: `1-${d.reviewAt}`,
+      open: () => setActiveTab('documents', d.id),
     });
   }
   for (const p of polls) {
@@ -88,7 +114,7 @@ export const MyTasksCard: React.FC = () => {
     return (
       <section className="bg-white border border-[#E6E0D5] rounded-2xl px-4 py-3 flex items-center gap-2 text-xs text-[#4B4740]" aria-label="کارهای من">
         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-        <span><strong>کارهای من:</strong> بخشنامه یا نظرسنجی باز و برنامه‌ای برای این هفته ندارید.</span>
+        <span><strong>کارهای من:</strong> بخشنامه، سند یا نظرسنجی منتظر و برنامه‌ای برای این هفته ندارید.</span>
       </section>
     );
   }

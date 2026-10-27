@@ -1,9 +1,12 @@
 import { randomUUID } from 'crypto';
+import { eq } from 'drizzle-orm';
 import { Router } from 'express';
 import fs from 'fs';
 import multer from 'multer';
-import { type AuthedRequest, can } from '../auth.js';
+import { type AuthedRequest, can, type SessionUser } from '../auth.js';
 import { config } from '../config.js';
+import { db } from '../db/index.js';
+import { documents } from '../db/schema.js';
 import { currentUser, HttpError, route } from '../http.js';
 
 export const uploadsRouter = Router();
@@ -29,6 +32,14 @@ const DOCUMENT_TYPES: Record<string, string> = {
 
 fs.mkdirSync(config.uploadDir, { recursive: true });
 
+/** Document managers, and the owners of documents (for new versions of their own documents). */
+async function mayUploadDocuments(user: SessionUser | undefined) {
+  if (!user) return false;
+  if (can(user, 'documents.manage')) return true;
+  const [owned] = await db.select({ id: documents.id }).from(documents).where(eq(documents.ownerId, user.id)).limit(1);
+  return Boolean(owned);
+}
+
 const upload = multer({
   storage: multer.diskStorage({
     destination: config.uploadDir,
@@ -38,9 +49,12 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     const isImage = file.mimetype in IMAGE_TYPES;
     const isDocument = file.mimetype in DOCUMENT_TYPES;
-    const mayUploadDocuments = can((req as AuthedRequest).user, 'documents.manage');
-    if (isImage || (isDocument && mayUploadDocuments)) cb(null, true);
-    else cb(new HttpError(400, isDocument ? 'بارگذاری سند فقط برای مدیران اسناد مجاز است.' : 'نوع فایل مجاز نیست.'));
+    if (isImage) return cb(null, true);
+    if (!isDocument) return cb(new HttpError(400, 'نوع فایل مجاز نیست.'));
+    mayUploadDocuments((req as AuthedRequest).user).then(
+      (allowed) => (allowed ? cb(null, true) : cb(new HttpError(400, 'بارگذاری سند فقط برای مدیران اسناد و مسئولان اسناد مجاز است.'))),
+      (err: Error) => cb(err),
+    );
   },
 });
 

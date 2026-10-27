@@ -57,6 +57,13 @@
       "when": 1793080124481,
       "tag": "0007_news_audience_locations",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793083501886,
+      "tag": "0008_document_versions",
+      "breakpoints": true
     }
   ]
 }

@@ -5,6 +5,7 @@ import { birthdayAnnouncements, employees, news } from './db/schema.js';
 import { broadcastChange } from './events.js';
 import { runNightlyMaintenance } from './maintenance.js';
 import { audienceIds, createNotifications } from './notify.js';
+import { processDocumentReviews } from './routes/documents.js';
 import { announceNews, processAckDeadlines } from './routes/news.js';
 import { fullName } from './serializers.js';
 
@@ -74,6 +75,7 @@ export function startScheduler() {
     publishDueNews().catch((err) => console.error('Scheduler error:', err));
     announceBirthdays().catch((err) => console.error('Birthday scheduler error:', err));
     processAckDeadlines().catch((err) => console.error('Circular deadline error:', err));
+    processDocumentReviews().catch((err) => console.error('Document review error:', err));
     runNightlyMaintenance().catch((err) => console.error('Maintenance error:', err));
   }, INTERVAL_MS);
   timer.unref();

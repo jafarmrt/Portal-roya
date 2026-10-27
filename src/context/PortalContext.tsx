@@ -20,6 +20,7 @@ import type {
   PollUpdate,
   Permission,
   PortalDocument,
+  DocumentDetails,
   RoleInfo,
   SearchResultItem,
   TrainingProgram,
@@ -183,9 +184,12 @@ interface PortalContextType {
   updateCalendarEvent: (id: string, event: Omit<CalendarEvent, 'id'>) => Promise<boolean>;
   setCustomHoliday: (date: string, title: string, isHoliday: boolean) => Promise<void>;
   removeCustomHoliday: (date: string) => Promise<void>;
-  addDocument: (doc: { title: string; description: string; category: string; file: Attachment; notify: boolean }) => Promise<boolean>;
+  addDocument: (doc: DocumentDetails & { file: Attachment; notify: boolean }) => Promise<boolean>;
   deleteDocument: (id: string) => Promise<void>;
-  updateDocument: (id: string, doc: { title: string; description: string; category: string }) => Promise<boolean>;
+  updateDocument: (id: string, doc: DocumentDetails) => Promise<boolean>;
+  addDocumentVersion: (id: string, version: { file: Attachment; note: string; reAck: boolean; notify: boolean; reviewDate: string }) => Promise<boolean>;
+  markDocumentReviewed: (id: string, reviewDate: string) => Promise<boolean>;
+  acknowledgeDocument: (id: string) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
@@ -705,6 +709,25 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (ok !== undefined) setDocuments((prev) => prev.filter((d) => d.id !== id));
   };
 
+  const replaceDocument = (doc: PortalDocument) => setDocuments((prev) => prev.map((d) => (d.id === doc.id ? doc : d)));
+
+  const addDocumentVersion: PortalContextType['addDocumentVersion'] = async (id, version) => {
+    const doc = await attempt(() => api.post<PortalDocument>(`/api/documents/${id}/versions`, version), 'نسخهٔ جدید جایگزین شد.');
+    if (doc) replaceDocument(doc);
+    return Boolean(doc);
+  };
+
+  const markDocumentReviewed: PortalContextType['markDocumentReviewed'] = async (id, reviewDate) => {
+    const doc = await attempt(() => api.post<PortalDocument>(`/api/documents/${id}/review`, { reviewDate }), 'بازبینی ثبت شد.');
+    if (doc) replaceDocument(doc);
+    return Boolean(doc);
+  };
+
+  const acknowledgeDocument = async (id: string) => {
+    const doc = await attempt(() => api.post<PortalDocument>(`/api/documents/${id}/ack`), 'تأیید مطالعه ثبت شد.');
+    if (doc) replaceDocument(doc);
+  };
+
   const markNotificationRead = async (id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
     await api.post(`/api/notifications/${id}/read`).catch(() => undefined);
@@ -812,6 +835,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addDocument,
         deleteDocument,
         updateDocument,
+        addDocumentVersion,
+        markDocumentReviewed,
+        acknowledgeDocument,
         markNotificationRead,
         markAllNotificationsRead,
         deleteNotification,

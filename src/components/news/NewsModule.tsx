@@ -32,7 +32,7 @@ import { BannerEditorModal } from '../common/SiteBanner';
 import { AddNewsModal } from './AddNewsModal';
 import { audienceSummary, deadlineState, NewsContent } from './NewsBody';
 import { NoticePrintModal } from './NoticePrintModal';
-import { ReadReceiptsModal } from './ReadReceiptsModal';
+import { ReadReceiptsModal } from '../common/ReceiptsModal';
 
 type Filter = 'all' | 'unread' | 'ack' | string;
 

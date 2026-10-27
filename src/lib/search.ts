@@ -104,12 +104,12 @@ export function buildSearchResults(query: string, s: SearchSources): SearchResul
   }
 
   for (const doc of s.documents) {
-    if (!matches(query, doc.title, doc.description, doc.category, doc.fileName)) continue;
+    if (!matches(query, doc.title, doc.description, doc.category, doc.fileName, doc.owner)) continue;
     results.push({
       id: `res-doc-${doc.id}`,
       type: 'اسناد',
       title: doc.title,
-      subtitle: `${doc.category} | ${formatDate(doc.createdAt)}`,
+      subtitle: [doc.category, doc.requiresAck && 'لازم‌الاجرا', formatDate(doc.updatedAt), doc.owner && `مسئول: ${doc.owner}`].filter(Boolean).join(' | '),
       snippet: doc.description || doc.fileName,
       targetTab: 'documents',
       targetId: doc.id,

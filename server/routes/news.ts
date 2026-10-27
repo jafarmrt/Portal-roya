@@ -1,18 +1,18 @@
-import { type AnyColumn, and, desc, eq, gt, ilike, inArray, isNotNull, isNull, lte, or, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gt, ilike, inArray, isNotNull, isNull, lte, or, sql, type SQL } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
 import { type Audience, inAudience } from '../../shared/audience.js';
 import { jalaliEndOfDay, jalaliToDate, toJalali, toPersianDigits } from '../../shared/jalali.js';
 import { can, type SessionUser, requirePermission } from '../auth.js';
 import { db } from '../db/index.js';
-import { employees, news, newsLikes, newsReads, roles } from '../db/schema.js';
+import { employees, news, newsLikes, newsReads } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
 import { audienceIdsFor, createNotifications } from '../notify.js';
 import { richTextToPlain, sanitizeRichText } from '../richText.js';
 import { fullName } from '../serializers.js';
 import { assetUrl, attachment, jalaliDate, requiredText, timeOfDay } from '../validation.js';
-import { requireDepartments, requireLocations } from '../departments.js';
+import { audienceIncludes, audienceOfRow, checkAudience } from '../audience.js';
 
 export const newsRouter = Router();
 
@@ -25,29 +25,14 @@ type NewsRow = typeof news.$inferSelect;
 function visibleTo(viewer: SessionUser | null): SQL | undefined {
   if (can(viewer, 'news.manage')) return undefined;
   const now = new Date();
-  const empty = (column: AnyColumn) => sql`cardinality(${column}) = 0`;
-  const forEveryone = and(empty(news.targetDepartments), empty(news.targetLocations), empty(news.targetRoles), empty(news.targetUserIds));
-  const forMe = viewer
-    ? or(
-        forEveryone,
-        sql`${viewer.id} = any(${news.targetUserIds})`,
-        and(
-          sql`cardinality(${news.targetDepartments}) + cardinality(${news.targetLocations}) + cardinality(${news.targetRoles}) > 0`,
-          or(empty(news.targetDepartments), sql`${viewer.department} = any(${news.targetDepartments})`),
-          or(empty(news.targetLocations), sql`${viewer.location} = any(${news.targetLocations})`),
-          or(empty(news.targetRoles), sql`${viewer.role} = any(${news.targetRoles})`),
-        ),
-      )
-    : forEveryone;
+  const forMe = audienceIncludes(
+    { departments: news.targetDepartments, locations: news.targetLocations, roles: news.targetRoles, userIds: news.targetUserIds },
+    viewer,
+  );
   return and(lte(news.publishAt, now), or(isNull(news.expiresAt), gt(news.expiresAt, now)), forMe);
 }
 
-const audienceOfItem = (item: NewsRow): Audience => ({
-  departments: item.targetDepartments,
-  locations: item.targetLocations,
-  roles: item.targetRoles,
-  userIds: item.targetUserIds,
-});
+const audienceOfItem = (item: NewsRow): Audience => audienceOfRow(item);
 
 /**
  * Who an item is meant for: active colleagues with a portal account in its audience.
@@ -227,23 +212,6 @@ function scheduleFrom(body: NewsBody) {
   return { publishAt, expiresAt, ackDeadline };
 }
 
-/** Checks the audience against the lists of departments, locations, roles and colleagues. */
-async function checkedAudience(body: NewsBody): Promise<Audience> {
-  const departments = await requireDepartments(body.targetDepartments);
-  const locations = await requireLocations(body.targetLocations);
-  const roleIds = [...new Set(body.targetRoles)];
-  if (roleIds.length > 0) {
-    const found = await db.select({ id: roles.id }).from(roles).where(inArray(roles.id, roleIds));
-    if (found.length !== roleIds.length) throw new HttpError(400, 'یکی از نقش‌های انتخاب‌شده در پرتال نیست.');
-  }
-  const userIds = [...new Set(body.targetUserIds)];
-  if (userIds.length > 0) {
-    const found = await db.select({ id: employees.id }).from(employees).where(and(inArray(employees.id, userIds), eq(employees.hasAccount, true)));
-    if (found.length !== userIds.length) throw new HttpError(400, 'یکی از همکاران انتخاب‌شده پیدا نشد یا حساب پورتال ندارد.');
-  }
-  return { departments, locations, roles: roleIds, userIds };
-}
-
 /** Editor text is cleaned of anything but formatting; plain text is kept as typed. */
 function checkedContent(body: NewsBody) {
   if (body.contentFormat === 'text') return body.content;
@@ -254,7 +222,7 @@ function checkedContent(body: NewsBody) {
 
 /** The columns a create or edit writes. */
 async function newsValues(body: NewsBody) {
-  const audience = await checkedAudience(body);
+  const audience = await checkAudience(body);
   return {
     title: body.title,
     summary: body.summary,

@@ -319,7 +319,56 @@ export const documents = pgTable('documents', {
   mimeType: text('mime_type').notNull(),
   uploadedById: text('uploaded_by_id').notNull().references(() => employees.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  // The file above is the current version. A new version replaces it under the same document (so
+  // links to the document keep working) and the earlier file moves to document_versions.
+  version: integer('version').notNull().default(1),
+  versionNote: text('version_note').notNull().default(''),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  // Rules colleagues must read and confirm, like a circular. Confirmations of ackVersion or later
+  // count; a new version that everyone must read again moves ackVersion to it.
+  requiresAck: boolean('requires_ack').notNull().default(false),
+  ackVersion: integer('ack_version').notNull().default(1),
+  ackRemindedAt: timestamp('ack_reminded_at', { withTimezone: true }),
+  // Who keeps the document current, and when they are reminded to look at it again (once per date).
+  ownerId: text('owner_id').references(() => employees.id, { onDelete: 'set null' }),
+  reviewAt: timestamp('review_at', { withTimezone: true }),
+  reviewRemindedAt: timestamp('review_reminded_at', { withTimezone: true }),
+  // Who the document is for, with the same rules as news (see shared/audience.ts). Empty: everyone.
+  targetDepartments: text('target_departments').array().notNull().default([]),
+  targetLocations: text('target_locations').array().notNull().default([]),
+  targetRoles: text('target_roles').array().notNull().default([]),
+  targetUserIds: text('target_user_ids').array().notNull().default([]),
 });
+
+// Earlier files of a document, kept so its history can be opened and old links still download.
+export const documentVersions = pgTable(
+  'document_versions',
+  {
+    id: serial('id').primaryKey(),
+    documentId: text('document_id').notNull().references(() => documents.id, { onDelete: 'cascade' }),
+    version: integer('version').notNull(),
+    fileUrl: text('file_url').notNull(),
+    fileName: text('file_name').notNull(),
+    fileSize: integer('file_size').notNull(),
+    mimeType: text('mime_type').notNull(),
+    note: text('note').notNull().default(''),
+    uploadedById: text('uploaded_by_id').notNull().references(() => employees.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [uniqueIndex('document_versions_doc_version_uq').on(t.documentId, t.version)],
+);
+
+// "I have read this and will follow it", for the version that was current at the time.
+export const documentAcks = pgTable(
+  'document_acks',
+  {
+    documentId: text('document_id').notNull().references(() => documents.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    version: integer('version').notNull(),
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.documentId, t.userId] })],
+);
 
 export const settings = pgTable('settings', {
   id: text('id').primaryKey(), // single row: 'global'
