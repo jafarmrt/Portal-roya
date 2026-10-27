@@ -170,7 +170,7 @@ interface PortalContextType {
   addSkill: (userId: string, skill: { name: string; category: string }) => Promise<void>;
   removeSkill: (userId: string, skillId: string) => Promise<void>;
   endorseSkill: (userId: string, skillId: string) => Promise<void>;
-  saveNews: (data: NewsInput, id?: string) => Promise<boolean>;
+  saveNews: (data: NewsInput, id?: string, message?: string) => Promise<boolean>;
   deleteNews: (id: string) => Promise<void>;
   toggleLikeNews: (newsId: string) => Promise<void>;
   markNewsRead: (newsId: string) => Promise<void>;
@@ -589,10 +589,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const replaceNews = (item: NewsItem) => setNews((prev) => prev.map((n) => (n.id === item.id ? item : n)));
 
-  const saveNews = async (data: NewsInput, id?: string) => {
+  const saveNews = async (data: NewsInput, id?: string, message?: string) => {
     const saved = await attempt(
       () => (id ? api.patch<NewsItem>(`/api/news/${id}`, data) : api.post<NewsItem>('/api/news', data)),
-      id ? 'خبر ویرایش شد.' : 'خبر منتشر شد.',
+      message ?? (id ? 'خبر ویرایش شد.' : 'خبر منتشر شد.'),
     );
     if (saved) await refresh('news');
     return Boolean(saved);

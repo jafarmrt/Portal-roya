@@ -214,8 +214,13 @@ export interface NewsItem {
   likedByMe: boolean;
   isRead: boolean;
   acknowledgedAt: string | null;
-  status: 'published' | 'scheduled' | 'expired';
+  status: 'draft' | 'published' | 'scheduled' | 'expired';
   readStats?: { read: number; acknowledged: number; audience: number };
+  /** Last change after publication, if any. */
+  editedAt: string | null;
+  updatedAt: string;
+  /** Unanswered questions, for the author and news managers (0 for others). */
+  openQuestions: number;
 }
 
 export interface NewsInput {
@@ -239,6 +244,74 @@ export interface NewsInput {
   publishDate: string;
   publishTime: string;
   expiresDate: string;
+  /** Saved without announcing it; only the title is required. */
+  draft?: boolean;
+}
+
+/** A ready-made announcement; [text in brackets] marks what the publisher fills in. */
+export interface NewsTemplate {
+  id: string;
+  name: string;
+  title: string;
+  summary: string;
+  content: string;
+  category: string;
+  isUrgent: boolean;
+  requiresAck: boolean;
+  tags: string[];
+  updatedAt: string;
+}
+
+export type NewsTemplateInput = Omit<NewsTemplate, 'id' | 'updatedAt'>;
+
+export interface NewsQuestion {
+  id: string;
+  question: string;
+  /** The wording shown to everyone when the publisher changed it (publisher's view only). */
+  publicQuestion: string | null;
+  answer: string | null;
+  answeredAt: string | null;
+  isPublic: boolean;
+  mine: boolean;
+  /** Only for the publisher and news managers. */
+  askerName: string | null;
+  askerDepartment: string | null;
+  createdAt: string;
+}
+
+export interface PendingNewsQuestion {
+  id: string;
+  newsId: string;
+  newsTitle: string;
+  question: string;
+  createdAt: string;
+}
+
+export interface NewsSnapshot {
+  title: string;
+  summary: string;
+  content: string;
+  contentFormat: 'text' | 'html';
+  category: string;
+  image: string;
+  isPinned: boolean;
+  isUrgent: boolean;
+  requiresAck: boolean;
+  tags: string[];
+  targetDepartments: string[];
+  targetLocations: string[];
+  targetRoles: string[];
+  targetUserIds: string[];
+  attachments: Attachment[];
+  publishAt: string;
+  expiresAt: string | null;
+  ackDeadline: string | null;
+}
+
+export interface NewsHistory {
+  author: string;
+  createdAt: string;
+  entries: { id: number; action: 'publish' | 'edit'; editor: string; createdAt: string; changed: (keyof NewsSnapshot)[]; before: NewsSnapshot }[];
 }
 
 export interface ReadReceipt {

@@ -23,7 +23,7 @@ export async function publishDueNews() {
   const due = await db
     .select()
     .from(news)
-    .where(and(isNull(news.notifiedAt), lte(news.publishAt, new Date())));
+    .where(and(eq(news.isDraft, false), isNull(news.notifiedAt), lte(news.publishAt, new Date())));
   for (const item of due) await announceNews(item);
   if (due.length > 0) broadcastChange('news');
   return due.length;

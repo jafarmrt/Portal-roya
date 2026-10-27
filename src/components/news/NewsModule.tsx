@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlarmClock,
   AlertTriangle,
@@ -9,9 +9,12 @@ import {
   Clock,
   Edit3,
   FileCheck2,
+  FilePen,
   FileText,
   Heart,
+  History,
   Megaphone,
+  MessageCircleQuestion,
   Newspaper,
   Paperclip,
   Pin,
@@ -31,6 +34,8 @@ import { Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal
 import { BannerEditorModal } from '../common/SiteBanner';
 import { AddNewsModal } from './AddNewsModal';
 import { audienceSummary, deadlineState, NewsContent } from './NewsBody';
+import { NewsHistoryModal } from './NewsHistory';
+import { NewsQuestions } from './NewsQuestions';
 import { NoticePrintModal } from './NoticePrintModal';
 import { ReadReceiptsModal } from '../common/ReceiptsModal';
 
@@ -48,6 +53,8 @@ export const NewsModule: React.FC = () => {
   const [receiptsFor, setReceiptsFor] = useState<NewsItem | null>(null);
   const [printFor, setPrintFor] = useState<NewsItem | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<NewsItem | null>(null);
+  const [historyFor, setHistoryFor] = useState<NewsItem | null>(null);
+  const [drafts, setDrafts] = useState<NewsItem[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<NewsItem[] | null>(null);
@@ -65,6 +72,15 @@ export const NewsModule: React.FC = () => {
     if (!focusId || news.some((n) => n.id === focusId)) return;
     api.get<NewsItem>(`/api/news/${focusId}`).then(setFetchedArticle).catch(() => setFetchedArticle(null));
   }, [focusId, news]);
+
+  // Drafts of all publishers; reloaded whenever the news list changes (a draft saved or published).
+  const loadDrafts = useCallback(() => {
+    if (!isManager) return Promise.resolve();
+    return api.get<NewsItem[]>('/api/news-drafts').then(setDrafts).catch(() => setDrafts([]));
+  }, [isManager]);
+  useEffect(() => {
+    void loadDrafts();
+  }, [loadDrafts, news]);
 
   const markedRead = useRef(new Set<string>());
   useEffect(() => {
@@ -92,12 +108,12 @@ export const NewsModule: React.FC = () => {
     return () => clearTimeout(timer);
   }, [query, news]);
 
-  const source = searchResults ?? news;
+  const source = filter === 'drafts' ? drafts : (searchResults ?? news);
   // Circulars still waiting for this person's acknowledgement come first, so they don't sink under newer news.
   const awaitsMyAck = (n: NewsItem) => !isGuest && n.status === 'published' && n.requiresAck && !n.acknowledgedAt;
   const visible = source
     .filter((n) => {
-      if (filter === 'all') return true;
+      if (filter === 'all' || filter === 'drafts') return true;
       if (filter === 'unread') return !n.isRead;
       if (filter === 'ack') return n.requiresAck && !n.acknowledgedAt;
       return n.category === filter;
@@ -109,6 +125,7 @@ export const NewsModule: React.FC = () => {
     { id: 'all', label: 'همه' },
     { id: 'unread', label: 'نخوانده' },
     { id: 'ack', label: `بخشنامه‌های تأییدنشده${pendingAck ? ` (${toPersianDigits(pendingAck)})` : ''}` },
+    ...(isManager ? [{ id: 'drafts', label: `پیش‌نویس‌ها (${toPersianDigits(drafts.length)})` }] : []),
     ...(appSettings?.newsCategories ?? []).map((c) => ({ id: c, label: c })),
   ];
 
@@ -182,7 +199,9 @@ export const NewsModule: React.FC = () => {
         {visible.length === 0 ? (
           <div className="md:col-span-2 lg:col-span-3 py-12 text-center bg-white rounded-2xl border border-dashed border-[#E6E0D5]">
             <Newspaper className="w-10 h-10 text-[#8C867A] mx-auto mb-2" />
-            <p className="text-sm font-bold text-[#6E6A60]">{searchResults ? 'نتیجه‌ای پیدا نشد.' : 'خبری در این بخش نیست.'}</p>
+            <p className="text-sm font-bold text-[#6E6A60]">
+              {filter === 'drafts' ? 'پیش‌نویسی نیست. در فرم خبر با «ذخیرهٔ پیش‌نویس» متن نیمه‌کاره را نگه دارید.' : searchResults ? 'نتیجه‌ای پیدا نشد.' : 'خبری در این بخش نیست.'}
+            </p>
           </div>
         ) : (
           visible.map((article) => (
@@ -190,7 +209,7 @@ export const NewsModule: React.FC = () => {
               key={article.id}
               article={article}
               isManager={isManager}
-              onOpen={() => openArticle(article)}
+              onOpen={() => (article.status === 'draft' ? setEditor({ item: article }) : openArticle(article))}
               onLike={() => toggleLikeNews(article.id)}
               onEdit={() => setEditor({ item: article })}
               onDelete={() => setConfirmDelete(article)}
@@ -200,7 +219,7 @@ export const NewsModule: React.FC = () => {
         )}
       </div>
 
-      {!searchResults && newsHasMore && (
+      {!searchResults && filter !== 'drafts' && newsHasMore && (
         <div className="flex justify-center">
           <button
             disabled={loadingMore}
@@ -225,6 +244,7 @@ export const NewsModule: React.FC = () => {
           onAcknowledge={() => acknowledgeNews(selectedArticle.id)}
           onReceipts={() => setReceiptsFor(selectedArticle)}
           onPrint={() => setPrintFor(selectedArticle)}
+          onHistory={() => setHistoryFor(selectedArticle)}
         />
       )}
 
@@ -232,6 +252,7 @@ export const NewsModule: React.FC = () => {
       {bannerOpen && <BannerEditorModal onClose={() => setBannerOpen(false)} />}
       {receiptsFor && <ReadReceiptsModal item={receiptsFor} onClose={() => setReceiptsFor(null)} />}
       {printFor && <NoticePrintModal item={printFor} onClose={() => setPrintFor(null)} />}
+      {historyFor && <NewsHistoryModal item={historyFor} onClose={() => setHistoryFor(null)} />}
       {confirmDelete && (
         <Modal
           title="حذف خبر"
@@ -249,6 +270,7 @@ export const NewsModule: React.FC = () => {
                     console.error(errorMessage(err));
                   }
                   setConfirmDelete(null);
+                  if (confirmDelete.status === 'draft') await loadDrafts();
                   if (focusId === confirmDelete.id) closeArticle();
                 }}
                 className={primaryButtonClass}
@@ -258,7 +280,9 @@ export const NewsModule: React.FC = () => {
             </>
           }
         >
-          <p className="text-sm leading-relaxed">«{confirmDelete.title}» و آمار خوانده‌شدن آن برای همیشه حذف می‌شود. ادامه می‌دهید؟</p>
+          <p className="text-sm leading-relaxed">
+            {confirmDelete.status === 'draft' ? `پیش‌نویس «${confirmDelete.title}» حذف می‌شود. ادامه می‌دهید؟` : `«${confirmDelete.title}» و آمار خوانده‌شدن آن برای همیشه حذف می‌شود. ادامه می‌دهید؟`}
+          </p>
         </Modal>
       )}
     </div>
@@ -267,6 +291,11 @@ export const NewsModule: React.FC = () => {
 
 const StatusBadges: React.FC<{ article: NewsItem }> = ({ article }) => (
   <>
+    {article.status === 'draft' && (
+      <span className="px-2.5 py-1 text-[10px] font-bold bg-stone-200 text-stone-800 rounded-full flex items-center gap-1">
+        <FilePen className="w-3 h-3" /> پیش‌نویس
+      </span>
+    )}
     {article.status === 'scheduled' && (
       <span className="px-2.5 py-1 text-[10px] font-bold bg-sky-600 text-white rounded-full flex items-center gap-1">
         <Clock className="w-3 h-3" /> زمان‌بندی‌شده: {formatDateTime(article.publishAt)}
@@ -314,16 +343,18 @@ interface NewsCardProps {
 const NewsCard: React.FC<NewsCardProps> = ({ article, isManager, onOpen, onLike, onEdit, onDelete, onReceipts }) => {
   const { roleName } = usePortal();
   const audience = audienceSummary(article, roleName);
+  // Drafts have no readers yet.
+  const unread = !article.isRead && article.status !== 'draft';
   return (
-    <article className={`bg-white rounded-2xl border overflow-hidden hover:shadow-lg transition-all flex flex-col ${article.isRead ? 'border-[#E6E0D5]' : 'border-red-300'}`}>
+    <article className={`bg-white rounded-2xl border overflow-hidden hover:shadow-lg transition-all flex flex-col ${unread ? 'border-red-300' : 'border-[#E6E0D5]'}`}>
       {article.image ? (
         <button type="button" onClick={onOpen} className="relative h-44 overflow-hidden bg-[#F5F2ED]" aria-label={article.title}>
           <img src={article.image} alt="" loading="lazy" className="w-full h-full object-cover" />
-          <span className="absolute top-3 right-3 px-3 py-1 text-[10px] font-bold bg-[#7f1d1d]/85 text-white rounded-full">{article.category}</span>
+          {article.category && <span className="absolute top-3 right-3 px-3 py-1 text-[10px] font-bold bg-[#7f1d1d]/85 text-white rounded-full">{article.category}</span>}
         </button>
       ) : (
         <div className="px-5 pt-5">
-          <span className="px-3 py-1 text-[10px] font-bold bg-[#F5F2ED] text-[#7f1d1d] rounded-full">{article.category}</span>
+          {article.category && <span className="px-3 py-1 text-[10px] font-bold bg-[#F5F2ED] text-[#7f1d1d] rounded-full">{article.category}</span>}
         </div>
       )}
 
@@ -331,8 +362,12 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, isManager, onOpen, onLike,
         <div className="space-y-2">
           <div className="flex flex-wrap gap-1.5"><StatusBadges article={article} /></div>
           <div className="flex items-center gap-2 text-[11px] text-[#6E6A60] flex-wrap">
-            {!article.isRead && <span className="w-2 h-2 rounded-full bg-red-600" aria-label="نخوانده" />}
-            <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{formatDate(article.publishAt)}</span>
+            {unread && <span className="w-2 h-2 rounded-full bg-red-600" aria-label="نخوانده" />}
+            {article.status === 'draft' ? (
+              <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />آخرین ذخیره: {formatDateTime(article.updatedAt)}</span>
+            ) : (
+              <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{formatDate(article.publishAt)}</span>
+            )}
             <span>•</span>
             <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" />{article.author}</span>
             {audience && (
@@ -340,7 +375,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, isManager, onOpen, onLike,
             )}
           </div>
           <h3>
-            <button type="button" onClick={onOpen} className={`text-sm text-right text-[#2D2D2D] hover:text-[#dc2626] leading-snug line-clamp-2 ${article.isRead ? 'font-bold' : 'font-black'}`}>
+            <button type="button" onClick={onOpen} className={`text-sm text-right text-[#2D2D2D] hover:text-[#dc2626] leading-snug line-clamp-2 ${unread ? 'font-black' : 'font-bold'}`}>
               {article.title}
             </button>
           </h3>
@@ -348,9 +383,14 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, isManager, onOpen, onLike,
           {article.attachments.length > 0 && (
             <p className="text-[11px] text-[#6E6A60] flex items-center gap-1"><Paperclip className="w-3.5 h-3.5" />{toPersianDigits(article.attachments.length)} پیوست</p>
           )}
+          {article.openQuestions > 0 && (
+            <button type="button" onClick={onOpen} className="text-[11px] font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-full flex items-center gap-1">
+              <MessageCircleQuestion className="w-3.5 h-3.5" /> {toPersianDigits(article.openQuestions)} پرسش بی‌پاسخ
+            </button>
+          )}
         </div>
 
-        {isManager && article.readStats && (
+        {isManager && article.readStats && article.status !== 'draft' && (
           <button type="button" onClick={onReceipts} className="text-[11px] text-right p-2 bg-[#F5F2ED] hover:bg-[#E6E0D5] rounded-xl flex items-center gap-1.5">
             <BarChart3 className="w-3.5 h-3.5 text-red-700" />
             خوانده: {toPersianDigits(article.readStats.read)} از {toPersianDigits(article.readStats.audience)}
@@ -359,7 +399,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, isManager, onOpen, onLike,
         )}
 
         <div className="pt-3 border-t border-[#E6E0D5] flex items-center justify-between gap-2">
-          <button
+          {article.status === 'draft' ? <span /> : <button
             onClick={onLike}
             aria-pressed={article.likedByMe}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
@@ -368,7 +408,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, isManager, onOpen, onLike,
           >
             <Heart className={`w-3.5 h-3.5 ${article.likedByMe ? 'fill-current' : ''}`} />
             <span>{toPersianDigits(article.likesCount)}</span>
-          </button>
+          </button>}
           <div className="flex items-center gap-1">
             {isManager && (
               <>
@@ -377,7 +417,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, isManager, onOpen, onLike,
               </>
             )}
             <button onClick={onOpen} className="text-xs font-bold text-[#dc2626] hover:underline flex items-center gap-1">
-              <span>ادامه مطلب</span>
+              <span>{article.status === 'draft' ? 'ادامهٔ نوشتن' : 'ادامه مطلب'}</span>
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -395,9 +435,10 @@ interface ArticleModalProps {
   onAcknowledge: () => void;
   onReceipts: () => void;
   onPrint: () => void;
+  onHistory: () => void;
 }
 
-const ArticleModal: React.FC<ArticleModalProps> = ({ article, isManager, onClose, onLike, onAcknowledge, onReceipts, onPrint }) => {
+const ArticleModal: React.FC<ArticleModalProps> = ({ article, isManager, onClose, onLike, onAcknowledge, onReceipts, onPrint, onHistory }) => {
   const { roleName } = usePortal();
   const audience = audienceSummary(article, roleName);
   const deadline = deadlineState(article);
@@ -426,6 +467,9 @@ const ArticleModal: React.FC<ArticleModalProps> = ({ article, isManager, onClose
                 </button>
                 <button onClick={onReceipts} className={secondaryButtonClass}>
                   <BarChart3 className="w-4 h-4" /> چه کسانی خوانده‌اند؟
+                </button>
+                <button onClick={onHistory} className={secondaryButtonClass}>
+                  <History className="w-4 h-4" /> تاریخچهٔ ویرایش
                 </button>
               </>
             )}
@@ -490,12 +534,14 @@ const ArticleModal: React.FC<ArticleModalProps> = ({ article, isManager, onClose
             {article.tags.map((t) => <span key={t} className="px-2.5 py-1 bg-[#F5F2ED] rounded-lg">#{t}</span>)}
           </div>
         )}
-        {(audience || article.expiresAt) && (
+        {(audience || article.expiresAt || article.editedAt) && (
           <div className="text-[11px] text-[#8C867A] space-y-1">
             {audience && <p className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> مخاطبان: {audience}</p>}
             {article.expiresAt && <p>نمایش تا {formatDate(article.expiresAt)}</p>}
+            {article.editedAt && <p>آخرین ویرایش بعد از انتشار: {formatDateTime(article.editedAt)}</p>}
           </div>
         )}
+        <NewsQuestions article={article} />
       </div>
     </Modal>
   );

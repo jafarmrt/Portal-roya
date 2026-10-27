@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useState } from 'react';
-import { CalendarClock, CheckCircle2, Eye, FileText, Image as ImageIcon, Newspaper, Paperclip, PenLine, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { CalendarClock, CheckCircle2, Eye, FileText, Image as ImageIcon, Newspaper, Paperclip, PenLine, Save, Trash2 } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import type { Attachment, NewsInput, NewsItem } from '../../types';
 import { toJalali, formatFileSize } from '../../lib/jalali';
@@ -9,6 +10,7 @@ import { JalaliDateInput } from '../common/JalaliDateInput';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { AudiencePicker } from './AudiencePicker';
 import { NewsContent, plainTextToHtml } from './NewsBody';
+import { PlaceholderPanel, SaveAsTemplate, TemplatePicker } from './NewsTemplates';
 
 // The editor is only downloaded by people who write news.
 const RichTextEditor = lazy(loadModule(() => import('./RichTextEditor')));
@@ -50,7 +52,8 @@ function initialState(item: NewsItem | undefined, defaultCategory: string): News
     // Older items are plain text; they are opened in the editor as paragraphs.
     content: item.contentFormat === 'html' ? item.content : plainTextToHtml(item.content),
     contentFormat: 'html',
-    category: item.category,
+    // A draft may have been saved before a category was chosen.
+    category: item.category || defaultCategory,
     image: item.image,
     isPinned: item.isPinned,
     isUrgent: item.isUrgent,
@@ -72,6 +75,10 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
   const { saveNews, appSettings, currentUser } = usePortal();
   const categories = appSettings?.newsCategories ?? [];
   const [form, setForm] = useState<NewsInput>(() => initialState(item, categories[0] ?? 'اخبار سازمان'));
+  const isDraft = !item || item.status === 'draft';
+  // The editor reads its text once; a new key reloads it after a template or the blanks change the text.
+  const [editorKey, setEditorKey] = useState(0);
+  const [templateName, setTemplateName] = useState('');
   const [contentEmpty, setContentEmpty] = useState(() => !form.content.replace(/<[^>]*>/g, '').trim() && !form.content.includes('<img'));
   const [preview, setPreview] = useState(false);
   const [tagsText, setTagsText] = useState(form.tags.join('، '));
@@ -80,21 +87,43 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
 
   const set = <K extends keyof NewsInput>(key: K, value: NewsInput[K]) => setForm((f) => ({ ...f, [key]: value }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const tagsOf = (text: string) => text.split(/[,،]/).map((t) => t.trim()).filter(Boolean);
+
+  const save = async (draft: boolean) => {
     setBusy(true);
-    const tags = tagsText.split(/[,،]/).map((t) => t.trim()).filter(Boolean);
-    const ok = await saveNews(
-      { ...form, tags, publishTime: form.publishDate ? form.publishTime || '08:00' : '', ackDate: form.requiresAck ? form.ackDate : '' },
-      item?.id,
-    );
+    const data = { ...form, tags: tagsOf(tagsText), publishTime: form.publishDate ? form.publishTime || '08:00' : '', ackDate: form.requiresAck ? form.ackDate : '', draft };
+    const message = draft ? 'پیش‌نویس ذخیره شد.' : !isDraft ? 'تغییرات ذخیره شد.' : form.publishDate ? 'انتشار خبر زمان‌بندی شد.' : 'خبر منتشر شد.';
+    const ok = await saveNews(data, item?.id, message);
     setBusy(false);
     if (ok) onClose();
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void save(false);
+  };
+
+  const saveDraft = () => {
+    if (!form.title.trim()) {
+      toast.error('برای ذخیرهٔ پیش‌نویس دست‌کم عنوان را بنویسید.');
+      return;
+    }
+    void save(true);
+  };
+
+  /** Replaces parts of the form, e.g. with a template or with the blanks filled in. */
+  const fillFrom = (next: Partial<NewsInput>) => {
+    setForm((f) => ({ ...f, ...next }));
+    if (next.tags) setTagsText(next.tags.join('، '));
+    if (next.content !== undefined) {
+      setContentEmpty(!next.content.replace(/<[^>]*>/g, '').trim());
+      setEditorKey((k) => k + 1);
+    }
+  };
+
   return (
     <Modal
-      title={item ? 'ویرایش خبر یا اطلاعیه' : 'انتشار خبر یا اطلاعیهٔ جدید'}
+      title={!item ? 'انتشار خبر یا اطلاعیهٔ جدید' : item.status === 'draft' ? 'ادامهٔ پیش‌نویس' : 'ویرایش خبر یا اطلاعیه'}
       subtitle="اطلاعیه‌های اداری، بخشنامه‌ها، رویدادها و اخبار سازمانی"
       icon={<Newspaper className="w-5 h-5" />}
       onClose={onClose}
@@ -105,9 +134,14 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
           <button type="button" onClick={() => setPreview((p) => !p)} className={`${secondaryButtonClass} ml-auto`}>
             {preview ? <PenLine className="w-4 h-4" /> : <Eye className="w-4 h-4" />} {preview ? 'بازگشت به ویرایش' : 'پیش‌نمایش'}
           </button>
+          {isDraft && (
+            <button type="button" onClick={saveDraft} disabled={busy} className={secondaryButtonClass} title="بدون اعلان به همکاران ذخیره می‌شود و بعداً کاملش می‌کنید">
+              <Save className="w-4 h-4" /> ذخیرهٔ پیش‌نویس
+            </button>
+          )}
           <button type="submit" form="news-editor" disabled={busy || contentEmpty} className={primaryButtonClass}>
             <CheckCircle2 className="w-4 h-4" />
-            <span>{busy ? 'در حال ذخیره...' : item ? 'ذخیرهٔ تغییرات' : form.publishDate ? 'زمان‌بندی انتشار' : 'انتشار'}</span>
+            <span>{busy ? 'در حال ذخیره...' : !isDraft ? 'ذخیرهٔ تغییرات' : form.publishDate ? 'زمان‌بندی انتشار' : 'انتشار'}</span>
           </button>
         </>
       }
@@ -127,6 +161,23 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
         </div>
       )}
       <form id="news-editor" onSubmit={handleSubmit} className={`space-y-5 ${preview ? 'hidden' : ''}`}>
+        {!item && (
+          <TemplatePicker
+            onPick={(t) => {
+              setTemplateName(t.name);
+              fillFrom({
+                title: t.title,
+                summary: t.summary,
+                content: t.content,
+                category: categories.includes(t.category) ? t.category : form.category,
+                isUrgent: t.isUrgent,
+                requiresAck: t.requiresAck,
+                tags: t.tags,
+              });
+            }}
+          />
+        )}
+        <PlaceholderPanel form={form} onFill={fillFrom} />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2">
             <label htmlFor="news-title" className={labelClass}>عنوان *</label>
@@ -149,6 +200,7 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
           <label htmlFor="news-content" className={labelClass}>متن کامل *</label>
           <Suspense fallback={<div className="h-64 rounded-xl border border-[#D9D4CB] bg-[#F5F2ED] animate-pulse" />}>
             <RichTextEditor
+              key={editorKey}
               id="news-content"
               value={form.content}
               onChange={(html, isEmpty) => {
@@ -236,6 +288,8 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
           <label htmlFor="news-tags" className={labelClass}>برچسب‌ها (با ویرگول جدا کنید)</label>
           <input id="news-tags" value={tagsText} onChange={(e) => setTagsText(e.target.value)} className={inputClass} />
         </div>
+
+        <SaveAsTemplate form={{ ...form, tags: tagsOf(tagsText) }} suggestedName={templateName} />
 
         <div className="border-t border-[#E6E0D5] pt-4">
           <button type="button" onClick={() => setScheduleOpen((o) => !o)} aria-expanded={scheduleOpen} className="flex items-center gap-1.5 font-bold text-red-700">
