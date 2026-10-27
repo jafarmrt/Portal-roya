@@ -395,6 +395,8 @@ export interface AppSettings {
   locations: string[];
   /** Dashboard cards an admin switched off, e.g. { mood: false }. */
   dashboardCards: Record<string, boolean>;
+  /** Uploaded company logo for the header ('' = the built-in ROYA wordmark). */
+  logoUrl: string;
 }
 
 export interface SiteBanner {

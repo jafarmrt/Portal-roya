@@ -12,7 +12,7 @@ export const PERMISSIONS = [
   { key: 'comments.moderate', label: 'مدیریت پیام‌های همکاران', hint: 'حذف پیام‌های تبریک تولد و خوش‌آمدگویی' },
   { key: 'reports.view', label: 'مشاهدهٔ گزارش‌ها', hint: 'گزارش مشارکت و حال‌وهوای کلی سازمان' },
   { key: 'users.manage', label: 'مدیریت کارکنان و کاربران', hint: 'صفحهٔ مدیریت کارکنان: ثبت همکار، ویرایش مشخصات، دادن یا برداشتن دسترسی پورتال، تعیین نقش، غیرفعال‌سازی و بازنشانی رمز' },
-  { key: 'settings.manage', label: 'تنظیمات پرتال', hint: 'واحدهای سازمانی و دسته‌بندی‌ها' },
+  { key: 'settings.manage', label: 'تنظیمات پرتال', hint: 'لوگوی شرکت، واحدهای سازمانی و دسته‌بندی‌ها' },
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number]['key'];

@@ -98,6 +98,8 @@ interface PortalContextType {
   guestAccess: boolean;
   /** Staff sign in with their Active Directory (Windows) username and password. */
   directoryLogin: boolean;
+  /** Address of the uploaded company logo, or null for the built-in ROYA wordmark. */
+  logoSrc: string | null;
   /** Why the sign-in dialog is open (null when closed). Guests see it when they try to interact. */
   loginPrompt: string | null;
   requestLogin: (reason?: string) => void;
@@ -228,6 +230,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [guestAccess, setGuestAccess] = useState(false);
   const [directoryLogin, setDirectoryLogin] = useState(false);
+  const [logoUrl, setLogoUrl] = useState('');
   const [loginPrompt, setLoginPrompt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -269,9 +272,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
     (async () => {
       try {
-        const status = await api.get<{ isSetupComplete: boolean; guestAccess?: boolean; directoryLogin?: boolean }>(
+        const status = await api.get<{ isSetupComplete: boolean; guestAccess?: boolean; directoryLogin?: boolean; logoUrl?: string }>(
           '/api/system/status',
         );
+        setLogoUrl(status.logoUrl ?? '');
         setIsSetupComplete(status.isSetupComplete);
         setGuestAccess(Boolean(status.guestAccess));
         setDirectoryLogin(Boolean(status.directoryLogin));
@@ -397,10 +401,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => source.close();
   }, [isReady, sessionKey, loaders, refresh]);
 
-  // A manager may switch guest access while the page is open.
+  // A manager may switch guest access or replace the logo while the page is open.
   useEffect(() => {
-    if (appSettings) setGuestAccess(appSettings.guestAccess);
+    if (!appSettings) return;
+    setGuestAccess(appSettings.guestAccess);
+    setLogoUrl(appSettings.logoUrl ?? '');
   }, [appSettings]);
+  // Served through /api/system/logo so the sign-in page can show it too; the file name busts the cache.
+  const logoSrc = logoUrl ? `/api/system/logo?v=${encodeURIComponent(logoUrl.replace(/^\/uploads\//, ''))}` : null;
 
   // When this user's permissions change, what the server shows them changes too (scheduled news, other departments' polls...).
   const permissionKey = currentUser?.permissions.join(',') ?? null;
@@ -757,6 +765,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isGuest,
         guestAccess,
         directoryLogin,
+        logoSrc,
         loginPrompt,
         requestLogin,
         closeLoginPrompt,

@@ -1,8 +1,9 @@
 import { eq } from 'drizzle-orm';
+import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { db, pool } from '../server/db/index';
 import { polls } from '../server/db/schema';
-import { createEmployee, resetDatabase, setupAdmin } from './helpers';
+import { app, createEmployee, resetDatabase, setupAdmin } from './helpers';
 
 describe('news, circulars and polls', () => {
   let admin: Awaited<ReturnType<typeof setupAdmin>>;
@@ -120,5 +121,32 @@ describe('news, circulars and polls', () => {
 
     await admin.put('/api/settings').send({ systems: [{ ...app, imageUrl: 'https://example.com/logo.png' }] }).expect(400);
     await admin.put('/api/settings').send({ systems: [{ ...app, imageUrl: '/uploads/../secret.png' }] }).expect(400);
+  });
+
+  it('lets settings managers replace the header logo, which visitors can load even without guest access', async () => {
+    const png = Buffer.from('89504e470d0a1a0a', 'hex');
+    const upload = await admin.post('/api/uploads').attach('file', png, { filename: 'logo.png', contentType: 'image/png' }).expect(201);
+
+    await sales.agent.put('/api/settings').send({ logoUrl: upload.body.url }).expect(403);
+    await admin.put('/api/settings').send({ logoUrl: 'https://example.com/logo.png' }).expect(400);
+    await admin.put('/api/settings').send({ guestAccess: false }).expect(200);
+    await request(app).get('/api/system/logo').expect(404);
+
+    const saved = await admin.put('/api/settings').send({ logoUrl: upload.body.url }).expect(200);
+    expect(saved.body.logoUrl).toBe(upload.body.url);
+    const other = await admin.put('/api/settings').send({ dashboardCards: {} }).expect(200);
+    expect(other.body.logoUrl).toBe(upload.body.url);
+    const status = await request(app).get('/api/system/status').expect(200);
+    expect(status.body.logoUrl).toBe(upload.body.url);
+    const logo = await request(app).get('/api/system/logo').expect(200);
+    expect(logo.headers['content-type']).toBe('image/png');
+    expect(Buffer.from(logo.body).equals(png)).toBe(true);
+    await request(app).get(upload.body.url).expect(401);
+
+    const reset = await admin.put('/api/settings').send({ logoUrl: '' }).expect(200);
+    expect(reset.body.logoUrl).toBe('');
+    expect((await request(app).get('/api/system/status').expect(200)).body.logoUrl).toBe('');
+    await request(app).get('/api/system/logo').expect(404);
+    await admin.put('/api/settings').send({ guestAccess: true }).expect(200);
   });
 });

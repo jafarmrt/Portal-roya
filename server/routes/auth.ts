@@ -29,7 +29,7 @@ import {
   normalizeLoginName,
 } from '../ldap.js';
 import { serializeMe } from '../serializers.js';
-import { ensureSettings, guestSettings } from '../settings.js';
+import { ensureSettings, guestSettings, logoFile } from '../settings.js';
 import { ensureRoles } from '../roles.js';
 import { optionalText, password, requiredText, username } from '../validation.js';
 
@@ -52,10 +52,27 @@ authRouter.get(
   '/system/status',
   route(async (_req, res) => {
     const isSetupComplete = await hasAnyEmployee();
+    const logo = isSetupComplete ? await logoFile() : null;
     res.json({
       isSetupComplete,
       guestAccess: isSetupComplete && (await guestSettings()).guestAccess,
       directoryLogin: isDirectoryEnabled(),
+      logoUrl: logo ? `/uploads/${logo}` : '',
+    });
+  }),
+);
+
+/**
+ * The company logo, also for visitors who are not signed in (the sign-in page shows it even when
+ * guest access is off and /uploads is closed to them). Clients add ?v=<file> so a new logo is fetched at once.
+ */
+authRouter.get(
+  '/system/logo',
+  route(async (_req, res) => {
+    const file = await logoFile();
+    if (!file) throw new HttpError(404, 'لوگویی بارگذاری نشده است.');
+    res.sendFile(file, { root: config.uploadDir, dotfiles: 'deny', maxAge: '1d' }, (err) => {
+      if (err && !res.headersSent) res.status(404).json({ error: 'فایل لوگو پیدا نشد.' });
     });
   }),
 );
