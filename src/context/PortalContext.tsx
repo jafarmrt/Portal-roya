@@ -262,6 +262,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [authChecked, setAuthChecked] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [guestAccess, setGuestAccess] = useState(false);
+  // Guests may only read from inside the company network; from the internet everyone signs in.
+  const [companyNetwork, setCompanyNetwork] = useState(true);
   const [directoryLogin, setDirectoryLogin] = useState(false);
   const [logoUrl, setLogoUrl] = useState('');
   const [loginPrompt, setLoginPrompt] = useState<string | null>(null);
@@ -307,12 +309,17 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
     (async () => {
       try {
-        const status = await api.get<{ isSetupComplete: boolean; guestAccess?: boolean; directoryLogin?: boolean; logoUrl?: string }>(
-          '/api/system/status',
-        );
+        const status = await api.get<{
+          isSetupComplete: boolean;
+          guestAccess?: boolean;
+          companyNetwork?: boolean;
+          directoryLogin?: boolean;
+          logoUrl?: string;
+        }>('/api/system/status');
         setLogoUrl(status.logoUrl ?? '');
         setIsSetupComplete(status.isSetupComplete);
         setGuestAccess(Boolean(status.guestAccess));
+        setCompanyNetwork(status.companyNetwork !== false);
         setDirectoryLogin(Boolean(status.directoryLogin));
         if (status.isSetupComplete) {
           const me = await api.get<{ user: CurrentUser }>('/api/auth/me').catch(() => null);
@@ -441,9 +448,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // A manager may switch guest access or replace the logo while the page is open.
   useEffect(() => {
     if (!appSettings) return;
-    setGuestAccess(appSettings.guestAccess);
+    setGuestAccess(appSettings.guestAccess && companyNetwork);
     setLogoUrl(appSettings.logoUrl ?? '');
-  }, [appSettings]);
+  }, [appSettings, companyNetwork]);
   // Served through /api/system/logo so the sign-in page can show it too; the file name busts the cache.
   const logoSrc = logoUrl ? `/api/system/logo?v=${encodeURIComponent(logoUrl.replace(/^\/uploads\//, ''))}` : null;
 

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import {
   burnPasswordCheck,
   clearSession,
+  guestAllowed,
   hashPassword,
   issueSession,
   LOCK_MINUTES,
@@ -29,7 +30,8 @@ import {
   normalizeLoginName,
 } from '../ldap.js';
 import { serializeMe } from '../serializers.js';
-import { ensureSettings, guestSettings, logoFile } from '../settings.js';
+import { fromCompanyNetwork } from '../network.js';
+import { ensureSettings, logoFile } from '../settings.js';
 import { ensureRoles } from '../roles.js';
 import { optionalText, password, requiredText, username } from '../validation.js';
 
@@ -50,12 +52,14 @@ async function hasAnyEmployee() {
 
 authRouter.get(
   '/system/status',
-  route(async (_req, res) => {
+  route(async (req, res) => {
     const isSetupComplete = await hasAnyEmployee();
     const logo = isSetupComplete ? await logoFile() : null;
     res.json({
       isSetupComplete,
-      guestAccess: isSetupComplete && (await guestSettings()).guestAccess,
+      guestAccess: isSetupComplete && (await guestAllowed(req)),
+      // Guests may only read from inside the company network; from the internet everyone signs in.
+      companyNetwork: fromCompanyNetwork(req),
       directoryLogin: isDirectoryEnabled(),
       logoUrl: logo ? `/uploads/${logo}` : '',
     });

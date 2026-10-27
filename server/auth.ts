@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { config } from './config.js';
 import { db } from './db/index.js';
 import { employees } from './db/schema.js';
+import { fromCompanyNetwork } from './network.js';
 import { guestSettings } from './settings.js';
 import { ADMIN_ROLE_ID, type Permission } from '../shared/permissions.js';
 import { rolePermissions } from './roles.js';
@@ -142,14 +143,20 @@ export const isReadRequest = (req: Request) => req.method === 'GET' || req.metho
 /** True for the public read-only API endpoints. */
 export const isGuestReadable = (req: Request) => isReadRequest(req) && GUEST_READABLE.some((re) => re.test(req.path));
 
+/** True when this visitor may read without signing in: guest access is on and they are inside the company network. */
+export async function guestAllowed(req: Request) {
+  return fromCompanyNetwork(req) && (await guestSettings()).guestAccess;
+}
+
 /**
- * Lets signed-in users through and admits visitors to the requests `isPublic` allows
- * while guest access is on. Everything else (any write, personal data) needs a session.
+ * Lets signed-in users through and admits visitors to the requests `isPublic` allows while guest
+ * access is on and they are inside the company network. Everything else (any write, personal data,
+ * anything from the internet) needs a session.
  */
 export function requireUserOrGuest(isPublic: (req: Request) => boolean = isGuestReadable) {
   return async (req: AuthedRequest, res: Response, next: NextFunction) => {
     try {
-      if (req.user || (isPublic(req) && (await guestSettings()).guestAccess)) {
+      if (req.user || (isPublic(req) && (await guestAllowed(req)))) {
         next();
         return;
       }

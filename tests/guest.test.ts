@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { pool } from '../server/db/index';
+import { isCompanyAddress } from '../server/network';
 import { app, createEmployee, resetDatabase, setupAdmin } from './helpers';
 
 describe('guest (not signed in) access', () => {
@@ -86,5 +87,38 @@ describe('guest (not signed in) access', () => {
     }
     await admin.get('/api/news').expect(200);
     await admin.put('/api/settings').send({ guestAccess: true }).expect(200);
+  });
+
+  it('tells company addresses from internet addresses', () => {
+    for (const ip of ['192.168.0.21', '10.1.2.3', '172.20.0.5', '127.0.0.1', '::1', '::ffff:192.168.1.9', 'fd00::5', 'fe80::1%eth0']) {
+      expect(isCompanyAddress(ip), ip).toBe(true);
+    }
+    for (const ip of ['79.127.49.210', '5.160.10.20', '172.32.0.1', '100.64.0.1', '2a01:4f8::1', '::ffff:8.8.8.8', '', undefined]) {
+      expect(isCompanyAddress(ip), String(ip)).toBe(false);
+    }
+  });
+
+  it('asks visitors from the internet to sign in (behind nginx, with TRUST_PROXY=true)', async () => {
+    app.set('trust proxy', 1);
+    try {
+      const outside = (path: string) => request(app).get(path).set('X-Forwarded-For', '5.160.10.20');
+      const inside = (path: string) => request(app).get(path).set('X-Forwarded-For', '192.168.0.50');
+
+      const status = (await outside('/api/system/status').expect(200)).body;
+      expect(status).toMatchObject({ guestAccess: false, companyNetwork: false });
+      for (const path of ['/api/news', '/api/settings', '/api/documents', '/uploads/anything.png']) {
+        await outside(path).expect(401);
+      }
+      // A visitor cannot pretend to be inside: nginx appends the real address, and only that one counts.
+      await request(app).get('/api/news').set('X-Forwarded-For', '192.168.0.50, 5.160.10.20').expect(401);
+
+      expect((await inside('/api/system/status').expect(200)).body).toMatchObject({ guestAccess: true, companyNetwork: true });
+      await inside('/api/news').expect(200);
+
+      // Signed-in colleagues can use the portal from anywhere.
+      await admin.get('/api/news').set('X-Forwarded-For', '5.160.10.20').expect(200);
+    } finally {
+      app.set('trust proxy', false);
+    }
   });
 });
