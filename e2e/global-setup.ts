@@ -30,7 +30,7 @@ export default async function globalSetup(config: FullConfig) {
     data: { title: 'بخشنامهٔ ایمنی', summary: 'لطفاً مطالعه کنید.', content: 'متن بخشنامه', category: 'بخشنامه', requiresAck: true, isUrgent: true },
   }));
   await ok(await admin.post('/api/polls', {
-    data: { title: 'ناهار جمعه', description: '', department: 'all', type: 'multiple_choice', options: ['کباب', 'سبزی'] },
+    data: { title: 'ناهار جمعه', questions: [{ text: 'ناهار جمعه چه باشد؟', type: 'single', options: [{ text: 'کباب' }, { text: 'سبزی' }] }] },
   }));
   await ok(await admin.post('/api/calendar_events', { data: { title: 'جلسهٔ ماهانه', date: '1405/08/20', type: 'meeting' } }));
   await admin.storageState({ path: `${AUTH_DIR}/admin.json` });

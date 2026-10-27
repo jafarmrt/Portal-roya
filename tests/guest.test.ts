@@ -21,8 +21,9 @@ describe('guest (not signed in) access', () => {
         .send({ title: 'فقط فروش', summary: 'خلاصه', content: 'متن', category: 'اخبار', targetDepartments: ['فروش'] })
         .expect(201)
     ).body.id;
-    await admin.post('/api/polls').send({ title: 'نظرسنجی عمومی', type: 'free_text' }).expect(201);
-    await admin.post('/api/polls').send({ title: 'نظرسنجی فروش', type: 'free_text', department: 'فروش' }).expect(201);
+    const question = { text: 'پیشنهاد شما چیست؟', type: 'text' };
+    await admin.post('/api/polls').send({ title: 'نظرسنجی عمومی', showTextAnswers: true, questions: [question] }).expect(201);
+    await admin.post('/api/polls').send({ title: 'نظرسنجی فروش', targetDepartments: ['فروش'], questions: [question] }).expect(201);
   });
   afterAll(() => pool.end());
 
@@ -42,10 +43,11 @@ describe('guest (not signed in) access', () => {
     await request(app).get(`/api/news/${targetedNewsId}`).expect(404);
   });
 
-  it('shows only company-wide polls, without free-text answers', async () => {
+  it('shows only company-wide polls, without their results while they are open', async () => {
     const res = await request(app).get('/api/polls').expect(200);
     expect(res.body.map((p: { title: string }) => p.title)).toEqual(['نظرسنجی عمومی']);
-    expect(res.body[0].freeTextResponses).toEqual([]);
+    expect(res.body[0]).toMatchObject({ forMe: false, resultsVisible: false, canManage: false });
+    expect(res.body[0].questions[0].results).toBeUndefined();
   });
 
   it('opens the rest of the read-only content', async () => {

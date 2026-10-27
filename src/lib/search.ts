@@ -1,6 +1,6 @@
 import type { CalendarEvent, DepartmentPage, Guide, NewsItem, Poll, PortalDocument, SearchResultItem, TrainingProgram, UserProfile } from '../types';
 import { normalizeForSearch } from '../../shared/search';
-import { formatDate } from './jalali';
+import { formatDate, toPersianDigits } from './jalali';
 
 interface SearchSources {
   employees: UserProfile[];
@@ -74,12 +74,12 @@ export function buildSearchResults(query: string, s: SearchSources): SearchResul
   }
 
   for (const p of s.polls) {
-    if (!matches(query, p.title, p.description, ...p.options.map((o) => o.text))) continue;
+    if (!matches(query, p.title, p.description, ...p.questions.flatMap((q) => [q.text, ...q.options.map((o) => o.text)]))) continue;
     results.push({
       id: `res-poll-${p.id}`,
       type: 'نظرسنجی',
       title: p.title,
-      subtitle: `نوع: ${p.type === 'multiple_choice' ? 'گزینه‌ای' : 'پاسخ متنی آزاد'}${p.expiryDate ? ` | مهلت: ${formatDate(p.expiryDate)}` : ''}`,
+      subtitle: `${toPersianDigits(p.questions.length)} سؤال${p.isActive ? '' : ' | بسته شده'}${p.expiryDate ? ` | مهلت: ${formatDate(p.expiryDate)}` : ''}`,
       snippet: p.description,
       targetTab: 'polls',
       targetId: p.id,

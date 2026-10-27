@@ -55,7 +55,7 @@ describe('roles and permissions', () => {
     expect(me.body.user.permissions.sort()).toEqual(['news.manage', 'users.manage']);
 
     await manager.agent.post('/api/employees').send(newUser('hired.one')).expect(201);
-    await manager.agent.post('/api/polls').send({ title: 'نظر', type: 'free_text' }).expect(403);
+    await manager.agent.post('/api/polls').send({ title: 'نظر', questions: [{ text: 'نظر شما؟', type: 'text' }] }).expect(403);
   });
 
   it('never lets a user manager touch admin accounts or hand out the admin role', async () => {
@@ -83,13 +83,13 @@ describe('roles and permissions', () => {
     await admin.post('/api/roles').send({ name: 'سرپرست واحد' }).expect(409);
 
     await admin.patch(`/api/employees/${expert.id}`).send({ role: roleId }).expect(200);
-    await expert.agent.post('/api/polls').send({ title: 'ناهار', type: 'free_text' }).expect(201);
+    await expert.agent.post('/api/polls').send({ title: 'ناهار', questions: [{ text: 'غذای پیشنهادی؟', type: 'text' }] }).expect(201);
 
     const blocked = await admin.delete(`/api/roles/${roleId}`).expect(409);
     expect(blocked.body.error).toContain('1 همکار');
     await admin.patch(`/api/employees/${expert.id}`).send({ role: 'employee' }).expect(200);
     await admin.delete(`/api/roles/${roleId}`).expect(200);
-    await expert.agent.post('/api/polls').send({ title: 'دوباره', type: 'free_text' }).expect(403);
+    await expert.agent.post('/api/polls').send({ title: 'دوباره', questions: [{ text: 'غذای پیشنهادی؟', type: 'text' }] }).expect(403);
   });
 
   it('separates app links from the other portal settings', async () => {

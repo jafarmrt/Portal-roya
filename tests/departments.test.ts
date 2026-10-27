@@ -45,7 +45,7 @@ describe('one department list for the whole portal', () => {
     expect(ok.body.employee.department).toBe('فروش');
     await admin.patch(`/api/employees/${ok.body.employee.id}`).send({ department: 'ناموجود' }).expect(400);
 
-    await admin.post('/api/polls').send({ title: 'x', department: 'ناموجود', type: 'free_text' }).expect(400);
+    await admin.post('/api/polls').send({ title: 'x', targetDepartments: ['ناموجود'], questions: [{ text: 'x؟', type: 'text' }] }).expect(400);
     await admin
       .post('/api/news')
       .send({ title: 't', summary: 's', content: 'c', category: 'اخبار', targetDepartments: ['ناموجود'] })
@@ -107,12 +107,20 @@ describe('one department list for the whole portal', () => {
   it('renames a department everywhere, and merges into an existing one', async () => {
     const people = (await admin.get('/api/employees').expect(200)).body as { id: string; department: string }[];
     const hr = people.filter((e) => e.department === 'منابع انسانی').map((e) => e.id);
+    const poll = await admin
+      .post('/api/polls')
+      .send({ title: 'رضایت از رفاهیات', targetDepartments: ['منابع انسانی', 'فروش'], questions: [{ text: 'چقدر راضی هستید؟', type: 'rating' }] })
+      .expect(201);
+    const usage = (await admin.get('/api/settings/departments').expect(200)).body as { name: string; polls: number }[];
+    expect(usage.find((d) => d.name === 'منابع انسانی')?.polls).toBe(1);
+    const pollAudience = async () => (await db.execute<{ t: string[] }>(sql`select target_departments as t from polls where id = ${poll.body.id}`)).rows[0].t;
 
     const renamed = await admin.post('/api/settings/departments/rename').send({ from: 'منابع انسانی', to: 'سرمایه انسانی' }).expect(200);
     expect(renamed.body).toMatchObject({ to: 'سرمایه انسانی', merged: false });
     for (const id of hr) expect(await departmentOf(admin, id)).toBe('سرمایه انسانی');
     const news = await db.execute<{ t: string[] }>(sql`select target_departments as t from news`);
     expect(news.rows[0].t).toContain('سرمایه انسانی');
+    expect((await pollAudience()).sort()).toEqual(['سرمایه انسانی', 'فروش'].sort());
 
     const merged = await admin.post('/api/settings/departments/rename').send({ from: 'سرمایه انسانی', to: 'فروش' }).expect(200);
     expect(merged.body).toMatchObject({ to: 'فروش', merged: true });
@@ -120,6 +128,7 @@ describe('one department list for the whole portal', () => {
     expect(await departmentsOf(admin)).not.toContain('سرمایه انسانی');
     const merged2 = await db.execute<{ t: string[] }>(sql`select target_departments as t from news`);
     expect(merged2.rows[0].t).toEqual(['فروش']);
+    expect(await pollAudience()).toEqual(['فروش']);
   });
 
   it('lets only portal managers change departments', async () => {

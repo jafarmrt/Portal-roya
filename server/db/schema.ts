@@ -166,36 +166,74 @@ export const newsReads = pgTable(
   (t) => [primaryKey({ columns: [t.newsId, t.userId] })],
 );
 
+/** Who may see a poll's results besides its creator and poll managers (who always may). */
+export type PollResultsVisibility = 'managers' | 'after_answer' | 'after_close';
+
 export const polls = pgTable('polls', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   description: text('description').notNull(),
-  department: text('department').notNull().default('all'),
   createdById: text('created_by_id').notNull().references(() => employees.id),
-  type: text('type').notNull(), // 'multiple_choice' | 'free_text'
   isActive: boolean('is_active').notNull().default(true),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  /** Anonymous polls never show who answered what, not even to their creator. */
+  anonymous: boolean('anonymous').notNull().default(true),
+  resultsVisibility: text('results_visibility').$type<PollResultsVisibility>().notNull().default('after_answer'),
+  /** Written answers are shown to those who see the results; otherwise only to the creator and poll managers. */
+  showTextAnswers: boolean('show_text_answers').notNull().default(false),
+  targetDepartments: text('target_departments').array().notNull().default([]),
+  targetLocations: text('target_locations').array().notNull().default([]),
+  targetRoles: text('target_roles').array().notNull().default([]),
+  targetUserIds: text('target_user_ids').array().notNull().default([]),
+  remindedAt: timestamp('reminded_at', { withTimezone: true }),
+  autoRemindedAt: timestamp('auto_reminded_at', { withTimezone: true }),
+});
+
+export type PollQuestionType = 'single' | 'multiple' | 'rating' | 'text';
+
+export const pollQuestions = pgTable('poll_questions', {
+  id: text('id').primaryKey(),
+  pollId: text('poll_id').notNull().references(() => polls.id, { onDelete: 'cascade' }),
+  position: integer('position').notNull().default(0),
+  type: text('type').$type<PollQuestionType>().notNull(),
+  /** Empty only for polls from before multi-question polls, whose title is the question. */
+  text: text('text').notNull(),
+  required: boolean('required').notNull().default(true),
 });
 
 export const pollOptions = pgTable('poll_options', {
   id: text('id').primaryKey(),
   pollId: text('poll_id').notNull().references(() => polls.id, { onDelete: 'cascade' }),
+  questionId: text('question_id').notNull().references(() => pollQuestions.id, { onDelete: 'cascade' }),
   text: text('text').notNull(),
   position: integer('position').notNull().default(0),
 });
 
-export const pollVotes = pgTable(
-  'poll_votes',
+/** One person's filled-in poll; a person answers a poll once. */
+export const pollResponses = pgTable(
+  'poll_responses',
   {
     id: serial('id').primaryKey(),
     pollId: text('poll_id').notNull().references(() => polls.id, { onDelete: 'cascade' }),
     userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
-    optionId: text('option_id').references(() => pollOptions.id, { onDelete: 'cascade' }),
-    freeText: text('free_text'),
     submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('poll_votes_poll_user_uq').on(t.pollId, t.userId)],
+  (t) => [uniqueIndex('poll_responses_poll_user_uq').on(t.pollId, t.userId)],
+);
+
+/** An answer to one question: a chosen option (one row per option for multi-select), a rating or a text. */
+export const pollAnswers = pgTable(
+  'poll_answers',
+  {
+    id: serial('id').primaryKey(),
+    responseId: integer('response_id').notNull().references(() => pollResponses.id, { onDelete: 'cascade' }),
+    questionId: text('question_id').notNull().references(() => pollQuestions.id, { onDelete: 'cascade' }),
+    optionId: text('option_id').references(() => pollOptions.id, { onDelete: 'cascade' }),
+    rating: integer('rating'),
+    text: text('text'),
+  },
+  (t) => [index('poll_answers_question_idx').on(t.questionId)],
 );
 
 export const moods = pgTable(

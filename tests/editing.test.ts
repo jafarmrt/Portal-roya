@@ -22,7 +22,7 @@ const training = {
   prerequisites: '',
 };
 
-describe('editing trainings, calendar events, polls and documents', () => {
+describe('editing trainings, calendar events and documents', () => {
   let admin: Awaited<ReturnType<typeof setupAdmin>>;
   let sales: Awaited<ReturnType<typeof createEmployee>>;
   let design: Awaited<ReturnType<typeof createEmployee>>;
@@ -99,28 +99,6 @@ describe('editing trainings, calendar events, polls and documents', () => {
     expect(updated.body).toMatchObject({ title: 'جلسهٔ ماهانه (جابه‌جا شد)', date: `${NEXT_YEAR}/03/02`, time: null, location: 'اتاق جلسات' });
     await sales.agent.put(`/api/calendar_events/${created.body.id}`).send({ title: 'x', date: `${NEXT_YEAR}/03/02`, type: 'meeting' }).expect(403);
     await admin.put('/api/calendar_events/missing').send({ title: 'x', date: `${NEXT_YEAR}/03/02`, type: 'meeting' }).expect(404);
-  });
-
-  it('edits a poll without losing votes', async () => {
-    const poll = await admin
-      .post('/api/polls')
-      .send({ title: 'ناهار', description: '', department: 'all', type: 'multiple_choice', options: ['کباب', 'سبزی'] })
-      .expect(201);
-    const [kebab, sabzi] = poll.body.options;
-    await sales.agent.post(`/api/polls/${poll.body.id}/vote`).send({ optionId: kebab.id }).expect(200);
-
-    const edit = (options: { id?: string; text: string }[], extra: Record<string, unknown> = {}) =>
-      admin.put(`/api/polls/${poll.body.id}`).send({ title: 'ناهار پنجشنبه', description: 'برای جشن', department: 'all', options, ...extra });
-
-    // Existing options may be reworded but not removed.
-    await edit([{ id: kebab.id, text: 'کباب' }]).expect(400);
-    await edit([{ id: kebab.id, text: 'کباب' }, { id: sabzi.id, text: 'سبزی' }], { expiryDate: '1390/01/01' }).expect(400);
-
-    const updated = await edit([{ id: kebab.id, text: 'جوجه‌کباب' }, { id: sabzi.id, text: 'قورمه‌سبزی' }, { text: 'ماهی' }]).expect(200);
-    expect(updated.body.title).toBe('ناهار پنجشنبه');
-    expect(updated.body.options.map((o: { text: string }) => o.text)).toEqual(['جوجه‌کباب', 'قورمه‌سبزی', 'ماهی']);
-    expect(updated.body.options.find((o: { id: string }) => o.id === kebab.id).votesCount).toBe(1);
-    await sales.agent.put(`/api/polls/${poll.body.id}`).send({ title: 'x', options: [] }).expect(403);
   });
 
   it('edits the details of a document', async () => {
