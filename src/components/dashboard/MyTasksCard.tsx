@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import moment from 'moment-jalaali';
-import { CalendarCheck, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, FileCheck2, FileText, GraduationCap, LifeBuoy, ListTodo, MessageSquareHeart, Vote } from 'lucide-react';
+import { CalendarCheck, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, FileCheck2, FileText, GraduationCap, LifeBuoy, ListTodo, MessageCircleQuestion, MessageSquareHeart, Vote } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
+import { api } from '../../lib/api';
 import { dayLabel, formatDate, toPersianDigits, todayJalali } from '../../lib/jalali';
+import type { PendingNewsQuestion } from '../../types';
 import { deadlineState } from '../news/NewsBody';
 
 interface Task {
@@ -22,11 +24,18 @@ const WEEK_EVENT_TYPES = new Set(['meeting', 'event', 'holiday']);
 /**
  * What this person still has to do or attend: circulars and mandatory documents to acknowledge,
  * documents of theirs due for review, polls to answer, events asking whether they will attend, recent
- * courses to give feedback on, and their trainings and events in the coming seven days. Sits at the
- * top of the dashboard.
+ * courses to give feedback on, questions about their news items, and their trainings and events in the
+ * coming seven days. Sits at the top of the dashboard.
  */
 export const MyTasksCard: React.FC = () => {
   const { currentUser, news, polls, trainings, calendarEvents, documents, guides, can, setActiveTab } = usePortal();
+  const [questions, setQuestions] = useState<PendingNewsQuestion[]>([]);
+  const userId = currentUser?.id;
+  // Asked and answered questions reload the news list, so this follows it.
+  useEffect(() => {
+    if (!userId) return;
+    api.get<PendingNewsQuestion[]>('/api/news-questions/pending').then(setQuestions).catch(() => setQuestions([]));
+  }, [userId, news]);
   if (!currentUser) return null;
 
   const today = todayJalali();
@@ -46,6 +55,20 @@ export const MyTasksCard: React.FC = () => {
       urgent: state === 'overdue' || state === 'soon',
       rank: `0-${n.ackDeadline ?? '9'}`,
       open: () => setActiveTab('news', n.id),
+    });
+  }
+  // Colleagues' questions about this person's news, one task per item.
+  const asked = new Map<string, PendingNewsQuestion[]>();
+  for (const q of questions) asked.set(q.newsId, [...(asked.get(q.newsId) ?? []), q]);
+  for (const [newsId, open] of asked) {
+    tasks.push({
+      key: `question-${newsId}`,
+      icon: <MessageCircleQuestion className="w-4 h-4 text-amber-700" />,
+      kind: open.length > 1 ? `${toPersianDigits(open.length)} پرسش بی‌پاسخ` : 'پرسش بی‌پاسخ',
+      title: open[0].newsTitle,
+      when: formatDate(open[0].createdAt),
+      rank: `1-${open[0].createdAt}`,
+      open: () => setActiveTab('news', newsId),
     });
   }
   for (const d of documents) {

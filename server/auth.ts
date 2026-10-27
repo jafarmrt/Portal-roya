@@ -103,6 +103,7 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
 const GUEST_READABLE = [
   /^\/settings$/,
   /^\/news(\/[^/]+)?$/,
+  /^\/news\/[^/]+\/questions$/,
   /^\/polls$/,
   /^\/trainings$/,
   /^\/calendar_events$/,

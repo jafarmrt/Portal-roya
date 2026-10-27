@@ -139,11 +139,89 @@ export const news = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }),
     // Set once notifications for the item have been sent (immediately or by the scheduler).
     notifiedAt: timestamp('notified_at', { withTimezone: true }),
+    // A draft is seen only by the people who publish news and is announced when it is published.
+    isDraft: boolean('is_draft').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('news_publish_at_idx').on(t.publishAt)],
 );
+
+/** What an item looked like before an edit, for its edit history. */
+export interface NewsSnapshot {
+  title: string;
+  summary: string;
+  content: string;
+  contentFormat: string;
+  category: string;
+  image: string;
+  isPinned: boolean;
+  isUrgent: boolean;
+  requiresAck: boolean;
+  tags: string[];
+  targetDepartments: string[];
+  targetLocations: string[];
+  targetRoles: string[];
+  targetUserIds: string[];
+  attachments: AttachmentRecord[];
+  publishAt: string;
+  expiresAt: string | null;
+  ackDeadline: string | null;
+}
+
+/** One entry of an item's edit history: a draft published, or a published item edited (with its earlier state). */
+export const newsRevisions = pgTable(
+  'news_revisions',
+  {
+    id: serial('id').primaryKey(),
+    newsId: text('news_id').notNull().references(() => news.id, { onDelete: 'cascade' }),
+    editorId: text('editor_id').references(() => employees.id, { onDelete: 'set null' }),
+    action: text('action').$type<'publish' | 'edit'>().notNull(),
+    /** Keys of NewsSnapshot that this edit changed. */
+    changed: text('changed').array().notNull().default([]),
+    snapshot: jsonb('snapshot').$type<NewsSnapshot>().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('news_revisions_news_idx').on(t.newsId)],
+);
+
+/**
+ * A colleague's question to the publisher of an item. Private between the two (and news managers)
+ * unless the answer is shared, which adds it to the item's questions and answers without the name.
+ */
+export const newsQuestions = pgTable(
+  'news_questions',
+  {
+    id: text('id').primaryKey(),
+    newsId: text('news_id').notNull().references(() => news.id, { onDelete: 'cascade' }),
+    askerId: text('asker_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    question: text('question').notNull(),
+    answer: text('answer'),
+    answeredById: text('answered_by_id').references(() => employees.id, { onDelete: 'set null' }),
+    answeredAt: timestamp('answered_at', { withTimezone: true }),
+    isPublic: boolean('is_public').notNull().default(false),
+    /** The question as shown to everyone, when the publisher reworded it (e.g. to leave out personal details). */
+    publicQuestion: text('public_question'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('news_questions_news_idx').on(t.newsId)],
+);
+
+/** Ready-made texts for recurring announcements; [جای خالی] marks what the publisher fills in. */
+export const newsTemplates = pgTable('news_templates', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  title: text('title').notNull(),
+  summary: text('summary').notNull().default(''),
+  content: text('content').notNull().default(''),
+  category: text('category').notNull().default(''),
+  isUrgent: boolean('is_urgent').notNull().default(false),
+  requiresAck: boolean('requires_ack').notNull().default(false),
+  tags: text('tags').array().notNull().default([]),
+  createdById: text('created_by_id').references(() => employees.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const newsLikes = pgTable(
   'news_likes',
