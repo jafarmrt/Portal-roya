@@ -16,6 +16,7 @@ import {
   Paperclip,
   Pin,
   Plus,
+  Printer,
   Search,
   Tag,
   Trash2,
@@ -30,6 +31,7 @@ import { Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal
 import { BannerEditorModal } from '../common/SiteBanner';
 import { AddNewsModal } from './AddNewsModal';
 import { audienceSummary, deadlineState, NewsContent } from './NewsBody';
+import { NoticePrintModal } from './NoticePrintModal';
 import { ReadReceiptsModal } from './ReadReceiptsModal';
 
 type Filter = 'all' | 'unread' | 'ack' | string;
@@ -44,6 +46,7 @@ export const NewsModule: React.FC = () => {
   const [editor, setEditor] = useState<{ item?: NewsItem } | null>(null);
   const [bannerOpen, setBannerOpen] = useState(false);
   const [receiptsFor, setReceiptsFor] = useState<NewsItem | null>(null);
+  const [printFor, setPrintFor] = useState<NewsItem | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<NewsItem | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
@@ -221,12 +224,14 @@ export const NewsModule: React.FC = () => {
           onLike={() => toggleLikeNews(selectedArticle.id)}
           onAcknowledge={() => acknowledgeNews(selectedArticle.id)}
           onReceipts={() => setReceiptsFor(selectedArticle)}
+          onPrint={() => setPrintFor(selectedArticle)}
         />
       )}
 
       {editor && <AddNewsModal item={editor.item} onClose={() => setEditor(null)} />}
       {bannerOpen && <BannerEditorModal onClose={() => setBannerOpen(false)} />}
       {receiptsFor && <ReadReceiptsModal item={receiptsFor} onClose={() => setReceiptsFor(null)} />}
+      {printFor && <NoticePrintModal item={printFor} onClose={() => setPrintFor(null)} />}
       {confirmDelete && (
         <Modal
           title="حذف خبر"
@@ -389,9 +394,10 @@ interface ArticleModalProps {
   onLike: () => void;
   onAcknowledge: () => void;
   onReceipts: () => void;
+  onPrint: () => void;
 }
 
-const ArticleModal: React.FC<ArticleModalProps> = ({ article, isManager, onClose, onLike, onAcknowledge, onReceipts }) => {
+const ArticleModal: React.FC<ArticleModalProps> = ({ article, isManager, onClose, onLike, onAcknowledge, onReceipts, onPrint }) => {
   const { roleName } = usePortal();
   const audience = audienceSummary(article, roleName);
   const deadline = deadlineState(article);
@@ -412,11 +418,16 @@ const ArticleModal: React.FC<ArticleModalProps> = ({ article, isManager, onClose
             <Heart className={`w-4 h-4 ${article.likedByMe ? 'fill-white' : ''}`} />
             <span>پسندیدن ({toPersianDigits(article.likesCount)})</span>
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {isManager && (
-              <button onClick={onReceipts} className={secondaryButtonClass}>
-                <BarChart3 className="w-4 h-4" /> چه کسانی خوانده‌اند؟
-              </button>
+              <>
+                <button onClick={onPrint} className={secondaryButtonClass} title="برگهٔ A4 با کد QR برای تابلو اعلانات">
+                  <Printer className="w-4 h-4" /> چاپ برای تابلو
+                </button>
+                <button onClick={onReceipts} className={secondaryButtonClass}>
+                  <BarChart3 className="w-4 h-4" /> چه کسانی خوانده‌اند؟
+                </button>
+              </>
             )}
             <button onClick={onClose} className={secondaryButtonClass}>بستن</button>
           </div>
