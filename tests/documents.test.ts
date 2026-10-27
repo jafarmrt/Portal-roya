@@ -24,6 +24,7 @@ interface Doc {
   ownerId: string | null;
   needsReview: boolean;
   ackStats?: { acknowledged: number; audience: number };
+  targetDepartments: string[];
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -154,6 +155,14 @@ describe('documents: versions, mandatory reading, owners and reviews', () => {
     expect(guest.body.some((d: Doc) => d.id === id)).toBe(false);
 
     await admin.put(`/api/documents/${id}`).send({ title: 'دستورالعمل فروش', category: 'دستورالعمل‌ها', targetDepartments: ['جایی که نیست'] }).expect(400);
+
+    // A department in use by a document cannot be dropped from the list, and a rename follows it there.
+    const usage = await admin.get('/api/settings/departments').expect(200);
+    expect(usage.body.find((u: { name: string }) => u.name === 'فروش')).toMatchObject({ documents: 1 });
+    await admin.post('/api/settings/departments/rename').send({ from: 'فروش', to: 'فروش و بازاریابی' }).expect(200);
+    expect((await admin.get('/api/documents').expect(200)).body.find((d: Doc) => d.id === id).targetDepartments).toEqual(['فروش و بازاریابی']);
+    expect(await docOf(sales.agent, id)).toBeDefined();
+    await admin.post('/api/settings/departments/rename').send({ from: 'فروش و بازاریابی', to: 'فروش' }).expect(200);
   });
 
   it('reminds the owner once when the review date has come', async () => {

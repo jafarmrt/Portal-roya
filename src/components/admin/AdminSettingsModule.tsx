@@ -89,6 +89,7 @@ interface ListUsage {
   employees: number;
   activeEmployees: number;
   news: number;
+  documents: number;
   polls: number;
 }
 
@@ -140,7 +141,7 @@ const ManagedListEditor: React.FC<{ settings: AppSettings; config: ManagedList }
   const usageOf = (name: string) => usage.find((u) => u.name === name);
   const inUse = (name: string) => {
     const u = usageOf(name);
-    return Boolean(u && (u.employees || u.news || u.polls));
+    return Boolean(u && (u.employees || u.news || u.documents || u.polls));
   };
 
   const run = async (action: () => Promise<unknown>) => {
@@ -188,10 +189,11 @@ const ManagedListEditor: React.FC<{ settings: AppSettings; config: ManagedList }
 
   const describe = (name: string) => {
     const u = usageOf(name);
-    if (!u || (!u.employees && !u.news && !u.polls)) return 'بدون همکار';
+    if (!u || (!u.employees && !u.news && !u.documents && !u.polls)) return 'بدون همکار';
     const parts = [`${toPersianDigits(u.activeEmployees)} همکار`];
     if (u.employees > u.activeEmployees) parts.push(`${toPersianDigits(u.employees - u.activeEmployees)} غیرفعال`);
     if (u.news) parts.push(`${toPersianDigits(u.news)} خبر`);
+    if (u.documents) parts.push(`${toPersianDigits(u.documents)} سند`);
     if (u.polls) parts.push(`${toPersianDigits(u.polls)} نظرسنجی`);
     return parts.join('، ');
   };

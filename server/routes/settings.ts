@@ -142,14 +142,14 @@ settingsRouter.get(
   }),
 );
 
-/** Each department in the list with how many colleagues, news items and polls use it. */
+/** Each department in the list with how many colleagues, news items, documents and polls use it. */
 settingsRouter.get(
   '/settings/departments',
   requirePermission('settings.manage'),
   route(async (_req, res) => {
     const usage = await departmentUsage();
     const list = await departmentList();
-    res.json(list.map((name) => ({ name, ...(usage.get(name) ?? { employees: 0, activeEmployees: 0, news: 0, polls: 0 }) })));
+    res.json(list.map((name) => ({ name, ...(usage.get(name) ?? { employees: 0, activeEmployees: 0, news: 0, documents: 0, polls: 0 }) })));
   }),
 );
 
@@ -172,7 +172,7 @@ settingsRouter.get(
   route(async (_req, res) => {
     const usage = await locationUsage();
     const list = await locationList();
-    res.json(list.map((name) => ({ name, ...(usage.get(name) ?? { employees: 0, activeEmployees: 0, news: 0, polls: 0 }) })));
+    res.json(list.map((name) => ({ name, ...(usage.get(name) ?? { employees: 0, activeEmployees: 0, news: 0, documents: 0, polls: 0 }) })));
   }),
 );
 
