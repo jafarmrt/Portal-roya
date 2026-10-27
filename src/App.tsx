@@ -11,6 +11,7 @@ import { ForcePasswordChangePage } from './components/ChangePasswordModal';
 import { DashboardModule } from './components/dashboard/DashboardModule';
 import { ErrorBoundary, loadModule } from './components/common/ErrorBoundary';
 import { SiteBanner } from './components/common/SiteBanner';
+import { VersionInfo } from './components/common/VersionInfo';
 import { currentJalaliYear, toPersianDigits } from './lib/jalali';
 import { useTabBadge } from './lib/tabBadge';
 
@@ -148,7 +149,10 @@ const MainContent: React.FC = () => {
             <span className="font-bold text-white">شرکت رویا طرح داخلی (ROYA Surface Center)</span>
             <p className="text-[11px] text-[#E6E0D5]/80 mt-0.5">پرتال اطلاع‌رسانی، اخبار، اطلاعیه‌ها و ارتباط همکاران</p>
           </div>
-          <div className="text-[11px] text-[#E6E0D5]/80">© {toPersianDigits(currentJalaliYear())}</div>
+          <div className="flex flex-col items-center sm:items-end gap-1 text-[11px] text-[#E6E0D5]/80">
+            <span>© {toPersianDigits(currentJalaliYear())}</span>
+            <VersionInfo />
+          </div>
         </div>
       </footer>
     </div>

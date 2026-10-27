@@ -14,3 +14,4 @@ e2e/.auth/
 e2e/.uploads/
 test-results/
 playwright-report/
+build-info.json

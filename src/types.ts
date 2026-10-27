@@ -618,8 +618,24 @@ export interface SiteBanner {
   updatedAt: string; // ISO
 }
 
-export interface ServerStatus {
+/** Which build of the portal is running (GET /api/version). */
+export interface BuildInfo {
   version: string;
+  /** Release tag, e.g. "build-57"; null when running from a source checkout. */
+  build: string | null;
+  commit: string | null;
+  builtAt: string | null;
+  startedAt: string;
+}
+
+export interface ChangelogEntry {
+  version: string;
+  date: string;
+  title: string;
+  items: string[];
+}
+
+export interface ServerStatus extends BuildInfo {
   disk: { free: number; total: number } | null;
   lowDiskBytes: number;
   uploads: { count: number; bytes: number };
