@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { UserCheck } from 'lucide-react';
-import { usePortal } from '../context/PortalContext';
+import { type PhoneBookMatch, usePortal } from '../context/PortalContext';
 import { errorMessage } from '../lib/api';
 import { isPersian } from '../../shared/profile';
-import { inputClass, labelClass, primaryButtonClass } from './common/Modal';
+import { inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from './common/Modal';
 import { JalaliDateInput } from './common/JalaliDateInput';
 
 /**
@@ -20,22 +20,61 @@ export const CompleteProfilePage: React.FC = () => {
   const [hideBirthday, setHideBirthday] = useState(currentUser?.hideBirthday ?? false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // People already in the phone book under this name, asked about before a second entry is made.
+  const [matches, setMatches] = useState<PhoneBookMatch[] | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isPersian(firstName) || !isPersian(lastName)) return setError('نام و نام خانوادگی را با حروف فارسی بنویسید.');
-    if (!birthDate) return setError('تاریخ تولد را وارد کنید.');
+  const save = async (claim?: string | null) => {
     setError('');
     setBusy(true);
     try {
-      await completeProfile({ firstName, lastName, birthDate, hideBirthday });
-      toast.success('خوش آمدید!');
+      const found = await completeProfile({ firstName, lastName, birthDate, hideBirthday, claim });
+      if (found) setMatches(found);
+      else toast.success('خوش آمدید!');
     } catch (err) {
       setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
   };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isPersian(firstName) || !isPersian(lastName)) return setError('نام و نام خانوادگی را با حروف فارسی بنویسید.');
+    if (!birthDate) return setError('تاریخ تولد را وارد کنید.');
+    void save();
+  };
+
+  if (matches) {
+    return (
+      <main className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4" dir="rtl">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-[#E6E0D5] p-8 space-y-5">
+          <div>
+            <h1 className="text-lg font-black text-[#2D2D2D]">این شما هستید؟</h1>
+            <p className="text-xs text-[#6E6A60] mt-2 leading-relaxed">
+              نام «{firstName} {lastName}» از قبل در دفتر تلفن پرتال هست. اگر خودتان هستید انتخابش کنید تا حساب شما به همان ردیف وصل شود و ردیف تکراری ساخته نشود.
+            </p>
+          </div>
+          {error && <div role="alert" className="p-3 bg-red-50 text-red-800 text-xs font-bold rounded-xl border border-red-200">{error}</div>}
+          <div className="space-y-2">
+            {matches.map((m) => (
+              <button key={m.id} type="button" disabled={busy} onClick={() => void save(m.id)} className="w-full text-right p-3 rounded-2xl border border-[#E6E0D5] hover:border-red-700 hover:bg-red-50/40 disabled:opacity-60">
+                <span className="block text-sm font-bold text-[#2D2D2D]">بله، من {m.name} هستم</span>
+                <span className="block text-[11px] text-[#6E6A60] mt-0.5">{m.position}، {m.department}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap justify-between gap-2 pt-1">
+            <button type="button" disabled={busy} onClick={() => void save(null)} className={secondaryButtonClass}>
+              {matches.length > 1 ? 'هیچ‌کدام من نیستم' : 'نه، من نیستم'}
+            </button>
+            <button type="button" disabled={busy} onClick={() => setMatches(null)} className="text-xs text-[#7A756D] hover:text-red-700 underline">
+              بازگشت
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4" dir="rtl">

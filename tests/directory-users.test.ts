@@ -134,6 +134,70 @@ describe('Active Directory users list and first sign-in', () => {
     expect(again.user).toMatchObject({ firstName: 'نیما', lastName: 'صادقی', position: 'کارشناس اداری', needsProfile: false });
   });
 
+  it('joins a first AD sign-in to the phone-book entry with the same name instead of keeping two', async () => {
+    const entry = await admin
+      .post('/api/employees')
+      .send({ hasAccount: false, firstName: 'سارا', lastName: 'کاظمی', position: 'حسابدار', department: 'فروش', mobile: '09120000000' })
+      .expect(201);
+    const personId = entry.body.employee.id;
+    const { agent, user } = await signInWithAd(adUser({ username: 'sara.kazemi', firstName: 'Sara', lastName: 'Kazemi', extension: '230' }));
+    // Something that points at the new account moves with it.
+    const report = await createEmployee(admin, { username: 'report.of.sara' });
+    await admin.patch(`/api/employees/${report.id}`).send({ directManagerId: user.id }).expect(200);
+
+    const profile = { firstName: 'سارا', lastName: 'كاظمي', birthDate: '1368/02/03' };
+    const asked = await agent.post('/api/auth/profile').send(profile).expect(200);
+    expect(asked.body.matches).toEqual([{ id: personId, name: 'سارا کاظمی', position: 'حسابدار', department: 'فروش' }]);
+    await agent.post('/api/auth/profile').send({ ...profile, claim: 'emp-unknown' }).expect(400);
+
+    const joined = await agent.post('/api/auth/profile').send({ ...profile, claim: personId }).expect(200);
+    expect(joined.body.user).toMatchObject({
+      id: personId,
+      username: 'sara.kazemi',
+      hasAccount: true,
+      authSource: 'ldap',
+      position: 'حسابدار',
+      mobile: '09120000000',
+      extension: '230',
+      birthDate: '1368/02/03',
+      needsProfile: false,
+    });
+    // The session now belongs to the joined entry, and only one Sara is left.
+    const me = await agent.get('/api/auth/me').expect(200);
+    expect(me.body.user.id).toBe(personId);
+    const list = await admin.get('/api/employees').expect(200);
+    expect(list.body.filter((e: { lastName: string }) => e.lastName === 'کاظمی')).toHaveLength(1);
+    expect(list.body.find((e: { id: string }) => e.id === report.id).directManagerId).toBe(personId);
+    const again = await signInWithAd(adUser({ username: 'sara.kazemi' }));
+    expect(again.user.id).toBe(personId);
+  });
+
+  it('keeps a separate entry when the colleague says the namesake is someone else', async () => {
+    await admin.post('/api/employees').send({ hasAccount: false, firstName: 'امید', lastName: 'نوری', position: 'انباردار', department: 'تولید' }).expect(201);
+    const { agent } = await signInWithAd(adUser({ username: 'omid.nouri' }));
+    const profile = { firstName: 'امید', lastName: 'نوری', birthDate: '1372/09/09' };
+    expect((await agent.post('/api/auth/profile').send(profile).expect(200)).body.matches).toHaveLength(1);
+    const own = await agent.post('/api/auth/profile').send({ ...profile, claim: null }).expect(200);
+    expect(own.body.user).toMatchObject({ username: 'omid.nouri', needsProfile: false });
+    const list = await admin.get('/api/employees').expect(200);
+    expect(list.body.filter((e: { lastName: string }) => e.lastName === 'نوری')).toHaveLength(2);
+  });
+
+  it('gives a phone-book entry its Windows username from a file without ids, instead of a second entry', async () => {
+    await admin.post('/api/employees').send({ hasAccount: false, firstName: 'هدی', lastName: 'خرسند', position: 'مدیر طراحی', department: 'طراحی' }).expect(201);
+    const csv = 'نام,نام خانوادگی,نام کاربری,سمت,واحد\nهدی,خرسند,h.khorsand,مدیر طراحی,طراحی\n';
+    const preview = await admin.post('/api/employees/import/preview').field('signIn', 'ldap').attach('file', Buffer.from(csv), 'ad.csv').expect(200);
+    expect(preview.body.rows[0]).toMatchObject({ action: 'update', target: 'هدی خرسند', errors: [] });
+    const res = await admin
+      .post('/api/employees/import')
+      .send({ rows: preview.body.rows.map((r: { data: unknown }) => r.data), signIn: 'ldap' })
+      .expect(201);
+    expect(res.body.created).toHaveLength(0);
+    expect(res.body.updated[0]).toMatchObject({ username: 'h.khorsand', authSource: 'ldap', temporaryPassword: null });
+    const list = await admin.get('/api/employees').expect(200);
+    expect(list.body.filter((e: { lastName: string }) => e.lastName === 'خرسند')).toHaveLength(1);
+  });
+
   it('lets colleagues change their own name but not their position', async () => {
     const { agent, id } = await createEmployee(admin, { username: 'mina.rad' });
     const res = await agent.patch(`/api/employees/${id}`).send({ firstName: 'مینا', lastName: 'راد' }).expect(200);

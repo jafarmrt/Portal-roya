@@ -15,8 +15,11 @@ import {
   verifyPassword,
   withPermissions,
 } from '../auth.js';
+import { cleanDepartmentName } from '../../shared/departments.js';
 import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID } from '../../shared/permissions.js';
-import { isPersian } from '../../shared/profile.js';
+import { isPersian, needsProfile } from '../../shared/profile.js';
+import { audit } from '../audit.js';
+import { claimPhoneBookEntry, phoneBookMatches } from '../claim.js';
 import { config } from '../config.js';
 import { db } from '../db/index.js';
 import { employees } from '../db/schema.js';
@@ -31,7 +34,7 @@ import {
   isDirectoryEnabled,
   normalizeLoginName,
 } from '../ldap.js';
-import { serializeMe } from '../serializers.js';
+import { fullName, serializeMe } from '../serializers.js';
 import { fromCompanyNetwork } from '../network.js';
 import { ensureSettings, logoFile } from '../settings.js';
 import { ensureRoles } from '../roles.js';
@@ -296,18 +299,49 @@ authRouter.get(
 // The first-sign-in form of AD accounts (see needsProfile); names must be in Persian, since that is
 // what the form asks for and why it appears.
 const profileSchema = z.object({
-  firstName: requiredText(100).refine(isPersian, 'نام را با حروف فارسی بنویسید'),
-  lastName: requiredText(100).refine(isPersian, 'نام خانوادگی را با حروف فارسی بنویسید'),
+  // Written the Persian way (ی and ک, single spaces), so the same name is spelled the same everywhere.
+  firstName: requiredText(100).transform(cleanDepartmentName).refine(isPersian, 'نام را با حروف فارسی بنویسید'),
+  lastName: requiredText(100).transform(cleanDepartmentName).refine(isPersian, 'نام خانوادگی را با حروف فارسی بنویسید'),
   birthDate: jalaliDateValue.refine((v) => v !== '', 'تاریخ تولد را وارد کنید'),
   hideBirthday: z.boolean().default(false),
+  // The colleague's answer to "is this you?": the phone-book entry that is them, or null for none.
+  claim: z.string().max(100).nullable().optional(),
 });
 
 authRouter.post(
   '/auth/profile',
   requireAuth,
   route(async (req, res) => {
-    const body = parse(profileSchema, req.body);
-    const [updated] = await db.update(employees).set(body).where(eq(employees.id, currentUser(req).id)).returning();
+    const { claim, ...profile } = parse(profileSchema, req.body);
+    const user = currentUser(req);
+
+    // On the first-sign-in form, someone already in the phone book without a username (entered by hand
+    // or from Excel) is probably this colleague; they are asked before a second entry stays behind.
+    if (user.authSource === 'ldap' && needsProfile(user) && claim !== null) {
+      const matches = await phoneBookMatches(profile.firstName, profile.lastName);
+      if (claim === undefined && matches.length > 0) {
+        res.json({ matches: matches.map((e) => ({ id: e.id, name: fullName(e), position: e.position, department: e.department })) });
+        return;
+      }
+      if (claim !== undefined) {
+        const person = matches.find((e) => e.id === claim);
+        if (!person) throw new HttpError(400, 'این ردیف دفتر تلفن پیدا نشد؛ دوباره تلاش کنید.');
+        const joined = await withPermissions(await claimPhoneBookEntry(user, person, profile));
+        issueSession(res, joined.id);
+        await audit(joined, {
+          action: 'update',
+          entity: 'employee',
+          id: joined.id,
+          title: fullName(joined),
+          detail: `در اولین ورود با اکتیو دایرکتوری (${joined.username}) به ردیف موجود دفتر تلفن وصل شد`,
+        });
+        broadcastChange('employees');
+        res.json({ user: serializeMe(joined) });
+        return;
+      }
+    }
+
+    const [updated] = await db.update(employees).set(profile).where(eq(employees.id, user.id)).returning();
     broadcastChange('employees');
     res.json({ user: serializeMe(await withPermissions(updated)) });
   }),
