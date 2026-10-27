@@ -1,9 +1,10 @@
 import { randomBytes } from 'crypto';
-import { and, desc, eq, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, ne, or, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { currentJalaliYear, todayJalali, toPersianDigits } from '../../shared/jalali.js';
+import { WISH_DESIGNS, WISH_OCCASIONS, WISH_REACTIONS, yearsSince } from '../../shared/celebrations.js';
 import { audit, fromTo } from '../audit.js';
 import { can, type Employee, hashPassword, isAdmin, requirePermission, type SessionUser } from '../auth.js';
 import { db } from '../db/index.js';
@@ -59,7 +60,7 @@ async function recordChanges(before: Employee, after: Employee) {
     parts.push(`مدیر مستقیم: ${fromTo(await personName(before.directManagerId), await personName(after.directManagerId))}`);
   }
   if (before.hireDate !== after.hireDate) parts.push('تاریخ استخدام');
-  const profile = (['email', 'mobile', 'extension', 'bio', 'avatarUrl', 'birthDate', 'hideBirthday'] as const).some((k) => before[k] !== after[k]);
+  const profile = (['email', 'mobile', 'extension', 'bio', 'avatarUrl', 'birthDate', 'hideBirthday', 'hideAnniversary'] as const).some((k) => before[k] !== after[k]);
   if (profile) parts.push('اطلاعات تماس و پروفایل');
   return parts.join('، ');
 }
@@ -340,6 +341,7 @@ const contactUpdateFields = {
   avatar: assetUrlValue,
   birthDate: jalaliDateValue,
   hideBirthday: z.boolean(),
+  hideAnniversary: z.boolean(),
 };
 const managerOnlyFields = {
   position: requiredText(100),
@@ -616,7 +618,8 @@ employeesRouter.get(
   '/birthday_wishes',
   route(async (req, res) => {
     // Birthdays are never shown to guests, even with the directory open to them.
-    if (!viewerOf(req)) {
+    const viewer = viewerOf(req);
+    if (!viewer) {
       res.json({});
       return;
     }
@@ -626,44 +629,89 @@ employeesRouter.get(
         targetUserId: birthdayWishes.targetUserId,
         senderId: birthdayWishes.senderId,
         text: birthdayWishes.text,
+        occasion: birthdayWishes.occasion,
+        design: birthdayWishes.design,
+        isPrivate: birthdayWishes.isPrivate,
+        reaction: birthdayWishes.reaction,
         createdAt: birthdayWishes.createdAt,
         firstName: employees.firstName,
         lastName: employees.lastName,
+        avatarUrl: employees.avatarUrl,
       })
       .from(birthdayWishes)
       .innerJoin(employees, eq(employees.id, birthdayWishes.senderId))
-      .where(eq(birthdayWishes.jalaliYear, currentJalaliYear()))
+      .where(
+        and(
+          eq(birthdayWishes.jalaliYear, currentJalaliYear()),
+          // A private card is only for the colleague it was written to (and its sender).
+          or(eq(birthdayWishes.isPrivate, false), eq(birthdayWishes.targetUserId, viewer.id), eq(birthdayWishes.senderId, viewer.id)),
+        ),
+      )
       .orderBy(birthdayWishes.createdAt);
-    const grouped: Record<string, { id: string; senderId: string; senderName: string; text: string; time: string }[]> = {};
-    for (const r of rows) {
-      (grouped[r.targetUserId] ??= []).push({
-        id: String(r.id),
-        senderId: r.senderId,
-        senderName: fullName(r),
-        text: r.text,
-        time: r.createdAt.toISOString(),
-      });
-    }
+    const grouped: Record<string, ReturnType<typeof serializeWish>[]> = {};
+    for (const r of rows) (grouped[r.targetUserId] ??= []).push(serializeWish(r));
     res.json(grouped);
   }),
 );
+
+function serializeWish(r: {
+  id: number;
+  senderId: string;
+  text: string;
+  occasion: string;
+  design: string;
+  isPrivate: boolean;
+  reaction: string;
+  createdAt: Date;
+  firstName: string;
+  lastName: string;
+  avatarUrl: string;
+}) {
+  return {
+    id: String(r.id),
+    senderId: r.senderId,
+    senderName: fullName(r),
+    senderAvatar: r.avatarUrl,
+    text: r.text,
+    occasion: r.occasion,
+    design: r.design,
+    isPrivate: r.isPrivate,
+    reaction: r.reaction,
+    time: r.createdAt.toISOString(),
+  };
+}
+
+const greetingCardSchema = z.object({
+  message: requiredText(500),
+  occasion: z.enum(WISH_OCCASIONS).default('birthday'),
+  design: z.enum(WISH_DESIGNS).default('confetti'),
+  isPrivate: z.boolean().default(false),
+});
 
 employeesRouter.post(
   '/employees/:id/birthday_wishes',
   route(async (req, res) => {
     const viewer = currentUser(req);
-    const { message } = parse(wishSchema, req.body);
+    const { message, occasion, design, isPrivate } = parse(greetingCardSchema, req.body);
     const target = await loadEmployee(req.params.id);
-    if (target.hideBirthday && target.id !== viewer.id) throw new HttpError(403, 'این همکار تاریخ تولدش را نمایش نمی‌دهد.');
+    if (target.id !== viewer.id) {
+      if (occasion === 'birthday' && target.hideBirthday) throw new HttpError(403, 'این همکار تاریخ تولدش را نمایش نمی‌دهد.');
+      if (occasion === 'anniversary' && (target.hideAnniversary || yearsSince(target.hireDate) < 1)) {
+        throw new HttpError(403, 'برای این همکار سالگرد همکاری ثبت نشده است.');
+      }
+    }
     await db.insert(birthdayWishes).values({
       targetUserId: target.id,
       senderId: viewer.id,
       jalaliYear: currentJalaliYear(),
       text: message,
+      occasion,
+      design,
+      isPrivate,
     });
     if (target.id !== viewer.id) {
       await createNotifications([target.id], {
-        title: 'تبریک تولد دریافت شد 🎂',
+        title: occasion === 'birthday' ? 'کارت تبریک تولد دریافت کردید 💌' : 'کارت تبریک سالگرد همکاری دریافت کردید 💌',
         message: `${fullName(viewer)}: «${message}»`,
         type: 'birthday',
         linkTab: 'dashboard',
@@ -671,6 +719,33 @@ employeesRouter.post(
     }
     broadcastChange('birthday_wishes');
     res.status(201).json({ success: true });
+  }),
+);
+
+const reactionSchema = z.object({ reaction: z.union([z.enum(WISH_REACTIONS), z.literal('')]) });
+
+/** The colleague a card was written to answers it with a reaction (or takes it back with ''). */
+employeesRouter.put(
+  '/birthday_wishes/:id/reaction',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const { reaction } = parse(reactionSchema, req.body);
+    const id = wishIdParam(req.params.id);
+    const [wish] = await db.select().from(birthdayWishes).where(eq(birthdayWishes.id, id));
+    if (!wish) throw new HttpError(404, 'پیام یافت نشد.');
+    if (wish.targetUserId !== viewer.id) throw new HttpError(403, 'فقط کسی که کارت برایش فرستاده شده می‌تواند به آن واکنش نشان دهد.');
+    await db.update(birthdayWishes).set({ reaction }).where(eq(birthdayWishes.id, id));
+    // The sender hears about the first reaction only, so changing one's mind does not send a stream of notices.
+    if (reaction && !wish.reaction && wish.senderId !== viewer.id) {
+      await createNotifications([wish.senderId], {
+        title: `${fullName(viewer)} به کارت تبریک شما واکنش نشان داد ${reaction}`,
+        message: `«${wish.text}»`,
+        type: 'birthday',
+        linkTab: 'dashboard',
+      });
+    }
+    broadcastChange('birthday_wishes');
+    res.json({ success: true });
   }),
 );
 

@@ -1,7 +1,8 @@
 import React from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { BirthdayCard } from './BirthdayCard';
-import { WorkAnniversaryWidget } from './WorkAnniversaryWidget';
+import { MyCelebrationCard } from './MyCelebrationCard';
+import { FoundingDayBanner } from './FoundingDayBanner';
 import { QuickSystemsWidget } from './QuickSystemsWidget';
 import { MoodTrackerWidget } from './MoodTrackerWidget';
 import { WelcomeNewColleagueCard } from './WelcomeNewColleagueCard';
@@ -107,6 +108,11 @@ export const DashboardModule: React.FC = () => {
         </div>
       </div>
 
+      {/* Once a year, on the company's founding day */}
+      <div className="order-1 lg:order-none">
+        <FoundingDayBanner />
+      </div>
+
       {/* What this person still has to do; when the card is switched off, circulars are still listed */}
       {on('myTasks') && !isGuest && (
         <div className="order-1 lg:order-none">
@@ -114,9 +120,9 @@ export const DashboardModule: React.FC = () => {
         </div>
       )}
 
-      {on('anniversary') && (
+      {on('anniversary') && !isGuest && (
         <div className="order-2 lg:order-none">
-          <WorkAnniversaryWidget />
+          <MyCelebrationCard />
         </div>
       )}
 

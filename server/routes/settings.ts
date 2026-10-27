@@ -20,7 +20,7 @@ import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, parse, route } from '../http.js';
 import { serverStatus } from '../maintenance.js';
 import { ensureSettings } from '../settings.js';
-import { requiredText } from '../validation.js';
+import { jalaliDateValue, requiredText } from '../validation.js';
 
 export const settingsRouter = Router();
 
@@ -76,6 +76,9 @@ const updateSchema = z
     dashboardCards: z.record(z.string().max(50), z.boolean()),
     // Company logo in the header; '' puts the built-in ROYA wordmark back.
     logoUrl: uploadedImage('لوگو باید روی همین سرور بارگذاری شده باشد'),
+    // The company's founding day and the message everyone sees on it.
+    foundingDate: jalaliDateValue,
+    foundingMessage: z.string().trim().max(500),
   })
   .partial();
 
@@ -90,6 +93,8 @@ const SETTING_LABELS: Record<keyof z.infer<typeof updateSchema>, string> = {
   locations: 'محل‌های استقرار',
   dashboardCards: 'کارت‌های داشبورد',
   logoUrl: 'لوگوی شرکت',
+  foundingDate: 'تاریخ تأسیس شرکت',
+  foundingMessage: 'پیام سالگرد تأسیس',
 };
 
 type SettingsRow = typeof settings.$inferSelect;
@@ -116,6 +121,8 @@ function settingChanges(before: SettingsRow, after: SettingsRow, keys: (keyof ty
       detail = 'روشن و خاموش کردن کارت‌ها';
     } else if (key === 'logoUrl') {
       detail = after.logoUrl ? 'لوگوی جدید' : 'برگشت به لوگوی پیش‌فرض';
+    } else if (key === 'foundingDate') {
+      detail = fromTo(before.foundingDate, after.foundingDate);
     }
     changes.push({ label: SETTING_LABELS[key], detail });
   }

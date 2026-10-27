@@ -1,3 +1,4 @@
+import type { WishDesign, WishOccasion } from '../shared/celebrations';
 import type { Permission } from '../shared/permissions';
 
 export type { Permission };
@@ -56,6 +57,8 @@ export interface UserProfile {
   /** The colleague chose not to show their birthday to others. */
   hideBirthday: boolean;
   hireDate: string; // Jalali 'YYYY/MM/DD' or ''
+  /** The colleague chose not to be congratulated on their work anniversary in front of others. */
+  hideAnniversary: boolean;
   bio: string;
   avatar: string;
   location: string;
@@ -338,8 +341,22 @@ export interface BirthdayWish {
   id: string;
   senderId: string;
   senderName: string;
+  senderAvatar: string;
   text: string;
+  occasion: WishOccasion;
+  design: WishDesign;
+  /** Seen only by the sender and the colleague it was written to. */
+  isPrivate: boolean;
+  /** The colleague's reaction to the card ('' = none yet). */
+  reaction: string;
   time: string;
+}
+
+export interface GreetingCardInput {
+  message: string;
+  occasion: WishOccasion;
+  design: WishDesign;
+  isPrivate: boolean;
 }
 
 export interface TrainingProgram {
@@ -683,6 +700,10 @@ export interface AppSettings {
   dashboardCards: Record<string, boolean>;
   /** Uploaded company logo for the header ('' = the built-in ROYA wordmark). */
   logoUrl: string;
+  /** The company's founding day (Jalali 'YYYY/MM/DD', '' = not set); everyone is congratulated on it each year. */
+  foundingDate: string;
+  /** The founding-day message ('' = the built-in one). */
+  foundingMessage: string;
 }
 
 export interface SiteBanner {
