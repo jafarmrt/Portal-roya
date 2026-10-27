@@ -189,6 +189,13 @@
   color: #dc2626;
   line-height: 1;
 }
+.sheet-logo {
+  display: block;
+  height: 14mm;
+  max-width: 60mm;
+  object-fit: contain;
+  object-position: right;
+}
 .sheet-wordmark span {
   display: block;
   font-family: Vazirmatn, sans-serif;

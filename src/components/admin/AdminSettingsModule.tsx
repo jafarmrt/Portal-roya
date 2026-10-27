@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowDown, ArrowUp, Check, Eye, HardDrive, LayoutDashboard, Pencil, Plus, RefreshCw, Settings, X } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, Check, Eye, HardDrive, Image as ImageIcon, LayoutDashboard, Pencil, Plus, RefreshCw, Settings, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { departmentKey, findDepartment } from '../../../shared/departments';
 import { usePortal } from '../../context/PortalContext';
 import { api, errorMessage } from '../../lib/api';
 import { formatDateTime, formatFileSize, toPersianDigits } from '../../lib/jalali';
 import type { AppSettings, BackupFile, ServerStatus } from '../../types';
+import { FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
 import { inputClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
+import { RoyaLogo } from '../common/RoyaLogo';
 import { DASHBOARD_CARDS, isCardOn } from '../dashboard/dashboardCards';
 import { RolesEditor } from './RolesEditor';
 
@@ -328,6 +330,42 @@ const GuestAccessSettings: React.FC<{ settings: AppSettings }> = ({ settings }) 
   );
 };
 
+/** The company logo in the header, on the sign-in page and on printed notices. */
+const LogoSettings: React.FC<{ settings: AppSettings }> = ({ settings }) => {
+  const { updateSettings } = usePortal();
+  const [busy, setBusy] = useState(false);
+  const save = async (logoUrl: string) => {
+    setBusy(true);
+    await updateSettings({ logoUrl });
+    setBusy(false);
+  };
+
+  return (
+    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3 lg:col-span-2" aria-labelledby="logo-title">
+      <div className="flex items-center gap-2">
+        <ImageIcon className="w-4 h-4 text-red-700" />
+        <h3 id="logo-title" className="text-sm font-black text-[#2D2D2D]">لوگوی شرکت</h3>
+      </div>
+      <p className="text-[11px] text-[#6E6A60]">
+        لوگو در بالای همهٔ صفحه‌ها، صفحهٔ ورود و سربرگ برگه‌های چاپی نمایش داده می‌شود. بهتر است تصویر PNG با پس‌زمینهٔ شفاف و افقی باشد (مثلاً ۴۰۰ در ۱۲۰ پیکسل)؛ در هدر حداکثر ۴۰ پیکسل ارتفاع دارد.
+      </p>
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="px-4 py-3 rounded-2xl border border-[#EAE6DF] bg-white shadow-2xs" aria-label="پیش‌نمایش هدر">
+          <RoyaLogo size="md" />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <FileUpload accept={IMAGE_ACCEPT} label={settings.logoUrl ? 'تغییر لوگو' : 'بارگذاری لوگو'} onUploaded={(file) => void save(file.url)} />
+          {settings.logoUrl && (
+            <button type="button" disabled={busy} onClick={() => void save('')} className={secondaryButtonClass}>
+              بازگشت به لوگوی پیش‌فرض
+            </button>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+};
+
 /** Which cards everyone sees on the dashboard. */
 const DashboardCardsSettings: React.FC<{ settings: AppSettings }> = ({ settings }) => {
   const { updateSettings } = usePortal();
@@ -468,12 +506,13 @@ export const AdminSettingsModule: React.FC = () => {
         </div>
         <div>
           <h2 className="text-xl font-black text-[#2D2D2D]">تنظیمات پرتال</h2>
-          <p className="text-sm text-[#6E6A60]">نقش‌ها و دسترسی‌ها، فهرست واحدها و دسته‌بندی‌ها. سامانه‌های سازمانی از صفحهٔ «سامانه‌ها» ویرایش می‌شوند.</p>
+          <p className="text-sm text-[#6E6A60]">نقش‌ها و دسترسی‌ها، لوگوی شرکت، فهرست واحدها و دسته‌بندی‌ها. سامانه‌های سازمانی از صفحهٔ «سامانه‌ها» ویرایش می‌شوند.</p>
         </div>
       </div>
       {isAdmin && <RolesEditor />}
       {can('settings.manage') && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <LogoSettings settings={appSettings} />
           <ServerStatusCard />
           <GuestAccessSettings settings={appSettings} />
           <DashboardCardsSettings settings={appSettings} />

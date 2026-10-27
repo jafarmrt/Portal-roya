@@ -36,18 +36,19 @@ settingsRouter.get(
 );
 
 const list = z.array(requiredText(100)).max(100);
+// Logos must live on this server: only images returned by /api/uploads are accepted.
+const uploadedImage = (message: string) =>
+  z
+    .string()
+    .trim()
+    .max(200)
+    .refine((v) => v === '' || /^\/uploads\/[\w-]+\.(jpg|png|webp|gif)$/.test(v), message);
 const systemSchema = z.object({
   id: requiredText(100),
   name: requiredText(100),
   description: z.string().trim().max(300).default(''),
   iconName: requiredText(50),
-  // Logos must live on this server: only images returned by /api/uploads are accepted.
-  imageUrl: z
-    .string()
-    .trim()
-    .max(200)
-    .refine((v) => v === '' || /^\/uploads\/[\w-]+\.(jpg|png|webp|gif)$/.test(v), 'تصویر سامانه باید روی همین سرور بارگذاری شده باشد')
-    .default(''),
+  imageUrl: uploadedImage('تصویر سامانه باید روی همین سرور بارگذاری شده باشد').default(''),
   url: z
     .string()
     .trim()
@@ -69,6 +70,8 @@ const updateSchema = z
     locations: list,
     // Dashboard cards switched on or off, by card id.
     dashboardCards: z.record(z.string().max(50), z.boolean()),
+    // Company logo in the header; '' puts the built-in ROYA wordmark back.
+    logoUrl: uploadedImage('لوگو باید روی همین سرور بارگذاری شده باشد'),
   })
   .partial();
 

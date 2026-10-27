@@ -32,3 +32,9 @@ export async function guestSettings() {
     .where(eq(settings.id, 'global'));
   return row ?? { guestAccess: true, guestDirectory: false };
 }
+
+/** The uploaded company logo's file name under /uploads/, or null when the built-in wordmark is used. */
+export async function logoFile() {
+  const [row] = await db.select({ logoUrl: settings.logoUrl }).from(settings).where(eq(settings.id, 'global'));
+  return row?.logoUrl ? row.logoUrl.replace(/^\/uploads\//, '') : null;
+}

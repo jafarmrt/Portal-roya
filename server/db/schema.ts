@@ -386,4 +386,6 @@ export const settings = pgTable('settings', {
   locations: text('locations').array().notNull().default([]),
   // Dashboard cards an admin switched off, e.g. { mood: false }. Missing keys are shown.
   dashboardCards: jsonb('dashboard_cards').$type<Record<string, boolean>>().notNull().default({}),
+  // Company logo shown in the header and on the sign-in page ('' = the built-in ROYA wordmark).
+  logoUrl: text('logo_url').notNull().default(''),
 });
