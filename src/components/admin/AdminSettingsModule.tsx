@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowDown, ArrowUp, Check, Eye, HardDrive, Image as ImageIcon, LayoutDashboard, Pencil, Plus, RefreshCw, Settings, X } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, Check, Eye, HardDrive, Image as ImageIcon, LayoutDashboard, PartyPopper, Pencil, Plus, RefreshCw, Settings, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { departmentKey, findDepartment } from '../../../shared/departments';
 import { usePortal } from '../../context/PortalContext';
 import { api, errorMessage } from '../../lib/api';
 import { formatDateTime, formatFileSize, toPersianDigits } from '../../lib/jalali';
 import type { AppSettings, BackupFile, ServerStatus } from '../../types';
+import { defaultFoundingMessage, yearsSince } from '../../../shared/celebrations';
 import { FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
+import { JalaliDateInput } from '../common/JalaliDateInput';
 import { buildNumber, WhatsNewModal } from '../common/VersionInfo';
 import { inputClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { RoyaLogo } from '../common/RoyaLogo';
@@ -367,6 +369,59 @@ const LogoSettings: React.FC<{ settings: AppSettings }> = ({ settings }) => {
   );
 };
 
+/** The company's founding day: every year on it everyone sees a greeting on the dashboard and gets a notice. */
+const FoundingDaySettings: React.FC<{ settings: AppSettings }> = ({ settings }) => {
+  const { updateSettings } = usePortal();
+  const [foundingDate, setFoundingDate] = useState(settings.foundingDate);
+  const [foundingMessage, setFoundingMessage] = useState(settings.foundingMessage);
+  const [busy, setBusy] = useState(false);
+  const changed = foundingDate !== settings.foundingDate || foundingMessage !== settings.foundingMessage;
+  const years = Math.max(1, yearsSince(foundingDate));
+
+  const save = async () => {
+    setBusy(true);
+    await updateSettings({ foundingDate, foundingMessage: foundingMessage.trim() });
+    setBusy(false);
+  };
+
+  return (
+    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3 lg:col-span-2" aria-labelledby="founding-title">
+      <div className="flex items-center gap-2">
+        <PartyPopper className="w-4 h-4 text-red-700" />
+        <h3 id="founding-title" className="text-sm font-black text-[#2D2D2D]">سالگرد تأسیس شرکت</h3>
+      </div>
+      <p className="text-[11px] text-[#6E6A60]">
+        هر سال در روز تأسیس، پیام زیر بالای داشبورد همه نشان داده می‌شود و ساعت ۸ صبح برای همه اعلان می‌رود. اگر تاریخ خالی باشد، چیزی نشان داده نمی‌شود.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label htmlFor="founding-date" className="block text-xs font-bold text-[#4B4740] mb-1">تاریخ تأسیس</label>
+          <JalaliDateInput id="founding-date" value={foundingDate} onChange={setFoundingDate} defaultYear={1380} />
+        </div>
+        <div className="sm:col-span-2">
+          <label htmlFor="founding-message" className="block text-xs font-bold text-[#4B4740] mb-1">متن پیام (اختیاری)</label>
+          <textarea
+            id="founding-message"
+            rows={3}
+            maxLength={500}
+            value={foundingMessage}
+            onChange={(e) => setFoundingMessage(e.target.value)}
+            placeholder={defaultFoundingMessage(years)}
+            className={inputClass}
+          />
+          <p className="mt-1 text-[10px] text-[#8C867A]">اگر خالی بماند، متن پیش‌فرض بالا با تعداد سال‌ها استفاده می‌شود.</p>
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <button type="button" disabled={busy || !changed} onClick={() => void save()} className={primaryButtonClass}>
+          <Check className="w-3.5 h-3.5" />
+          ذخیره
+        </button>
+      </div>
+    </section>
+  );
+};
+
 /** Which cards everyone sees on the dashboard. */
 const DashboardCardsSettings: React.FC<{ settings: AppSettings }> = ({ settings }) => {
   const { updateSettings } = usePortal();
@@ -526,7 +581,7 @@ export const AdminSettingsModule: React.FC = () => {
         </div>
         <div>
           <h2 className="text-xl font-black text-[#2D2D2D]">تنظیمات پرتال</h2>
-          <p className="text-sm text-[#6E6A60]">نقش‌ها و دسترسی‌ها، لوگوی شرکت، فهرست واحدها و دسته‌بندی‌ها. سامانه‌های سازمانی از صفحهٔ «سامانه‌ها» ویرایش می‌شوند.</p>
+          <p className="text-sm text-[#6E6A60]">نقش‌ها و دسترسی‌ها، لوگوی شرکت، سالگرد تأسیس، فهرست واحدها و دسته‌بندی‌ها. سامانه‌های سازمانی از صفحهٔ «سامانه‌ها» ویرایش می‌شوند.</p>
         </div>
       </div>
       {isAdmin && <RolesEditor />}
@@ -534,6 +589,7 @@ export const AdminSettingsModule: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <LogoSettings settings={appSettings} />
           <ServerStatusCard />
+          <FoundingDaySettings settings={appSettings} />
           <GuestAccessSettings settings={appSettings} />
           <DashboardCardsSettings settings={appSettings} />
           <ManagedListEditor settings={appSettings} config={DEPARTMENTS} />

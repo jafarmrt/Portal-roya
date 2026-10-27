@@ -1,20 +1,24 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { UserProfile } from '../../types';
-import { Cake, Send, Check, Trash2, CalendarDays } from 'lucide-react';
+import { Award, Cake, CalendarDays, Mail } from 'lucide-react';
+import { type WishOccasion, yearsLabel, yearsSince } from '../../../shared/celebrations';
 import { Avatar } from '../common/Avatar';
-import { daysUntilBirthday, formatBirthDay, timeAgo, toPersianDigits } from '../../lib/jalali';
+import { GreetingCard } from '../common/GreetingCard';
+import { daysUntilBirthday, formatBirthDay, toPersianDigits } from '../../lib/jalali';
 import { EditProfileModal } from '../colleagues/EditProfileModal';
+import { GreetingCardComposer } from './GreetingCardComposer';
 
 const UPCOMING_DAYS = 14;
+const ANNIVERSARY_DAYS = 7;
 const MAX_SHOWN = 4;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const daysLabel = (days: number) => (days === 0 ? 'امروز 🎉' : days === 1 ? 'فردا' : `${toPersianDigits(days)} روز دیگر`);
 
 export const BirthdayCard: React.FC = () => {
-  const { employees, sendBirthdayWish, deleteBirthdayWish, birthdayWishes, currentUser, can, isGuest, setActiveTab } = usePortal();
-  const [wishTexts, setWishTexts] = useState<Record<string, string>>({});
-  const [sentStatus, setSentStatus] = useState<Record<string, boolean>>({});
+  const { employees, deleteBirthdayWish, birthdayWishes, currentUser, can, isGuest, setActiveTab } = usePortal();
+  const [composing, setComposing] = useState<{ colleague: UserProfile; occasion: WishOccasion; years?: number } | null>(null);
   const [editingOwnProfile, setEditingOwnProfile] = useState(false);
 
   // Every known birthday, soonest first; the card lists today and the next two weeks.
@@ -26,17 +30,53 @@ export const BirthdayCard: React.FC = () => {
   const birthdayColleagues = allBirthdays.filter((x) => x.days <= UPCOMING_DAYS);
   const nextBirthday = allBirthdays[0];
   const missingOwnBirthday = Boolean(currentUser && !currentUser.birthDate);
+  // Work anniversaries today and in the coming week, for colleagues who did not opt out.
+  const anniversaries = employees
+    .filter(e => e.isActive && !e.hideAnniversary && e.hireDate)
+    .map(e => {
+      const days = daysUntilBirthday(e.hireDate);
+      return { emp: e, days, years: days === null ? 0 : yearsSince(e.hireDate, new Date(Date.now() + days * DAY_MS)) };
+    })
+    .filter((x): x is { emp: UserProfile; days: number; years: number } => x.days !== null && x.days <= ANNIVERSARY_DAYS && x.years >= 1)
+    .sort((a, b) => a.days - b.days);
 
-  const handleSendWish = async (userId: string) => {
-    const text = wishTexts[userId]?.trim();
-    if (!text) return;
-    if (!(await sendBirthdayWish(userId, text))) return;
-    setSentStatus(prev => ({ ...prev, [userId]: true }));
-    setTimeout(() => {
-      setSentStatus(prev => ({ ...prev, [userId]: false }));
-      setWishTexts(prev => ({ ...prev, [userId]: '' }));
-    }, 2500);
+  const cardsFor = (emp: UserProfile, occasion: WishOccasion) => (birthdayWishes[emp.id] ?? []).filter(w => w.occasion === occasion);
+
+  const renderCards = (emp: UserProfile, occasion: WishOccasion) => {
+    const cards = cardsFor(emp, occasion);
+    if (cards.length === 0) return null;
+    return (
+      <div className="space-y-2 max-h-56 overflow-y-auto no-scrollbar pt-2 border-t border-[#E6E0D5]">
+        {cards.map(wish => (
+          <GreetingCard
+            key={wish.id}
+            compact
+            design={wish.design}
+            occasion={wish.occasion}
+            text={wish.text}
+            senderName={wish.senderName}
+            senderAvatar={wish.senderAvatar}
+            time={wish.time}
+            isPrivate={wish.isPrivate}
+            reaction={wish.reaction}
+            onDelete={wish.senderId === currentUser?.id || can('comments.moderate') ? () => deleteBirthdayWish(wish.id) : undefined}
+          />
+        ))}
+      </div>
+    );
   };
+
+  const sendButton = (emp: UserProfile, occasion: WishOccasion, years?: number) =>
+    emp.id !== currentUser?.id && (
+      <button
+        type="button"
+        onClick={() => setComposing({ colleague: emp, occasion, years })}
+        className="w-full px-3.5 py-2 text-xs font-bold rounded-xl bg-[#D97B5F] hover:bg-[#C2684D] text-white shadow-xs flex items-center justify-center gap-1.5"
+      >
+        <Mail className="w-3.5 h-3.5" />
+        ارسال کارت تبریک
+      </button>
+    );
 
   return (
     <div className="bg-white rounded-3xl p-6 border border-[#E6E0D5] shadow-xs space-y-4">
@@ -49,7 +89,7 @@ export const BirthdayCard: React.FC = () => {
           </div>
           <div>
             <h3 className="text-base font-black text-[#2D2D2D]">زادروز همکاران رویا 🎂</h3>
-            <p className="text-xs text-[#6E6A60]">تولدهای امروز و دو هفتهٔ آینده</p>
+            <p className="text-xs text-[#6E6A60]">تولدها و سالگردهای همکاری پیش‌رو</p>
           </div>
         </div>
         {birthdayColleagues.length > 0 && (
@@ -103,64 +143,8 @@ export const BirthdayCard: React.FC = () => {
               </div>
             </div>
 
-            {/* Quick Wish Input Box */}
-            {emp.id !== currentUser?.id && (
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                type="text"
-                value={wishTexts[emp.id] || ''}
-                onChange={(e) => setWishTexts(prev => ({ ...prev, [emp.id]: e.target.value }))}
-                placeholder="متن پیام تبریک تولد..."
-                aria-label={`پیام تبریک برای ${emp.firstName} ${emp.lastName}`}
-                maxLength={500}
-                className="flex-1 px-3 py-1.5 text-xs bg-white border border-[#E6E0D5] rounded-xl outline-hidden focus:border-[#D97B5F] text-[#2D2D2D]"
-              />
-              <button
-                onClick={() => handleSendWish(emp.id)}
-                disabled={!wishTexts[emp.id]?.trim()}
-
-                className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all flex items-center gap-1 ${
-                  sentStatus[emp.id]
-                    ? 'bg-[#991b1b] text-white'
-                    : 'bg-[#D97B5F] hover:bg-[#C2684D] text-white shadow-xs'
-                }`}
-              >
-                {sentStatus[emp.id] ? (
-                  <>
-                    <Check className="w-3.5 h-3.5" />
-                    <span>ارسال شد</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-3.5 h-3.5" />
-                    <span>تبریک</span>
-                  </>
-                )}
-              </button>
-            </div>
-            )}
-
-            {/* Wishes Display */}
-            {birthdayWishes[emp.id] && birthdayWishes[emp.id].length > 0 && (
-              <div className="mt-3 space-y-2 max-h-32 overflow-y-auto no-scrollbar pt-2 border-t border-[#E6E0D5]">
-                {birthdayWishes[emp.id].map(wish => (
-                  <div key={wish.id} className="bg-white p-2.5 rounded-xl border border-[#E6E0D5] flex flex-col gap-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#D97B5F]">{wish.senderName}</span>
-                      <span className="flex items-center gap-1.5 text-[10px] text-[#A8A295]">
-                        {timeAgo(wish.time)}
-                        {(wish.senderId === currentUser?.id || can('comments.moderate')) && (
-                          <button type="button" onClick={() => deleteBirthdayWish(wish.id)} aria-label={`حذف پیام ${wish.senderName}`} title="حذف پیام" className="p-0.5 text-[#A8A295] hover:text-red-700">
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        )}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#2D2D2D] leading-relaxed">{wish.text}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+            {sendButton(emp, 'birthday')}
+            {renderCards(emp, 'birthday')}
           </div>
         ))}
         {birthdayColleagues.length > MAX_SHOWN && (
@@ -172,6 +156,41 @@ export const BirthdayCard: React.FC = () => {
       </div>
       )}
 
+      {!isGuest && anniversaries.length > 0 && (
+        <div className="space-y-3 pt-3 border-t border-[#E6E0D5]">
+          <h4 className="flex items-center gap-1.5 text-sm font-black text-[#2D2D2D]">
+            <Award className="w-4 h-4 text-[#D97B5F]" />
+            سالگرد همکاری
+          </h4>
+          {anniversaries.slice(0, MAX_SHOWN).map(({ emp, days, years }) => (
+            <div key={emp.id} className="p-3 bg-[#F5F2ED]/70 rounded-2xl border border-[#E6E0D5] space-y-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Avatar src={emp.avatar} firstName={emp.firstName} lastName={emp.lastName} className="w-10 h-10 rounded-full border-2 border-[#D97B5F]/60 text-xs" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-[#2D2D2D] truncate">{emp.firstName} {emp.lastName}</p>
+                    <p className="text-[11px] text-[#6E6A60]">{yearsLabel(years)} همراهی با رویا</p>
+                  </div>
+                </div>
+                <span className="text-xs font-black text-[#D97B5F] bg-[#FBF0EC] px-2.5 py-1 rounded-xl border border-[#D97B5F]/20 whitespace-nowrap">
+                  {daysLabel(days)}
+                </span>
+              </div>
+              {sendButton(emp, 'anniversary', years)}
+              {renderCards(emp, 'anniversary')}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {composing && (
+        <GreetingCardComposer
+          colleague={composing.colleague}
+          occasion={composing.occasion}
+          years={composing.years}
+          onClose={() => setComposing(null)}
+        />
+      )}
     </div>
   );
 };

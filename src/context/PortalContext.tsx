@@ -7,6 +7,7 @@ import type {
   AppSettings,
   Attachment,
   BirthdayWish,
+  GreetingCardInput,
   CalendarEvent,
   CalendarEventInput,
   CurrentUser,
@@ -82,6 +83,7 @@ export type ProfileUpdate = Partial<
     | 'email'
     | 'birthDate'
     | 'hideBirthday'
+    | 'hideAnniversary'
     | 'hireDate'
     | 'bio'
     | 'location'
@@ -205,7 +207,8 @@ interface PortalContextType {
   addTraining: (training: TrainingInput) => Promise<boolean>;
   deleteTraining: (trainingId: string) => Promise<void>;
   updateTraining: (trainingId: string, training: TrainingInput, notifyEnrolled: boolean) => Promise<boolean>;
-  sendBirthdayWish: (userId: string, text: string) => Promise<boolean>;
+  sendBirthdayWish: (userId: string, card: GreetingCardInput) => Promise<boolean>;
+  reactToWish: (wishId: string, reaction: string) => Promise<void>;
   sendWelcomeWish: (newColleagueId: string, message: string) => Promise<boolean>;
   deleteBirthdayWish: (wishId: string) => Promise<void>;
   deleteWelcomeWish: (wishId: string) => Promise<void>;
@@ -704,10 +707,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const sendBirthdayWish = async (userId: string, text: string) => {
-    const ok = await attempt(() => api.post(`/api/employees/${userId}/birthday_wishes`, { message: text }), 'پیام تبریک ارسال شد.');
+  const sendBirthdayWish = async (userId: string, card: GreetingCardInput) => {
+    const ok = await attempt(() => api.post(`/api/employees/${userId}/birthday_wishes`, card), 'کارت تبریک فرستاده شد.');
     if (ok) await refresh('birthday_wishes');
     return Boolean(ok);
+  };
+
+  const reactToWish = async (wishId: string, reaction: string) => {
+    const ok = await attempt(() => api.put(`/api/birthday_wishes/${wishId}/reaction`, { reaction }));
+    if (ok !== undefined) await refresh('birthday_wishes');
   };
 
   const sendWelcomeWish = async (newColleagueId: string, message: string) => {
@@ -977,6 +985,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         deleteTraining,
         updateTraining,
         sendBirthdayWish,
+        reactToWish,
         sendWelcomeWish,
         deleteBirthdayWish,
         deleteWelcomeWish,

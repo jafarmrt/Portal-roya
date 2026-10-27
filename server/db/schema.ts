@@ -103,6 +103,8 @@ export const employees = pgTable('employees', {
   // The colleague asked not to show their birthday to others (cards, calendar, profile).
   hideBirthday: boolean('hide_birthday').notNull().default(false),
   hireDate: text('hire_date').notNull().default(''),
+  // The colleague asked not to be congratulated on their work anniversary in front of others.
+  hideAnniversary: boolean('hide_anniversary').notNull().default(false),
   directManagerId: text('direct_manager_id'),
   skills: jsonb('skills').$type<SkillRecord[]>().notNull().default([]),
   workExperiences: jsonb('work_experiences').$type<WorkExperienceRecord[]>().notNull().default([]),
@@ -407,6 +409,14 @@ export const birthdayWishes = pgTable('birthday_wishes', {
   senderId: text('sender_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
   jalaliYear: integer('jalali_year').notNull(),
   text: text('text').notNull(),
+  // 'birthday' or 'anniversary' (work anniversary); see shared/celebrations.ts.
+  occasion: text('occasion').notNull().default('birthday'),
+  // The card's look, one of WISH_DESIGNS.
+  design: text('design').notNull().default('confetti'),
+  // Private cards are seen only by the sender and the colleague they are for.
+  isPrivate: boolean('is_private').notNull().default(false),
+  // The colleague's reaction to the card ('' = none yet), one of WISH_REACTIONS.
+  reaction: text('reaction').notNull().default(''),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -419,6 +429,18 @@ export const birthdayAnnouncements = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.employeeId, t.jalaliYear] })],
+);
+
+// Work anniversaries and the company's founding day, announced once per Jalali year.
+export const occasionAnnouncements = pgTable(
+  'occasion_announcements',
+  {
+    kind: text('kind').notNull(), // 'anniversary' | 'founding'
+    subjectId: text('subject_id').notNull(), // the colleague's id, or 'company'
+    jalaliYear: integer('jalali_year').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.kind, t.subjectId, t.jalaliYear] })],
 );
 
 export const calendarEvents = pgTable('calendar_events', {
@@ -613,6 +635,10 @@ export const settings = pgTable('settings', {
   dashboardCards: jsonb('dashboard_cards').$type<Record<string, boolean>>().notNull().default({}),
   // Company logo shown in the header and on the sign-in page ('' = the built-in ROYA wordmark).
   logoUrl: text('logo_url').notNull().default(''),
+  // The company's founding day (Jalali YYYY/MM/DD, '' = not set); every year on that day everyone is congratulated.
+  foundingDate: text('founding_date').notNull().default(''),
+  // The founding-day message ('' = the built-in one).
+  foundingMessage: text('founding_message').notNull().default(''),
 });
 
 /** Who created, changed or deleted what in the portal's content, accounts and settings, for the admin. */

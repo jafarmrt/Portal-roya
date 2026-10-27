@@ -46,6 +46,7 @@ export function serializeEmployee(e: Employee, viewer: Viewer | null, managersBy
     avatar: e.avatarUrl,
     ...birthdayFields(e, viewer),
     hireDate: e.hireDate,
+    hideAnniversary: e.hideAnniversary,
     directManagerId: e.directManagerId,
     directManager: manager ? fullName(manager) : '',
     workExperiences: e.workExperiences,
