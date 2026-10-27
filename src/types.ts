@@ -293,7 +293,8 @@ export interface TrainingEnrollment {
   enrolledAt: string;
 }
 
-export interface CalendarEvent {
+/** A line on the calendar that is not an organisation event: an occasion or a birthday. */
+export interface CalendarNote {
   id: string;
   title: string;
   date: string; // Jalali 'YYYY/MM/DD'
@@ -301,12 +302,60 @@ export interface CalendarEvent {
   description: string;
   time?: string;
   location?: string;
+}
+
+export interface CalendarEvent extends CalendarNote {
+  endTime?: string;
   badgeColor?: string;
   /** Set when the entry belongs to a training; it is edited from the training page. */
   trainingId?: string | null;
+  targetDepartments: string[];
+  targetLocations: string[];
+  targetRoles: string[];
+  /** Names are only sent to calendar managers; targetUserCount is for everyone. */
+  targetUserIds: string[];
+  targetUserCount: number;
+  /** The audience is told when it is added, moved or cancelled, and reminded the day before. */
+  notify: boolean;
+  /** Colleagues are asked whether they will attend. */
+  rsvp: boolean;
+  /** In the audience (so may say whether they attend). */
+  forMe: boolean;
+  /** This person's answer: attending, not attending, or not answered. */
+  myRsvp: boolean | null;
+  going?: number;
+  notGoing?: number;
+  /** For calendar managers, on events that ask for attendance. */
+  audienceCount?: number;
 }
 
-export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'profile' | 'welcome' | 'document' | 'system';
+export interface CalendarEventInput {
+  title: string;
+  date: string;
+  type: CalendarEvent['type'];
+  description: string;
+  time: string;
+  endTime: string;
+  location: string;
+  targetDepartments: string[];
+  targetLocations: string[];
+  targetRoles: string[];
+  targetUserIds: string[];
+  notify: boolean;
+  rsvp: boolean;
+}
+
+/** One colleague's answer to "attending?", for calendar managers. */
+export interface CalendarRsvpRow {
+  id: string;
+  name: string;
+  department: string;
+  location: string;
+  attending: boolean | null;
+  respondedAt: string | null;
+}
+
+export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system';
 
 export interface NotificationItem {
   id: string;

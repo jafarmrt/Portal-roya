@@ -96,7 +96,8 @@ describe('editing trainings, calendar events and documents', () => {
       .put(`/api/calendar_events/${created.body.id}`)
       .send({ title: 'جلسهٔ ماهانه (جابه‌جا شد)', date: `${NEXT_YEAR}/03/02`, type: 'meeting', time: '', location: 'اتاق جلسات' })
       .expect(200);
-    expect(updated.body).toMatchObject({ title: 'جلسهٔ ماهانه (جابه‌جا شد)', date: `${NEXT_YEAR}/03/02`, time: null, location: 'اتاق جلسات' });
+    expect(updated.body).toMatchObject({ title: 'جلسهٔ ماهانه (جابه‌جا شد)', date: `${NEXT_YEAR}/03/02`, location: 'اتاق جلسات' });
+    expect(updated.body.time).toBeUndefined();
     await sales.agent.put(`/api/calendar_events/${created.body.id}`).send({ title: 'x', date: `${NEXT_YEAR}/03/02`, type: 'meeting' }).expect(403);
     await admin.put('/api/calendar_events/missing').send({ title: 'x', date: `${NEXT_YEAR}/03/02`, type: 'meeting' }).expect(404);
   });

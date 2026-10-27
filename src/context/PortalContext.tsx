@@ -8,6 +8,7 @@ import type {
   Attachment,
   BirthdayWish,
   CalendarEvent,
+  CalendarEventInput,
   CurrentUser,
   CustomHolidays,
   DepartmentPage,
@@ -186,9 +187,11 @@ interface PortalContextType {
   deleteIntroduction: (id: string) => Promise<void>;
   saveRole: (role: { id?: string; name: string; description: string; permissions?: Permission[] }) => Promise<boolean>;
   deleteRole: (roleId: string) => Promise<boolean>;
-  addCalendarEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<boolean>;
+  addCalendarEvent: (event: CalendarEventInput) => Promise<boolean>;
   deleteCalendarEvent: (id: string) => Promise<void>;
-  updateCalendarEvent: (id: string, event: Omit<CalendarEvent, 'id'>) => Promise<boolean>;
+  updateCalendarEvent: (id: string, event: CalendarEventInput) => Promise<boolean>;
+  /** "Attending or not" for an event that asks; can be changed until the day. */
+  rsvpCalendarEvent: (id: string, attending: boolean) => Promise<boolean>;
   setCustomHoliday: (date: string, title: string, isHoliday: boolean) => Promise<void>;
   removeCustomHoliday: (date: string) => Promise<void>;
   addDocument: (doc: DocumentDetails & { file: Attachment; notify: boolean }) => Promise<boolean>;
@@ -693,7 +696,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return ok !== undefined;
   };
 
-  const addCalendarEvent = async (event: Omit<CalendarEvent, 'id'>) => {
+  const addCalendarEvent: PortalContextType['addCalendarEvent'] = async (event) => {
     const ok = await attempt(() => api.post('/api/calendar_events', event), 'رویداد به تقویم اضافه شد.');
     if (ok) await refresh('calendar');
     return Boolean(ok);
@@ -708,6 +711,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const deleteCalendarEvent = async (id: string) => {
     const ok = await attempt(() => api.delete(`/api/calendar_events/${id}`), 'رویداد حذف شد.');
     if (ok !== undefined) setCalendarEvents((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  const rsvpCalendarEvent: PortalContextType['rsvpCalendarEvent'] = async (id, attending) => {
+    const updated = await attempt(
+      () => api.post<CalendarEvent>(`/api/calendar_events/${id}/rsvp`, { attending }),
+      attending ? 'حضورتان ثبت شد.' : 'ثبت شد که شرکت نمی‌کنید.',
+    );
+    if (updated) setCalendarEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
+    return Boolean(updated);
   };
 
   const setCustomHoliday = async (date: string, title: string, isHoliday: boolean) => {
@@ -910,6 +922,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addCalendarEvent,
         deleteCalendarEvent,
         updateCalendarEvent,
+        rsvpCalendarEvent,
         setCustomHoliday,
         removeCustomHoliday,
         addDocument,

@@ -1,94 +1,75 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import type { CalendarEvent } from '../../types';
+import type { CalendarEvent, CalendarNote } from '../../types';
 import { Avatar } from '../common/Avatar';
-import { JalaliDateInput } from '../common/JalaliDateInput';
 import { formatDate, todayJalali, toPersianDigits } from '../../lib/jalali';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import moment from 'moment-jalaali';
-import {
-  Calendar,
-  Plus,
-  Cake,
-  GraduationCap,
-  Flag,
-  ChevronRight,
-  ChevronLeft,
-  Settings,
-  Users,
-  Video,
-  Sparkles,
-  Trash2,
-  Pencil
-} from 'lucide-react';
+import { Calendar, CalendarDays, Plus, Cake, Flag, ChevronRight, ChevronLeft, List, Settings } from 'lucide-react';
 import { JALALI_MONTHS, JALALI_WEEKDAYS } from '../../data/holidays';
 import { dayOccasions, formatHijri, GREGORIAN_MONTHS, gregorianDate, HIJRI_MONTHS, hijriDate, holidayKey, occasionsFor } from '../../lib/occasions';
+import { EventDetailsModal } from './EventDetailsModal';
+import { EventFormModal } from './EventFormModal';
+import { byTime, jalaliKey, timeRange, TypeIcon, TYPE_LABELS, typeChipClass } from './eventText';
+import { WeekAgenda } from './WeekAgenda';
+
+type View = 'month' | 'week';
+type Selected = { kind: 'event'; id: string } | { kind: 'note'; note: CalendarNote } | null;
+
+/** The Saturday that starts the Iranian week of this day. */
+const weekOf = (day: moment.Moment) => day.clone().startOf('day').subtract((day.day() + 1) % 7, 'day');
+
+// Phones get the week list first; the month grid needs a wide screen.
+const initialView = (): View => (typeof window !== 'undefined' && window.matchMedia?.('(max-width: 639px)').matches ? 'week' : 'month');
+
+const toggleClass = (active: boolean) =>
+  `flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-colors ${active ? 'bg-[#991b1b] text-white' : 'text-[#6E6A60] hover:bg-[#F5F2ED]'}`;
 
 export const CalendarModule: React.FC = () => {
-  const { calendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, setActiveTab, can, employees, customHolidays, setCustomHoliday, removeCustomHoliday } = usePortal();
+  const { calendarEvents, can, employees, customHolidays, setCustomHoliday, removeCustomHoliday, focusId } = usePortal();
   const isManager = can('calendar.manage');
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  // Set while the add form is used to edit an existing event.
-  const [editingEventId, setEditingEventId] = useState<string | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [view, setView] = useState<View>(initialView);
+  const [form, setForm] = useState<{ event?: CalendarEvent; date?: string } | null>(null);
+  const [selected, setSelected] = useState<Selected>(null);
   // State for editing public holiday/event
   const [editingPublicDate, setEditingPublicDate] = useState<{year: number, month: number, day: number, title: string, isHoliday: boolean} | null>(null);
   const [publicTitle, setPublicTitle] = useState('');
   const [publicIsHoliday, setPublicIsHoliday] = useState(true);
 
   const [currentDate, setCurrentDate] = useState(() => moment());
+  const [weekStart, setWeekStart] = useState(() => weekOf(moment()));
   const today = todayJalali();
-
-  // Form states for normal event
-  const [title, setTitle] = useState('');
-  const [dateStr, setDateStr] = useState(todayJalali());
-  const [type, setType] = useState<CalendarEvent['type']>('meeting');
-  const [description, setDescription] = useState('');
-  const [time, setTime] = useState('');
-  const [location, setLocation] = useState('');
+  const thisWeek = weekOf(moment());
 
   const currentYear = currentDate.jYear();
   const currentMonth = currentDate.jMonth(); // 0 to 11
 
   const prevMonth = () => setCurrentDate(currentDate.clone().subtract(1, 'jMonth'));
   const nextMonth = () => setCurrentDate(currentDate.clone().add(1, 'jMonth'));
+  const weekEnd = weekStart.clone().add(6, 'day');
+  const weekTitle =
+    weekStart.jMonth() === weekEnd.jMonth()
+      ? `${toPersianDigits(weekStart.jDate())} تا ${toPersianDigits(weekEnd.jDate())} ${JALALI_MONTHS[weekEnd.jMonth()]} ${toPersianDigits(weekEnd.jYear())}`
+      : `${toPersianDigits(weekStart.jDate())} ${JALALI_MONTHS[weekStart.jMonth()]} تا ${toPersianDigits(weekEnd.jDate())} ${JALALI_MONTHS[weekEnd.jMonth()]} ${toPersianDigits(weekEnd.jYear())}`;
 
-  const closeEventForm = () => {
-    setIsAddOpen(false);
-    setEditingEventId(null);
-    setTitle('');
-    setDateStr(todayJalali());
-    setType('meeting');
-    setDescription('');
-    setTime('');
-    setLocation('');
-  };
+  // An event linked from a notification, "my tasks" or the dashboard (#calendar/<id>): show its
+  // month and week, and open it.
+  const loaded = calendarEvents.length > 0;
+  useEffect(() => {
+    if (!focusId) return;
+    const event = calendarEvents.find((e) => e.id === focusId);
+    if (!event) return;
+    const day = moment(event.date, 'jYYYY/jMM/jDD');
+    setCurrentDate(day);
+    setWeekStart(weekOf(day));
+    setSelected({ kind: 'event', id: event.id });
+    // Only when the link changes, not on every refresh of the list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusId, loaded]);
 
-  const openEventEditor = (event: CalendarEvent) => {
-    setTitle(event.title);
-    setDateStr(event.date);
-    setType(event.type);
-    setDescription(event.description);
-    setTime(event.time ?? '');
-    setLocation(event.location ?? '');
-    setEditingEventId(event.id);
-    setSelectedEvent(null);
-    setIsAddOpen(true);
-  };
-
-  const handleAddSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const event = {
-      title,
-      date: dateStr,
-      type,
-      description,
-      time: time || undefined,
-      location: location || undefined
-    };
-    const ok = editingEventId ? await updateCalendarEvent(editingEventId, event) : await addCalendarEvent(event);
-    if (ok) closeEventForm();
-  };
+  const selectedEvent = selected?.kind === 'event' ? calendarEvents.find((e) => e.id === selected.id) : undefined;
+  const openEvent = (id: string) => setSelected({ kind: 'event', id });
+  const openNote = (note: CalendarNote) => setSelected({ kind: 'note', note });
 
   const handleSavePublicEvent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,18 +122,15 @@ export const CalendarModule: React.FC = () => {
     return { hijriLabel: toPersianDigits(hijriLabel), gregorianLabel: toPersianDigits(gregorianLabel), list };
   }, [currentYear, currentMonth, daysInMonth, customHolidays]);
 
-  const getDayEvents = (year: number, month: number, day: number) => {
-    const dateFormatted = `${year}/${String(month + 1).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
-    return calendarEvents.filter(e => e.date === dateFormatted);
-  };
+  const getDayEvents = (year: number, month: number, day: number) =>
+    calendarEvents.filter((e) => e.date === jalaliKey(year, month, day)).sort(byTime);
 
   const getDayBirthdays = (month: number, day: number) => {
     const dateFormatted = `${String(month + 1).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
     return employees.filter(e => e.birthDay === dateFormatted);
   };
 
-  const isToday = (year: number, month: number, day: number) =>
-    today === `${year}/${String(month + 1).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+  const isToday = (year: number, month: number, day: number) => today === jalaliKey(year, month, day);
 
   const upcomingEvents = useMemo(
     () => calendarEvents.filter((e) => e.date >= today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6),
@@ -163,26 +141,6 @@ export const CalendarModule: React.FC = () => {
     () => employees.filter((e) => e.isActive && e.birthDay === today.slice(5)),
     [employees, today],
   );
-
-  const getEventBadge = (type: string) => {
-    switch (type) {
-      case 'meeting': return { color: 'bg-purple-100 text-purple-700', icon: <Calendar className="w-3 h-3" /> };
-      case 'training': return { color: 'bg-blue-100 text-blue-700', icon: <GraduationCap className="w-3 h-3" /> };
-      case 'holiday': return { color: 'bg-red-100 text-red-700', icon: <Flag className="w-3 h-3" /> };
-      case 'birthday': return { color: 'bg-pink-100 text-pink-700', icon: <Cake className="w-3 h-3" /> };
-      default: return { color: 'bg-gray-100 text-gray-700', icon: <Calendar className="w-3 h-3" /> };
-    }
-  };
-
-  const getEventIcon = (type: CalendarEvent['type']) => {
-    switch (type) {
-      case 'holiday': return <Sparkles className="w-5 h-5 text-red-500" />;
-      case 'birthday': return <Cake className="w-5 h-5 text-pink-500" />;
-      case 'training': return <Users className="w-5 h-5 text-blue-500" />;
-      case 'meeting': return <Video className="w-5 h-5 text-indigo-500" />;
-      default: return <Calendar className="w-5 h-5 text-slate-500" />;
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -200,30 +158,64 @@ export const CalendarModule: React.FC = () => {
         <div className="lg:col-span-3">
           <div className="bg-white rounded-3xl p-4 sm:p-6 border border-[#E6E0D5] shadow-xs">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-              {isManager ? <button
-                onClick={() => setIsAddOpen(true)}
-                className="px-5 py-3 text-xs font-bold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-2xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
-              >
-                <Plus className="w-4 h-4" />
-                <span>افزودن رویداد جدید</span>
-              </button> : <span />}
-
-              <div className="flex items-center gap-4">
-                <button onClick={prevMonth} className="p-2 hover:bg-[#F5F2ED] rounded-xl transition-colors text-right" title="ماه قبل" aria-label="ماه قبل">
-                  <ChevronRight className="w-5 h-5 text-[#2D2D2D]" />
-                </button>
-                <div className="text-center">
-                  <h3 className="text-xl font-bold text-[#2D2D2D]">
-                    {JALALI_MONTHS[currentMonth]} {toPersianDigits(currentYear)}
-                  </h3>
-                  <p className="text-[10px] text-[#8C867A] mt-0.5">{monthInfo.hijriLabel} · {monthInfo.gregorianLabel}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {isManager && (
+                  <button
+                    onClick={() => setForm({})}
+                    className="px-5 py-3 text-xs font-bold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-2xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>افزودن رویداد جدید</span>
+                  </button>
+                )}
+                <div className="flex items-center gap-1 bg-[#FDFBF7] border border-[#E6E0D5] p-1 rounded-2xl" role="group" aria-label="نمای تقویم">
+                  <button type="button" aria-pressed={view === 'month'} onClick={() => setView('month')} className={toggleClass(view === 'month')}>
+                    <CalendarDays className="w-4 h-4" /> ماه
+                  </button>
+                  <button type="button" aria-pressed={view === 'week'} onClick={() => setView('week')} className={toggleClass(view === 'week')}>
+                    <List className="w-4 h-4" /> هفته
+                  </button>
                 </div>
-                <button onClick={nextMonth} className="p-2 hover:bg-[#F5F2ED] rounded-xl transition-colors text-left" title="ماه بعد" aria-label="ماه بعد">
-                  <ChevronLeft className="w-5 h-5 text-[#2D2D2D]" />
-                </button>
               </div>
+
+              {view === 'month' ? (
+                <div className="flex items-center gap-4">
+                  <button onClick={prevMonth} className="p-2 hover:bg-[#F5F2ED] rounded-xl transition-colors text-right" title="ماه قبل" aria-label="ماه قبل">
+                    <ChevronRight className="w-5 h-5 text-[#2D2D2D]" />
+                  </button>
+                  <div className="text-center">
+                    <h3 className="text-xl font-bold text-[#2D2D2D]">
+                      {JALALI_MONTHS[currentMonth]} {toPersianDigits(currentYear)}
+                    </h3>
+                    <p className="text-[10px] text-[#8C867A] mt-0.5">{monthInfo.hijriLabel} · {monthInfo.gregorianLabel}</p>
+                  </div>
+                  <button onClick={nextMonth} className="p-2 hover:bg-[#F5F2ED] rounded-xl transition-colors text-left" title="ماه بعد" aria-label="ماه بعد">
+                    <ChevronLeft className="w-5 h-5 text-[#2D2D2D]" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 sm:gap-4">
+                  <button onClick={() => setWeekStart(weekStart.clone().subtract(7, 'day'))} className="p-2 hover:bg-[#F5F2ED] rounded-xl transition-colors" title="هفتهٔ قبل" aria-label="هفتهٔ قبل">
+                    <ChevronRight className="w-5 h-5 text-[#2D2D2D]" />
+                  </button>
+                  <div className="text-center">
+                    <h3 className="text-base sm:text-lg font-bold text-[#2D2D2D]">{weekStart.isSame(thisWeek, 'day') ? 'این هفته' : 'هفتهٔ'} {weekTitle}</h3>
+                    {!weekStart.isSame(thisWeek, 'day') && (
+                      <button type="button" onClick={() => setWeekStart(thisWeek)} className="text-[11px] font-bold text-[#dc2626] hover:underline">
+                        برگشت به این هفته
+                      </button>
+                    )}
+                  </div>
+                  <button onClick={() => setWeekStart(weekStart.clone().add(7, 'day'))} className="p-2 hover:bg-[#F5F2ED] rounded-xl transition-colors" title="هفتهٔ بعد" aria-label="هفتهٔ بعد">
+                    <ChevronLeft className="w-5 h-5 text-[#2D2D2D]" />
+                  </button>
+                </div>
+              )}
             </div>
 
+            {view === 'week' ? (
+              <WeekAgenda start={weekStart} onOpenEvent={openEvent} onOpenNote={openNote} />
+            ) : (
             <div className="overflow-x-auto -mx-1 px-1 pb-1">
             <div className="min-w-[600px]">
               <div className="grid grid-cols-7 gap-2 mb-2">
@@ -237,26 +229,26 @@ export const CalendarModule: React.FC = () => {
                 {days.map((day, index) => {
                   if (!day) return <div key={`empty-${index}`} className="h-28 rounded-2xl bg-[#FDFBF7] border border-transparent"></div>;
                   const isFri = (index % 7) === 6;
-                  const dayDate = `${currentYear}/${String(currentMonth + 1).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+                  const dayDate = jalaliKey(currentYear, currentMonth, day);
                   const holidayObj = getDayHolidays(currentYear, currentMonth, day);
                   const isHoliday = holidayObj?.isHoliday;
                   const events = getDayEvents(currentYear, currentMonth, day);
                   const birthdays = getDayBirthdays(currentMonth, day).filter((b) => b.isActive);
                   const isDayOff = isFri || !!isHoliday;
-                  const today = isToday(currentYear, currentMonth, day);
+                  const isTodayCell = isToday(currentYear, currentMonth, day);
 
                   return (
                     <div 
                       key={day} 
                       className={`h-28 overflow-hidden rounded-2xl border p-2 flex flex-col ${
-                        today ? 'border-[#dc2626] bg-[#fef2f2] shadow-sm' : 
+                        isTodayCell ? 'border-[#dc2626] bg-[#fef2f2] shadow-sm' : 
                         isDayOff ? 'border-[#fca5a5] bg-[#fff5f5]' : 
                         'border-[#E6E0D5] hover:border-[#D5CEC2] bg-white'
                       }`}
                     >
                       <div className="flex justify-between items-start mb-1">
                         <div className="flex items-baseline gap-1.5">
-                          <span className={`text-sm font-black ${today ? 'text-[#dc2626]' : isDayOff ? 'text-[#ef4444]' : 'text-[#2D2D2D]'}`}>
+                          <span className={`text-sm font-black ${isTodayCell ? 'text-[#dc2626]' : isDayOff ? 'text-[#ef4444]' : 'text-[#2D2D2D]'}`}>
                             {toPersianDigits(day)}
                           </span>
                           <span className="text-[9px] text-[#8C867A]" title={formatHijri(currentYear, currentMonth + 1, day)}>
@@ -286,15 +278,15 @@ export const CalendarModule: React.FC = () => {
                             key={i}
                             className={`text-[9px] font-bold px-1 py-0.5 rounded leading-tight cursor-pointer ${occasion.holiday ? 'text-[#dc2626] bg-red-100' : 'text-[#9a3412] bg-orange-50'}`}
                             title={occasion.title}
-                            onClick={() => {
-                               setSelectedEvent({
-                                  id: `hol-${day}-${i}`,
-                                  title: occasion.title,
-                                  date: dayDate,
-                                  type: 'holiday',
-                                  description: `${occasion.holiday ? 'تعطیل رسمی' : 'مناسبت تقویم'} · ${formatHijri(currentYear, currentMonth + 1, day)}`
-                               });
-                            }}
+                            onClick={() =>
+                              openNote({
+                                id: `hol-${dayDate}-${i}`,
+                                title: occasion.title,
+                                date: dayDate,
+                                type: 'holiday',
+                                description: `${occasion.holiday ? 'تعطیل رسمی' : 'مناسبت تقویم'} · ${formatHijri(currentYear, currentMonth + 1, day)}`,
+                              })
+                            }
                           >
                             {occasion.title}
                           </div>
@@ -302,15 +294,15 @@ export const CalendarModule: React.FC = () => {
                         {birthdays.map(b => (
                           <div 
                             key={b.id} 
-                            onClick={() => {
-                               setSelectedEvent({
-                                  id: 'bday-' + b.id,
-                                  title: `تولد ${b.firstName} ${b.lastName}`,
-                                  date: dayDate,
-                                  type: 'birthday',
-                                  description: `تولد ${b.firstName} ${b.lastName} عزیز از واحد ${b.department}.`
-                               });
-                            }}
+                            onClick={() =>
+                              openNote({
+                                id: 'bday-' + b.id,
+                                title: `تولد ${b.firstName} ${b.lastName}`,
+                                date: dayDate,
+                                type: 'birthday',
+                                description: `تولد ${b.firstName} ${b.lastName} عزیز از واحد ${b.department}.`,
+                              })
+                            }
                             className="text-[9px] font-bold bg-pink-100 text-pink-700 px-1 py-0.5 rounded flex items-center gap-1 leading-tight truncate cursor-pointer" 
                             title={`تولد ${b.firstName} ${b.lastName}`}
                           >
@@ -319,19 +311,21 @@ export const CalendarModule: React.FC = () => {
                           </div>
                         ))}
 
-                        {events.map(e => (
-                          <div 
-                            key={e.id} 
-                            onClick={() => setSelectedEvent(e)}
-                            className={`text-[9px] font-bold px-1 py-0.5 rounded truncate leading-tight cursor-pointer ${
-                              e.type === 'meeting' ? 'bg-purple-100 text-purple-700' :
-                              e.type === 'training' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-                            }`} 
-                            title={e.title}
-                          >
-                            {e.title}
-                          </div>
-                        ))}
+                        {events.map((e) => {
+                          const waiting = e.rsvp && e.forMe && e.myRsvp === null && e.date >= today;
+                          return (
+                            <button
+                              type="button"
+                              key={e.id}
+                              onClick={() => openEvent(e.id)}
+                              className={`block w-full text-right text-[9px] font-bold px-1 py-0.5 rounded truncate leading-tight ${typeChipClass(e.type)} ${waiting ? 'ring-1 ring-amber-500' : ''}`}
+                              title={[e.title, timeRange(e), waiting ? 'منتظر پاسخ شما' : ''].filter(Boolean).join(' · ')}
+                            >
+                              {e.time && <span className="font-normal">{toPersianDigits(e.time)} </span>}
+                              {e.title}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -339,6 +333,7 @@ export const CalendarModule: React.FC = () => {
               </div>
             </div>
             </div>
+            )}
           </div>
         </div>
 
@@ -399,18 +394,29 @@ export const CalendarModule: React.FC = () => {
             <h3 className="text-sm font-bold text-[#2D2D2D] mb-4">رویدادهای پیش‌رو</h3>
             {upcomingEvents.length > 0 ? (
               <div className="space-y-3">
-                {upcomingEvents.map(e => {
-                  const badge = getEventBadge(e.type);
+                {upcomingEvents.map((e) => {
+                  const waiting = e.rsvp && e.forMe && e.myRsvp === null;
                   return (
-                    <div key={e.id} onClick={() => setSelectedEvent(e)} className="p-3 border border-[#E6E0D5] rounded-xl bg-white hover:border-[#dc2626] transition-colors cursor-pointer group">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.color} flex items-center gap-1`}>
-                          {badge.icon} {e.type === 'meeting' ? 'جلسه' : e.type === 'training' ? 'آموزش' : e.type === 'holiday' ? 'تعطیل' : e.type === 'birthday' ? 'تولد' : 'رویداد'}
+                    <button
+                      type="button"
+                      key={e.id}
+                      onClick={() => openEvent(e.id)}
+                      className="block w-full text-right p-3 border border-[#E6E0D5] rounded-xl bg-white hover:border-[#dc2626] transition-colors group"
+                    >
+                      <span className="flex items-center justify-between mb-2">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${typeChipClass(e.type)} flex items-center gap-1`}>
+                          <TypeIcon type={e.type} className="w-3 h-3" /> {TYPE_LABELS[e.type]}
                         </span>
                         <span className="text-[10px] font-bold text-[#6E6A60] group-hover:text-[#dc2626] transition-colors">{formatDate(e.date)}</span>
-                      </div>
-                      <div className="text-xs font-bold text-[#2D2D2D] leading-tight truncate">{e.title}</div>
-                    </div>
+                      </span>
+                      <span className="block text-xs font-bold text-[#2D2D2D] leading-tight truncate">{e.title}</span>
+                      {(e.time || waiting) && (
+                        <span className="flex items-center justify-between gap-2 mt-1 text-[10px] text-[#6E6A60]">
+                          <span>{timeRange(e)}</span>
+                          {waiting && <span className="font-bold text-amber-700">منتظر پاسخ شما</span>}
+                        </span>
+                      )}
+                    </button>
                   );
                 })}
               </div>
@@ -423,56 +429,7 @@ export const CalendarModule: React.FC = () => {
         </div>
       </div>
 
-      {isAddOpen && (
-        <Modal
-          title={editingEventId ? 'ویرایش رویداد' : 'افزودن رویداد جدید به تقویم'}
-          icon={editingEventId ? <Pencil className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-          onClose={closeEventForm}
-          size="md"
-          footer={
-            <>
-              <button type="button" onClick={closeEventForm} className={secondaryButtonClass}>انصراف</button>
-              <button type="submit" form="add-event" className={primaryButtonClass}>ذخیره رویداد</button>
-            </>
-          }
-        >
-          <form id="add-event" onSubmit={handleAddSubmit} className="space-y-3">
-            <div>
-              <label htmlFor="event-title" className={labelClass}>عنوان رویداد *</label>
-              <input id="event-title" type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="event-date" className={labelClass}>تاریخ رویداد *</label>
-                <JalaliDateInput id="event-date" required value={dateStr} onChange={setDateStr} />
-              </div>
-              <div>
-                <label htmlFor="event-type" className={labelClass}>نوع رویداد</label>
-                <select id="event-type" value={type} onChange={(e) => setType(e.target.value as CalendarEvent['type'])} className={inputClass}>
-                  <option value="meeting">جلسه یا همایش کاری</option>
-                  <option value="event">رویداد سازمانی</option>
-                  <option value="training">دوره آموزشی</option>
-                  <option value="holiday">تعطیلی یا مرخصی سازمانی</option>
-                </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="event-time" className={labelClass}>ساعت</label>
-                <input id="event-time" type="time" dir="ltr" value={time} onChange={(e) => setTime(e.target.value)} className={inputClass} />
-              </div>
-              <div>
-                <label htmlFor="event-location" className={labelClass}>مکان</label>
-                <input id="event-location" value={location} onChange={(e) => setLocation(e.target.value)} className={inputClass} />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="event-description" className={labelClass}>توضیحات</label>
-              <textarea id="event-description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} className={inputClass} />
-            </div>
-          </form>
-        </Modal>
-      )}
+      {form && <EventFormModal event={form.event} date={form.date} onClose={() => setForm(null)} />}
 
       {editingPublicDate && (
         <Modal
@@ -507,52 +464,25 @@ export const CalendarModule: React.FC = () => {
       )}
 
       {selectedEvent && (
+        <EventDetailsModal
+          event={selectedEvent}
+          onClose={() => setSelected(null)}
+          onEdit={() => {
+            setSelected(null);
+            setForm({ event: selectedEvent });
+          }}
+        />
+      )}
+
+      {selected?.kind === 'note' && (
         <Modal
-          title={selectedEvent.title}
-          subtitle={formatDate(selectedEvent.date)}
-          icon={getEventIcon(selectedEvent.type)}
-          onClose={() => setSelectedEvent(null)}
+          title={selected.note.title}
+          subtitle={formatDate(selected.note.date)}
+          icon={<TypeIcon type={selected.note.type} />}
+          onClose={() => setSelected(null)}
           size="sm"
         >
-          {selectedEvent.description && <p className="text-sm text-[#6E6A60] leading-relaxed mb-4">{selectedEvent.description}</p>}
-          {selectedEvent.time && (
-            <div className="text-xs font-bold text-[#6E6A60] mb-2">ساعت: <span className="text-[#2D2D2D]">{toPersianDigits(selectedEvent.time)}</span></div>
-          )}
-          {selectedEvent.location && (
-            <div className="text-xs font-bold text-[#6E6A60]">مکان: <span className="text-[#2D2D2D]">{selectedEvent.location}</span></div>
-          )}
-          {isManager && calendarEvents.some((ev) => ev.id === selectedEvent.id) && (
-            <div className="mt-4 flex flex-wrap items-center gap-4">
-              {selectedEvent.trainingId ? (
-                // A training's calendar entry follows the training, so it is edited there.
-                <button
-                  onClick={() => {
-                    setSelectedEvent(null);
-                    setActiveTab('training', selectedEvent.trainingId!);
-                  }}
-                  className="flex items-center gap-1.5 text-xs font-bold text-[#991b1b] hover:underline"
-                >
-                  <Pencil className="w-3.5 h-3.5" /> ویرایش از صفحهٔ آموزش
-                </button>
-              ) : (
-                <button
-                  onClick={() => openEventEditor(selectedEvent)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-[#991b1b] hover:underline"
-                >
-                  <Pencil className="w-3.5 h-3.5" /> ویرایش رویداد
-                </button>
-              )}
-              <button
-                onClick={async () => {
-                  await deleteCalendarEvent(selectedEvent.id);
-                  setSelectedEvent(null);
-                }}
-                className="flex items-center gap-1.5 text-xs font-bold text-red-700 hover:underline"
-              >
-                <Trash2 className="w-3.5 h-3.5" /> حذف این رویداد
-              </button>
-            </div>
-          )}
+          <p className="text-sm text-[#6E6A60] leading-relaxed">{selected.note.description}</p>
         </Modal>
       )}
     </div>
