@@ -75,7 +75,8 @@ whats_new() {
     }' "releases/$1/CHANGELOG.md" "${2:-}" 2>/dev/null || true
 }
 
-env_value() { grep -E "^$1=" .env | tail -n1 | cut -d= -f2- | sed -e 's/^["'\'']//' -e 's/["'\'']$//'; }
+# Empty when .env does not set it (grep finding nothing must not stop the script under pipefail).
+env_value() { { grep -E "^$1=" .env || true; } | tail -n1 | cut -d= -f2- | sed -e 's/^["'\'']//' -e 's/["'\'']$//'; }
 PORT="$(env_value PORT)"; PORT="${PORT:-3000}"
 DATABASE_URL="$(env_value DATABASE_URL)"
 
@@ -110,6 +111,13 @@ if $AUTO && [ -f "logs/.failed-$TAG" ]; then
   exit 0
 fi
 
+# The server has little disk and PostgreSQL stops when it is full, so an update needs some room
+# (download, unpacked release, database backup) and must not take the last of it.
+FREE_MB="$(df -Pm . | awk 'NR==2 {print $4}')"
+if [ -n "$FREE_MB" ] && [ "$FREE_MB" -lt "${MIN_FREE_MB:-400}" ]; then
+  die "Only ${FREE_MB} MB of disk space is free; at least ${MIN_FREE_MB:-400} MB is needed. Nothing was changed. Free some space (e.g. old files in $PORTAL_HOME/backups) and run update.sh again."
+fi
+
 log "Downloading $TAG${CURRENT_TAG:+ (installed now: $(describe "$CURRENT_TAG"))}"
 TMP="releases/.$TAG.tar.gz"
 curl -fsSL --retry 3 --max-time 600 -o "$TMP" "$URL" || die "Download failed."
@@ -125,18 +133,26 @@ log "Updating ${CURRENT_TAG:+$(describe "$CURRENT_TAG") }-> $(describe "$TAG")"
 BACKUP=""
 if [ -n "$CURRENT_TAG" ] && [ -n "$DATABASE_URL" ] && command -v pg_dump >/dev/null; then
   BACKUP="backups/db-$(date +%F-%H%M)-$CURRENT_TAG.sql.gz"
-  pg_dump "$DATABASE_URL" | gzip > "$BACKUP"
+  # --clean lets the restore command below run over the existing database.
+  if ! pg_dump --clean --if-exists "$DATABASE_URL" | gzip > "$BACKUP.partial"; then
+    rm -f "$BACKUP.partial"
+    die "The database backup failed (is the disk full?). Nothing was changed; the current version keeps running."
+  fi
+  mv -f "$BACKUP.partial" "$BACKUP"
   log "Database backed up to $BACKUP"
   ls -1t backups/db-*.sql.gz | tail -n +$((KEEP_BACKUPS + 1)) | xargs -r rm --
 fi
 
+# pm2 is run without the lock's file descriptor (9>&-): when it has to start its background daemon
+# (e.g. after a reboot), the daemon would otherwise keep the lock, and every later update would
+# report "Another update is running" and do nothing.
 switch_to() {
   ln -sfn "releases/$1" current.tmp && mv -T current.tmp current
-  if pm2 describe "$APP_NAME" >/dev/null 2>&1; then
-    pm2 delete "$APP_NAME" >/dev/null
+  if pm2 describe "$APP_NAME" >/dev/null 2>&1 9>&-; then
+    pm2 delete "$APP_NAME" >/dev/null 9>&-
   fi
-  pm2 start "releases/$1/deploy/ecosystem.config.cjs" >/dev/null || return 1
-  pm2 save >/dev/null || true
+  pm2 start "releases/$1/deploy/ecosystem.config.cjs" >/dev/null 9>&- || return 1
+  pm2 save >/dev/null 9>&- || true
   for _ in $(seq 1 30); do
     curl -fsS --max-time 2 "http://127.0.0.1:$PORT/healthz" >/dev/null 2>&1 && return 0
     sleep 1

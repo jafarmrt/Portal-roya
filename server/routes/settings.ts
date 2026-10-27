@@ -219,7 +219,7 @@ settingsRouter.get(
   route(async (_req, res) => {
     const usage = await departmentUsage();
     const list = await departmentList();
-    res.json(list.map((name) => ({ name, ...(usage.get(name) ?? { employees: 0, activeEmployees: 0, news: 0, documents: 0, polls: 0 }) })));
+    res.json(list.map((name) => ({ name, ...(usage.get(name) ?? { employees: 0, activeEmployees: 0, news: 0, documents: 0, polls: 0, events: 0, guides: 0 }) })));
   }),
 );
 
@@ -244,7 +244,7 @@ settingsRouter.get(
   route(async (_req, res) => {
     const usage = await locationUsage();
     const list = await locationList();
-    res.json(list.map((name) => ({ name, ...(usage.get(name) ?? { employees: 0, activeEmployees: 0, news: 0, documents: 0, polls: 0 }) })));
+    res.json(list.map((name) => ({ name, ...(usage.get(name) ?? { employees: 0, activeEmployees: 0, news: 0, documents: 0, polls: 0, events: 0, guides: 0 }) })));
   }),
 );
 

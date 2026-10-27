@@ -4,10 +4,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import { pipeline } from 'stream/promises';
 import { createGzip } from 'zlib';
-import { eq, sql } from 'drizzle-orm';
+import { eq, lt, sql } from 'drizzle-orm';
 import { config } from './config.js';
 import { db } from './db/index.js';
-import { employees, roles } from './db/schema.js';
+import { employees, notifications, roles } from './db/schema.js';
 import { createNotifications } from './notify.js';
 import { buildInfo } from './version.js';
 import { ADMIN_ROLE_ID } from '../shared/permissions.js';
@@ -19,6 +19,11 @@ import { ADMIN_ROLE_ID } from '../shared/permissions.js';
 export const ORPHAN_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
 /** Admins are warned when the disk has less free space than this. */
 export const LOW_DISK_BYTES = 500 * 1024 * 1024;
+/**
+ * New uploads are refused when they would leave less free space than this. The database lives on the
+ * same disk, and PostgreSQL stops when the disk is full, which would take the whole portal down.
+ */
+export const UPLOAD_RESERVE_BYTES = 200 * 1024 * 1024;
 export const KEEP_NIGHTLY_DB = 7;
 export const KEEP_WEEKLY_UPLOADS = 2;
 /** Backups start at this hour (server local time), when nobody is working. */
@@ -46,7 +51,7 @@ const state: {
 const dayKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-async function diskSpace(dir: string) {
+export async function diskSpace(dir: string) {
   try {
     const s = await fs.statfs(dir);
     return { free: s.bavail * s.bsize, total: s.blocks * s.bsize };
@@ -112,6 +117,17 @@ export async function cleanOrphanUploads(uploadDir = config.uploadDir, now = new
   return state.lastCleanup;
 }
 
+/** Notifications older than this are deleted; the bell shows only the newest 100 anyway. */
+export const KEEP_NOTIFICATIONS_DAYS = 180;
+
+/** Keeps the notifications table from growing for ever (about 100 rows per news item) on a small disk. */
+export async function pruneNotifications(now = new Date()) {
+  const cutoff = new Date(now.getTime() - KEEP_NOTIFICATIONS_DAYS * 24 * 60 * 60 * 1000);
+  const removed = await db.delete(notifications).where(lt(notifications.createdAt, cutoff)).returning({ id: notifications.id });
+  if (removed.length > 0) console.log(`Removed ${removed.length} notifications older than ${KEEP_NOTIFICATIONS_DAYS} days.`);
+  return removed.length;
+}
+
 function run(command: string, args: string[], output?: NodeJS.WritableStream) {
   return new Promise<void>((resolve, reject) => {
     const child = spawn(command, args, { stdio: ['ignore', output ? 'pipe' : 'ignore', 'pipe'] });
@@ -140,7 +156,7 @@ export async function backupDatabase(backupDir = config.backupDir, now = new Dat
   if (await fs.stat(target).catch(() => null)) return name;
   const partial = `${target}.partial`;
   try {
-    await run('pg_dump', ['--no-owner', '--no-privileges', config.databaseUrl], createWriteStream(partial));
+    await run('pg_dump', ['--no-owner', '--no-privileges', '--clean', '--if-exists', config.databaseUrl], createWriteStream(partial));
     await fs.rename(partial, target);
   } catch (err) {
     await fs.unlink(partial).catch(() => undefined);
@@ -203,6 +219,7 @@ export async function runNightlyMaintenance(now = new Date()) {
   state.lastRunAt = now.getTime();
   if (state.lastCleanupDay !== dayKey(now)) {
     await cleanOrphanUploads(config.uploadDir, now).catch((err) => console.error('Upload cleanup failed:', err));
+    await pruneNotifications(now).catch((err) => console.error('Notification cleanup failed:', err));
   }
   try {
     await backupDatabase(config.backupDir, now);

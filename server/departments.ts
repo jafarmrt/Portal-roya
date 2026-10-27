@@ -14,9 +14,13 @@ export interface ListUsage {
   news: number;
   documents: number;
   polls: number;
+  /** Calendar events addressed to the entry. */
+  events: number;
+  /** Guides filed under the department (departments only). */
+  guides: number;
 }
 
-const emptyUsage = (): ListUsage => ({ employees: 0, activeEmployees: 0, news: 0, documents: 0, polls: 0 });
+const emptyUsage = (): ListUsage => ({ employees: 0, activeEmployees: 0, news: 0, documents: 0, polls: 0, events: 0, guides: 0 });
 
 /** What differs between the managed lists (departments, locations); the rules are the same. */
 interface ListKind {
@@ -207,13 +211,17 @@ async function replaceInAudiences(tx: Tx, column: 'target_departments' | 'target
   }
 }
 
-/** How many documents and polls name each entry in an audience column. */
+/**
+ * How many documents, polls and calendar events name each entry in an audience column. Every table
+ * the start-up reconcile reads names from must be counted here, or an entry removed from the list
+ * while still in use comes back at the next restart.
+ */
 async function audienceUsage(column: 'target_departments' | 'target_locations', entry: (name: string) => ListUsage) {
-  for (const table of ['documents', 'polls'] as const) {
+  for (const [table, key] of [['documents', 'documents'], ['polls', 'polls'], ['calendar_events', 'events']] as const) {
     const items = await db.execute<{ name: string; count: number }>(
       sql`select d as name, count(*)::int as count from ${sql.identifier(table)}, unnest(${sql.identifier(column)}) as d group by d`,
     );
-    for (const r of items.rows) entry(r.name)[table] = r.count;
+    for (const r of items.rows) entry(r.name)[key] = r.count;
   }
 }
 
@@ -262,6 +270,10 @@ const departments = managedList({
     const items = await db.execute<{ name: string; count: number }>(sql`select d as name, count(*)::int as count from news, unnest(target_departments) as d group by d`);
     for (const r of items.rows) entry(r.name).news = r.count;
     await audienceUsage('target_departments', entry);
+    const guides = await db.execute<{ name: string; count: number }>(
+      sql`select department as name, count(*)::int as count from guides where department <> '' group by department`,
+    );
+    for (const r of guides.rows) entry(r.name).guides = r.count;
     return usage;
   },
   renames: ['employees', 'news', 'documents', 'polls', 'calendar', 'guides', 'department_pages', 'settings'],

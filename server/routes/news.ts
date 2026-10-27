@@ -254,8 +254,9 @@ type NewsBody = z.infer<typeof newsSchema>;
 const parseNews = (body: unknown): NewsBody =>
   (body as { draft?: unknown } | null)?.draft === true ? parse(draftSchema, body) : parse(newsSchema, body);
 
-function scheduleFrom(body: NewsBody) {
-  const publishAt = body.publishDate ? jalaliToDate(body.publishDate, body.publishTime || '08:00') : new Date();
+/** `keptPublishAt`: the date of a published item being fixed, which an edit without a publish date keeps. */
+function scheduleFrom(body: NewsBody, keptPublishAt?: Date) {
+  const publishAt = body.publishDate ? jalaliToDate(body.publishDate, body.publishTime || '08:00') : (keptPublishAt ?? new Date());
   const expiresAt = body.expiresDate ? jalaliEndOfDay(body.expiresDate) : null;
   if (!publishAt) throw new HttpError(400, 'تاریخ انتشار نامعتبر است.');
   if (expiresAt && expiresAt <= publishAt) throw new HttpError(400, 'تاریخ انقضا باید بعد از تاریخ انتشار باشد.');
@@ -273,7 +274,7 @@ function checkedContent(body: NewsBody) {
 }
 
 /** The columns a create or edit writes. */
-async function newsValues(body: NewsBody) {
+async function newsValues(body: NewsBody, keptPublishAt?: Date) {
   const audience = await checkAudience(body);
   return {
     title: body.title,
@@ -292,7 +293,7 @@ async function newsValues(body: NewsBody) {
     targetUserIds: audience.userIds,
     attachments: body.attachments,
     isDraft: body.draft,
-    ...scheduleFrom(body),
+    ...scheduleFrom(body, keptPublishAt),
   };
 }
 
@@ -381,10 +382,11 @@ newsRouter.patch(
     const [existing] = await db.select().from(news).where(eq(news.id, req.params.id));
     if (!existing) throw new HttpError(404, 'خبر یافت نشد.');
     const body = parseNews(req.body);
-    const values = await newsValues(body);
-    if (values.isDraft && !existing.isDraft) throw new HttpError(400, 'خبر منتشرشده را نمی‌شود به پیش‌نویس برگرداند.');
-    // Fixing a published item keeps its date instead of moving it to the top as new.
-    if (!body.publishDate && !existing.isDraft && existing.publishAt <= new Date()) values.publishAt = existing.publishAt;
+    if (body.draft && !existing.isDraft) throw new HttpError(400, 'خبر منتشرشده را نمی‌شود به پیش‌نویس برگرداند.');
+    // Fixing a published item keeps its date instead of moving it to the top as new; its deadline and
+    // expiry are checked against that date, so a circular can still be fixed after its deadline.
+    const isLive = !existing.isDraft && existing.publishAt <= new Date();
+    const values = await newsValues(body, isLive ? existing.publishAt : undefined);
     // A new deadline gets its own reminder and report.
     const deadlineMoved = values.ackDeadline?.getTime() !== existing.ackDeadline?.getTime();
     const { item, changed } = await db.transaction(async (tx) => {

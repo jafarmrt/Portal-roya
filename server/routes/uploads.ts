@@ -8,6 +8,7 @@ import { config } from '../config.js';
 import { db } from '../db/index.js';
 import { documents, trainings } from '../db/schema.js';
 import { currentUser, HttpError, route } from '../http.js';
+import { diskSpace, UPLOAD_RESERVE_BYTES } from '../maintenance.js';
 
 export const uploadsRouter = Router();
 
@@ -64,8 +65,20 @@ const upload = multer({
   },
 });
 
+/** Refuses an upload up front when the disk is nearly full, before any of it is written. */
+async function assertRoomForUpload() {
+  const disk = await diskSpace(config.uploadDir);
+  if (disk && disk.free < UPLOAD_RESERVE_BYTES + config.maxUploadMb * 1024 * 1024) {
+    throw new HttpError(507, 'فضای دیسک سرور پرتال تقریباً پر است و فعلاً فایلی بارگذاری نمی‌شود. به ادمین پرتال اطلاع دهید.');
+  }
+}
+
 uploadsRouter.post(
   '/uploads',
+  route(async (_req, _res, next) => {
+    await assertRoomForUpload();
+    next();
+  }),
   (req, res, next) => {
     upload.single('file')(req, res, (err: unknown) => {
       if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {

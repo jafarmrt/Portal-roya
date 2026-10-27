@@ -9,6 +9,10 @@ import { isMailEnabled } from './mailer.js';
 import { ensureRoles } from './roles.js';
 import { startScheduler } from './scheduler.js';
 
+// A promise that fails outside a request (a timer, a background job) is logged instead of stopping
+// the portal for everyone; request errors already reach the error handler.
+process.on('unhandledRejection', (err) => console.error('Unhandled error:', err));
+
 async function main() {
   await runMigrations();
   await ensureRoles();
