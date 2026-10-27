@@ -136,6 +136,18 @@ export interface NewsItem {
   requiresAck: boolean;
   tags: string[];
   targetDepartments: string[];
+  targetLocations: string[];
+  /** Role ids. */
+  targetRoles: string[];
+  /** Only sent to people who publish news; others get [] and the count. */
+  targetUserIds: string[];
+  targetUserCount: number;
+  /** 'html' from the editor; older items are plain 'text'. */
+  contentFormat: 'text' | 'html';
+  /** Circulars: acknowledge by this time (end of a day), or null. */
+  ackDeadline: string | null;
+  /** When "remind" was last pressed (for people who publish news). */
+  ackRemindedAt: string | null;
   attachments: Attachment[];
   likesCount: number;
   likedByMe: boolean;
@@ -156,7 +168,13 @@ export interface NewsInput {
   requiresAck: boolean;
   tags: string[];
   targetDepartments: string[];
+  targetLocations: string[];
+  targetRoles: string[];
+  targetUserIds: string[];
+  contentFormat: 'text' | 'html';
   attachments: Attachment[];
+  /** Jalali 'YYYY/MM/DD' or '' (circulars only). */
+  ackDate: string;
   publishDate: string;
   publishTime: string;
   expiresDate: string;
@@ -166,6 +184,7 @@ export interface ReadReceipt {
   userId: string;
   name: string;
   department: string;
+  location: string;
   readAt: string | null;
   acknowledgedAt: string | null;
 }
@@ -320,6 +339,10 @@ export interface AppSettings {
   guestDirectory: boolean;
   /** A short message shown above every page until it expires; null when there is none. */
   banner: SiteBanner | null;
+  /** Where colleagues work (branches, warehouse, floors); a managed list like departments. */
+  locations: string[];
+  /** Dashboard cards an admin switched off, e.g. { mood: false }. */
+  dashboardCards: Record<string, boolean>;
 }
 
 export interface SiteBanner {

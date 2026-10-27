@@ -16,6 +16,7 @@ import {
   Copy,
   Check,
   ChevronLeft,
+  MapPin,
 } from 'lucide-react';
 
 export const ColleaguesDirectory: React.FC = () => {
@@ -24,6 +25,7 @@ export const ColleaguesDirectory: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDept, setSelectedDept] = useState('all');
+  const [selectedLocation, setSelectedLocation] = useState('all');
   // The open profile follows the URL (#colleagues/<id>) so profiles can be linked.
   const selectedUserForView = focusId ? employees.find(e => e.id === focusId) ?? null : null;
   const setSelectedUserForView = (emp: UserProfile | null) => setActiveTab('colleagues', emp?.id ?? null);
@@ -38,11 +40,14 @@ export const ColleaguesDirectory: React.FC = () => {
       .map(d => ({ id: d, label: d, count: active.filter(emp => emp.department === d).length }))
       .filter(d => d.count > 0),
   ];
+  const locations = (appSettings?.locations || [])
+    .map(l => ({ id: l, label: l, count: active.filter(emp => emp.location === l).length }))
+    .filter(l => l.count > 0);
 
   const filteredEmployees = employees.filter(emp => {
     // Colleagues who left are managed on the staff page, not listed here.
     if (!emp.isActive) return false;
-    const matchesDept = selectedDept === 'all' || emp.department === selectedDept;
+    const matchesDept = (selectedDept === 'all' || emp.department === selectedDept) && (selectedLocation === 'all' || emp.location === selectedLocation);
     if (!searchQuery.trim()) return matchesDept;
     return matchesDept && matches(
       searchQuery,
@@ -128,6 +133,25 @@ export const ColleaguesDirectory: React.FC = () => {
           ))}
         </div>
 
+        {/* Location chips, when colleagues work in more than one place */}
+        {locations.length > 1 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar" role="group" aria-label="محل استقرار">
+            <MapPin className="w-3.5 h-3.5 text-[#8C867A] shrink-0" />
+            {[{ id: 'all', label: 'همه محل‌ها', count: active.length }, ...locations].map((loc) => (
+              <button
+                key={loc.id}
+                onClick={() => setSelectedLocation(loc.id)}
+                aria-pressed={selectedLocation === loc.id}
+                className={`px-3 py-1 text-[11px] font-semibold rounded-xl whitespace-nowrap transition-all border ${
+                  selectedLocation === loc.id ? 'bg-[#7f1d1d] text-white border-[#7f1d1d]' : 'bg-white border-[#E6E0D5] hover:bg-[#F5F2ED] text-[#2D2D2D]'
+                }`}
+              >
+                {loc.label}
+                <span className={`mr-1.5 text-[10px] ${selectedLocation === loc.id ? 'text-white/80' : 'text-[#8C867A]'}`}>{toPersianDigits(loc.count)}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Employees Grid */}
@@ -162,6 +186,12 @@ export const ColleaguesDirectory: React.FC = () => {
                       {emp.department}
                     </span>
                     {emp.role !== 'employee' && <span className="inline-block mt-1.5 mr-1 px-2 py-0.5 text-[10px] font-bold bg-red-50 text-red-800 rounded-md">{roleName(emp.role)}</span>}
+                    {emp.location && (
+                      <span className="flex items-center gap-1 mt-1.5 text-[10px] text-[#6E6A60] truncate">
+                        <MapPin className="w-3 h-3 text-[#8C867A] shrink-0" />
+                        {emp.location}
+                      </span>
+                    )}
                   </div>
                 </div>
 

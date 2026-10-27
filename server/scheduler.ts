@@ -5,7 +5,7 @@ import { birthdayAnnouncements, employees, news } from './db/schema.js';
 import { broadcastChange } from './events.js';
 import { runNightlyMaintenance } from './maintenance.js';
 import { audienceIds, createNotifications } from './notify.js';
-import { announceNews } from './routes/news.js';
+import { announceNews, processAckDeadlines } from './routes/news.js';
 import { fullName } from './serializers.js';
 
 const INTERVAL_MS = 60_000;
@@ -73,6 +73,7 @@ export function startScheduler() {
   const timer = setInterval(() => {
     publishDueNews().catch((err) => console.error('Scheduler error:', err));
     announceBirthdays().catch((err) => console.error('Birthday scheduler error:', err));
+    processAckDeadlines().catch((err) => console.error('Circular deadline error:', err));
     runNightlyMaintenance().catch((err) => console.error('Maintenance error:', err));
   }, INTERVAL_MS);
   timer.unref();

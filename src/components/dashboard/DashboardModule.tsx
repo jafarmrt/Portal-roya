@@ -6,6 +6,9 @@ import { QuickSystemsWidget } from './QuickSystemsWidget';
 import { MoodTrackerWidget } from './MoodTrackerWidget';
 import { WelcomeNewColleagueCard } from './WelcomeNewColleagueCard';
 import { DashboardCalendar } from './DashboardCalendar';
+import { isCardOn } from './dashboardCards';
+import { MobileFold } from './MobileFold';
+import { MyTasksCard } from './MyTasksCard';
 import moment from 'moment-jalaali';
 import { JALALI_MONTHS, JALALI_WEEKDAYS } from '../../data/holidays';
 import { formatDate, toPersianDigits, todayJalali } from '../../lib/jalali';
@@ -17,7 +20,8 @@ import {
   Sparkles,
   Pin,
   FileCheck2,
-  AlertTriangle
+  AlertTriangle,
+  CalendarDays
 } from 'lucide-react';
 
 export const DashboardModule: React.FC = () => {
@@ -28,7 +32,9 @@ export const DashboardModule: React.FC = () => {
     polls,
     trainings,
     setActiveTab,
+    appSettings,
   } = usePortal();
+  const on = (id: Parameters<typeof isCardOn>[1]) => isCardOn(appSettings, id);
 
   const activePoll = polls.find(p => p.isActive && !p.hasVoted);
   const publishedNews = news.filter(n => n.status === 'published');
@@ -44,8 +50,10 @@ export const DashboardModule: React.FC = () => {
   const todayStr = toPersianDigits(`${JALALI_WEEKDAYS[todayDayIndex]}، ${now.jDate()} ${JALALI_MONTHS[now.jMonth()]} ${now.jYear()}`);
 
 
+  // On phones the cards are one column in the order below (order-N); from lg the two-column layout
+  // applies and the order classes are reset. Wrappers of cards that render nothing are hidden.
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6 [&>*:empty]:hidden">
       {/* Hero Welcome Banner */}
       <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden">
         <div className="absolute top-0 left-0 -ml-12 -mt-12 w-64 h-64 rounded-full bg-[#dc2626]/20 blur-3xl pointer-events-none" />
@@ -94,10 +102,27 @@ export const DashboardModule: React.FC = () => {
         </div>
       </div>
 
-      {/* Organisation apps sit right under the banner so they are reachable without scrolling */}
-      <QuickSystemsWidget />
+      {/* What this person still has to do; when the card is switched off, circulars are still listed */}
+      {on('myTasks') && !isGuest && (
+        <div className="order-1 lg:order-none">
+          <MyTasksCard />
+        </div>
+      )}
 
-      {pendingAcks.length > 0 && (
+      {on('anniversary') && (
+        <div className="order-2 lg:order-none">
+          <WorkAnniversaryWidget />
+        </div>
+      )}
+
+      {/* Organisation apps sit near the top so they are reachable without scrolling */}
+      {on('systems') && (
+        <div className="order-4 lg:order-none">
+          <QuickSystemsWidget />
+        </div>
+      )}
+
+      {!on('myTasks') && pendingAcks.length > 0 && (
         <section className="bg-amber-50 border border-amber-300 rounded-3xl p-5 sm:p-6 space-y-3" aria-labelledby="pending-acks-title">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-amber-700" />
@@ -124,13 +149,12 @@ export const DashboardModule: React.FC = () => {
         </section>
       )}
 
-      <WorkAnniversaryWidget />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* On phones the grid and its columns step aside (display: contents) so their cards can be reordered */}
+      <div className="contents lg:grid lg:grid-cols-3 lg:gap-6">
         {/* Left 2 Columns: News Highlights, Active Poll, Training */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="contents lg:block lg:col-span-2 lg:space-y-6 [&>*:empty]:hidden">
           {/* Pinned / Latest News Section */}
-          <div className="bg-white rounded-3xl p-6 border border-[#E6E0D5] shadow-xs space-y-4">
+          <div className="order-3 lg:order-none bg-white rounded-3xl p-5 sm:p-6 border border-[#E6E0D5] shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
               <div className="flex items-center gap-2">
                 <div className="p-2 bg-[#F5F2ED] text-[#dc2626] rounded-xl">
@@ -189,92 +213,109 @@ export const DashboardModule: React.FC = () => {
 
 
           {/* Welcome New Colleagues Wall */}
-          <WelcomeNewColleagueCard />
-
-          {/* Active Poll Spotlight Card */}
-          {activePoll && (
-            <div className="bg-gradient-to-br from-[#F5F2ED] via-white to-[#F7F3ED] rounded-3xl p-6 border border-[#E6E0D5] shadow-xs relative overflow-hidden">
-              <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-[#dc2626] text-white rounded-xl">
-                    <Vote className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black text-[#2D2D2D]">نظرسنجی ویژه سازمان</h3>
-                    <p className="text-xs text-[#6E6A60]">نظرسنجی فعال جهت دریافت نظرات همکاران</p>
-                  </div>
-                </div>
-                <span className="px-3 py-1 bg-[#D97B5F] text-white text-xs font-bold rounded-full animate-pulse">
-                  در حال رای‌گیری
-                </span>
-              </div>
-
-              <div className="py-4 space-y-2">
-                <h4 className="text-sm font-bold text-[#2D2D2D]">{activePoll.title}</h4>
-                <p className="text-xs text-[#6E6A60] leading-relaxed">{activePoll.description}</p>
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-xs text-[#6E6A60] font-medium">
-                  مجموع شرکت‌کنندگان: <strong>{toPersianDigits(activePoll.totalVotes)} نفر</strong>
-                </span>
-                <button
-                  onClick={() => setActiveTab('polls', activePoll.id)}
-                  className="px-5 py-2.5 bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5"
-                >
-                  <span>شرکت در نظرسنجی و ثبت رای</span>
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-              </div>
+          {on('welcome') && (
+            <div className="order-7 lg:order-none">
+              <WelcomeNewColleagueCard />
             </div>
           )}
 
+          {/* Active Poll Spotlight Card */}
+          {on('poll') && activePoll && (
+            <MobileFold id="poll" title="نظرسنجی ویژه" icon={<Vote className="w-4 h-4" />} className="order-8 lg:order-none">
+              <div className="bg-gradient-to-br from-[#F5F2ED] via-white to-[#F7F3ED] rounded-3xl p-6 border border-[#E6E0D5] shadow-xs relative overflow-hidden">
+                <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-[#dc2626] text-white rounded-xl">
+                      <Vote className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-[#2D2D2D]">نظرسنجی ویژه سازمان</h3>
+                      <p className="text-xs text-[#6E6A60]">نظرسنجی فعال جهت دریافت نظرات همکاران</p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 bg-[#D97B5F] text-white text-xs font-bold rounded-full animate-pulse">
+                    در حال رای‌گیری
+                  </span>
+                </div>
 
+                <div className="py-4 space-y-2">
+                  <h4 className="text-sm font-bold text-[#2D2D2D]">{activePoll.title}</h4>
+                  <p className="text-xs text-[#6E6A60] leading-relaxed">{activePoll.description}</p>
+                </div>
 
-                 </div>
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-xs text-[#6E6A60] font-medium">
+                    مجموع شرکت‌کنندگان: <strong>{toPersianDigits(activePoll.totalVotes)} نفر</strong>
+                  </span>
+                  <button
+                    onClick={() => setActiveTab('polls', activePoll.id)}
+                    className="px-5 py-2.5 bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                  >
+                    <span>شرکت در نظرسنجی و ثبت رای</span>
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </MobileFold>
+          )}
+        </div>
 
         {/* Right Column: Birthdays & Upcoming Training Widget */}
-        <div className="space-y-6">
+        <div className="contents lg:block lg:space-y-6 [&>*:empty]:hidden">
           {/* Dashboard Calendar Widget */}
-          <DashboardCalendar />
+          {on('calendar') && (
+            <MobileFold id="calendar" title="تقویم" icon={<CalendarDays className="w-4 h-4" />} className="order-5 lg:order-none">
+              <DashboardCalendar />
+            </MobileFold>
+          )}
 
           {/* Birthday Celebrations Card */}
-          <BirthdayCard />
+          {on('birthdays') && (
+            <div className="order-6 lg:order-none">
+              <BirthdayCard />
+            </div>
+          )}
 
           {/* Mood check-in (anonymous in reports) */}
-          {!isGuest && <MoodTrackerWidget />}
+          {on('mood') && !isGuest && (
+            <div className="order-10 lg:order-none">
+              <MoodTrackerWidget />
+            </div>
+          )}
 
           {/* Upcoming Training Highlight */}
-          {upcomingTraining && (
-            <div className="bg-white rounded-3xl p-6 border border-[#E6E0D5] shadow-xs space-y-3">
-              <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-[#EFEFEA] text-[#991b1b] rounded-xl">
-                    <GraduationCap className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black text-[#2D2D2D]">کارگاه آموزشی پیش‌رو</h3>
-                    <p className="text-xs text-[#6E6A60]">برنامه آموزش سازمانی رویا</p>
+          {on('training') && upcomingTraining && (
+            <MobileFold id="training" title="کارگاه آموزشی پیش‌رو" icon={<GraduationCap className="w-4 h-4" />} className="order-9 lg:order-none">
+              <div className="bg-white rounded-3xl p-6 border border-[#E6E0D5] shadow-xs space-y-3">
+                <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-[#EFEFEA] text-[#991b1b] rounded-xl">
+                      <GraduationCap className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-[#2D2D2D]">کارگاه آموزشی پیش‌رو</h3>
+                      <p className="text-xs text-[#6E6A60]">برنامه آموزش سازمانی رویا</p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <h4 className="text-sm font-bold text-[#2D2D2D] leading-snug">{upcomingTraining.title}</h4>
-                <p className="text-xs text-[#6E6A60] leading-relaxed line-clamp-2">{upcomingTraining.description}</p>
-                <div className="text-xs text-[#6E6A60] space-y-1 pt-1">
-                  <div>مدرس: <strong>{upcomingTraining.instructor}</strong></div>
-                  <div>تاریخ: <strong>{formatDate(upcomingTraining.date)}</strong>{upcomingTraining.time && ` (ساعت ${toPersianDigits(upcomingTraining.time)})`}</div>
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold text-[#2D2D2D] leading-snug">{upcomingTraining.title}</h4>
+                  <p className="text-xs text-[#6E6A60] leading-relaxed line-clamp-2">{upcomingTraining.description}</p>
+                  <div className="text-xs text-[#6E6A60] space-y-1 pt-1">
+                    <div>مدرس: <strong>{upcomingTraining.instructor}</strong></div>
+                    <div>تاریخ: <strong>{formatDate(upcomingTraining.date)}</strong>{upcomingTraining.time && ` (ساعت ${toPersianDigits(upcomingTraining.time)})`}</div>
+                  </div>
                 </div>
-              </div>
 
-              <button
-                onClick={() => setActiveTab('training', upcomingTraining.id)}
-                className="w-full py-2 bg-[#991b1b] hover:bg-[#7f1d1d] text-white text-xs font-bold rounded-xl transition-colors text-center block mt-2"
-              >
-                مشاهده جزییات و ثبت‌نام
-              </button>
-            </div>
+                <button
+                  onClick={() => setActiveTab('training', upcomingTraining.id)}
+                  className="w-full py-2 bg-[#991b1b] hover:bg-[#7f1d1d] text-white text-xs font-bold rounded-xl transition-colors text-center block mt-2"
+                >
+                  مشاهده جزییات و ثبت‌نام
+                </button>
+              </div>
+            </MobileFold>
           )}
 
         </div>

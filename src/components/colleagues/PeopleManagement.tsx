@@ -55,7 +55,7 @@ export const PeopleManagement: React.FC = () => {
       ['شناسه', ...TEMPLATE_HEADER],
       ...shown.map((e) => [
         e.id, e.firstName, e.lastName, e.username, e.position, e.department, e.hasAccount ? roleName(e.role) : '',
-        e.email, e.mobile, e.extension, e.birthDate, e.hireDate,
+        e.email, e.mobile, e.extension, e.location, e.birthDate, e.hireDate,
       ]),
     ]);
 

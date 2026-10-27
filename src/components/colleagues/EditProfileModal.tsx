@@ -8,6 +8,7 @@ import { Avatar } from '../common/Avatar';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { AccountAccessModal, TemporaryPasswordNotice } from './AccountAccessModal';
 import { RoleSelect } from './RoleSelect';
+import { LocationSelect } from './LocationSelect';
 
 interface EditProfileModalProps {
   user: UserProfile;
@@ -135,7 +136,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
           </div>
           <div>
             <label htmlFor="edit-location" className={labelClass}>محل استقرار</label>
-            <input id="edit-location" value={form.location} onChange={(e) => set('location', e.target.value)} className={inputClass} />
+            <LocationSelect id="edit-location" value={form.location} onChange={(v) => set('location', v)} />
           </div>
         </div>
 

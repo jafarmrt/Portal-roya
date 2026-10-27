@@ -2,9 +2,12 @@ import { eq } from 'drizzle-orm';
 import { db } from './db/index.js';
 import { settings } from './db/schema.js';
 
+export const DEFAULT_LOCATIONS = ['شعبه شیراز', 'شعبه مشهد', 'شعبه قم', 'انبار', 'دفتر تهران طبقه اول', 'دفتر تهران طبقه دوم'];
+
 export const DEFAULT_SETTINGS = {
   id: 'global',
   departments: ['طراحی و توسعه محصول', 'فروش و امور مشتریان', 'منابع انسانی', 'فناوری اطلاعات (IT)', 'بازرگانی و تامین', 'انبار و زنجیره تامین'],
+  locations: DEFAULT_LOCATIONS,
   newsCategories: ['اخبار سازمان', 'اطلاعیه مهم', 'بخشنامه', 'رویداد و جشن'],
   trainingCategories: ['نرم‌افزار', 'مهارت‌های نرم', 'استانداردها', 'مدیریت و فروش'],
   documentCategories: ['آیین‌نامه و دستورالعمل', 'فرم‌ها', 'بخشنامه‌ها', 'راهنماها'],
