@@ -72,6 +72,48 @@
   }
 }
 
+/* Phones and tablets: fingers need bigger targets than a mouse pointer. */
+@media (pointer: coarse) {
+  /* Icon-only buttons (edit, delete, move, close…) get at least a 36px square to tap. */
+  button:has(> svg:only-child) {
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    align-items: center;
+    justify-content: center;
+  }
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+  /* Small text links ("ادامه مطلب", "مشاهده همه") keep their look but take taps around them. */
+  .tap-area {
+    position: relative;
+  }
+  .tap-area::after {
+    content: "";
+    position: absolute;
+    inset: -0.625rem -0.375rem;
+  }
+}
+
+/* iPhone Safari zooms the whole page into any field whose text is under 16px and stays zoomed. */
+@supports (-webkit-touch-callout: none) {
+  @media (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+    select,
+    textarea,
+    .ProseMirror {
+      font-size: 16px !important;
+    }
+  }
+}
+
+/* A section reached from the jump list is not hidden under the sticky header. */
+#main section {
+  scroll-margin-top: 5rem;
+}
+
 /* Keep toasts above the mobile bottom navigation bar */
 @media (max-width: 1023px) {
   .portal-toaster {
@@ -407,4 +449,12 @@
 .rich-text-editor .ProseMirror { outline: none; min-height: 14rem; padding: 0.75rem 1rem; }
 .rich-text-editor .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder); color: #A8A196; float: right; height: 0; pointer-events: none;
+}
+
+/* Rows of filter chips scroll sideways on phones without showing a scrollbar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

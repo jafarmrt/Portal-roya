@@ -192,7 +192,7 @@ export const NotificationsInbox: React.FC = () => {
                         markNotificationRead(notif.id);
                         setActiveTab(notif.linkTab!, notif.linkId);
                       }}
-                      className="text-xs font-bold text-[#dc2626] hover:underline pt-1 inline-block"
+                      className="tap-area text-xs font-bold text-[#dc2626] hover:underline pt-1 inline-block"
                     >
                       مشاهده در بخش مربوطه »
                     </button>
