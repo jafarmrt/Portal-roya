@@ -12,6 +12,7 @@ import { MyTasksCard } from './MyTasksCard';
 import moment from 'moment-jalaali';
 import { JALALI_MONTHS, JALALI_WEEKDAYS } from '../../data/holidays';
 import { formatDate, toPersianDigits, todayJalali } from '../../lib/jalali';
+import { dayOccasions, formatHijri } from '../../lib/occasions';
 import {
   Vote,
   Newspaper,
@@ -33,6 +34,7 @@ export const DashboardModule: React.FC = () => {
     trainings,
     setActiveTab,
     appSettings,
+    customHolidays,
   } = usePortal();
   const on = (id: Parameters<typeof isCardOn>[1]) => isCardOn(appSettings, id);
 
@@ -48,6 +50,8 @@ export const DashboardModule: React.FC = () => {
   const now = moment();
   const todayDayIndex = (now.day() + 1) % 7; // JS Sunday-first to Saturday-first
   const todayStr = toPersianDigits(`${JALALI_WEEKDAYS[todayDayIndex]}، ${now.jDate()} ${JALALI_MONTHS[now.jMonth()]} ${now.jYear()}`);
+  const todayHijri = formatHijri(now.jYear(), now.jMonth() + 1, now.jDate());
+  const todayOccasions = dayOccasions(customHolidays, now.jYear(), now.jMonth() + 1, now.jDate());
 
 
   // On phones the cards are one column in the order below (order-N); from lg the two-column layout
@@ -68,7 +72,8 @@ export const DashboardModule: React.FC = () => {
               {currentUser ? `سلام، ${currentUser.firstName} ${currentUser.lastName} عزیز 👋` : 'خوش آمدید 👋'}
             </h1>
             <p className="text-[#E6E0D5] text-xs sm:text-sm max-w-xl leading-relaxed">
-              امروز {todayStr} است.
+              امروز {todayStr} ({todayHijri}) است.
+              {todayOccasions && <span className="font-bold text-white"> {todayOccasions.title}{todayOccasions.isHoliday ? ' (تعطیل رسمی)' : ''}.</span>}
               {isGuest
                 ? ' برای شرکت در نظرسنجی‌ها و ثبت تبریک و نظر، وارد حساب کاربری خود شوید.'
                 : unreadCount > 0 ? ` ${toPersianDigits(unreadCount)} خبر یا اطلاعیهٔ نخوانده دارید.` : ' همهٔ اخبار را خوانده‌اید.'}
