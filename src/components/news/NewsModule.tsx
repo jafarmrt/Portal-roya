@@ -409,14 +409,14 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, isManager, onOpen, onLike,
             <Heart className={`w-3.5 h-3.5 ${article.likedByMe ? 'fill-current' : ''}`} />
             <span>{toPersianDigits(article.likesCount)}</span>
           </button>}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2 sm:gap-1">
             {isManager && (
               <>
                 <button onClick={onEdit} aria-label="ویرایش" className="p-1.5 text-[#6E6A60] hover:text-red-700 rounded-lg hover:bg-[#F5F2ED]"><Edit3 className="w-4 h-4" /></button>
                 <button onClick={onDelete} aria-label="حذف" className="p-1.5 text-[#6E6A60] hover:text-red-700 rounded-lg hover:bg-[#F5F2ED]"><Trash2 className="w-4 h-4" /></button>
               </>
             )}
-            <button onClick={onOpen} className="text-xs font-bold text-[#dc2626] hover:underline flex items-center gap-1">
+            <button onClick={onOpen} className="tap-area text-xs font-bold text-[#dc2626] hover:underline flex items-center gap-1">
               <span>{article.status === 'draft' ? 'ادامهٔ نوشتن' : 'ادامه مطلب'}</span>
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>

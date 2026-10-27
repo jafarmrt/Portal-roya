@@ -122,7 +122,7 @@ export const VersionInfo: React.FC<{ className?: string }> = ({ className = '' }
           setSeen(info.version);
         }}
         title="تازه‌های این نسخه"
-        className={`inline-flex items-center gap-1.5 underline-offset-4 hover:underline hover:text-white ${className}`}
+        className={`tap-area inline-flex items-center gap-1.5 underline-offset-4 hover:underline hover:text-white ${className}`}
       >
         {isNew && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true" />}
         <span dir="rtl">{label}</span>

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowDown, ArrowUp, Check, Eye, HardDrive, Image as ImageIcon, LayoutDashboard, PartyPopper, Pencil, Plus, RefreshCw, Settings, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { departmentKey, findDepartment } from '../../../shared/departments';
@@ -569,12 +569,38 @@ const ServerStatusCard: React.FC = () => {
   );
 };
 
+/** On a phone the settings are one long column, so a list at the top jumps straight to a section. */
+const SectionJump: React.FC<{ containerRef: React.RefObject<HTMLDivElement | null> }> = ({ containerRef }) => {
+  const [sections, setSections] = useState<{ title: string; el: HTMLElement }[]>([]);
+  useEffect(() => {
+    const found = Array.from(containerRef.current?.querySelectorAll<HTMLElement>('section') ?? [])
+      .map((el) => ({ el, title: el.querySelector('h3')?.textContent?.trim() ?? '' }))
+      .filter((s) => s.title);
+    setSections(found);
+  }, [containerRef]);
+  if (sections.length < 3) return null;
+  return (
+    <label className="lg:hidden block">
+      <span className="sr-only">رفتن به بخش</span>
+      <select
+        className={inputClass}
+        value=""
+        onChange={(e) => sections[Number(e.target.value)]?.el.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+      >
+        <option value="" disabled>رفتن به بخش…</option>
+        {sections.map((s, i) => <option key={i} value={i}>{s.title}</option>)}
+      </select>
+    </label>
+  );
+};
+
 export const AdminSettingsModule: React.FC = () => {
   const { appSettings, can, isAdmin } = usePortal();
+  const containerRef = useRef<HTMLDivElement>(null);
   if (!appSettings) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" ref={containerRef}>
       <div className="flex items-center gap-3">
         <div className="p-3 bg-[#7f1d1d] text-white rounded-2xl shadow-lg">
           <Settings className="w-6 h-6" />
@@ -584,6 +610,7 @@ export const AdminSettingsModule: React.FC = () => {
           <p className="text-sm text-[#6E6A60]">نقش‌ها و دسترسی‌ها، لوگوی شرکت، سالگرد تأسیس، فهرست واحدها و دسته‌بندی‌ها. سامانه‌های سازمانی از صفحهٔ «سامانه‌ها» ویرایش می‌شوند.</p>
         </div>
       </div>
+      <SectionJump containerRef={containerRef} />
       {isAdmin && <RolesEditor />}
       {can('settings.manage') && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

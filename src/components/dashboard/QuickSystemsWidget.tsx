@@ -56,7 +56,7 @@ export const QuickSystemsWidget: React.FC = () => {
           <span className="p-1.5 bg-[#7f1d1d] text-white rounded-lg"><LayoutGrid className="w-4 h-4" /></span>
           سامانه‌های سازمان
         </h2>
-        <button onClick={() => setActiveTab('systems')} className="text-xs font-bold text-[#dc2626] hover:underline flex items-center gap-1">
+        <button onClick={() => setActiveTab('systems')} className="tap-area text-xs font-bold text-[#dc2626] hover:underline flex items-center gap-1">
           {can('systems.manage') && <Settings2 className="w-3.5 h-3.5" />}
           {can('systems.manage') ? 'مدیریت سامانه‌ها' : 'همه سامانه‌ها'}
         </button>

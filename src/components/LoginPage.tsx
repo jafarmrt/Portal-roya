@@ -2,6 +2,7 @@ import React, { useEffect, useId, useState } from 'react';
 import { LayoutGrid, LogIn, Lock, User } from 'lucide-react';
 import { usePortal } from '../context/PortalContext';
 import { api, errorMessage } from '../lib/api';
+import { isTouchScreen } from '../lib/touch';
 import type { ExternalSystem } from '../types';
 import { SystemTile } from './dashboard/QuickSystemsWidget';
 import { RoyaLogo } from './common/RoyaLogo';
@@ -44,7 +45,7 @@ const LoginForm: React.FC = () => {
             id={`${id}-username`}
             type="text"
             autoComplete="username"
-            autoFocus
+            autoFocus={!isTouchScreen()}
             required
             dir="ltr"
             placeholder={directoryLogin ? 'مثلاً ali.rezaei' : undefined}

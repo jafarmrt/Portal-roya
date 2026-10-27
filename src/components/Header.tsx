@@ -97,10 +97,10 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
     <>
       <header ref={headerRef} className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#EAE6DF] shadow-2xs" dir="rtl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 gap-3 sm:gap-6">
+          <div className="flex items-center justify-between h-16 gap-2 sm:gap-6">
             
             {/* Right Section: Mobile Toggle & Brand Logo */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
               <button
                 type="button"
                 onClick={onToggleMobileNav}
@@ -137,7 +137,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
             </div>
 
             {/* Left Section: Mobile Search, Notifications, User Status */}
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-0.5 sm:gap-3 shrink-0">
               
               {/* Mobile Search Button */}
               <button
@@ -145,6 +145,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                 onClick={() => setIsCmdPaletteOpen(true)}
                 className="md:hidden p-2 rounded-xl text-[#2D2D2D] hover:bg-[#F5F2ED] transition-colors cursor-pointer"
                 title="جستجو"
+                aria-label="جستجو"
               >
                 <Search className="w-5 h-5 text-[#605C54]" />
               </button>
@@ -298,7 +299,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                       onClick={() => { const next = !isUserMenuOpen; closeMenus(); setIsUserMenuOpen(next); }}
                       aria-expanded={isUserMenuOpen}
                       aria-label="منوی حساب کاربری"
-                      className="flex items-center gap-2.5 p-1.5 pl-2.5 rounded-2xl hover:bg-[#F5F2ED] border border-transparent hover:border-[#EAE6DF] transition-all text-right cursor-pointer"
+                      className="flex items-center gap-2.5 p-1 sm:p-1.5 sm:pl-2.5 rounded-2xl hover:bg-[#F5F2ED] border border-transparent hover:border-[#EAE6DF] transition-all text-right cursor-pointer"
                     >
                       <Avatar
                         src={currentUser.avatar}
@@ -321,7 +322,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                           {currentUser.position}
                         </div>
                       </div>
-                      <ChevronDown className="w-3.5 h-3.5 text-[#7A756D]" />
+                      <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-[#7A756D]" />
                     </button>
 
                     {/* User Switcher Dropdown */}
