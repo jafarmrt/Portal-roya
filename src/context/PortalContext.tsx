@@ -91,6 +91,23 @@ export type ProfileUpdate = Partial<
   >
 >;
 
+export interface FirstProfile {
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  hideBirthday: boolean;
+  /** The phone-book entry the colleague said is them, or null for none of them. */
+  claim?: string | null;
+}
+
+/** A phone-book entry without a portal account that has the name a colleague entered on first sign-in. */
+export interface PhoneBookMatch {
+  id: string;
+  name: string;
+  position: string;
+  department: string;
+}
+
 interface PortalContextType {
   // Session
   isSetupComplete: boolean | null;
@@ -117,7 +134,8 @@ interface PortalContextType {
   login: (username: string, password: string) => Promise<CurrentUser>;
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
-  completeProfile: (profile: { firstName: string; lastName: string; birthDate: string; hideBirthday: boolean }) => Promise<void>;
+  /** Saves the first-sign-in profile, or returns the phone-book entries that may be this colleague (asked about first). */
+  completeProfile: (profile: FirstProfile) => Promise<PhoneBookMatch[] | null>;
 
   // Loading state for portal data
   isLoading: boolean;
@@ -353,9 +371,11 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCurrentUser(user);
   };
 
-  const completeProfile = async (profile: { firstName: string; lastName: string; birthDate: string; hideBirthday: boolean }) => {
-    const { user } = await api.post<{ user: CurrentUser }>('/api/auth/profile', profile);
-    setCurrentUser(user);
+  const completeProfile = async (profile: FirstProfile) => {
+    const res = await api.post<{ user?: CurrentUser; matches?: PhoneBookMatch[] }>('/api/auth/profile', profile);
+    if (res.matches) return res.matches;
+    if (res.user) setCurrentUser(res.user);
+    return null;
   };
 
   const completeSetup = (user: CurrentUser) => {

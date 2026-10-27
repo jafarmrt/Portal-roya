@@ -307,6 +307,18 @@ export async function checkRows(
   const everyone = await db.select().from(employees);
   const byId = new Map(everyone.map((e) => [e.id, e]));
   const byUsername = new Map(everyone.filter((e) => e.username).map((e) => [e.username!, e]));
+  // A row with a username but no id may be someone already in the phone book without an account (e.g.
+  // the file they were first imported from, now with Windows usernames): the one person with that name.
+  const nameKey = (first: string, last: string) => departmentKey(`${first}${last}`);
+  const phoneBookByName = new Map<string, (typeof employees.$inferSelect)[]>();
+  for (const e of everyone.filter((p) => !p.hasAccount && !p.username && p.isActive)) {
+    const key = nameKey(e.firstName, e.lastName);
+    phoneBookByName.set(key, [...(phoneBookByName.get(key) ?? []), e]);
+  }
+  const phoneBookNamesake = (first = '', last = '') => {
+    const found = first || last ? phoneBookByName.get(nameKey(first, last)) : undefined;
+    return found?.length === 1 ? found[0] : undefined;
+  };
 
   const checked: CheckedRow[] = records.map(({ row, data }) => {
     const text: Record<string, string> = {};
@@ -343,7 +355,9 @@ export async function checkRows(
       return { ...r, newDepartment };
     };
 
-    const target = text.id ? byId.get(text.id) : byUsername.get(login.toLowerCase());
+    const target = text.id
+      ? byId.get(text.id)
+      : (byUsername.get(login.toLowerCase()) ?? (login ? phoneBookNamesake(text.firstName, text.lastName) : undefined));
     if (text.id && !target) return { row, data: text, errors: [`شناسه «${text.id}» در پرتال پیدا نشد؛ برای افراد جدید ستون شناسه را خالی بگذارید.`], warnings: [] };
     if (target) return withDepartment(checkUpdate(row, text, target, resolveRole, roleName, allowAdmin, signIn));
 
@@ -387,7 +401,6 @@ export async function checkRows(
   }
 
   // People without a username cannot be matched by login, so a repeated name is flagged instead.
-  const nameKey = (first: string, last: string) => normalizeHeader(`${first} ${last}`);
   const known = new Set(everyone.map((e) => nameKey(e.firstName, e.lastName)));
   const inFile = new Map<string, number>();
   for (const r of checked.filter((c) => c.value && !c.value.username)) {
