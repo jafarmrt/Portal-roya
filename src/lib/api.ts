@@ -32,7 +32,9 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   const data = res.headers.get('content-type')?.includes('application/json') ? await res.json() : null;
   if (!res.ok) {
     if (res.status === 401 && !url.startsWith('/api/auth/')) onUnauthorized?.();
-    throw new ApiError(res.status, data?.error || 'خطای ناشناخته در سرور.', data?.code);
+    // nginx answers 502-504 while the portal restarts (e.g. during an update) or is down.
+    const fallback = res.status >= 502 && res.status <= 504 ? 'سرور پرتال در دسترس نیست یا در حال راه‌اندازی دوباره است. چند لحظه بعد دوباره تلاش کنید.' : 'خطای ناشناخته در سرور.';
+    throw new ApiError(res.status, data?.error || fallback, data?.code);
   }
   return data as T;
 }

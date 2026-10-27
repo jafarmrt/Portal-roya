@@ -465,6 +465,18 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // Live updates: the server sends "changed" signals and we refetch that resource.
     const source = new EventSource('/api/events');
+    // The browser reconnects on its own (after an update restarts the server, a dropped Wi-Fi, a laptop
+    // waking up); whatever changed meanwhile was not signalled, so everything is fetched again.
+    // A refetch that a signal asked for while the network was down failed, so coming back online does the same.
+    const refreshAll = () => {
+      for (const resource of Object.keys(loaders) as Resource[]) void refresh(resource);
+    };
+    let connectedBefore = false;
+    source.addEventListener('open', () => {
+      if (connectedBefore) refreshAll();
+      connectedBefore = true;
+    });
+    window.addEventListener('online', refreshAll);
     source.addEventListener('changed', (e) => {
       try {
         const { resource } = JSON.parse((e as MessageEvent).data) as { resource: string };
@@ -477,7 +489,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     source.addEventListener('notification', () => {
       void refresh('notifications');
     });
-    return () => source.close();
+    return () => {
+      source.close();
+      window.removeEventListener('online', refreshAll);
+    };
   }, [isReady, sessionKey, loaders, refresh]);
 
   // A manager may switch guest access or replace the logo while the page is open.
