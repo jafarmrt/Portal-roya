@@ -174,6 +174,70 @@ export async function authenticateWithDirectory(username: string, password: stri
   }
 }
 
+/** An enabled AD user account, as listed for the staff import. */
+export interface DirectoryListing {
+  username: string;
+  dn: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  position: string;
+  /** AD's department, else the user's first OU (e.g. "Edari"), which often names the department. */
+  department: string;
+  extension: string;
+  mobile: string;
+}
+
+// Bit 2 of userAccountControl marks a disabled account.
+const ENABLED_USERS = '(&(objectCategory=person)(objectClass=user)(sAMAccountName=*)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))';
+
+/** The innermost OU of a DN: "Edari" for `CN=Ali,OU=Edari,OU=Tehran Office,DC=roya,DC=com`. */
+export function firstOu(dn: string) {
+  const match = /(?:^|,)\s*OU=((?:\\.|[^,\\])+)/i.exec(dn);
+  return match ? match[1].replace(/\\(.)/g, '$1').trim() : '';
+}
+
+/** Listing needs the service account; without one the portal only ever sees a user's own entry. */
+export function canListDirectory() {
+  return Boolean(config.ldap?.bindDn);
+}
+
+/** Lists the enabled user accounts (within LDAP_ALLOWED_GROUP when set), except the service account itself. */
+export async function listDirectoryUsers(): Promise<DirectoryListing[]> {
+  const ldap = config.ldap;
+  if (!ldap?.bindDn) throw new Error('Listing AD users needs LDAP_BIND_DN and LDAP_BIND_PASSWORD.');
+  let client: Client;
+  try {
+    client = await connect(ldap.bindDn, ldap.bindPassword);
+  } catch (err) {
+    throw new DirectoryUnavailableError(`LDAP connection failed: ${(err as Error).message}`);
+  }
+  try {
+    const filter = ldap.allowedGroup ? `(&${ENABLED_USERS}(memberOf:${IN_CHAIN}:=${escapeFilterValue(ldap.allowedGroup)}))` : ENABLED_USERS;
+    // Paged, since AD returns at most 1000 entries per search otherwise.
+    const { searchEntries } = await client.search(ldap.baseDn, { scope: 'sub', filter, attributes: ATTRIBUTES, paged: { pageSize: 500 } });
+    const serviceAccount = normalizeLoginName(ldap.bindDn);
+    return searchEntries
+      .filter((entry) => entry.dn.toLowerCase() !== ldap.bindDn.toLowerCase())
+      .map((entry) => ({
+        username: normalizeLoginName(attr(entry, 'sAMAccountName')),
+        dn: entry.dn,
+        firstName: attr(entry, 'givenName'),
+        lastName: attr(entry, 'sn'),
+        email: attr(entry, 'mail'),
+        position: attr(entry, 'title'),
+        department: attr(entry, 'department') || firstOu(entry.dn),
+        extension: attr(entry, 'telephoneNumber') || attr(entry, 'ipPhone'),
+        mobile: attr(entry, 'mobile'),
+      }))
+      .filter((user) => user.username && user.username !== serviceAccount);
+  } catch (err) {
+    throw new DirectoryUnavailableError(`LDAP search failed: ${(err as Error).message}`);
+  } finally {
+    await client.unbind().catch(() => undefined);
+  }
+}
+
 /** Connection check for `node server-dist/index.cjs ldap-test <username>`: looks the user up without a password. */
 export async function describeDirectoryUser(username: string) {
   const ldap = config.ldap;

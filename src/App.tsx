@@ -8,6 +8,7 @@ import { MobileBottomBar } from './components/common/MobileBottomBar';
 import { Setup } from './components/Setup';
 import { LoginModal, LoginPage } from './components/LoginPage';
 import { ForcePasswordChangePage } from './components/ChangePasswordModal';
+import { CompleteProfilePage } from './components/CompleteProfilePage';
 import { DashboardModule } from './components/dashboard/DashboardModule';
 import { ErrorBoundary, loadModule } from './components/common/ErrorBoundary';
 import { SiteBanner } from './components/common/SiteBanner';
@@ -99,6 +100,7 @@ const MainContent: React.FC = () => {
   if (isSetupComplete === false) return <Setup />;
   if (!currentUser && !isGuest) return <LoginPage />;
   if (currentUser?.mustChangePassword) return <ForcePasswordChangePage />;
+  if (currentUser?.needsProfile) return <CompleteProfilePage />;
   // Keep the page on screen while it reloads after signing in or out.
   if (isLoading && !appSettings) return <FullScreenLoader text="در حال دریافت اطلاعات پرتال..." />;
   if (error) return <ErrorScreen message={error} />;

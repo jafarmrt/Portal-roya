@@ -52,7 +52,8 @@ export const config = {
   host: process.env.HOST || '0.0.0.0',
   databaseUrl,
   sessionSecret,
-  sessionDays: Number(process.env.SESSION_DAYS || 7),
+  // A session is renewed while it is used, so this is how long a colleague stays signed in without opening the portal.
+  sessionDays: Number(process.env.SESSION_DAYS || 30),
   // Set to true only when the portal is served over HTTPS.
   cookieSecure: process.env.COOKIE_SECURE === 'true',
   trustProxy: process.env.TRUST_PROXY === 'true',

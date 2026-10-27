@@ -1,4 +1,5 @@
 import { can, type Employee, type SessionUser } from './auth.js';
+import { needsProfile } from '../shared/profile.js';
 
 export function fullName(e: Pick<Employee, 'firstName' | 'lastName'>) {
   return `${e.firstName} ${e.lastName}`.trim();
@@ -64,5 +65,5 @@ export function serializeForGuest(e: Employee, managersById?: Map<string, Employ
 }
 
 export function serializeMe(e: SessionUser) {
-  return { ...serializeEmployee(e, e), mustChangePassword: e.mustChangePassword, permissions: e.permissions };
+  return { ...serializeEmployee(e, e), mustChangePassword: e.mustChangePassword, needsProfile: needsProfile(e), permissions: e.permissions };
 }

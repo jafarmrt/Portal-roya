@@ -56,6 +56,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
     const update: ProfileUpdate = isAdmin
       ? { ...managed, ...(live.hasAccount && role !== user.role ? { role } : {}) }
       : {
+          firstName: form.firstName,
+          lastName: form.lastName,
           extension: form.extension,
           mobile: form.mobile,
           email: form.email,
@@ -73,7 +75,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
   const adminField = (id: string, label: string, key: 'firstName' | 'lastName' | 'position') => (
     <div>
       <label htmlFor={id} className={labelClass}>{label}</label>
-      <input id={id} required value={form[key]} onChange={(e) => set(key, e.target.value)} disabled={!isAdmin} className={inputClass} />
+      {/* Colleagues may rename themselves; the position stays with user managers. */}
+      <input id={id} required value={form[key]} onChange={(e) => set(key, e.target.value)} disabled={!isAdmin && !(isSelf && key !== 'position')} className={inputClass} />
     </div>
   );
 
@@ -95,7 +98,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
     >
       <form id="edit-profile" onSubmit={handleSubmit} className="space-y-4">
         {!isAdmin && (
-          <p className="p-3 bg-[#F5F2ED] rounded-xl text-[11px] text-[#6E6A60]">نام، سمت، واحد و نقش را فقط مدیر کاربران می‌تواند تغییر دهد{user.role === 'admin' ? ' (حساب ادمین را فقط ادمین برنامه)' : ''}.</p>
+          <p className="p-3 bg-[#F5F2ED] rounded-xl text-[11px] text-[#6E6A60]">سمت، واحد و نقش را فقط مدیر کاربران می‌تواند تغییر دهد{user.role === 'admin' ? ' (حساب ادمین را فقط ادمین برنامه)' : ''}.</p>
         )}
         <div className="flex items-center gap-3">
           <Avatar src={form.avatar} firstName={form.firstName} lastName={form.lastName} className="w-14 h-14 rounded-2xl text-base" />
