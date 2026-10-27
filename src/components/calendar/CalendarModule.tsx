@@ -21,7 +21,8 @@ import {
   Trash2,
   Pencil
 } from 'lucide-react';
-import { IRANIAN_HOLIDAYS, JALALI_MONTHS, JALALI_WEEKDAYS } from '../../data/holidays';
+import { JALALI_MONTHS, JALALI_WEEKDAYS } from '../../data/holidays';
+import { dayOccasions, formatHijri, GREGORIAN_MONTHS, gregorianDate, HIJRI_MONTHS, hijriDate, holidayKey, occasionsFor } from '../../lib/occasions';
 
 export const CalendarModule: React.FC = () => {
   const { calendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, setActiveTab, can, employees, customHolidays, setCustomHoliday, removeCustomHoliday } = usePortal();
@@ -92,10 +93,9 @@ export const CalendarModule: React.FC = () => {
   const handleSavePublicEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingPublicDate) {
-      const monthStr = String(editingPublicDate.month + 1).padStart(2, '0');
-      const dayStr = String(editingPublicDate.day).padStart(2, '0');
-      const keyY = `${editingPublicDate.year}-${monthStr}-${dayStr}`;
-      const hasBuiltIn = Boolean(IRANIAN_HOLIDAYS[keyY] || IRANIAN_HOLIDAYS[`${monthStr}-${dayStr}`]);
+      const { year, month, day } = editingPublicDate;
+      const keyY = holidayKey(year, month + 1, day);
+      const hasBuiltIn = occasionsFor(year, month + 1, day).length > 0;
       if (publicTitle.trim()) {
         await setCustomHoliday(keyY, publicTitle.trim(), publicIsHoliday);
       } else if (hasBuiltIn) {
@@ -120,21 +120,26 @@ export const CalendarModule: React.FC = () => {
     days.push(i);
   }
 
-  const getDayHolidays = (year: number, month: number, day: number) => {
-    const monthStr = String(month + 1).padStart(2, '0');
-    const dayStr = String(day).padStart(2, '0');
-    const keyY = `${year}-${monthStr}-${dayStr}`;
-    const keyM = `${monthStr}-${dayStr}`;
-    if (customHolidays && customHolidays[keyY]) {
-      if (!customHolidays[keyY].title) return null; // cleared
-      return customHolidays[keyY];
+  const getDayHolidays = (year: number, month: number, day: number) => dayOccasions(customHolidays, year, month + 1, day);
+
+  // Hijri and Gregorian months the shown Jalali month spans, plus its occasions for the side list.
+  const monthInfo = useMemo(() => {
+    const first = hijriDate(currentYear, currentMonth + 1, 1);
+    const last = hijriDate(currentYear, currentMonth + 1, daysInMonth);
+    const gFirst = gregorianDate(currentYear, currentMonth + 1, 1);
+    const gLast = gregorianDate(currentYear, currentMonth + 1, daysInMonth);
+    const hijriLabel = first.month === last.month
+      ? `${HIJRI_MONTHS[first.month - 1]} ${first.year}`
+      : `${HIJRI_MONTHS[first.month - 1]}${first.year !== last.year ? ` ${first.year}` : ''} – ${HIJRI_MONTHS[last.month - 1]} ${last.year}`;
+    const gregorianLabel = `${GREGORIAN_MONTHS[gFirst.month - 1]}${gFirst.year !== gLast.year ? ` ${gFirst.year}` : ''} – ${GREGORIAN_MONTHS[gLast.month - 1]} ${gLast.year}`;
+    const list: { day: number; title: string; holiday: boolean; estimated: boolean }[] = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      const info = dayOccasions(customHolidays, currentYear, currentMonth + 1, day);
+      const estimated = hijriDate(currentYear, currentMonth + 1, day).estimated;
+      info?.items.forEach((o) => list.push({ day, title: o.title, holiday: o.holiday, estimated: estimated && o.kind === 'lunar' && !info.custom }));
     }
-    const defaultText = IRANIAN_HOLIDAYS[keyY] || IRANIAN_HOLIDAYS[keyM];
-    if (defaultText) {
-      return { title: defaultText, isHoliday: true, isDefault: true };
-    }
-    return null;
-  };
+    return { hijriLabel: toPersianDigits(hijriLabel), gregorianLabel: toPersianDigits(gregorianLabel), list };
+  }, [currentYear, currentMonth, daysInMonth, customHolidays]);
 
   const getDayEvents = (year: number, month: number, day: number) => {
     const dateFormatted = `${year}/${String(month + 1).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
@@ -207,9 +212,12 @@ export const CalendarModule: React.FC = () => {
                 <button onClick={prevMonth} className="p-2 hover:bg-[#F5F2ED] rounded-xl transition-colors text-right" title="ماه قبل" aria-label="ماه قبل">
                   <ChevronRight className="w-5 h-5 text-[#2D2D2D]" />
                 </button>
-                <h3 className="text-xl font-bold text-[#2D2D2D]">
-                  {JALALI_MONTHS[currentMonth]} {toPersianDigits(currentYear)}
-                </h3>
+                <div className="text-center">
+                  <h3 className="text-xl font-bold text-[#2D2D2D]">
+                    {JALALI_MONTHS[currentMonth]} {toPersianDigits(currentYear)}
+                  </h3>
+                  <p className="text-[10px] text-[#8C867A] mt-0.5">{monthInfo.hijriLabel} · {monthInfo.gregorianLabel}</p>
+                </div>
                 <button onClick={nextMonth} className="p-2 hover:bg-[#F5F2ED] rounded-xl transition-colors text-left" title="ماه بعد" aria-label="ماه بعد">
                   <ChevronLeft className="w-5 h-5 text-[#2D2D2D]" />
                 </button>
@@ -247,15 +255,21 @@ export const CalendarModule: React.FC = () => {
                       }`}
                     >
                       <div className="flex justify-between items-start mb-1">
-                        <div className={`text-sm font-black ${today ? 'text-[#dc2626]' : isDayOff ? 'text-[#ef4444]' : 'text-[#2D2D2D]'}`}>
-                          {toPersianDigits(day)}
+                        <div className="flex items-baseline gap-1.5">
+                          <span className={`text-sm font-black ${today ? 'text-[#dc2626]' : isDayOff ? 'text-[#ef4444]' : 'text-[#2D2D2D]'}`}>
+                            {toPersianDigits(day)}
+                          </span>
+                          <span className="text-[9px] text-[#8C867A]" title={formatHijri(currentYear, currentMonth + 1, day)}>
+                            {toPersianDigits(hijriDate(currentYear, currentMonth + 1, day).day)}
+                          </span>
+                          <span className="text-[9px] text-[#B5AFA3]" dir="ltr">{gregorianDate(currentYear, currentMonth + 1, day).day}</span>
                         </div>
                         {isManager && (
                           <button 
                             onClick={(e) => {
                                e.stopPropagation();
                                setPublicTitle(holidayObj ? holidayObj.title : '');
-                               setPublicIsHoliday(holidayObj ? holidayObj.isHoliday : true);
+                               setPublicIsHoliday(holidayObj ? holidayObj.isHoliday : false);
                                setEditingPublicDate({ year: currentYear, month: currentMonth, day, title: holidayObj?.title || '', isHoliday: holidayObj?.isHoliday ?? true });
                             }}
                             className="p-1 text-[#8C867A] hover:text-[#dc2626] transition-colors rounded-lg"
@@ -267,23 +281,24 @@ export const CalendarModule: React.FC = () => {
                         )}
                       </div>
                       <div className="flex-1 overflow-y-auto space-y-1 no-scrollbar">
-                        {holidayObj && (
-                          <div 
-                            className={`text-[9px] font-bold px-1 py-0.5 rounded leading-tight cursor-pointer ${isHoliday ? 'text-[#dc2626] bg-red-100' : 'text-[#ea580c] bg-orange-100'}`} 
-                            title={holidayObj.title}
+                        {holidayObj?.items.map((occasion, i) => (
+                          <div
+                            key={i}
+                            className={`text-[9px] font-bold px-1 py-0.5 rounded leading-tight cursor-pointer ${occasion.holiday ? 'text-[#dc2626] bg-red-100' : 'text-[#9a3412] bg-orange-50'}`}
+                            title={occasion.title}
                             onClick={() => {
                                setSelectedEvent({
-                                  id: 'hol-' + day,
-                                  title: holidayObj.title,
+                                  id: `hol-${day}-${i}`,
+                                  title: occasion.title,
                                   date: dayDate,
                                   type: 'holiday',
-                                  description: `مناسبت: ${holidayObj.title}`
+                                  description: `${occasion.holiday ? 'تعطیل رسمی' : 'مناسبت تقویم'} · ${formatHijri(currentYear, currentMonth + 1, day)}`
                                });
                             }}
                           >
-                            {holidayObj.title}
+                            {occasion.title}
                           </div>
-                        )}
+                        ))}
                         {birthdays.map(b => (
                           <div 
                             key={b.id} 
@@ -328,6 +343,34 @@ export const CalendarModule: React.FC = () => {
         </div>
 
         <div className="lg:col-span-1 space-y-6">
+          <div className="bg-white rounded-3xl p-5 border border-[#E6E0D5] shadow-xs">
+            <h3 className="text-sm font-bold text-[#2D2D2D] mb-4 flex items-center gap-2">
+              <Flag className="w-4 h-4 text-[#dc2626]" />
+              مناسبت‌های {JALALI_MONTHS[currentMonth]}
+            </h3>
+            {monthInfo.list.length > 0 ? (
+              <ul className="space-y-2 max-h-80 overflow-y-auto">
+                {monthInfo.list.map((o, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs leading-relaxed">
+                    <span className={`shrink-0 w-7 text-center font-black ${o.holiday ? 'text-[#dc2626]' : 'text-[#6E6A60]'}`}>{toPersianDigits(o.day)}</span>
+                    <span className={o.holiday ? 'font-bold text-[#dc2626]' : 'text-[#2D2D2D]'}>
+                      {o.title}
+                      {o.holiday && <span className="mr-1 text-[10px] font-normal">(تعطیل)</span>}
+                      {o.estimated && <span className="mr-1 text-[10px] text-[#8C867A]" title="تاریخ تقریبی">*</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-[#6E6A60] text-center py-4 bg-[#F5F2ED] rounded-xl">مناسبتی در این ماه ثبت نشده است.</p>
+            )}
+            {monthInfo.list.some((o) => o.estimated) && (
+              <p className="mt-3 text-[10px] text-[#8C867A] leading-relaxed">
+                * تقویم رسمی این سال هنوز در پرتال ثبت نشده و تاریخ مناسبت‌های قمری محاسبه‌ای است؛ ممکن است یک روز جابه‌جا باشد. مدیر تقویم می‌تواند هر روز را اصلاح کند.
+              </p>
+            )}
+          </div>
+
           <div className="bg-white rounded-3xl p-5 border border-[#E6E0D5] shadow-xs">
             <h3 className="text-sm font-bold text-[#2D2D2D] mb-4 flex items-center gap-2">
               <Cake className="w-4 h-4 text-pink-500" />

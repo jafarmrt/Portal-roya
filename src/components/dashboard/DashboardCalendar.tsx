@@ -3,7 +3,8 @@ import { usePortal } from '../../context/PortalContext';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Sparkles, Cake, Users, Video } from 'lucide-react';
 import type { CalendarEvent } from '../../types';
 import moment from 'moment-jalaali';
-import { IRANIAN_HOLIDAYS, JALALI_MONTHS } from '../../data/holidays';
+import { JALALI_MONTHS } from '../../data/holidays';
+import { dayOccasions } from '../../lib/occasions';
 import { Modal, secondaryButtonClass } from '../common/Modal';
 import { formatDate, toPersianDigits } from '../../lib/jalali';
 
@@ -30,20 +31,7 @@ export const DashboardCalendar: React.FC = () => {
     return calendarEvents.find((e) => e.date === date);
   };
 
-  const getDayHoliday = (year: number, month: number, day: number) => {
-    const m = String(month + 1).padStart(2, '0');
-    const d = String(day).padStart(2, '0');
-    const keyY = `${year}-${m}-${d}`;
-    const keyM = `${m}-${d}`;
-    
-    if (customHolidays && customHolidays[keyY]) {
-       if (!customHolidays[keyY].title) return null;
-       return customHolidays[keyY];
-    }
-    const defaultText = IRANIAN_HOLIDAYS[keyY] || IRANIAN_HOLIDAYS[keyM];
-    if (defaultText) return { title: defaultText, isHoliday: true };
-    return null;
-  };
+  const getDayHoliday = (year: number, month: number, day: number) => dayOccasions(customHolidays, year, month + 1, day);
 
   const getEventIcon = (type: CalendarEvent['type']) => {
     switch (type) {
@@ -124,6 +112,9 @@ export const DashboardCalendar: React.FC = () => {
                   title={holiday || (evt ? evt.title : '')}
                 >
                   <span>{toPersianDigits(day)}</span>
+                  {!evt && holidayObj && !holidayObj.isHoliday && !isToday && (
+                    <span className="absolute bottom-1 w-1 h-1 rounded-full bg-[#fdba74]"></span>
+                  )}
                   {evt && !isToday && (
                     <span className={`absolute bottom-1 w-1 h-1 rounded-full ${evt.type === 'holiday' ? 'bg-[#f87171]' : evt.type === 'birthday' ? 'bg-[#dc2626]' : 'bg-[#7f1d1d]'}`}></span>
                   )}
