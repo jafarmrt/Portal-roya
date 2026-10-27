@@ -6,6 +6,7 @@ import { usePortal } from '../../context/PortalContext';
 import { UserProfile } from '../../types';
 import { UserProfileModal } from './UserProfileModal';
 import { EditProfileModal } from './EditProfileModal';
+import { exportPhoneBook, PhoneListPrintModal } from './PhoneListPrintModal';
 import {
   Users,
   Search,
@@ -17,6 +18,8 @@ import {
   Check,
   ChevronLeft,
   MapPin,
+  Printer,
+  Download,
 } from 'lucide-react';
 
 export const ColleaguesDirectory: React.FC = () => {
@@ -31,6 +34,7 @@ export const ColleaguesDirectory: React.FC = () => {
   const setSelectedUserForView = (emp: UserProfile | null) => setActiveTab('colleagues', emp?.id ?? null);
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<UserProfile | null>(null);
   const [copiedExtension, setCopiedExtension] = useState<string | null>(null);
+  const [printOpen, setPrintOpen] = useState(false);
 
   // The tabs follow the department list in settings; departments nobody is in are left out.
   const active = employees.filter(emp => emp.isActive);
@@ -87,15 +91,32 @@ export const ColleaguesDirectory: React.FC = () => {
             </p>
           </div>
 
-          {isManager && (
+          <div className="flex flex-wrap gap-2 self-start sm:self-auto">
             <button
-              onClick={() => setActiveTab('people')}
-              className="self-start sm:self-auto px-5 py-3 text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 rounded-2xl transition-all flex items-center gap-2 whitespace-nowrap"
+              onClick={() => setPrintOpen(true)}
+              title="فهرست داخلی‌ها برای کنار تلفن‌ها"
+              className="px-4 py-3 text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 rounded-2xl transition-all flex items-center gap-2 whitespace-nowrap"
             >
-              <UserCog className="w-4 h-4" />
-              <span>مدیریت کارکنان</span>
+              <Printer className="w-4 h-4" />
+              <span>چاپ دفتر تلفن</span>
             </button>
-          )}
+            <button
+              onClick={() => exportPhoneBook(active, appSettings?.departments ?? [])}
+              className="px-4 py-3 text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 rounded-2xl transition-all flex items-center gap-2 whitespace-nowrap"
+            >
+              <Download className="w-4 h-4" />
+              <span>خروجی اکسل</span>
+            </button>
+            {isManager && (
+              <button
+                onClick={() => setActiveTab('people')}
+                className="px-5 py-3 text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 rounded-2xl transition-all flex items-center gap-2 whitespace-nowrap"
+              >
+                <UserCog className="w-4 h-4" />
+                <span>مدیریت کارکنان</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -278,6 +299,7 @@ export const ColleaguesDirectory: React.FC = () => {
         onClose={() => setSelectedUserForEdit(null)}
       />}
 
+      {printOpen && <PhoneListPrintModal onClose={() => setPrintOpen(false)} />}
     </div>
   );
 };

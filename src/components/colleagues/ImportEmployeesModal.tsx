@@ -1,5 +1,4 @@
 import React, { useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { AlertTriangle, Building2, CheckCircle2, Download, FileSpreadsheet, Loader2, Printer, Upload, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, errorMessage } from '../../lib/api';
@@ -7,6 +6,7 @@ import { downloadCsv } from '../../lib/download';
 import { usePortal } from '../../context/PortalContext';
 import { toPersianDigits } from '../../lib/jalali';
 import { inputClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
+import { PrintPortal } from '../common/PrintSheet';
 
 interface PreviewRow {
   row: number;
@@ -52,10 +52,10 @@ const TEMPLATE_SAMPLES = [
   ['حسن', 'محمدی', '', 'اپراتور تولید', 'تولید', '', '', '09131234567', '310', 'انبار', '1368/11/02', '1398/06/01'],
 ];
 
-/** One card per person, only visible when printing (see .print-sheet in index.css). */
-const PrintSheet: React.FC<{ accounts: CreatedAccount[] }> = ({ accounts }) =>
-  createPortal(
-    <div className="print-sheet" dir="rtl">
+/** One card per person, only visible when printing. */
+const PrintSheet: React.FC<{ accounts: CreatedAccount[] }> = ({ accounts }) => (
+  <PrintPortal>
+    <div className="print-cards">
       {accounts.map((a) => (
         <div key={a.id} className="print-card">
           <p className="print-card-title">حساب کاربری پرتال سازمانی رویا</p>
@@ -66,9 +66,9 @@ const PrintSheet: React.FC<{ accounts: CreatedAccount[] }> = ({ accounts }) =>
           <p className="print-card-note">در اولین ورود از شما خواسته می‌شود رمز شخصی انتخاب کنید. این برگه را پس از ورود از بین ببرید.</p>
         </div>
       ))}
-    </div>,
-    document.body,
-  );
+    </div>
+  </PrintPortal>
+);
 
 export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const inputRef = useRef<HTMLInputElement>(null);
