@@ -3,6 +3,7 @@ import { usePortal } from '../../context/PortalContext';
 import { timeAgo } from '../../lib/jalali';
 import {
   Bell,
+  MessageSquareText,
   CheckCircle2,
   Trash2,
   Cake,
@@ -48,6 +49,8 @@ export const NotificationsInbox: React.FC = () => {
         return <User className="w-5 h-5 text-emerald-600" />;
       case 'document':
         return <FileText className="w-5 h-5 text-stone-600" />;
+      case 'suggestion':
+        return <MessageSquareText className="w-5 h-5 text-indigo-700" />;
       case 'system':
         return <ServerCog className="w-5 h-5 text-amber-700" />;
       default:
@@ -189,7 +192,7 @@ export const NotificationsInbox: React.FC = () => {
                         markNotificationRead(notif.id);
                         setActiveTab(notif.linkTab!, notif.linkId);
                       }}
-                      className="text-xs font-bold text-[#dc2626] hover:underline pt-1 inline-block"
+                      className="tap-area text-xs font-bold text-[#dc2626] hover:underline pt-1 inline-block"
                     >
                       مشاهده در بخش مربوطه »
                     </button>

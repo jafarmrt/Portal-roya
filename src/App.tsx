@@ -36,6 +36,7 @@ const ReportsModule = named(() => import('./components/reports/ReportsModule'), 
 const PeopleManagement = named(() => import('./components/colleagues/PeopleManagement'), 'PeopleManagement');
 const AdminSettingsModule = named(() => import('./components/admin/AdminSettingsModule'), 'AdminSettingsModule');
 const AuditLogModule = named(() => import('./components/admin/AuditLogModule'), 'AuditLogModule');
+const SuggestionsModule = named(() => import('./components/suggestions/SuggestionsModule'), 'SuggestionsModule');
 
 const FullScreenLoader: React.FC<{ text: string }> = ({ text }) => (
   <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center gap-4" role="status">
@@ -82,7 +83,7 @@ const GuestBanner: React.FC = () => {
     <div className="bg-amber-50 border-b border-amber-200 text-amber-900" role="status">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
         <span>شما به صورت مهمان در حال مشاهدهٔ پرتال هستید. برای ثبت نظر، رأی، تبریک و دیدن اعلان‌های خود وارد شوید.</span>
-        <button onClick={() => requestLogin()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-900 text-white font-bold hover:bg-amber-950">
+        <button onClick={() => requestLogin()} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-900 text-white font-bold hover:bg-amber-950">
           <LogIn className="w-3.5 h-3.5" /> ورود
         </button>
       </div>
@@ -135,6 +136,8 @@ const MainContent: React.FC = () => {
             {activeTab === 'calendar' && <CalendarModule />}
             {activeTab === 'notifications' &&
               (isGuest ? <LoginRequired message="برای دیدن اعلان‌های خود وارد حساب کاربری شوید." /> : <NotificationsInbox />)}
+            {activeTab === 'suggestions' &&
+              (isGuest ? <LoginRequired message="برای فرستادن انتقاد یا پیشنهاد وارد حساب کاربری شوید." /> : <SuggestionsModule />)}
             {activeTab === 'systems' && <SystemsModule />}
             {activeTab === 'reports' && can('reports.view') && <ReportsModule />}
             {activeTab === 'people' && can('users.manage') && <PeopleManagement />}

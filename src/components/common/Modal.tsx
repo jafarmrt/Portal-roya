@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { isTouchScreen } from '../../lib/touch';
 
 const SIZES = { sm: 'sm:max-w-sm', md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl' };
 
@@ -32,7 +33,8 @@ export const ModalShell: React.FC<ModalShellProps> = ({ onClose, children, size 
     const token = Symbol('dialog');
     openDialogs.push(token);
     const previous = document.activeElement as HTMLElement | null;
-    const first = panelRef.current?.querySelector<HTMLElement>('input:not([type=hidden]), textarea, select, button:not([data-close])');
+    // On a phone the dialog itself takes the focus, so the keyboard does not cover the form at once.
+    const first = isTouchScreen() ? null : panelRef.current?.querySelector<HTMLElement>('input:not([type=hidden]), textarea, select, button:not([data-close])');
     (first ?? panelRef.current)?.focus({ preventScroll: true });
 
     const { overflow } = document.body.style;

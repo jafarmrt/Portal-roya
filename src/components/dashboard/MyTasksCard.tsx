@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import moment from 'moment-jalaali';
-import { CalendarCheck, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, FileCheck2, FileText, GraduationCap, LifeBuoy, ListTodo, MessageCircleQuestion, MessageSquareHeart, Vote } from 'lucide-react';
+import { CalendarCheck, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, FileCheck2, FileText, GraduationCap, LifeBuoy, ListTodo, MessageCircleQuestion, MessageSquareHeart, MessageSquareText, Vote } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { api } from '../../lib/api';
 import { dayLabel, formatDate, toPersianDigits, todayJalali } from '../../lib/jalali';
 import type { PendingNewsQuestion } from '../../types';
 import { deadlineState } from '../news/NewsBody';
+import { useSuggestionSummary } from '../../lib/suggestionSummary';
+import { suggestionBox } from '../../../shared/suggestions';
 
 interface Task {
   key: string;
@@ -30,6 +32,7 @@ const WEEK_EVENT_TYPES = new Set(['meeting', 'event', 'holiday']);
 export const MyTasksCard: React.FC = () => {
   const { currentUser, news, polls, trainings, calendarEvents, documents, guides, can, setActiveTab } = usePortal();
   const [questions, setQuestions] = useState<PendingNewsQuestion[]>([]);
+  const suggestionSummary = useSuggestionSummary();
   const userId = currentUser?.id;
   // Asked and answered questions reload the news list, so this follows it.
   useEffect(() => {
@@ -69,6 +72,19 @@ export const MyTasksCard: React.FC = () => {
       when: formatDate(open[0].createdAt),
       rank: `1-${open[0].createdAt}`,
       open: () => setActiveTab('news', newsId),
+    });
+  }
+  // Unread messages in the suggestion boxes this person reads, one task per box.
+  for (const [box, count] of Object.entries(suggestionSummary?.unread ?? {})) {
+    if (!count) continue;
+    tasks.push({
+      key: `suggestions-${box}`,
+      icon: <MessageSquareText className="w-4 h-4 text-indigo-700" />,
+      kind: `${toPersianDigits(count)} پیام نخوانده`,
+      title: suggestionBox(box)?.label ?? box,
+      when: 'انتقادات و پیشنهادات',
+      rank: '1-0',
+      open: () => setActiveTab('suggestions', box),
     });
   }
   for (const d of documents) {

@@ -30,14 +30,15 @@ export const MobileBottomBar: React.FC = () => {
       className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#EAE6DF] shadow-lg px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]"
       dir="rtl"
     >
-      <div className="flex items-center justify-around">
+      <div className="flex items-stretch justify-around">
         {navButtons.map((btn) => {
           const isActive = activeTab === btn.id;
           return (
             <button
               key={btn.id}
               onClick={() => setActiveTab(btn.id)}
-              className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+              aria-current={isActive ? 'page' : undefined}
+              className={`flex-1 min-w-0 flex flex-col items-center justify-center min-h-12 py-1 px-1 rounded-xl transition-all ${
                 isActive
                   ? 'text-[#991b1b] font-bold scale-105'
                   : 'text-[#7A756D] hover:text-[#1E1E1E]'
@@ -54,7 +55,7 @@ export const MobileBottomBar: React.FC = () => {
         {isGuest && (
           <button
             onClick={() => requestLogin()}
-            className="flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all text-[#991b1b] font-bold"
+            className="flex-1 min-w-0 flex flex-col items-center justify-center min-h-12 py-1 px-1 rounded-xl transition-all text-[#991b1b] font-bold"
           >
             <div className="p-1 rounded-lg"><LogIn className="w-5 h-5" /></div>
             <span className="text-[10px] mt-0.5">ورود</span>
@@ -64,7 +65,7 @@ export const MobileBottomBar: React.FC = () => {
         {currentUser && (
           <button
             onClick={() => setActiveTab('colleagues', currentUser.id)}
-            className="flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all text-[#7A756D]"
+            className="flex-1 min-w-0 flex flex-col items-center justify-center min-h-12 py-1 px-1 rounded-xl transition-all text-[#7A756D]"
           >
             <Avatar src={currentUser.avatar} firstName={currentUser.firstName} lastName={currentUser.lastName} className="w-6 h-6 rounded-full border border-[#991b1b] text-[9px]" />
             <span className="text-[10px] mt-0.5">پروفایل</span>
