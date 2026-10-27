@@ -6,7 +6,7 @@ import multer from 'multer';
 import { type AuthedRequest, can, type SessionUser } from '../auth.js';
 import { config } from '../config.js';
 import { db } from '../db/index.js';
-import { documents } from '../db/schema.js';
+import { documents, trainings } from '../db/schema.js';
 import { currentUser, HttpError, route } from '../http.js';
 
 export const uploadsRouter = Router();
@@ -32,12 +32,18 @@ const DOCUMENT_TYPES: Record<string, string> = {
 
 fs.mkdirSync(config.uploadDir, { recursive: true });
 
-/** Document managers, and the owners of documents (for new versions of their own documents). */
+/**
+ * Document managers, the owners of documents (for new versions of their own documents), and the
+ * people who run trainings and instructors (for handouts and slides).
+ */
 async function mayUploadDocuments(user: SessionUser | undefined) {
   if (!user) return false;
-  if (can(user, 'documents.manage')) return true;
-  const [owned] = await db.select({ id: documents.id }).from(documents).where(eq(documents.ownerId, user.id)).limit(1);
-  return Boolean(owned);
+  if (can(user, 'documents.manage') || can(user, 'trainings.manage')) return true;
+  const [[owned], [teaches]] = await Promise.all([
+    db.select({ id: documents.id }).from(documents).where(eq(documents.ownerId, user.id)).limit(1),
+    db.select({ id: trainings.id }).from(trainings).where(eq(trainings.instructorId, user.id)).limit(1),
+  ]);
+  return Boolean(owned || teaches);
 }
 
 const upload = multer({
@@ -52,7 +58,7 @@ const upload = multer({
     if (isImage) return cb(null, true);
     if (!isDocument) return cb(new HttpError(400, 'نوع فایل مجاز نیست.'));
     mayUploadDocuments((req as AuthedRequest).user).then(
-      (allowed) => (allowed ? cb(null, true) : cb(new HttpError(400, 'بارگذاری سند فقط برای مدیران اسناد و مسئولان اسناد مجاز است.'))),
+      (allowed) => (allowed ? cb(null, true) : cb(new HttpError(400, 'بارگذاری سند فقط برای مدیران اسناد، مسئولان اسناد و مدرسان دوره‌ها مجاز است.'))),
       (err: Error) => cb(err),
     );
   },

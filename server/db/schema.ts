@@ -262,6 +262,14 @@ export const trainings = pgTable('trainings', {
   coverImage: text('cover_image').notNull().default(''),
   category: text('category').notNull(),
   prerequisites: text('prerequisites').notNull().default(''),
+  /** The instructor's portal account, when they have one: they take attendance and see the feedback. */
+  instructorId: text('instructor_id').references(() => employees.id, { onDelete: 'set null' }),
+  /** Handouts and slides, for the people who took the course. */
+  materials: jsonb('materials').$type<AttachmentRecord[]>().notNull().default([]),
+  /** The day-before reminder was sent. */
+  remindedAt: timestamp('reminded_at', { withTimezone: true }),
+  /** Participants were asked for their feedback after the course. */
+  feedbackRequestedAt: timestamp('feedback_requested_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -270,7 +278,25 @@ export const trainingEnrollments = pgTable(
   {
     trainingId: text('training_id').notNull().references(() => trainings.id, { onDelete: 'cascade' }),
     userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    /** 'enrolled', or 'waitlist' when the course was full; the waitlist is served in order of createdAt. */
+    status: text('status').$type<'enrolled' | 'waitlist'>().notNull().default('enrolled'),
+    /** Taken by the instructor: present, absent, or not recorded yet. */
+    attended: boolean('attended'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.trainingId, t.userId] })],
+);
+
+/** The short survey after a course: two 1–5 ratings and an optional comment, shown without names. */
+export const trainingFeedback = pgTable(
+  'training_feedback',
+  {
+    trainingId: text('training_id').notNull().references(() => trainings.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    satisfaction: integer('satisfaction').notNull(),
+    usefulness: integer('usefulness').notNull(),
+    comment: text('comment').notNull().default(''),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.trainingId, t.userId] })],
 );

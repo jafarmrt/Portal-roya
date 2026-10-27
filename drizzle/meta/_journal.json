@@ -92,6 +92,13 @@
       "when": 1793088625781,
       "tag": "0012_calendar_audience_rsvp",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793090605451,
+      "tag": "0013_training_waitlist_attendance",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import moment from 'moment-jalaali';
-import { CalendarCheck, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, FileCheck2, FileText, GraduationCap, LifeBuoy, ListTodo, Vote } from 'lucide-react';
+import { CalendarCheck, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, FileCheck2, FileText, GraduationCap, LifeBuoy, ListTodo, MessageSquareHeart, Vote } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { dayLabel, formatDate, toPersianDigits, todayJalali } from '../../lib/jalali';
 import { deadlineState } from '../news/NewsBody';
@@ -21,8 +21,9 @@ const WEEK_EVENT_TYPES = new Set(['meeting', 'event', 'holiday']);
 
 /**
  * What this person still has to do or attend: circulars and mandatory documents to acknowledge,
- * documents of theirs due for review, polls to answer, events asking whether they will attend, and
- * their trainings and events in the coming seven days. Sits at the top of the dashboard.
+ * documents of theirs due for review, polls to answer, events asking whether they will attend, recent
+ * courses to give feedback on, and their trainings and events in the coming seven days. Sits at the
+ * top of the dashboard.
  */
 export const MyTasksCard: React.FC = () => {
   const { currentUser, news, polls, trainings, calendarEvents, documents, guides, can, setActiveTab } = usePortal();
@@ -96,12 +97,26 @@ export const MyTasksCard: React.FC = () => {
       open: () => setActiveTab('polls', p.id),
     });
   }
+  const twoWeeksAgo = moment().subtract(14, 'days').format('jYYYY/jMM/jDD');
   for (const t of trainings) {
-    if (!t.enrolledUserIds.includes(currentUser.id) || !inWeek(t.date)) continue;
+    // Took part in a course of the last two weeks and has not said how it was.
+    if (t.myStatus === 'enrolled' && t.myAttended !== false && !t.myFeedback && t.date < today && t.date >= twoWeeksAgo) {
+      tasks.push({
+        key: `training-${t.id}`,
+        icon: <MessageSquareHeart className="w-4 h-4 text-[#991b1b]" />,
+        kind: 'نظر دربارهٔ دوره',
+        title: t.title,
+        when: formatDate(t.date),
+        rank: `1-${t.date}`,
+        open: () => setActiveTab('training', t.id),
+      });
+      continue;
+    }
+    if (!t.myStatus || !inWeek(t.date)) continue;
     tasks.push({
       key: `training-${t.id}`,
       icon: <GraduationCap className="w-4 h-4 text-[#991b1b]" />,
-      kind: 'دورهٔ من',
+      kind: t.myStatus === 'waitlist' ? `لیست انتظار دوره (نفر ${toPersianDigits(t.myWaitlistPosition ?? 1)})` : 'دورهٔ من',
       title: t.title,
       when: `${dayLabel(t.date)}${t.time ? `، ساعت ${toPersianDigits(t.time)}` : ''}`,
       rank: `2-${t.date}-${t.time}`,

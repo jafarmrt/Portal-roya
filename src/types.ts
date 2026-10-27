@@ -282,7 +282,27 @@ export interface TrainingProgram {
   coverImage: string;
   category: string;
   prerequisites: string;
+  /** The instructor's portal account, if any: they take attendance, share handouts and read the feedback. */
+  instructorId: string | null;
+  /** Handouts and slides. */
+  materials: Attachment[];
+  waitlistCount: number;
+  /** This person's sign-up: confirmed, on the waitlist, or none. */
+  myStatus: 'enrolled' | 'waitlist' | null;
+  myWaitlistPosition?: number;
+  /** Marked present or absent by the instructor; null until then. */
+  myAttended: boolean | null;
+  /** Answered the survey after the course. */
+  myFeedback: boolean;
+  /** For the people who run the course. */
+  feedbackCount?: number;
 }
+
+/** What the training form sends; handouts are added separately, by the instructor too. */
+export type TrainingInput = Pick<
+  TrainingProgram,
+  'title' | 'instructor' | 'instructorRole' | 'instructorId' | 'date' | 'time' | 'duration' | 'location' | 'capacity' | 'description' | 'coverImage' | 'category' | 'prerequisites'
+>;
 
 export interface TrainingEnrollment {
   userId: string;
@@ -291,6 +311,37 @@ export interface TrainingEnrollment {
   department: string;
   extension: string;
   enrolledAt: string;
+  status: 'enrolled' | 'waitlist';
+  attended: boolean | null;
+}
+
+/** The survey after a course, without names. */
+export interface TrainingFeedbackSummary {
+  count: number;
+  participants: number;
+  satisfaction: number | null;
+  usefulness: number | null;
+  /** How many chose 1..5. */
+  satisfactionSpread: number[];
+  usefulnessSpread: number[];
+  comments: { comment: string; submittedAt: string }[];
+}
+
+/** One colleague's courses, for the «دوره‌های من» part of their profile. */
+export interface PersonTrainings {
+  courses: {
+    id: string;
+    title: string;
+    date: string;
+    time: string;
+    location: string;
+    instructor: string;
+    category: string;
+    status: 'enrolled' | 'waitlist';
+    attended: boolean | null;
+    materialsCount: number;
+  }[];
+  taught: { id: string; title: string; date: string; category: string }[];
 }
 
 /** A line on the calendar that is not an organisation event: an occasion or a birthday. */
