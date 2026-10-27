@@ -7,6 +7,7 @@ import { runNightlyMaintenance } from './maintenance.js';
 import { audienceIds, createNotifications } from './notify.js';
 import { processDocumentReviews } from './routes/documents.js';
 import { processGuideReviews } from './routes/guides.js';
+import { processPollDeadlines } from './routes/polls.js';
 import { indexMissingDocumentTexts } from './textExtract.js';
 import { announceNews, processAckDeadlines } from './routes/news.js';
 import { fullName } from './serializers.js';
@@ -81,6 +82,7 @@ export function startScheduler() {
     processAckDeadlines().catch((err) => console.error('Circular deadline error:', err));
     processDocumentReviews().catch((err) => console.error('Document review error:', err));
     processGuideReviews().catch((err) => console.error('Guide review error:', err));
+    processPollDeadlines().catch((err) => console.error('Poll reminder error:', err));
     runNightlyMaintenance().catch((err) => console.error('Maintenance error:', err));
   }, INTERVAL_MS);
   timer.unref();

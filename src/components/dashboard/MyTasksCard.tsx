@@ -85,7 +85,7 @@ export const MyTasksCard: React.FC = () => {
     });
   }
   for (const p of polls) {
-    if (!p.isActive || p.hasVoted) continue;
+    if (!p.isActive || !p.forMe || p.hasVoted) continue;
     tasks.push({
       key: `poll-${p.id}`,
       icon: <Vote className="w-4 h-4 text-red-700" />,

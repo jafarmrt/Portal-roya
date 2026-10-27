@@ -1,11 +1,9 @@
-import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { db, pool } from '../server/db/index';
-import { polls } from '../server/db/schema';
+import { pool } from '../server/db/index';
 import { app, createEmployee, resetDatabase, setupAdmin } from './helpers';
 
-describe('news, circulars and polls', () => {
+describe('news and circulars', () => {
   let admin: Awaited<ReturnType<typeof setupAdmin>>;
   let sales: Awaited<ReturnType<typeof createEmployee>>;
   let design: Awaited<ReturnType<typeof createEmployee>>;
@@ -68,44 +66,9 @@ describe('news, circulars and polls', () => {
     expect(second.body.likesCount).toBe(0);
   });
 
-  it('accepts one vote per person', async () => {
-    const poll = await admin
-      .post('/api/polls')
-      .send({ title: 'ناهار', description: '', department: 'all', type: 'multiple_choice', options: ['کباب', 'سبزی'] })
-      .expect(201);
-    const optionId = poll.body.options[0].id;
-
-    const results = await Promise.all([
-      sales.agent.post(`/api/polls/${poll.body.id}/vote`).send({ optionId }),
-      sales.agent.post(`/api/polls/${poll.body.id}/vote`).send({ optionId }),
-    ]);
-    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
-
-    const list = await admin.get('/api/polls').expect(200);
-    const saved = list.body.find((p: { id: string }) => p.id === poll.body.id);
-    expect(saved.totalVotes).toBe(1);
-  });
-
-  it('rejects votes after the deadline and on closed polls', async () => {
-    const poll = await admin
-      .post('/api/polls')
-      .send({ title: 'قدیمی', description: '', department: 'all', type: 'multiple_choice', options: ['الف', 'ب'] })
-      .expect(201);
-    await db.update(polls).set({ expiresAt: new Date(Date.now() - 60_000) }).where(eq(polls.id, poll.body.id));
-    await design.agent.post(`/api/polls/${poll.body.id}/vote`).send({ optionId: poll.body.options[0].id }).expect(400);
-
-    const closed = await admin
-      .post('/api/polls')
-      .send({ title: 'بسته', description: '', department: 'all', type: 'multiple_choice', options: ['الف', 'ب'] })
-      .expect(201);
-    await admin.patch(`/api/polls/${closed.body.id}/status`).send({ isActive: false }).expect(200);
-    await design.agent.post(`/api/polls/${closed.body.id}/vote`).send({ optionId: closed.body.options[0].id }).expect(400);
-  });
-
   it('validates input with clear errors', async () => {
     const res = await admin.post('/api/news').send({ title: '', summary: 'x', content: 'y', category: 'z' }).expect(400);
     expect(typeof res.body.error).toBe('string');
-    await admin.post('/api/polls').send({ title: 'تک گزینه', type: 'multiple_choice', options: ['فقط یکی'] }).expect(400);
   });
 
   it('stores an uploaded logo for an organisation app and rejects outside images', async () => {

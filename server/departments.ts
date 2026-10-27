@@ -195,10 +195,10 @@ function managedList(kind: ListKind) {
   return { list, require, ensure, add, rename, checkList, reconcile, requireMany, usage: kind.usage };
 }
 
-/** Replaces `from` by `to` in an audience column of news and documents, keeping each name once. */
+/** Replaces `from` by `to` in an audience column of news, documents and polls, keeping each name once. */
 async function replaceInAudiences(tx: Tx, column: 'target_departments' | 'target_locations', from: string, to: string) {
   const col = sql.identifier(column);
-  for (const table of ['news', 'documents']) {
+  for (const table of ['news', 'documents', 'polls']) {
     await tx.execute(sql`
       update ${sql.identifier(table)}
       set ${col} = array(select distinct d from unnest(array_replace(${col}, ${from}, ${to})) as d)
@@ -207,12 +207,14 @@ async function replaceInAudiences(tx: Tx, column: 'target_departments' | 'target
   }
 }
 
-/** How many documents name each entry in an audience column. */
-async function documentUsage(column: 'target_departments' | 'target_locations', entry: (name: string) => ListUsage) {
-  const items = await db.execute<{ name: string; count: number }>(
-    sql`select d as name, count(*)::int as count from documents, unnest(${sql.identifier(column)}) as d group by d`,
-  );
-  for (const r of items.rows) entry(r.name).documents = r.count;
+/** How many documents and polls name each entry in an audience column. */
+async function audienceUsage(column: 'target_departments' | 'target_locations', entry: (name: string) => ListUsage) {
+  for (const table of ['documents', 'polls'] as const) {
+    const items = await db.execute<{ name: string; count: number }>(
+      sql`select d as name, count(*)::int as count from ${sql.identifier(table)}, unnest(${sql.identifier(column)}) as d group by d`,
+    );
+    for (const r of items.rows) entry(r.name)[table] = r.count;
+  }
 }
 
 const departments = managedList({
@@ -226,7 +228,7 @@ const departments = managedList({
       select department as name from employees
       union select d from news, unnest(target_departments) as d
       union select d from documents, unnest(target_departments) as d
-      union select department from polls where department <> 'all'
+      union select d from polls, unnest(target_departments) as d
       union select department from guides where department <> ''
     `);
     return used.rows.map((r) => r.name);
@@ -234,7 +236,6 @@ const departments = managedList({
   moveRecords: async (tx, from, to) => {
     if (from === to) return;
     await tx.execute(sql`update employees set department = ${to} where department = ${from}`);
-    await tx.execute(sql`update polls set department = ${to} where department = ${from}`);
     await replaceInAudiences(tx, 'target_departments', from, to);
     await tx.execute(sql`update guides set department = ${to} where department = ${from}`);
     // On a merge the page of the department that stays is kept.
@@ -259,11 +260,7 @@ const departments = managedList({
     for (const r of people.rows) Object.assign(entry(r.name), { employees: r.total, activeEmployees: r.active });
     const items = await db.execute<{ name: string; count: number }>(sql`select d as name, count(*)::int as count from news, unnest(target_departments) as d group by d`);
     for (const r of items.rows) entry(r.name).news = r.count;
-    const asked = await db.execute<{ name: string; count: number }>(
-      sql`select department as name, count(*)::int as count from polls where department <> 'all' group by department`,
-    );
-    for (const r of asked.rows) entry(r.name).polls = r.count;
-    await documentUsage('target_departments', entry);
+    await audienceUsage('target_departments', entry);
     return usage;
   },
   renames: ['employees', 'news', 'documents', 'polls', 'guides', 'department_pages', 'settings'],
@@ -274,12 +271,13 @@ const locations = managedList({
   noun: 'محل استقرار',
   listName: 'فهرست محل‌های استقرار',
   mayBeEmpty: true,
-  usedIn: '(همکاران یا مخاطبان اخبار و اسناد)',
+  usedIn: '(همکاران یا مخاطبان اخبار، اسناد و نظرسنجی‌ها)',
   usedNames: async (tx) => {
     const used = await tx.execute<{ name: string }>(sql`
       select location as name from employees where location <> ''
       union select d from news, unnest(target_locations) as d
       union select d from documents, unnest(target_locations) as d
+      union select d from polls, unnest(target_locations) as d
     `);
     return used.rows.map((r) => r.name);
   },
@@ -300,10 +298,10 @@ const locations = managedList({
     for (const r of people.rows) Object.assign(entry(r.name), { employees: r.total, activeEmployees: r.active });
     const items = await db.execute<{ name: string; count: number }>(sql`select d as name, count(*)::int as count from news, unnest(target_locations) as d group by d`);
     for (const r of items.rows) entry(r.name).news = r.count;
-    await documentUsage('target_locations', entry);
+    await audienceUsage('target_locations', entry);
     return usage;
   },
-  renames: ['employees', 'news', 'documents'],
+  renames: ['employees', 'news', 'documents', 'polls'],
 });
 
 /** The managed list of departments, in the order set in the portal settings. */

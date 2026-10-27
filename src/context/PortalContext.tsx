@@ -19,8 +19,8 @@ import type {
   NewsItem,
   NotificationItem,
   Poll,
-  PollType,
-  PollUpdate,
+  PollAnswerInput,
+  PollInput,
   Permission,
   PortalDocument,
   DocumentDetails,
@@ -152,11 +152,11 @@ interface PortalContextType {
   setBanner: (banner: { text: string; level: 'info' | 'warning'; expiresAt: string }) => Promise<boolean>;
   clearBanner: () => Promise<boolean>;
   submitMood: (mood: MoodState) => Promise<void>;
-  addPoll: (poll: { title: string; description: string; department: string; type: PollType; expiryDate: string; options: string[] }) => Promise<boolean>;
-  votePoll: (pollId: string, optionId?: string, freeText?: string) => Promise<boolean>;
+  addPoll: (poll: PollInput) => Promise<boolean>;
+  votePoll: (pollId: string, answers: PollAnswerInput[]) => Promise<boolean>;
   togglePollActiveStatus: (pollId: string) => Promise<void>;
   deletePoll: (pollId: string) => Promise<void>;
-  updatePoll: (pollId: string, poll: PollUpdate) => Promise<boolean>;
+  updatePoll: (pollId: string, poll: PollInput) => Promise<boolean>;
   /** Resolves to the one-time password (null when none is needed), or undefined when it failed. */
   addEmployee: (data: NewEmployeeInput) => Promise<{ temporaryPassword: string | null } | undefined>;
   grantAccess: (id: string, account: AccountInput) => Promise<{ temporaryPassword: string | null } | undefined>;
@@ -490,8 +490,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return Boolean(created);
   };
 
-  const votePoll = async (pollId: string, optionId?: string, freeText?: string) => {
-    const updated = await attempt(() => api.post<Poll>(`/api/polls/${pollId}/vote`, { optionId, freeText }), 'رأی شما ثبت شد.');
+  const votePoll: PortalContextType['votePoll'] = async (pollId, answers) => {
+    const updated = await attempt(() => api.post<Poll>(`/api/polls/${pollId}/vote`, { answers }), 'پاسخ شما ثبت شد.');
     if (updated) replacePoll(updated);
     return Boolean(updated);
   };

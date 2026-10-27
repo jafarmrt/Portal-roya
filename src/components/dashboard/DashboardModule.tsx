@@ -38,12 +38,12 @@ export const DashboardModule: React.FC = () => {
   } = usePortal();
   const on = (id: Parameters<typeof isCardOn>[1]) => isCardOn(appSettings, id);
 
-  const activePoll = polls.find(p => p.isActive && !p.hasVoted);
+  const activePoll = polls.find(p => p.isActive && (isGuest || p.forMe) && !p.hasVoted);
   const publishedNews = news.filter(n => n.status === 'published');
   // Read and acknowledgement state is personal, so guests just see what is published.
   const pendingAcks = isGuest ? [] : publishedNews.filter(n => n.requiresAck && !n.acknowledgedAt);
   const unreadCount = publishedNews.filter(n => !n.isRead).length;
-  const openPollsCount = polls.filter(p => p.isActive && !p.hasVoted).length;
+  const openPollsCount = polls.filter(p => p.isActive && (isGuest || p.forMe) && !p.hasVoted).length;
   const latestNews = publishedNews.filter(n => !pendingAcks.includes(n)).slice(0, 4);
   const today = todayJalali();
   const upcomingTraining = [...trainings].filter(t => t.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
@@ -250,13 +250,13 @@ export const DashboardModule: React.FC = () => {
 
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-xs text-[#6E6A60] font-medium">
-                    مجموع شرکت‌کنندگان: <strong>{toPersianDigits(activePoll.totalVotes)} نفر</strong>
+                    {toPersianDigits(activePoll.questions.length)} سؤال · تاکنون <strong>{toPersianDigits(activePoll.responseCount)} نفر</strong> پاسخ داده‌اند
                   </span>
                   <button
                     onClick={() => setActiveTab('polls', activePoll.id)}
                     className="px-5 py-2.5 bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5"
                   >
-                    <span>شرکت در نظرسنجی و ثبت رای</span>
+                    <span>شرکت در نظرسنجی</span>
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                 </div>

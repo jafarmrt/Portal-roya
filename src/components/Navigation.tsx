@@ -123,7 +123,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
   useEscapeKey(onCloseMobileNav, isMobileNavOpen);
 
   // Read/vote badges are personal, so guests don't get them.
-  const activePollsCount = isGuest ? 0 : polls.filter(p => p.isActive && !p.hasVoted).length;
+  const activePollsCount = isGuest ? 0 : polls.filter(p => p.isActive && p.forMe && !p.hasVoted).length;
   const unreadNewsCount = isGuest ? 0 : news.filter(n => n.status === 'published' && !n.isRead).length;
   const pendingAckCount = isGuest ? 0 : news.filter(n => n.status === 'published' && n.requiresAck && !n.acknowledgedAt).length;
   const pendingDocumentCount = isGuest ? 0 : portalDocuments.filter(d => d.requiresAck && d.forMe && !d.acknowledgedAt).length;

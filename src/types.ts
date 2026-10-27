@@ -70,45 +70,106 @@ export interface CurrentUser extends UserProfile {
   permissions: Permission[];
 }
 
-export type PollType = 'multiple_choice' | 'free_text';
+export type PollQuestionType = 'single' | 'multiple' | 'rating' | 'text';
+/** Who sees a poll's results besides its creator and poll managers. */
+export type PollResultsVisibility = 'managers' | 'after_answer' | 'after_close';
 
-/** Edits to a poll: existing options keep their id (and votes); options without an id are added. */
-export interface PollUpdate {
-  title: string;
-  description: string;
-  department: string;
-  expiryDate: string;
-  options: { id?: string; text: string }[];
+export interface PollQuestionResults {
+  /** People who answered this question. */
+  answered: number;
+  /** Votes per option id. */
+  votes?: Record<string, number>;
+  /** How many gave 1 to 5. */
+  ratings?: number[];
+  average?: number | null;
+  /** Written answers; absent when they are kept for the creator and managers. */
+  texts?: string[];
 }
 
-export interface PollOption {
+export interface PollQuestion {
   id: string;
+  type: PollQuestionType;
   text: string;
-  votesCount: number;
+  required: boolean;
+  options: { id: string; text: string }[];
+  /** Only when the viewer may see the results. */
+  results?: PollQuestionResults;
 }
 
-export interface FreeTextResponse {
-  id: string;
-  responseText: string;
-  submittedAt: string;
+export interface PollAnswer {
+  optionIds: string[];
+  rating: number | null;
+  text: string;
 }
 
 export interface Poll {
   id: string;
   title: string;
   description: string;
-  department: string; // 'all' or a department name
   createdBy: string;
   createdAt: string;
   expiresAt: string | null;
   expiryDate: string; // Jalali, '' when open-ended
-  type: PollType;
-  options: PollOption[];
-  freeTextResponses: FreeTextResponse[];
-  totalVotes: number;
   isActive: boolean;
+  anonymous: boolean;
+  resultsVisibility: PollResultsVisibility;
+  showTextAnswers: boolean;
+  targetDepartments: string[];
+  targetLocations: string[];
+  targetRoles: string[];
+  /** Names are only sent to the people who run the poll; targetUserCount is for everyone. */
+  targetUserIds: string[];
+  targetUserCount: number;
+  /** In the audience, so this person may answer. */
+  forMe: boolean;
+  /** The creator or a poll manager: sees results, the answer sheets and may remind. */
+  canManage: boolean;
+  responseCount: number;
+  /** How many colleagues the poll is for; only for the people who run it. */
+  audienceCount?: number;
+  remindedAt: string | null;
+  resultsVisible: boolean;
   hasVoted: boolean;
-  myOptionId: string | null;
+  /** This person's answers by question id, once they answered. */
+  myAnswers: Record<string, PollAnswer> | null;
+  questions: PollQuestion[];
+}
+
+/** A question in the poll form; questions and options that already exist keep their id. */
+export interface PollQuestionInput {
+  id?: string;
+  text: string;
+  type: PollQuestionType;
+  required: boolean;
+  options: { id?: string; text: string }[];
+}
+
+export interface PollInput {
+  title: string;
+  description: string;
+  expiryDate: string;
+  anonymous: boolean;
+  resultsVisibility: PollResultsVisibility;
+  showTextAnswers: boolean;
+  targetDepartments: string[];
+  targetLocations: string[];
+  targetRoles: string[];
+  targetUserIds: string[];
+  questions: PollQuestionInput[];
+}
+
+export interface PollAnswerInput {
+  questionId: string;
+  optionIds: string[];
+  rating: number | null;
+  text: string;
+}
+
+/** Every answer sheet of a poll, for its Excel copy. Anonymous polls have no names or times. */
+export interface PollResponses {
+  anonymous: boolean;
+  questions: string[];
+  responses: { name: string; department: string; submittedAt: string | null; answers: string[] }[];
 }
 
 export interface Attachment {
