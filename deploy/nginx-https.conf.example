@@ -1,0 +1,35 @@
+# The portal over HTTPS on the port it already uses (8081), with the certificate made by
+# deploy/make-cert.sh. Old http:// links and bookmarks are sent on to https:// on the same port.
+# In /opt/roya-portal/.env set APP_URL=https://..., COOKIE_SECURE=true and TRUST_PROXY=true.
+# Step by step: deploy/HTTPS.md
+server {
+    listen 8081 ssl;
+    server_name _;
+
+    ssl_certificate     /opt/roya-portal/ssl/portal.crt;
+    ssl_certificate_key /opt/roya-portal/ssl/portal.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    # A plain http:// request on an HTTPS port ends in nginx's error 497; send it to https:// instead.
+    error_page 497 =301 https://$host:$server_port$request_uri;
+
+    client_max_body_size 25m;   # keep >= MAX_UPLOAD_MB
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Live updates (Server-Sent Events) must not be buffered.
+    location /api/events {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1h;
+    }
+}
