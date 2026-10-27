@@ -67,6 +67,8 @@ export interface UserProfile {
 
 export interface CurrentUser extends UserProfile {
   mustChangePassword: boolean;
+  /** An AD account that still has to give its name in Persian and its birthday (first sign-in). */
+  needsProfile: boolean;
   permissions: Permission[];
 }
 

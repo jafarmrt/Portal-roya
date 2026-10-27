@@ -12,7 +12,7 @@ import { checkRows, type ImportRow, importRowsSchema, type ImportUpdate, MAX_IMP
 import { birthdayWishes, colleagueWishes, employees, newColleagues, roles } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
-import { DIRECTORY_PASSWORD_MESSAGE, isDirectoryEnabled } from '../ldap.js';
+import { canListDirectory, DIRECTORY_PASSWORD_MESSAGE, DirectoryUnavailableError, isDirectoryEnabled, listDirectoryUsers } from '../ldap.js';
 import { audienceIds, createNotifications } from '../notify.js';
 import { fullName, serializeEmployee, serializeForGuest } from '../serializers.js';
 import { guestSettings } from '../settings.js';
@@ -328,7 +328,10 @@ employeesRouter.delete(
 );
 
 // Update fields have no defaults: a PATCH changes only the fields it sends.
+// Fields colleagues may change on their own profile.
 const contactUpdateFields = {
+  firstName: requiredText(100),
+  lastName: requiredText(100),
   email: textValue(200),
   mobile: textValue(30),
   extension: textValue(20),
@@ -339,8 +342,6 @@ const contactUpdateFields = {
   hideBirthday: z.boolean(),
 };
 const managerOnlyFields = {
-  firstName: requiredText(100),
-  lastName: requiredText(100),
   position: requiredText(100),
   department: requiredText(100),
   role: z.string().trim().min(1).max(100),
@@ -361,7 +362,7 @@ employeesRouter.patch(
     const changesAccount = Object.keys(managerOnlyFields).some((key) => key in body);
     if (changesAccount) {
       if (!can(viewer, 'users.manage')) {
-        throw new HttpError(403, 'تغییر نام، سمت، واحد و نقش فقط توسط مدیر کاربران ممکن است.');
+        throw new HttpError(403, 'تغییر سمت، واحد و نقش فقط توسط مدیر کاربران ممکن است.');
       }
       assertMayManageAccount(viewer, target, body.role);
     }
@@ -386,8 +387,9 @@ employeesRouter.patch(
       .set({ ...rest, ...(avatar !== undefined ? { avatarUrl: avatar } : {}) })
       .where(eq(employees.id, target.id))
       .returning();
-    // Colleagues keeping their own contact details current is not a management change.
-    if (changesAccount || viewer.id !== target.id) {
+    // Colleagues keeping their own contact details current is not a management change; a new name is noted.
+    const renamed = updated.firstName !== target.firstName || updated.lastName !== target.lastName;
+    if (changesAccount || renamed || viewer.id !== target.id) {
       const detail = await recordChanges(target, updated);
       if (detail) await audit(viewer, { action: 'update', entity: 'employee', id: updated.id, title: fullName(updated), detail });
     }
@@ -697,7 +699,9 @@ employeesRouter.post(
     if (missing.length > 0) throw new HttpError(400, `ستون‌های لازم در ردیف اول فایل پیدا نشد: ${missing.join('، ')}`);
     if (records.length === 0) throw new HttpError(400, 'فایل هیچ ردیفی برای ورود ندارد.');
     if (records.length > MAX_IMPORT_ROWS) throw new HttpError(400, `هر بار حداکثر ${MAX_IMPORT_ROWS} نفر را می‌توان وارد کرد.`);
-    const rows = await checkRows(records, { allowAdmin: isAdmin(currentUser(req)) });
+    // The preview words new access the way the chosen sign-in method will give it.
+    const signIn = req.body?.signIn === 'ldap' && isDirectoryEnabled() ? 'ldap' : 'local';
+    const rows = await checkRows(records, { allowAdmin: isAdmin(currentUser(req)), signIn });
     res.json({
       rows: rows.map(({ row, data, errors, warnings, action, target, changes }) => ({ row, data, errors, warnings, action, target, changes })),
       newDepartments: newDepartments(rows, await departmentList()),
@@ -710,9 +714,12 @@ employeesRouter.post(
   requirePermission('users.manage'),
   route(async (req, res) => {
     const body = parse(importRowsSchema, req.body);
+    const viaDirectory = body.signIn === 'ldap';
+    if (viaDirectory && !isDirectoryEnabled()) throw new HttpError(400, 'ورود با اکتیو دایرکتوری روی این سرور فعال نیست؛ رمز موقت بسازید.');
     const checked = await checkRows(body.rows.map((data, i) => ({ row: i + 1, data })), {
       allowAdmin: isAdmin(currentUser(req)),
       departments: body.departments,
+      signIn: body.signIn,
     });
     const valid = checked.filter((r) => r.value);
 
@@ -723,25 +730,27 @@ employeesRouter.post(
       if (r.update?.set.department && added.has(r.update.set.department)) r.update.set.department = added.get(r.update.set.department)!;
     }
 
-    // Rows with a username get an account and a temporary password; the rest join the phone book only.
+    // Rows with a username get an account, the rest join the phone book only. A portal-password account
+    // gets a temporary password; an AD account none, since it signs in with the Windows password.
+    const password = async (login: string | undefined) => {
+      const temporary = login && !viaDirectory ? temporaryPassword() : null;
+      return { temporary, hash: temporary ? await hashPassword(temporary) : '' };
+    };
+    const signInColumns = viaDirectory ? { authSource: 'ldap', mustChangePassword: false } : { authSource: 'local', mustChangePassword: true };
     const prepared: { row: number; value: ImportRow; temporary: string | null; hash: string }[] = [];
-    for (const r of valid) {
-      const temporary = r.value!.username ? temporaryPassword() : null;
-      prepared.push({ row: r.row, value: r.value!, temporary, hash: temporary ? await hashPassword(temporary) : '' });
-    }
+    for (const r of valid) prepared.push({ row: r.row, value: r.value!, ...(await password(r.value!.username)) });
 
-    // Updates that give someone a portal account get a temporary password too.
+    // Updates that give someone a portal account sign in the same way.
     const updates: { row: number; update: ImportUpdate; changes: string[]; temporary: string | null; hash: string }[] = [];
     for (const r of checked.filter((c) => c.update)) {
-      const temporary = r.update!.username ? temporaryPassword() : null;
-      updates.push({ row: r.row, update: r.update!, changes: r.changes ?? [], temporary, hash: temporary ? await hashPassword(temporary) : '' });
+      updates.push({ row: r.row, update: r.update!, changes: r.changes ?? [], ...(await password(r.update!.username)) });
     }
 
     const { created, updated } = await db.transaction(async (tx) => {
       const updated = [];
       for (const { row, update, changes, temporary, hash } of updates) {
         const account = update.username
-          ? { hasAccount: true, username: update.username, passwordHash: hash, authSource: 'local', mustChangePassword: true, failedLogins: 0, lockedUntil: null }
+          ? { hasAccount: true, username: update.username, passwordHash: hash, ...signInColumns, failedLogins: 0, lockedUntil: null }
           : {};
         const [emp] = await tx
           .update(employees)
@@ -761,7 +770,7 @@ employeesRouter.post(
             username: value.username ?? null,
             hasAccount: Boolean(value.username),
             passwordHash: hash,
-            mustChangePassword: true,
+            ...(value.username ? signInColumns : { mustChangePassword: true }),
           })
           // A username taken since the check is skipped rather than overwritten.
           .onConflictDoNothing({ target: employees.username })
@@ -808,7 +817,8 @@ employeesRouter.post(
       lastName: emp.lastName,
       position: emp.position,
       department: emp.department,
-      // Shown once so the manager can print or hand them out; null when no account was made.
+      authSource: emp.authSource,
+      // Shown once so the manager can print or hand them out; null for AD accounts and when no account was made.
       temporaryPassword: temporary,
     });
     res.status(201).json({
@@ -816,6 +826,56 @@ employeesRouter.post(
       updated: updated.map(({ emp, temporary, changes }) => ({ ...summary(emp, temporary), changes })),
       unchanged: checked.filter((r) => r.action === 'unchanged').length,
       skipped,
+    });
+  }),
+);
+
+// Active AD users who are not in the portal yet, as rows for the Excel import, plus the mismatches
+// a manager should know about before AD sign-in creates accounts on its own.
+employeesRouter.get(
+  '/employees/directory',
+  requirePermission('users.manage'),
+  route(async (_req, res) => {
+    if (!isDirectoryEnabled()) throw new HttpError(400, 'ورود با اکتیو دایرکتوری روی این سرور فعال نیست.');
+    if (!canListDirectory()) {
+      throw new HttpError(400, 'برای فهرست کاربران اکتیو دایرکتوری، حساب سرویس (LDAP_BIND_DN و LDAP_BIND_PASSWORD) باید در تنظیمات سرور باشد.');
+    }
+    let users;
+    try {
+      users = await listDirectoryUsers();
+    } catch (err) {
+      if (!(err instanceof DirectoryUnavailableError)) throw err;
+      console.error(err.message);
+      throw new HttpError(503, 'ارتباط با سرور اکتیو دایرکتوری برقرار نشد. کمی بعد دوباره تلاش کنید یا به واحد فناوری اطلاعات اطلاع دهید.');
+    }
+    const portal = await db.select().from(employees);
+    const known = new Set(portal.flatMap((e) => (e.username ? [e.username] : [])));
+    const inDirectory = new Set(users.map((u) => u.username));
+    // Accounts without a first or last name, such as Administrator or a scanner's account, are rarely people.
+    const people = users.filter((u) => u.firstName || u.lastName);
+    const byName = (a: string, b: string) => a.localeCompare(b, 'fa');
+    res.json({
+      newUsers: people
+        .filter((u) => !known.has(u.username))
+        .map((u) => ({
+          firstName: u.firstName,
+          lastName: u.lastName,
+          username: u.username,
+          // The import needs a position and department; «نامشخص» is what AD sign-in uses too.
+          position: u.position || 'نامشخص',
+          department: u.department || 'نامشخص',
+          email: u.email,
+          mobile: u.mobile,
+          extension: u.extension,
+        }))
+        .sort((a, b) => byName(a.department, b.department) || byName(a.lastName, b.lastName) || byName(a.firstName, b.firstName)),
+      inPortal: people.filter((u) => known.has(u.username)).length,
+      unnamed: users.filter((u) => !u.firstName && !u.lastName).map((u) => u.username).sort(byName),
+      // These cannot sign in with AD: a local account, a username that differs from Windows, or someone who left.
+      notInDirectory: portal
+        .filter((e) => e.isActive && e.hasAccount && e.username && !inDirectory.has(e.username))
+        .map((e) => ({ username: e.username!, name: fullName(e) }))
+        .sort((a, b) => byName(a.username, b.username)),
     });
   }),
 );

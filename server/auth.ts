@@ -83,15 +83,19 @@ async function markSeen(user: Employee) {
   }
 }
 
-async function loadUserFromRequest(req: Request): Promise<SessionUser | null> {
+/** A session this old is renewed, so it only runs out after SESSION_DAYS without using the portal. */
+const RENEW_AFTER_MS = 24 * 60 * 60 * 1000;
+
+async function loadUserFromRequest(req: Request, res: Response): Promise<SessionUser | null> {
   const token = req.cookies?.[SESSION_COOKIE];
   if (!token) return null;
   try {
-    const payload = jwt.verify(token, config.sessionSecret) as { sub?: string };
+    const payload = jwt.verify(token, config.sessionSecret) as { sub?: string; iat?: number };
     if (!payload.sub) return null;
     const [user] = await db.select().from(employees).where(eq(employees.id, payload.sub)).limit(1);
     // Taking away portal access ends the colleague's open sessions too.
     if (!user || !user.isActive || !user.hasAccount) return null;
+    if (payload.iat && Date.now() - payload.iat * 1000 > RENEW_AFTER_MS && !res.headersSent) issueSession(res, user.id);
     await markSeen(user);
     return await withPermissions(user);
   } catch {
@@ -100,14 +104,14 @@ async function loadUserFromRequest(req: Request): Promise<SessionUser | null> {
 }
 
 /** Attaches the signed-in user when there is a valid session, without rejecting visitors. */
-export async function attachUser(req: AuthedRequest, _res: Response, next: NextFunction) {
-  req.user = (await loadUserFromRequest(req)) ?? undefined;
+export async function attachUser(req: AuthedRequest, res: Response, next: NextFunction) {
+  req.user = (await loadUserFromRequest(req, res)) ?? undefined;
   next();
 }
 
 /** Requires a valid session. Users who must change their password can only reach the auth routes. */
 export async function requireAuth(req: AuthedRequest, res: Response, next: NextFunction) {
-  const user = await loadUserFromRequest(req);
+  const user = await loadUserFromRequest(req, res);
   if (!user) {
     res.status(401).json({ error: 'لطفاً وارد حساب کاربری خود شوید.' });
     return;

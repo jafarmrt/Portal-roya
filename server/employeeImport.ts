@@ -84,7 +84,10 @@ export const importRowsSchema = z.object({
   // What to do with each department the file names but the portal does not have, as chosen in the
   // preview: the name itself creates that department, another department's name moves the rows there.
   departments: z.record(z.string().max(100), requiredText(100)).default({}),
+  // How the accounts this import makes sign in: 'ldap' uses the Windows password, so no temporary passwords.
+  signIn: z.enum(['local', 'ldap']).default('local'),
 });
+export type ImportSignIn = z.infer<typeof importRowsSchema>['signIn'];
 
 // Columns an update may change; an empty cell keeps the current value.
 const updateSchema = z
@@ -232,6 +235,7 @@ function checkUpdate(
   resolveRole: (value: string) => string | undefined,
   roleName: (id: string) => string,
   allowAdmin: boolean,
+  signIn: ImportSignIn,
 ): CheckedRow {
   const base = { row, data: text, warnings: [] as string[], target: `${target.firstName} ${target.lastName}`.trim() };
   if (target.role === ADMIN_ROLE_ID && !allowAdmin) return { ...base, errors: ['فقط ادمین برنامه می‌تواند مشخصات ادمین‌ها را تغییر دهد'] };
@@ -252,18 +256,19 @@ function checkUpdate(
   }
 
   let login: string | undefined;
+  const howSignIn = signIn === 'ldap' ? 'ورود با رمز ویندوز' : 'رمز موقت ساخته می‌شود';
   const loginCell = cleanLogin(text.username ?? '').toLowerCase();
   if (loginCell && loginCell !== target.username) {
     if (target.hasAccount) errors.push('نام کاربری حساب موجود از اکسل عوض نمی‌شود؛ ستون نام کاربری این ردیف را مثل قبل بگذارید.');
     else if (!username.safeParse(loginCell).success) errors.push(`نام کاربری: «${loginCell}» معتبر نیست (حروف انگلیسی، عدد و . _ -)`);
     else {
       login = loginCell;
-      changes.push(`دسترسی پورتال با نام کاربری ${loginCell} (رمز موقت ساخته می‌شود)`);
+      changes.push(`دسترسی پورتال با نام کاربری ${loginCell} (${howSignIn})`);
     }
   } else if (loginCell && !target.hasAccount) {
     // The kept username of someone whose access was removed: giving it again restores access.
     login = loginCell;
-    changes.push(`دسترسی دوباره به پورتال با نام کاربری ${loginCell} (رمز موقت ساخته می‌شود)`);
+    changes.push(`دسترسی دوباره به پورتال با نام کاربری ${loginCell} (${howSignIn})`);
   }
 
   if (text.role) {
@@ -292,7 +297,7 @@ function checkUpdate(
  */
 export async function checkRows(
   records: { row: number; data: Record<string, unknown> }[],
-  { allowAdmin, departments = 'ask' }: { allowAdmin: boolean; departments?: Record<string, string> | 'ask' },
+  { allowAdmin, departments = 'ask', signIn = 'local' }: { allowAdmin: boolean; departments?: Record<string, string> | 'ask'; signIn?: ImportSignIn },
 ): Promise<CheckedRow[]> {
   const resolveDepartment = departmentResolver(await departmentList(), departments);
   const locations = await locationList();
@@ -340,7 +345,7 @@ export async function checkRows(
 
     const target = text.id ? byId.get(text.id) : byUsername.get(login.toLowerCase());
     if (text.id && !target) return { row, data: text, errors: [`شناسه «${text.id}» در پرتال پیدا نشد؛ برای افراد جدید ستون شناسه را خالی بگذارید.`], warnings: [] };
-    if (target) return withDepartment(checkUpdate(row, text, target, resolveRole, roleName, allowAdmin));
+    if (target) return withDepartment(checkUpdate(row, text, target, resolveRole, roleName, allowAdmin, signIn));
 
     // Without a username there is no account, so the role cell does not apply.
     const role = login ? resolveRole(text.role ?? '') : DEFAULT_ROLE_ID;

@@ -63,7 +63,9 @@ describe('Active Directory sign-in', () => {
     expect(directory.authenticate).toHaveBeenCalledWith('sara.ahmadi', 'ad-password');
     expect(res.body.user).toMatchObject({
       username: 'sara.ahmadi',
-      firstName: 'سارا',
+      // Names never come from AD; the colleague is asked for them (needsProfile).
+      firstName: 'sara.ahmadi',
+      needsProfile: true,
       department: 'فروش',
       extension: '214',
       role: 'employee',

@@ -58,11 +58,13 @@ nc -zv dc1.roya.local 389    # برای LDAP
 LDAP_URL=ldaps://dc1.roya.local:636
 LDAP_BASE_DN=DC=roya,DC=local
 LDAP_BIND_DN=svc-portal@roya.local
-LDAP_BIND_PASSWORD=رمز حساب سرویس
+LDAP_BIND_PASSWORD='رمز حساب سرویس'
 # اختیاری:
 LDAP_ALLOWED_GROUP=
 LDAP_ADMIN_GROUP=CN=Portal Admins,OU=Groups,DC=roya,DC=local
 ```
+
+رمز را داخل `' '` بنویسید؛ بدون آن، رمز از اولین `#` به بعد خوانده نمی‌شود (در این فایل `#` یعنی یادداشت). رمز نباید خودش `'` داشته باشد.
 
 رمز حساب سرویس فقط در همین فایل روی سرور می‌ماند؛ آن را جای دیگری (چت، ایمیل، گیت) نفرستید. دسترسی فایل را محدود کنید: `chmod 600 /opt/roya-portal/.env`.
 

@@ -16,10 +16,12 @@ import {
   withPermissions,
 } from '../auth.js';
 import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID } from '../../shared/permissions.js';
+import { isPersian } from '../../shared/profile.js';
 import { config } from '../config.js';
 import { db } from '../db/index.js';
 import { employees } from '../db/schema.js';
 import { ensureDepartment } from '../departments.js';
+import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, newId, parse, route } from '../http.js';
 import {
   authenticateWithDirectory,
@@ -33,7 +35,7 @@ import { serializeMe } from '../serializers.js';
 import { fromCompanyNetwork } from '../network.js';
 import { ensureSettings, logoFile } from '../settings.js';
 import { ensureRoles } from '../roles.js';
-import { optionalText, password, requiredText, username } from '../validation.js';
+import { jalaliDateValue, optionalText, password, requiredText, username } from '../validation.js';
 
 export const authRouter = Router();
 
@@ -157,16 +159,25 @@ async function otherActiveAdmins(excludeId: string) {
   return row.count;
 }
 
+/**
+ * Whether an AD value replaces the portal's. AD often holds text in English while the portal is in
+ * Persian, so an English value never replaces a Persian one (other than the placeholder «نامشخص»).
+ */
+function takeFromDirectory(portalValue: string | undefined, directoryValue: string) {
+  if (!directoryValue) return false;
+  const portalIsPersian = Boolean(portalValue) && portalValue !== 'نامشخص' && isPersian(portalValue!);
+  return !portalIsPersian || isPersian(directoryValue);
+}
+
 /** Creates the portal account on first AD sign-in, or refreshes it from AD on later ones. */
 async function syncDirectoryUser(dir: DirectoryUser, existing: Employee | undefined): Promise<Employee> {
-  // AD only overwrites a field when it has a value, so details entered in the portal survive.
+  // AD only overwrites a field when it has a value, so details entered in the portal survive. Names
+  // never come from AD (they are in English there): colleagues enter their own on first sign-in.
   const profile = {
-    ...(dir.firstName ? { firstName: dir.firstName } : {}),
-    ...(dir.lastName ? { lastName: dir.lastName } : {}),
     ...(dir.email ? { email: dir.email } : {}),
-    ...(dir.position ? { position: dir.position } : {}),
+    ...(takeFromDirectory(existing?.position, dir.position) ? { position: dir.position } : {}),
     // A department AD knows but the portal does not is added to the list, so the two stay in step.
-    ...(dir.department ? { department: await ensureDepartment(dir.department) } : {}),
+    ...(takeFromDirectory(existing?.department, dir.department) ? { department: await ensureDepartment(dir.department) } : {}),
     ...(dir.extension ? { extension: dir.extension } : {}),
     ...(dir.mobile ? { mobile: dir.mobile } : {}),
   };
@@ -279,6 +290,26 @@ authRouter.get(
   requireAuth,
   route(async (req, res) => {
     res.json({ user: serializeMe(currentUser(req)) });
+  }),
+);
+
+// The first-sign-in form of AD accounts (see needsProfile); names must be in Persian, since that is
+// what the form asks for and why it appears.
+const profileSchema = z.object({
+  firstName: requiredText(100).refine(isPersian, 'نام را با حروف فارسی بنویسید'),
+  lastName: requiredText(100).refine(isPersian, 'نام خانوادگی را با حروف فارسی بنویسید'),
+  birthDate: jalaliDateValue.refine((v) => v !== '', 'تاریخ تولد را وارد کنید'),
+  hideBirthday: z.boolean().default(false),
+});
+
+authRouter.post(
+  '/auth/profile',
+  requireAuth,
+  route(async (req, res) => {
+    const body = parse(profileSchema, req.body);
+    const [updated] = await db.update(employees).set(body).where(eq(employees.id, currentUser(req).id)).returning();
+    broadcastChange('employees');
+    res.json({ user: serializeMe(await withPermissions(updated)) });
   }),
 );
 

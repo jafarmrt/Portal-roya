@@ -117,6 +117,7 @@ interface PortalContextType {
   login: (username: string, password: string) => Promise<CurrentUser>;
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  completeProfile: (profile: { firstName: string; lastName: string; birthDate: string; hideBirthday: boolean }) => Promise<void>;
 
   // Loading state for portal data
   isLoading: boolean;
@@ -349,6 +350,11 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const changePassword = async (currentPassword: string, newPassword: string) => {
     const { user } = await api.post<{ user: CurrentUser }>('/api/auth/change-password', { currentPassword, newPassword });
+    setCurrentUser(user);
+  };
+
+  const completeProfile = async (profile: { firstName: string; lastName: string; birthDate: string; hideBirthday: boolean }) => {
+    const { user } = await api.post<{ user: CurrentUser }>('/api/auth/profile', profile);
     setCurrentUser(user);
   };
 
@@ -893,6 +899,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         login,
         logout,
         changePassword,
+        completeProfile,
         isLoading,
         error,
         activeTab,

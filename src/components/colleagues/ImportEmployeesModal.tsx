@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { AlertTriangle, Building2, CheckCircle2, Download, FileSpreadsheet, Loader2, Printer, Upload, Users } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, Download, FileSpreadsheet, Loader2, Network, Printer, Upload, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, errorMessage } from '../../lib/api';
 import { downloadCsv } from '../../lib/download';
@@ -35,6 +35,8 @@ interface CreatedAccount {
   lastName: string;
   position: string;
   department: string;
+  /** 'ldap' accounts sign in with the Windows password and have no temporary password. */
+  authSource: 'local' | 'ldap';
   temporaryPassword: string | null;
 }
 
@@ -44,6 +46,16 @@ interface ImportResult {
   unchanged: number;
   skipped: { row: number; username: string; errors: string[] }[];
 }
+
+/** What the portal found in Active Directory: new people as import rows, and accounts to look at. */
+interface DirectoryReport {
+  newUsers: { firstName: string; lastName: string; username: string; position: string; department: string; email: string; mobile: string; extension: string }[];
+  inPortal: number;
+  unnamed: string[];
+  notInDirectory: { username: string; name: string }[];
+}
+
+type SignInMethod = 'local' | 'ldap';
 
 export const TEMPLATE_HEADER = ['نام', 'نام خانوادگی', 'نام کاربری', 'سمت', 'واحد', 'نقش', 'ایمیل', 'موبایل', 'داخلی', 'محل استقرار', 'تاریخ تولد', 'تاریخ استخدام'];
 const TEMPLATE_SAMPLES = [
@@ -77,7 +89,12 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
   const [preview, setPreview] = useState<PreviewRow[] | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [introduce, setIntroduce] = useState(false);
-  const { appSettings } = usePortal();
+  const { appSettings, directoryLogin } = usePortal();
+  const [signIn, setSignIn] = useState<SignInMethod>(directoryLogin ? 'ldap' : 'local');
+  const [directory, setDirectory] = useState<DirectoryReport | null>(null);
+  const [loadingDirectory, setLoadingDirectory] = useState(false);
+  // Kept so the preview can be rebuilt when the sign-in method changes.
+  const fileRef = useRef<File | null>(null);
   const [newDepartments, setNewDepartments] = useState<NewDepartment[]>([]);
   // For each new department: its own name creates it, another department's name moves its rows there.
   const [departmentChoices, setDepartmentChoices] = useState<Record<string, string>>({});
@@ -88,19 +105,19 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
   const updateCount = validRows.filter((r) => r.action === 'update').length;
   const unchangedCount = validRows.filter((r) => r.action === 'unchanged').length;
   const phoneOnlyCount = newRows.filter((r) => !r.data.username).length;
+  const makesAccounts = newRows.length > phoneOnlyCount || updateCount > 0;
   const toSend = validRows.filter((r) => r.action !== 'unchanged');
   // Everyone who got a portal account in this import: new people and people given access.
   const accounts = [...(result?.created ?? []), ...(result?.updated ?? [])].filter((a) => a.temporaryPassword);
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  const loadPreview = async (file: File, method: SignInMethod) => {
     setBusy(true);
     try {
       const form = new FormData();
       form.append('file', file);
+      form.append('signIn', method);
       const res = await api.post<{ rows: PreviewRow[]; newDepartments: NewDepartment[] }>('/api/employees/import/preview', form);
+      fileRef.current = file;
       setFileName(file.name);
       setPreview(res.rows);
       setNewDepartments(res.newDepartments);
@@ -112,10 +129,44 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
     }
   };
 
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) void loadPreview(file, signIn);
+  };
+
+  const changeSignIn = (method: SignInMethod) => {
+    setSignIn(method);
+    if (fileRef.current) void loadPreview(fileRef.current, method);
+  };
+
+  const downloadDirectoryUsers = async () => {
+    setLoadingDirectory(true);
+    try {
+      const res = await api.get<DirectoryReport>('/api/employees/directory');
+      setDirectory(res);
+      if (res.newUsers.length > 0) {
+        downloadCsv('roya-ad-users.csv', [
+          ['نام', 'نام خانوادگی', 'نام کاربری', 'سمت', 'واحد', 'ایمیل', 'موبایل', 'داخلی'],
+          ...res.newUsers.map((u) => [u.firstName, u.lastName, u.username, u.position, u.department, u.email, u.mobile, u.extension]),
+        ]);
+      }
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setLoadingDirectory(false);
+    }
+  };
+
   const handleImport = async () => {
     setBusy(true);
     try {
-      const res = await api.post<ImportResult>('/api/employees/import', { rows: toSend.map((r) => r.data), introduce, departments: departmentChoices });
+      const res = await api.post<ImportResult>('/api/employees/import', {
+        rows: toSend.map((r) => r.data),
+        introduce,
+        departments: departmentChoices,
+        signIn: directoryLogin ? signIn : 'local',
+      });
       setResult(res);
       toast.success(`${toPersianDigits(res.created.length)} نفر اضافه و ${toPersianDigits(res.updated.length)} نفر به‌روز شد.`);
     } catch (err) {
@@ -176,7 +227,9 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                     {a.hasAccount ? (
                       <>
                         <td className="p-2"><code dir="ltr">{a.username}</code></td>
-                        <td className="p-2">{a.temporaryPassword ? <code dir="ltr" className="font-bold select-all">{a.temporaryPassword}</code> : <span className="text-[#8C867A]">—</span>}</td>
+                        <td className="p-2">
+                          {a.temporaryPassword ? <code dir="ltr" className="font-bold select-all">{a.temporaryPassword}</code> : a.authSource === 'ldap' ? <span className="text-[#6E6A60]">رمز ویندوز</span> : <span className="text-[#8C867A]">—</span>}
+                        </td>
                       </>
                     ) : (
                       <td className="p-2 text-[#6E6A60]" colSpan={2}>فقط دفتر تلفن (بدون دسترسی پورتال)</td>
@@ -218,6 +271,41 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
       }
     >
       <div className="space-y-4">
+        {directoryLogin && (
+          <section aria-label="کاربران اکتیو دایرکتوری" className="p-3 bg-[#F5F2ED] rounded-2xl space-y-2 leading-relaxed">
+            <p className="font-bold flex items-center gap-1.5"><Network className="w-4 h-4" /> کاربران اکتیو دایرکتوری</p>
+            <p className="text-[#4B4740]">
+              فایل کاربران فعال اکتیو دایرکتوری را که هنوز در پرتال نیستند بگیرید. نام‌ها در اکتیو دایرکتوری معمولاً انگلیسی‌اند؛ در اکسل آن‌ها را فارسی کنید، سمت و واحد را درست کنید و ردیف کسانی را که نمی‌خواهید حذف کنید. بعد همین فایل را پایین‌تر بارگذاری کنید.
+            </p>
+            <button type="button" onClick={downloadDirectoryUsers} disabled={loadingDirectory} className={secondaryButtonClass}>
+              {loadingDirectory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} دانلود فایل کاربران فعال اکتیو دایرکتوری
+            </button>
+            {directory && (
+              <div className="space-y-1 text-[#4B4740]">
+                <p>
+                  {directory.newUsers.length > 0
+                    ? `${toPersianDigits(directory.newUsers.length)} کاربر فعال در فایل آمد.`
+                    : 'همهٔ کاربران فعال اکتیو دایرکتوری در پرتال هستند؛ فایلی ساخته نشد.'}
+                  {directory.inPortal > 0 && ` ${toPersianDigits(directory.inPortal)} نفر دیگر از قبل در پرتال هستند و در فایل نیامدند.`}
+                </p>
+                {directory.unnamed.length > 0 && (
+                  <p>
+                    {toPersianDigits(directory.unnamed.length)} حساب بدون نام و نام خانوادگی (احتمالاً حساب سیستمی) کنار گذاشته شد:{' '}
+                    <span dir="ltr">{directory.unnamed.join(', ')}</span>
+                  </p>
+                )}
+                {directory.notInDirectory.length > 0 && (
+                  <p className="text-amber-900">
+                    این حساب‌های پرتال در اکتیو دایرکتوری (بین کاربران فعال) پیدا نشدند و با رمز ویندوز وارد نمی‌شوند؛ یا حساب محلی پرتال‌اند، یا نام کاربری‌شان با نام ورود ویندوز فرق دارد، یا از شرکت رفته‌اند:{' '}
+                    {directory.notInDirectory.map((p, i) => (
+                      <span key={p.username}>{i > 0 && '، '}{p.name} (<code dir="ltr">{p.username}</code>)</span>
+                    ))}
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
+        )}
         <ol className="list-decimal pr-5 space-y-1.5 text-[#4B4740] leading-relaxed">
           <li>
             فایل نمونه را دانلود کنید و در اکسل برای هر همکار یک ردیف پر کنید. ستون‌های نام، نام خانوادگی، سمت و واحد الزامی‌اند.
@@ -260,6 +348,21 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                 <span className="block text-[#6E6A60]">فقط برای افراد جدید این فایل. برای ورود اولیهٔ همهٔ کارکنان فعلی این گزینه را خاموش بگذارید. به همه یک اعلان جمعی داده می‌شود.</span>
               </span>
             </label>}
+            {directoryLogin && makesAccounts && (
+              <fieldset className="p-3 bg-[#F5F2ED] rounded-xl space-y-1.5">
+                <legend className="sr-only">روش ورود حساب‌های این فایل</legend>
+                <p className="font-bold">حساب‌هایی که این فایل می‌سازد چطور وارد شوند؟</p>
+                {([
+                  ['ldap', 'با نام کاربری و رمز ویندوز (اکتیو دایرکتوری)', 'نام کاربری هر ردیف باید همان نام ورود ویندوز باشد. رمزی ساخته نمی‌شود.'],
+                  ['local', 'با رمز پرتال', 'برای هر نفر یک رمز موقت ساخته می‌شود که باید چاپ و به او داده شود.'],
+                ] as [SignInMethod, string, string][]).map(([method, label, hint]) => (
+                  <label key={method} className="flex items-start gap-2 cursor-pointer">
+                    <input type="radio" name="import-signin" checked={signIn === method} disabled={busy} onChange={() => changeSignIn(method)} className="accent-red-700 mt-0.5" />
+                    <span><strong>{label}</strong><span className="block text-[11px] text-[#6E6A60]">{hint}</span></span>
+                  </label>
+                ))}
+              </fieldset>
+            )}
             {newDepartments.length > 0 && (
               <section aria-label="واحدهای جدید" className="p-3 bg-amber-50 border border-amber-300 rounded-2xl space-y-2">
                 <p className="font-bold text-amber-900 flex items-center gap-1.5">
