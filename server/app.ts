@@ -21,6 +21,7 @@ import { uploadsRouter } from './routes/uploads.js';
 import { departmentPagesRouter } from './routes/departmentPages.js';
 import { guidesRouter } from './routes/guides.js';
 import { searchRouter } from './routes/search.js';
+import { buildInfo, changelog } from './version.js';
 
 /** Builds the API application. The static/Vite front-end is attached in server/index.ts. */
 export function createApp() {
@@ -49,12 +50,16 @@ export function createApp() {
 
   app.get('/healthz', route(async (_req, res) => {
     await pool.query('select 1');
-    res.json({ status: 'ok' });
+    const { version, build } = buildInfo();
+    res.json({ status: 'ok', version, build });
   }));
 
   const api = Router();
   // Public: setup status, first-run setup, login/logout. /auth/me and change-password check the session themselves.
   api.use(authRouter);
+  // Which version is running and what changed in it; shown in the footer, also on the login page.
+  api.get('/version', (_req, res) => res.json(buildInfo()));
+  api.get('/version/changelog', (_req, res) => res.json(changelog().slice(0, 15)));
 
   // Everything below requires a signed-in user who has replaced their temporary password,
   // except the read-only endpoints that visitors may open while guest access is enabled.
