@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { formatDate, todayJalali, toPersianDigits } from '../../lib/jalali';
+import { formatDate, formatFileSize, todayJalali, toPersianDigits } from '../../lib/jalali';
+import type { TrainingProgram } from '../../types';
 import { Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { AddTrainingModal } from './AddTrainingModal';
 import { EnrollmentsModal } from './EnrollmentsModal';
+import { TrainingFeedbackModal } from './TrainingFeedbackModal';
 import {
   GraduationCap,
   Plus,
@@ -14,11 +16,14 @@ import {
   BookOpen,
   Trash2,
   Pencil,
-  Users
+  Users,
+  Hourglass,
+  FileText,
+  MessageSquareHeart
 } from 'lucide-react';
 
 export const TrainingModule: React.FC = () => {
-  const { trainings, currentUser, can, enrollTraining, deleteTraining, appSettings } = usePortal();
+  const { trainings, currentUser, can, enrollTraining, leaveTraining, deleteTraining, appSettings, focusId } = usePortal();
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const today = todayJalali();
 
@@ -27,17 +32,40 @@ export const TrainingModule: React.FC = () => {
   const [enrollmentsId, setEnrollmentsId] = useState<string | null>(null);
   const editing = trainings.find((t) => t.id === editingId);
   const enrollmentsFor = trainings.find((t) => t.id === enrollmentsId);
+  const [feedbackId, setFeedbackId] = useState<string | null>(null);
+  const feedbackFor = trainings.find((t) => t.id === feedbackId);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  /** The people who run trainings, and the course's own instructor. */
+  const runs = (t: TrainingProgram) => can('trainings.manage') || (currentUser !== null && t.instructorId === currentUser.id);
+  /** Took part (signed up and not marked absent), so may give feedback once the course has taken place. */
+  const tookPart = (t: TrainingProgram) => t.myStatus === 'enrolled' && t.myAttended !== false && t.date <= today;
+  const isMine = (t: TrainingProgram) => t.myStatus !== null || (currentUser !== null && t.instructorId === currentUser.id);
 
   const categories = [
     { id: 'all', label: 'همه دوره‌ها' },
+    ...(currentUser ? [{ id: 'mine', label: `دوره‌های من (${toPersianDigits(trainings.filter(isMine).length)})` }] : []),
     ...(appSettings?.trainingCategories || []).map(c => ({ id: c, label: c }))
   ];
 
   const filteredTrainings = trainings.filter(t => {
     if (selectedCategory === 'all') return true;
+    if (selectedCategory === 'mine') return isMine(t);
     return t.category === selectedCategory;
   });
+
+  // A course linked from a notification, "my tasks" or a profile (#training/<id>): scroll to it, and
+  // ask for feedback when the course has taken place and this person has not given it yet.
+  const loaded = trainings.length > 0;
+  useEffect(() => {
+    if (!focusId) return;
+    setSelectedCategory('all');
+    requestAnimationFrame(() => document.getElementById(`training-${focusId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    const training = trainings.find((t) => t.id === focusId);
+    if (training && tookPart(training) && !training.myFeedback) setFeedbackId(training.id);
+    // Only when the link changes, not on every refresh of the list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusId, loaded]);
   // Upcoming courses first (soonest on top), then past ones (most recent on top).
   const upcoming = filteredTrainings.filter((t) => t.date >= today).sort((a, b) => a.date.localeCompare(b.date));
   const past = filteredTrainings.filter((t) => t.date < today).sort((a, b) => b.date.localeCompare(a.date));
@@ -97,16 +125,21 @@ export const TrainingModule: React.FC = () => {
           </div>
         ) : (
           ordered.map((program) => {
-            const isEnrolled = currentUser ? program.enrolledUserIds.includes(currentUser.id) : false;
+            const isEnrolled = program.myStatus === 'enrolled';
+            const isWaiting = program.myStatus === 'waitlist';
             const enrolledCount = program.enrolledUserIds.length;
             const percentage = Math.min(100, Math.round((enrolledCount / program.capacity) * 100));
             const isFull = enrolledCount >= program.capacity;
             const isPast = program.date < today;
+            // On the day itself, sign-ups are settled once the instructor has taken attendance.
+            const attendanceTaken = isEnrolled && program.myAttended != null;
 
             return (
-              <div
+              <article
                 key={program.id}
-                className="bg-white rounded-2xl border border-[#E6E0D5] overflow-hidden hover:border-[#991b1b] hover:shadow-xl transition-all flex flex-col justify-between"
+                id={`training-${program.id}`}
+                aria-label={program.title}
+                className={`bg-white rounded-2xl border overflow-hidden hover:border-[#991b1b] hover:shadow-xl transition-all flex flex-col justify-between ${focusId === program.id ? 'border-[#991b1b] ring-2 ring-red-200' : 'border-[#E6E0D5]'}`}
               >
                 {/* Course Cover Image */}
                 <div className="relative h-44 overflow-hidden bg-[#F5F2ED] flex items-center justify-center">
@@ -181,7 +214,7 @@ export const TrainingModule: React.FC = () => {
                     <div>
                       <div className="flex items-center justify-between text-[11px] font-bold mb-1">
                         <span className="text-[#6E6A60]">تکمیل ظرفیت ثبت‌نام:</span>
-                        {can('trainings.manage') ? (
+                        {runs(program) ? (
                           <button
                             onClick={() => setEnrollmentsId(program.id)}
                             className="text-[#991b1b] hover:underline flex items-center gap-1"
@@ -200,28 +233,95 @@ export const TrainingModule: React.FC = () => {
                           style={{ width: `${percentage}%` }}
                         />
                       </div>
+                      {program.waitlistCount > 0 && (
+                        <p className="mt-1 text-[11px] text-[#6E6A60] flex items-center gap-1">
+                          <Hourglass className="w-3 h-3" /> {toPersianDigits(program.waitlistCount)} نفر در لیست انتظار
+                        </p>
+                      )}
                     </div>
 
+                    {program.materials.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-[11px] font-bold text-[#6E6A60]">جزوه و اسلایدها:</p>
+                        <ul className="space-y-1">
+                          {program.materials.map((m) => (
+                            <li key={m.url}>
+                              <a href={m.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs font-bold text-[#991b1b] hover:underline">
+                                <FileText className="w-3.5 h-3.5 shrink-0" />
+                                <span className="truncate">{m.name}</span>
+                                <span className="text-[10px] font-normal text-[#8C867A] shrink-0">{formatFileSize(m.size)}</span>
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {runs(program) && (
+                      <button
+                        type="button"
+                        onClick={() => setEnrollmentsId(program.id)}
+                        className="w-full py-2 px-4 rounded-xl text-xs font-bold border border-[#D9D4CB] hover:border-[#991b1b] text-[#2D2D2D] flex items-center justify-center gap-1.5"
+                      >
+                        <Users className="w-4 h-4 text-[#991b1b]" />
+                        {isPast || program.date === today ? 'حضور و غیاب، جزوه و نظرها' : 'شرکت‌کننده‌ها و جزوه'}
+                        {program.feedbackCount ? <span className="text-[10px] text-[#6E6A60]">({toPersianDigits(program.feedbackCount)} نظر)</span> : null}
+                      </button>
+                    )}
+
+                    {currentUser && tookPart(program) && (
+                      <button
+                        type="button"
+                        onClick={() => setFeedbackId(program.id)}
+                        className={`w-full py-2 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 ${program.myFeedback ? 'text-[#6E6A60] hover:underline' : 'bg-amber-100 text-amber-900 hover:bg-amber-200'}`}
+                      >
+                        <MessageSquareHeart className="w-4 h-4" />
+                        {program.myFeedback ? 'نظر شما ثبت شد (تغییر نظر)' : 'دوره چطور بود؟ نظر بدهید'}
+                      </button>
+                    )}
+
                     <button
-                      onClick={() => enrollTraining(program.id)}
-                      disabled={isPast || (isFull && !isEnrolled)}
+                      onClick={() => (isEnrolled || isWaiting ? leaveTraining(program.id) : enrollTraining(program.id))}
+                      disabled={isPast || attendanceTaken || !currentUser}
                       className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-                        isEnrolled
-                          ? 'bg-[#EBF2E8] text-[#991b1b] border border-[#991b1b]/30 hover:bg-[#DEEAD9]'
-                          : isFull || isPast
+                        isPast || attendanceTaken
                           ? 'bg-[#F5F2ED] text-[#8C867A] cursor-not-allowed'
+                          : isEnrolled
+                          ? 'bg-[#EBF2E8] text-[#991b1b] border border-[#991b1b]/30 hover:bg-[#DEEAD9]'
+                          : isWaiting
+                          ? 'bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100'
+                          : isFull
+                          ? 'bg-white text-[#991b1b] border border-[#991b1b] hover:bg-[#FDF2F2]'
                           : 'bg-[#991b1b] hover:bg-[#495040] text-white shadow-md'
                       }`}
                     >
                       {isPast ? (
-                        <span>{isEnrolled ? 'برگزار شد (شرکت کردید)' : 'برگزار شد'}</span>
+                        <span>
+                          {isEnrolled
+                            ? program.myAttended === true
+                              ? 'برگزار شد (حاضر بودید)'
+                              : program.myAttended === false
+                                ? 'برگزار شد (غایب ثبت شدید)'
+                                : 'برگزار شد (ثبت‌نام کرده بودید)'
+                            : 'برگزار شد'}
+                        </span>
+                      ) : attendanceTaken ? (
+                        <span>{program.myAttended ? 'حضور شما ثبت شد' : 'غایب ثبت شدید'}</span>
                       ) : isEnrolled ? (
                         <>
                           <CheckCircle2 className="w-4 h-4 text-[#991b1b]" />
                           <span>ثبت‌نام شده‌اید (جهت لغو کلیک کنید)</span>
                         </>
+                      ) : isWaiting ? (
+                        <>
+                          <Hourglass className="w-4 h-4" />
+                          <span>نفر {toPersianDigits(program.myWaitlistPosition ?? 1)} لیست انتظار (برای خروج کلیک کنید)</span>
+                        </>
                       ) : isFull ? (
-                        <span>تکمیل ظرفیت</span>
+                        <>
+                          <Hourglass className="w-4 h-4" />
+                          <span>ظرفیت پر است؛ رفتن به لیست انتظار</span>
+                        </>
                       ) : (
                         <>
                           <BookOpen className="w-4 h-4" />
@@ -233,7 +333,7 @@ export const TrainingModule: React.FC = () => {
 
                 </div>
 
-              </div>
+              </article>
             );
           })
         )}
@@ -267,6 +367,7 @@ export const TrainingModule: React.FC = () => {
       {isAddModalOpen && <AddTrainingModal onClose={() => setIsAddModalOpen(false)} />}
       {editing && <AddTrainingModal key={editing.id} training={editing} onClose={() => setEditingId(null)} />}
       {enrollmentsFor && <EnrollmentsModal training={enrollmentsFor} onClose={() => setEnrollmentsId(null)} />}
+      {feedbackFor && <TrainingFeedbackModal training={feedbackFor} onClose={() => setFeedbackId(null)} />}
 
     </div>
   );

@@ -21,6 +21,8 @@ const server = spawn(process.execPath, ['--enable-source-maps', 'server-dist/ind
     UPLOAD_DIR: 'e2e/.uploads',
     SMTP_HOST: '',
     LDAP_URL: '',
+    // The browser runs in Tehran time too (see playwright.config.ts), so "today" is the same day on both sides.
+    TZ: 'Asia/Tehran',
   },
 });
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.kill(signal));

@@ -27,13 +27,14 @@ import type {
   DocumentDetails,
   RoleInfo,
   SearchResultItem,
+  TrainingInput,
   TrainingProgram,
   UserMood,
   UserProfile,
   UserRole,
   WorkExperience,
 } from '../types';
-import { todayJalali } from '../lib/jalali';
+import { todayJalali, toPersianDigits } from '../lib/jalali';
 
 const NEWS_PAGE_SIZE = 30;
 
@@ -174,10 +175,17 @@ interface PortalContextType {
   toggleLikeNews: (newsId: string) => Promise<void>;
   markNewsRead: (newsId: string) => Promise<void>;
   acknowledgeNews: (newsId: string) => Promise<void>;
+  /** Signs up, or joins the waitlist when the course is full. */
   enrollTraining: (trainingId: string) => Promise<void>;
-  addTraining: (training: Omit<TrainingProgram, 'id' | 'enrolledUserIds'>) => Promise<boolean>;
+  /** Cancels one's sign-up or place on the waitlist. */
+  leaveTraining: (trainingId: string) => Promise<void>;
+  /** The short survey after a course. */
+  sendTrainingFeedback: (trainingId: string, feedback: { satisfaction: number; usefulness: number; comment: string }) => Promise<boolean>;
+  /** Handouts and slides, by the instructor or the people who run trainings. */
+  saveTrainingMaterials: (trainingId: string, materials: Attachment[]) => Promise<boolean>;
+  addTraining: (training: TrainingInput) => Promise<boolean>;
   deleteTraining: (trainingId: string) => Promise<void>;
-  updateTraining: (trainingId: string, training: Omit<TrainingProgram, 'id' | 'enrolledUserIds'>, notifyEnrolled: boolean) => Promise<boolean>;
+  updateTraining: (trainingId: string, training: TrainingInput, notifyEnrolled: boolean) => Promise<boolean>;
   sendBirthdayWish: (userId: string, text: string) => Promise<boolean>;
   sendWelcomeWish: (newColleagueId: string, message: string) => Promise<boolean>;
   deleteBirthdayWish: (wishId: string) => Promise<void>;
@@ -615,14 +623,35 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const enrollTraining = async (trainingId: string) => {
-    const result = await attempt(() => api.post<{ enrolled: boolean }>(`/api/trainings/${trainingId}/enroll`));
+    const result = await attempt(() => api.post<{ status: 'enrolled' | 'waitlist'; position?: number }>(`/api/trainings/${trainingId}/enroll`));
     if (result) {
-      toast.success(result.enrolled ? 'ثبت‌نام شما انجام شد.' : 'ثبت‌نام شما لغو شد.');
+      toast.success(
+        result.status === 'enrolled'
+          ? 'ثبت‌نام شما انجام شد.'
+          : `ظرفیت پر است؛ نفر ${toPersianDigits(result.position ?? 1)} لیست انتظار هستید. اگر جایی آزاد شود، خودکار ثبت‌نام می‌شوید و خبردار می‌شوید.`,
+      );
       await refresh('trainings');
     }
   };
 
-  const addTraining = async (training: Omit<TrainingProgram, 'id' | 'enrolledUserIds'>) => {
+  const leaveTraining = async (trainingId: string) => {
+    const ok = await attempt(() => api.delete(`/api/trainings/${trainingId}/enroll`), 'ثبت‌نام شما لغو شد.');
+    if (ok !== undefined) await refresh('trainings');
+  };
+
+  const sendTrainingFeedback: PortalContextType['sendTrainingFeedback'] = async (trainingId, feedback) => {
+    const ok = await attempt(() => api.post(`/api/trainings/${trainingId}/feedback`, feedback), 'نظر شما ثبت شد. ممنون!');
+    if (ok !== undefined) await refresh('trainings');
+    return ok !== undefined;
+  };
+
+  const saveTrainingMaterials: PortalContextType['saveTrainingMaterials'] = async (trainingId, materials) => {
+    const ok = await attempt(() => api.put(`/api/trainings/${trainingId}/materials`, { materials }));
+    if (ok !== undefined) await refresh('trainings');
+    return ok !== undefined;
+  };
+
+  const addTraining = async (training: TrainingInput) => {
     const ok = await attempt(() => api.post('/api/trainings', training), 'دوره آموزشی اضافه شد.');
     if (ok) await Promise.all([refresh('trainings'), refresh('calendar')]);
     return Boolean(ok);
@@ -907,6 +936,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         markNewsRead,
         acknowledgeNews,
         enrollTraining,
+        leaveTraining,
+        sendTrainingFeedback,
+        saveTrainingMaterials,
         addTraining,
         deleteTraining,
         updateTraining,

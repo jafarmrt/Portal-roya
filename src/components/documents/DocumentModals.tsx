@@ -115,7 +115,8 @@ export const DocumentFormModal: React.FC<{ doc?: PortalDocument; onClose: () => 
                 label="انتخاب فایل (PDF، Word، Excel، ZIP…)"
                 onUploaded={(f) => {
                   setFile(f);
-                  if (!form.title) set('title', f.name.replace(/\.[^.]+$/, ''));
+                  // The file name is only a suggestion: keep a title typed while the file was uploading.
+                  setForm((current) => (current.title ? current : { ...current, title: f.name.replace(/\.[^.]+$/, '') }));
                 }}
               />
             )}

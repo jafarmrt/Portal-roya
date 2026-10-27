@@ -4,6 +4,7 @@ import type { UserProfile } from '../../types';
 import { Avatar } from '../common/Avatar';
 import { formatBirthDay } from '../../lib/jalali';
 import { IntroduceColleagueModal } from './IntroduceColleagueModal';
+import { PersonTrainingsSection } from '../training/PersonTrainingsSection';
 import { ModalShell } from '../common/Modal';
 import {
   X,
@@ -251,6 +252,18 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
               {user.bio || 'توضیحات معرفی ثبت نشده است.'}
             </p>
           </div>
+
+          {/* Courses: for the colleague themself and the people who run trainings. */}
+          {user.hasAccount && (isOwnProfile || can('trainings.manage')) && (
+            <PersonTrainingsSection
+              userId={user.id}
+              own={isOwnProfile}
+              onOpen={(id) => {
+                onClose();
+                setActiveTab('training', id);
+              }}
+            />
+          )}
 
           {/* Work Experiences Section */}
           <div className="mb-6 space-y-3">
