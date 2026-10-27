@@ -1,7 +1,9 @@
-import React, { useId, useState } from 'react';
-import { LogIn, Lock, User } from 'lucide-react';
+import React, { useEffect, useId, useState } from 'react';
+import { LayoutGrid, LogIn, Lock, User } from 'lucide-react';
 import { usePortal } from '../context/PortalContext';
-import { errorMessage } from '../lib/api';
+import { api, errorMessage } from '../lib/api';
+import type { ExternalSystem } from '../types';
+import { SystemTile } from './dashboard/QuickSystemsWidget';
 import { RoyaLogo } from './common/RoyaLogo';
 import { ModalCloseButton, ModalShell } from './common/Modal';
 
@@ -89,8 +91,34 @@ const LoginForm: React.FC = () => {
   );
 };
 
+/**
+ * The organisation's apps for visitors who are not signed in (e.g. from the internet, where news and
+ * files stay closed). The server sends each with the address that works where the visitor is.
+ */
+const SignedOutApps: React.FC = () => {
+  const [apps, setApps] = useState<ExternalSystem[]>([]);
+  useEffect(() => {
+    api.get<ExternalSystem[]>('/api/system/apps').then(setApps, () => setApps([]));
+  }, []);
+  if (apps.length === 0) return null;
+
+  return (
+    <section aria-labelledby="signed-out-apps" className="w-full max-w-md bg-white rounded-3xl border border-[#E6E0D5] p-5 space-y-3">
+      <div>
+        <h2 id="signed-out-apps" className="flex items-center gap-2 text-sm font-black text-[#2D2D2D]">
+          <LayoutGrid className="w-4 h-4 text-[#991b1b]" /> سامانه‌های سازمان
+        </h2>
+        <p className="text-[11px] text-[#7A756D] mt-1">بدون ورود به پرتال هم می‌توانید این سامانه‌ها را باز کنید.</p>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {apps.map((app) => <SystemTile key={app.id} system={app} href={app.url} compact />)}
+      </div>
+    </section>
+  );
+};
+
 export const LoginPage: React.FC = () => (
-  <main className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4" dir="rtl">
+  <main className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center gap-4 p-4" dir="rtl">
     <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-[#E6E0D5] overflow-hidden">
       <div className="px-8 pt-8 pb-5 border-b border-[#E6E0D5]">
         <RoyaLogo size="md" />
@@ -99,6 +127,7 @@ export const LoginPage: React.FC = () => (
       </div>
       <LoginForm />
     </div>
+    <SignedOutApps />
   </main>
 );
 

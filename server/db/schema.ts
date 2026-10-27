@@ -49,7 +49,10 @@ export interface ExternalSystemRecord {
   iconName: string;
   /** Optional logo uploaded to this server; shown instead of the icon when set. */
   imageUrl?: string;
+  /** Address used inside the company network ('#' or '' = not set). */
   url: string;
+  /** Address used from the internet; see shared/systemLinks.ts for the fallbacks. */
+  externalUrl?: string;
   bgColor: string;
   textColor: string;
   /** The department that runs the system, so it shows on that department's page. */

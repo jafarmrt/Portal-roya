@@ -51,11 +51,18 @@ const systemSchema = z.object({
   description: z.string().trim().max(300).default(''),
   iconName: requiredText(50),
   imageUrl: uploadedImage('تصویر سامانه باید روی همین سرور بارگذاری شده باشد').default(''),
+  // Inside the company network, and from the internet; either may be left empty.
   url: z
     .string()
     .trim()
     .max(500)
-    .refine((v) => v === '#' || /^https?:\/\//.test(v), 'آدرس سامانه باید با http:// یا https:// شروع شود'),
+    .refine((v) => v === '' || v === '#' || /^https?:\/\//.test(v), 'آدرس داخلی سامانه باید با http:// یا https:// شروع شود'),
+  externalUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .refine((v) => v === '' || /^https?:\/\//.test(v), 'آدرس بیرونی سامانه باید با http:// یا https:// شروع شود')
+    .default(''),
   bgColor: requiredText(50),
   textColor: requiredText(50),
   // The department that runs it ('' for none), shown on that department's page.

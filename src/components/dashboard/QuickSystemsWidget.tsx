@@ -4,18 +4,25 @@ import { ExternalLink, LayoutGrid, Settings2 } from 'lucide-react';
 import type { ExternalSystem } from '../../types';
 import { SystemIcon } from '../systems/SystemIcon';
 
-export const isSystemLinkSet = (system: ExternalSystem) => Boolean(system.url) && system.url !== '#';
+/** Why an app has no link here: none was entered, or it only opens inside the company. */
+export const missingLinkMessage = (system: ExternalSystem) =>
+  (system.url && system.url !== '#') || system.externalUrl ? 'این سامانه فقط از داخل شرکت باز می‌شود' : 'آدرس این سامانه هنوز ثبت نشده است';
 
-/** One organisation app as a launch tile; opens in a new tab so the portal stays open. */
-export const SystemTile: React.FC<{ system: ExternalSystem; compact?: boolean; onLaunch?: () => void }> = ({ system, compact, onLaunch }) => {
-  const ready = isSystemLinkSet(system);
+/**
+ * One organisation app as a launch tile; opens in a new tab so the portal stays open. The link is the
+ * inside or internet address depending on where the visitor is; `href` overrides it (sign-in page).
+ */
+export const SystemTile: React.FC<{ system: ExternalSystem; href?: string; compact?: boolean; onLaunch?: () => void }> = ({ system, href, compact, onLaunch }) => {
+  const { systemHref } = usePortal();
+  const link = href ?? systemHref(system);
+  const ready = Boolean(link);
   return (
     <a
-      href={ready ? system.url : undefined}
+      href={ready ? link : undefined}
       target="_blank"
       rel="noopener noreferrer"
       aria-disabled={!ready}
-      title={ready ? `${system.name} (در زبانهٔ جدید باز می‌شود)` : 'آدرس این سامانه هنوز ثبت نشده است'}
+      title={ready ? `${system.name} (در زبانهٔ جدید باز می‌شود)` : missingLinkMessage(system)}
       onClick={(e) => {
         if (!ready) e.preventDefault();
         else onLaunch?.();

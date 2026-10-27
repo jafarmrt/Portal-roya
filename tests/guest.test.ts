@@ -2,6 +2,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { pool } from '../server/db/index';
 import { isCompanyAddress } from '../server/network';
+import { isInsideOnlyUrl, systemLink } from '../shared/systemLinks';
 import { app, createEmployee, resetDatabase, setupAdmin } from './helpers';
 
 describe('guest (not signed in) access', () => {
@@ -120,5 +121,54 @@ describe('guest (not signed in) access', () => {
     } finally {
       app.set('trust proxy', false);
     }
+  });
+
+  it('shows the org apps to visitors from the internet, with the address that works there', async () => {
+    const system = { description: '', iconName: 'Globe', bgColor: 'bg-red-50', textColor: 'text-red-700' };
+    await admin
+      .put('/api/settings')
+      .send({
+        systems: [
+          { ...system, id: 'crm', name: 'CRM', url: 'http://192.168.0.30', externalUrl: 'https://crm.royaco.com' },
+          { ...system, id: 'hr', name: 'HR', url: 'http://hr.roya.local', externalUrl: '' },
+          { ...system, id: 'mail', name: 'Mail', url: 'https://mail.royaco.com' },
+          { ...system, id: 'web', name: 'Web', url: '', externalUrl: 'https://royaco.com' },
+        ],
+      })
+      .expect(200);
+    await admin.put('/api/settings').send({ systems: [{ ...system, id: 'x', name: 'x', url: 'http://a', externalUrl: 'ftp://b' }] }).expect(400);
+
+    app.set('trust proxy', 1);
+    try {
+      const links = async (ip: string) =>
+        Object.fromEntries((await request(app).get('/api/system/apps').set('X-Forwarded-For', ip).expect(200)).body.map((a: { id: string; url: string }) => [a.id, a.url]));
+
+      // From the internet: the outside address, or the inside one when it also works from the internet; HR only works inside.
+      expect(await links('5.160.10.20')).toEqual({ crm: 'https://crm.royaco.com', mail: 'https://mail.royaco.com', web: 'https://royaco.com' });
+      expect(await links('192.168.0.50')).toEqual({
+        crm: 'http://192.168.0.30',
+        hr: 'http://hr.roya.local',
+        mail: 'https://mail.royaco.com',
+        web: 'https://royaco.com',
+      });
+      // News and files stay closed from the internet.
+      await request(app).get('/api/news').set('X-Forwarded-For', '5.160.10.20').expect(401);
+
+      await admin.put('/api/settings').send({ guestAccess: false }).expect(200);
+      expect(await links('5.160.10.20')).toEqual({});
+      await admin.put('/api/settings').send({ guestAccess: true }).expect(200);
+    } finally {
+      app.set('trust proxy', false);
+    }
+  });
+
+  it('decides which address an app opens', () => {
+    const app = { url: 'http://10.0.0.5', externalUrl: 'https://erp.royaco.com' };
+    expect(systemLink(app, true)).toBe('http://10.0.0.5');
+    expect(systemLink(app, false)).toBe('https://erp.royaco.com');
+    expect(systemLink({ url: '#', externalUrl: '' }, true)).toBe('');
+    expect(systemLink({ url: 'http://crm' }, false)).toBe('');
+    for (const url of ['http://172.16.4.4:8080', 'http://intranet', 'http://srv.lan', 'http://[fd00::1]/']) expect(isInsideOnlyUrl(url), url).toBe(true);
+    for (const url of ['https://mail.royaco.com', 'http://79.127.49.210:8443', 'http://172.32.0.1']) expect(isInsideOnlyUrl(url), url).toBe(false);
   });
 });
