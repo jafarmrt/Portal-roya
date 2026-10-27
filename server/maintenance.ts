@@ -9,6 +9,7 @@ import { config } from './config.js';
 import { db } from './db/index.js';
 import { employees, roles } from './db/schema.js';
 import { createNotifications } from './notify.js';
+import { buildInfo } from './version.js';
 import { ADMIN_ROLE_ID } from '../shared/permissions.js';
 
 // Housekeeping for a server with little disk: nightly backups, removal of uploads nothing uses
@@ -236,7 +237,7 @@ export async function serverStatus() {
     latest(config.backupDir, WEEKLY_UPLOADS),
   ]);
   return {
-    version: config.version,
+    ...buildInfo(),
     disk,
     lowDiskBytes: LOW_DISK_BYTES,
     uploads,

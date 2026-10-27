@@ -7,6 +7,7 @@ import { api, errorMessage } from '../../lib/api';
 import { formatDateTime, formatFileSize, toPersianDigits } from '../../lib/jalali';
 import type { AppSettings, BackupFile, ServerStatus } from '../../types';
 import { FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
+import { buildNumber, WhatsNewModal } from '../common/VersionInfo';
 import { inputClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { RoyaLogo } from '../common/RoyaLogo';
 import { DASHBOARD_CARDS, isCardOn } from '../dashboard/dashboardCards';
@@ -412,6 +413,7 @@ const describeBackup = (file: BackupFile | null, keep: string, when: string) =>
 /** Disk space, backups and housekeeping on the server, so problems show up before they hurt. */
 const ServerStatusCard: React.FC = () => {
   const [status, setStatus] = useState<ServerStatus | null>(null);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -438,7 +440,12 @@ const ServerStatusCard: React.FC = () => {
         <div className="flex items-center gap-2">
           <HardDrive className="w-4 h-4 text-red-700" />
           <h3 id="server-status-title" className="text-sm font-black text-[#2D2D2D]">وضعیت سرور و پشتیبان‌ها</h3>
-          {status && <span className="text-[11px] text-[#6E6A60]">نسخهٔ {toPersianDigits(status.version)}</span>}
+          {status && (
+            <span className="text-[11px] text-[#6E6A60]">
+              نسخهٔ {toPersianDigits(status.version)}
+              {status.build && ` · بیلد ${buildNumber(status.build)}`}
+            </span>
+          )}
         </div>
         <button type="button" onClick={load} disabled={loading} aria-label="به‌روزرسانی وضعیت سرور" className="p-1.5 rounded-lg hover:bg-[#F5F2ED] disabled:opacity-40">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -457,6 +464,19 @@ const ServerStatusCard: React.FC = () => {
             </div>
           )}
           <dl className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <StatusRow label="نسخهٔ در حال اجرا">
+              <span className="font-bold">{toPersianDigits(status.version)}</span>
+              {status.build ? ` · بیلد ${buildNumber(status.build)}` : ' · اجرا از کد منبع'}
+              {status.commit && <span className="text-[11px] text-[#6E6A60]" dir="ltr"> ({status.commit})</span>}
+              <span className="block text-[11px] text-[#6E6A60]">
+                {status.builtAt && <>ساخته‌شده {formatDateTime(status.builtAt)} · </>}
+                راه‌اندازی {formatDateTime(status.startedAt)}
+              </span>
+              <button type="button" onClick={() => setShowWhatsNew(true)} className="mt-1 text-[11px] font-bold text-red-700 hover:underline">
+                تازه‌های این نسخه
+              </button>
+              {showWhatsNew && <WhatsNewModal info={status} onClose={() => setShowWhatsNew(false)} />}
+            </StatusRow>
             <StatusRow label="فضای دیسک">
               {disk ? (
                 <>

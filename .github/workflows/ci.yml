@@ -67,19 +67,27 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # build-info.json tells the running portal (footer, server status) and update.sh which build this is.
       - name: Package
+        env:
+          TAG: build-${{ github.run_number }}
         run: |
-          tar -czf roya-portal.tar.gz dist server-dist drizzle deploy package.json .env.example
+          node -e 'require("fs").writeFileSync("build-info.json", JSON.stringify({
+            version: require("./package.json").version, build: process.env.TAG,
+            commit: process.env.GITHUB_SHA, builtAt: new Date().toISOString() }, null, 2) + "\n")'
+          cat build-info.json
+          tar -czf roya-portal.tar.gz dist server-dist drizzle deploy package.json build-info.json CHANGELOG.md .env.example
           ls -lh roya-portal.tar.gz
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: build-${{ github.run_number }}
         run: |
+          VERSION="$(node -p 'require("./package.json").version')"
           gh release create "$TAG" roya-portal.tar.gz \
             --target "$GITHUB_SHA" --latest \
-            --title "$TAG" \
-            --notes "Commit ${GITHUB_SHA::7}: $(git log -1 --pretty=%s)"
+            --title "v$VERSION ($TAG)" \
+            --notes "Version $VERSION, commit ${GITHUB_SHA::7}: $(git log -1 --pretty=%s)"
       - name: Remove old releases
         env:
           GH_TOKEN: ${{ github.token }}
