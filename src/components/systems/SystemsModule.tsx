@@ -4,6 +4,8 @@ import { ExternalLink, Plus, X, Save, Edit, Trash2, ChevronUp, ChevronDown, Imag
 import { ExternalSystem } from '../../types';
 import { FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
 import { iconMap, SystemIcon } from './SystemIcon';
+import { missingLinkMessage } from '../dashboard/QuickSystemsWidget';
+import { isInsideOnlyUrl } from '../../../shared/systemLinks';
 
 const iconLabels: Record<string, string> = {
   Database: 'پایگاه داده / CRM', Globe: 'وب / اتوماسیون', CalendarClock: 'حضور و غیاب', CreditCard: 'مالی و پرداخت',
@@ -12,8 +14,17 @@ const iconLabels: Record<string, string> = {
   FileText: 'اسناد و نامه‌ها', ShoppingCart: 'فروش / خرید', Phone: 'تلفن و ارتباطات', Briefcase: 'پروژه‌ها',
 };
 
+/** What colleagues outside the company get for this app, under the internet address field. */
+function externalHint(system: ExternalSystem) {
+  const internal = system.url && system.url !== '#' ? system.url.trim() : '';
+  if (system.externalUrl?.trim()) return 'همکارانی که از بیرون شرکت وصل می‌شوند به این آدرس می‌روند.';
+  if (!internal) return 'خالی بگذارید اگر سامانه از بیرون شرکت در دسترس نیست.';
+  if (isInsideOnlyUrl(internal)) return 'خالی است؛ چون آدرس داخلی فقط در شرکت کار می‌کند، این سامانه بیرون از شرکت نشان داده نمی‌شود.';
+  return 'خالی است؛ بیرون از شرکت هم همان آدرس داخلی باز می‌شود.';
+}
+
 export const SystemsModule: React.FC = () => {
-  const { can, appSettings, updateSettings } = usePortal();
+  const { can, appSettings, updateSettings, systemHref, companyNetwork } = usePortal();
   const isManager = can('systems.manage');
   const [isEditing, setIsEditing] = useState(false);
   
@@ -31,7 +42,8 @@ export const SystemsModule: React.FC = () => {
       description: 'توضیحات سامانه جدید',
       iconName: 'Settings',
       imageUrl: '',
-      url: '#',
+      url: '',
+      externalUrl: '',
       bgColor: 'bg-gray-50',
       textColor: 'text-gray-700'
     };
@@ -75,6 +87,9 @@ export const SystemsModule: React.FC = () => {
           <p className="text-sm text-[#6E6A60] mt-1">
             دسترسی سریع به نرم‌افزارها و سامانه‌های یکپارچه رویا طرح داخلی
           </p>
+          {!companyNetwork && (
+            <p className="text-xs text-amber-800 font-bold mt-1">شما از بیرون شرکت وصل شده‌اید؛ لینک‌ها به آدرس‌های اینترنتی سامانه‌ها می‌روند.</p>
+          )}
         </div>
         {isManager && (
           <div>
@@ -151,13 +166,29 @@ export const SystemsModule: React.FC = () => {
                           placeholder="توضیحات کوتاه"
                           className="w-full px-3 py-2 text-xs text-[#6E6A60] border border-[#E6E0D5] rounded-lg focus:border-[#dc2626] outline-hidden"
                         />
-                        <input
-                          value={system.url}
-                          onChange={(e) => handleUpdateSystem(system.id, 'url', e.target.value)}
-                          placeholder="آدرس کامل، مثلاً http://crm.roya.local"
-                          className="w-full px-3 py-2 text-xs text-blue-600 border border-[#E6E0D5] rounded-lg focus:border-[#dc2626] outline-hidden text-left"
-                          dir="ltr"
-                        />
+                        <div>
+                          <label htmlFor={`system-url-${system.id}`} className="block text-[11px] font-bold text-[#6E6A60] mb-1">آدرس داخل شرکت</label>
+                          <input
+                            id={`system-url-${system.id}`}
+                            value={system.url === '#' ? '' : system.url}
+                            onChange={(e) => handleUpdateSystem(system.id, 'url', e.target.value)}
+                            placeholder="مثلاً http://192.168.0.30 یا http://crm.roya.local"
+                            className="w-full px-3 py-2 text-xs text-blue-600 border border-[#E6E0D5] rounded-lg focus:border-[#dc2626] outline-hidden text-left"
+                            dir="ltr"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor={`system-external-${system.id}`} className="block text-[11px] font-bold text-[#6E6A60] mb-1">آدرس بیرون از شرکت (اینترنت)</label>
+                          <input
+                            id={`system-external-${system.id}`}
+                            value={system.externalUrl ?? ''}
+                            onChange={(e) => handleUpdateSystem(system.id, 'externalUrl', e.target.value)}
+                            placeholder="مثلاً https://crm.royaco.com"
+                            className="w-full px-3 py-2 text-xs text-blue-600 border border-[#E6E0D5] rounded-lg focus:border-[#dc2626] outline-hidden text-left"
+                            dir="ltr"
+                          />
+                          <p className="mt-1 text-[11px] text-[#8C867A] leading-relaxed">{externalHint(system)}</p>
+                        </div>
                       </div>
                     </div>
                     <div className="pt-3 border-t border-[#E6E0D5] grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -238,11 +269,12 @@ export const SystemsModule: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {currentSystems.map((system) => {
-            const ready = Boolean(system.url) && system.url !== '#';
+            const link = systemHref(system);
+            const ready = Boolean(link);
             return (
               <a
                 key={system.id}
-                href={ready ? system.url : undefined}
+                href={ready ? link : undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-disabled={!ready}
@@ -263,7 +295,7 @@ export const SystemsModule: React.FC = () => {
                     </p>
                     {!ready && (
                       <p className="text-[11px] text-amber-700 font-bold mt-2">
-                        آدرس این سامانه هنوز ثبت نشده است{isManager ? ' (از «ویرایش سامانه‌ها» وارد کنید)' : ''}.
+                        {missingLinkMessage(system)}{isManager ? ' (آدرس‌ها را از «ویرایش سامانه‌ها» وارد کنید)' : ''}.
                       </p>
                     )}
                   </div>

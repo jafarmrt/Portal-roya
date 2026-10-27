@@ -18,6 +18,7 @@ import {
 import { cleanDepartmentName } from '../../shared/departments.js';
 import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID } from '../../shared/permissions.js';
 import { isPersian, needsProfile } from '../../shared/profile.js';
+import { systemLink } from '../../shared/systemLinks.js';
 import { audit } from '../audit.js';
 import { claimPhoneBookEntry, phoneBookMatches } from '../claim.js';
 import { config } from '../config.js';
@@ -82,6 +83,49 @@ authRouter.get(
     if (!file) throw new HttpError(404, 'لوگویی بارگذاری نشده است.');
     res.sendFile(file, { root: config.uploadDir, dotfiles: 'deny', maxAge: '1d' }, (err) => {
       if (err && !res.headersSent) res.status(404).json({ error: 'فایل لوگو پیدا نشد.' });
+    });
+  }),
+);
+
+/**
+ * The organisation's app links for visitors who are not signed in, shown on the sign-in page. They follow
+ * the guest-access switch but, unlike news and files, also reach visitors from the internet; each link is
+ * the address that works where the visitor is (see shared/systemLinks.ts), and apps with none are left out.
+ */
+authRouter.get(
+  '/system/apps',
+  route(async (req, res) => {
+    const row = (await hasAnyEmployee()) ? await ensureSettings() : null;
+    if (!row?.guestAccess) {
+      res.json([]);
+      return;
+    }
+    const inside = fromCompanyNetwork(req);
+    const apps = row.systems
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        description: s.description,
+        iconName: s.iconName,
+        // /uploads is closed to visitors from the internet, so logos come through /api/system/apps/:id/logo.
+        imageUrl: s.imageUrl ? `/api/system/apps/${encodeURIComponent(s.id)}/logo?v=${encodeURIComponent(s.imageUrl.replace(/^\/uploads\//, ''))}` : '',
+        bgColor: s.bgColor,
+        textColor: s.textColor,
+        url: systemLink(s, inside),
+      }))
+      .filter((s) => s.url);
+    res.json(apps);
+  }),
+);
+
+authRouter.get(
+  '/system/apps/:id/logo',
+  route(async (req, res) => {
+    const row = await ensureSettings();
+    const file = row.guestAccess ? row.systems.find((s) => s.id === req.params.id)?.imageUrl?.replace(/^\/uploads\//, '') : undefined;
+    if (!file) throw new HttpError(404, 'تصویری برای این سامانه نیست.');
+    res.sendFile(file, { root: config.uploadDir, dotfiles: 'deny', maxAge: '1d' }, (err) => {
+      if (err && !res.headersSent) res.status(404).json({ error: 'فایل تصویر پیدا نشد.' });
     });
   }),
 );

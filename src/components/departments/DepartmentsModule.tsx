@@ -96,7 +96,7 @@ const LinkRow: React.FC<{ title: string; detail: string; onClick: () => void }> 
 );
 
 const DepartmentView: React.FC<{ department: string }> = ({ department }) => {
-  const { employees, departmentPages, guides, documents, news, appSettings, setActiveTab } = usePortal();
+  const { employees, departmentPages, guides, documents, news, appSettings, setActiveTab, systemHref } = usePortal();
   const canEdit = useCanEdit();
   const [editing, setEditing] = useState(false);
   const page = departmentPages.find((p) => p.department === department);
@@ -105,7 +105,7 @@ const DepartmentView: React.FC<{ department: string }> = ({ department }) => {
     .filter((e) => e.isActive && e.department === department)
     .sort((a, b) => Number(b.id === head?.id) - Number(a.id === head?.id) || byName(a, b));
   const memberIds = new Set(members.map((m) => m.id));
-  const systems = (appSettings?.systems ?? []).filter((s) => s.department === department);
+  const systems = (appSettings?.systems ?? []).filter((s) => s.department === department && systemHref(s));
   const ownGuides = guides.filter((g) => g.department === department);
   const ownDocuments = documents.filter((d) => d.targetDepartments.includes(department) || d.ownerDepartment === department);
   const ownNews = news
@@ -213,7 +213,7 @@ const DepartmentView: React.FC<{ department: string }> = ({ department }) => {
               <ul className="space-y-1">
                 {systems.map((s) => (
                   <li key={s.id}>
-                    <a href={s.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-2 rounded-xl hover:bg-[#F5F2ED]">
+                    <a href={systemHref(s)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-2 rounded-xl hover:bg-[#F5F2ED]">
                       <SystemIcon system={s} size="sm" />
                       <span className="flex-1 min-w-0">
                         <span className="block text-xs font-bold text-[#2D2D2D] truncate">{s.name}</span>

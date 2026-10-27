@@ -15,7 +15,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     appSettings,
     setActiveTab,
     documents,
-    guides
+    guides,
+    systemHref
   } = usePortal();
 
   const [query, setQuery] = useState('');
@@ -76,8 +77,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       subtitle: s.description,
       icon: <ExternalLink className="w-4 h-4 text-emerald-600" />,
       action: () => {
-        if (s.url && /^https?:\/\//.test(s.url)) {
-          window.open(s.url, '_blank', 'noopener,noreferrer');
+        const link = systemHref(s);
+        if (link) {
+          window.open(link, '_blank', 'noopener,noreferrer');
         } else {
           setActiveTab('systems');
         }

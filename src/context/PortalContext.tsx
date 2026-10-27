@@ -2,7 +2,9 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import toast from 'react-hot-toast';
 import { ApiError, api, errorMessage, setUnauthorizedHandler } from '../lib/api';
 import { buildSearchResults } from '../lib/search';
+import { systemLink } from '../../shared/systemLinks';
 import type {
+  ExternalSystem,
   ActiveTab,
   AppSettings,
   Attachment,
@@ -120,6 +122,10 @@ interface PortalContextType {
   /** Browsing without a session while the manager allows guest access (read-only). */
   isGuest: boolean;
   guestAccess: boolean;
+  /** The visitor is inside the company network (false when they came from the internet). */
+  companyNetwork: boolean;
+  /** The address of an organisation app that works where the visitor is; '' when it has none. */
+  systemHref: (system: ExternalSystem) => string;
   /** Staff sign in with their Active Directory (Windows) username and password. */
   directoryLogin: boolean;
   /** Address of the uploaded company logo, or null for the built-in ROYA wordmark. */
@@ -902,6 +908,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await api.delete(`/api/notifications/${id}`).catch(() => undefined);
   };
 
+  const systemHref = useCallback((system: ExternalSystem) => systemLink(system, companyNetwork), [companyNetwork]);
+
   const getGlobalSearchResults = (query: string) =>
     buildSearchResults(query, { employees, news, polls, trainings, calendarEvents, documents, guides, departmentPages, departments: appSettings?.departments ?? [] });
 
@@ -915,6 +923,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isLoggedIn: Boolean(currentUser),
         isGuest,
         guestAccess,
+        companyNetwork,
+        systemHref,
         directoryLogin,
         logoSrc,
         loginPrompt,

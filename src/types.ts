@@ -674,7 +674,10 @@ export interface ExternalSystem {
   iconName: string;
   /** Optional logo uploaded to the portal server; shown instead of the icon when set. */
   imageUrl?: string;
+  /** Address used inside the company network ('#' or '' = not set). */
   url: string;
+  /** Address used from the internet (outside the company network). */
+  externalUrl?: string;
   bgColor: string;
   textColor: string;
   /** The department that runs it, shown on that department's page; '' for none. */
