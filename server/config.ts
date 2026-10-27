@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import path from 'path';
+import packageJson from '../package.json';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const isTest = process.env.NODE_ENV === 'test';
@@ -55,7 +56,10 @@ export const config = {
   // Set to true only when the portal is served over HTTPS.
   cookieSecure: process.env.COOKIE_SECURE === 'true',
   trustProxy: process.env.TRUST_PROXY === 'true',
+  version: packageJson.version,
   uploadDir: path.resolve(process.env.UPLOAD_DIR || 'uploads'),
+  // Nightly backups; next to the uploads folder unless set (e.g. a mounted network share).
+  backupDir: path.resolve(process.env.BACKUP_DIR || path.join(path.dirname(path.resolve(process.env.UPLOAD_DIR || 'uploads')), 'backups')),
   maxUploadMb: Number(process.env.MAX_UPLOAD_MB || 10),
   appUrl: process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`,
   ldap,

@@ -10,7 +10,9 @@ import { LoginModal, LoginPage } from './components/LoginPage';
 import { ForcePasswordChangePage } from './components/ChangePasswordModal';
 import { DashboardModule } from './components/dashboard/DashboardModule';
 import { ErrorBoundary, loadModule } from './components/common/ErrorBoundary';
+import { SiteBanner } from './components/common/SiteBanner';
 import { currentJalaliYear, toPersianDigits } from './lib/jalali';
+import { useTabBadge } from './lib/tabBadge';
 
 // Secondary modules load on demand to keep the first download small.
 const named = <T,>(loader: () => Promise<T>, key: keyof T) =>
@@ -84,8 +86,9 @@ const GuestBanner: React.FC = () => {
 };
 
 const MainContent: React.FC = () => {
-  const { activeTab, isSetupComplete, authChecked, currentUser, isGuest, appSettings, isLoading, error, can, isAdmin } = usePortal();
+  const { activeTab, isSetupComplete, authChecked, currentUser, isGuest, appSettings, isLoading, error, can, isAdmin, notifications } = usePortal();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  useTabBadge(notifications.filter((n) => !n.isRead).length);
 
   if (!authChecked) return <FullScreenLoader text="در حال اتصال به پرتال..." />;
   if (error && isSetupComplete === null) return <ErrorScreen message={error} />;
@@ -108,6 +111,7 @@ const MainContent: React.FC = () => {
       <Header onToggleMobileNav={() => setIsMobileNavOpen(!isMobileNavOpen)} isMobileNavOpen={isMobileNavOpen} />
       <Navigation isMobileNavOpen={isMobileNavOpen} onCloseMobileNav={() => setIsMobileNavOpen(false)} />
       {isGuest && <GuestBanner />}
+      <SiteBanner />
 
       <main id="main" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <ErrorBoundary resetKey={activeTab}>

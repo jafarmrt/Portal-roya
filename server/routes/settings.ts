@@ -7,15 +7,22 @@ import { settings } from '../db/schema.js';
 import { checkDepartmentList, departmentList, departmentUsage, renameDepartment } from '../departments.js';
 import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, parse, route } from '../http.js';
+import { serverStatus } from '../maintenance.js';
 import { ensureSettings } from '../settings.js';
 import { requiredText } from '../validation.js';
 
 export const settingsRouter = Router();
 
+/** The settings everyone (guests included) receives; a banner past its end time is left out. */
+export function publicSettings(row: typeof settings.$inferSelect) {
+  const banner = row.banner && new Date(row.banner.expiresAt) > new Date() ? row.banner : null;
+  return { ...row, banner };
+}
+
 settingsRouter.get(
   '/settings',
   route(async (_req, res) => {
-    res.json(await ensureSettings());
+    res.json(publicSettings(await ensureSettings()));
   }),
 );
 
@@ -70,7 +77,55 @@ settingsRouter.put(
     if (body.departments) body.departments = await checkDepartmentList(body.departments);
     const [updated] = await db.update(settings).set(body).where(eq(settings.id, 'global')).returning();
     broadcastChange('settings');
-    res.json(updated);
+    res.json(publicSettings(updated));
+  }),
+);
+
+const MAX_BANNER_DAYS = 30;
+const bannerSchema = z.object({
+  text: requiredText(200),
+  level: z.enum(['info', 'warning']),
+  expiresAt: z.iso.datetime({ offset: true }),
+});
+
+/** Sets the short message shown above every page until expiresAt (people who publish news may do this). */
+settingsRouter.put(
+  '/settings/banner',
+  requirePermission('news.manage'),
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const body = parse(bannerSchema, req.body);
+    const expiresAt = new Date(body.expiresAt);
+    const now = new Date();
+    if (expiresAt <= now) throw new HttpError(400, 'زمان پایان پیام باید در آینده باشد.');
+    if (expiresAt.getTime() - now.getTime() > MAX_BANNER_DAYS * 24 * 60 * 60 * 1000) {
+      throw new HttpError(400, `پیام سراسری حداکثر ${MAX_BANNER_DAYS} روز نمایش داده می‌شود؛ برای خبرهای ماندگار اطلاعیه منتشر کنید.`);
+    }
+    await ensureSettings();
+    const banner = { text: body.text, level: body.level, expiresAt: expiresAt.toISOString(), updatedById: viewer.id, updatedAt: now.toISOString() };
+    const [updated] = await db.update(settings).set({ banner }).where(eq(settings.id, 'global')).returning();
+    broadcastChange('settings');
+    res.json(publicSettings(updated));
+  }),
+);
+
+settingsRouter.delete(
+  '/settings/banner',
+  requirePermission('news.manage'),
+  route(async (_req, res) => {
+    await ensureSettings();
+    const [updated] = await db.update(settings).set({ banner: null }).where(eq(settings.id, 'global')).returning();
+    broadcastChange('settings');
+    res.json(publicSettings(updated));
+  }),
+);
+
+/** Disk space, backups and housekeeping, for the "server status" card. */
+settingsRouter.get(
+  '/settings/server-status',
+  requirePermission('settings.manage'),
+  route(async (_req, res) => {
+    res.json(await serverStatus());
   }),
 );
 

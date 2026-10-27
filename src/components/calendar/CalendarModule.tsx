@@ -18,14 +18,17 @@ import {
   Users,
   Video,
   Sparkles,
-  Trash2
+  Trash2,
+  Pencil
 } from 'lucide-react';
 import { IRANIAN_HOLIDAYS, JALALI_MONTHS, JALALI_WEEKDAYS } from '../../data/holidays';
 
 export const CalendarModule: React.FC = () => {
-  const { calendarEvents, addCalendarEvent, deleteCalendarEvent, can, employees, customHolidays, setCustomHoliday, removeCustomHoliday } = usePortal();
+  const { calendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, setActiveTab, can, employees, customHolidays, setCustomHoliday, removeCustomHoliday } = usePortal();
   const isManager = can('calendar.manage');
   const [isAddOpen, setIsAddOpen] = useState(false);
+  // Set while the add form is used to edit an existing event.
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   // State for editing public holiday/event
   const [editingPublicDate, setEditingPublicDate] = useState<{year: number, month: number, day: number, title: string, isHoliday: boolean} | null>(null);
@@ -49,22 +52,41 @@ export const CalendarModule: React.FC = () => {
   const prevMonth = () => setCurrentDate(currentDate.clone().subtract(1, 'jMonth'));
   const nextMonth = () => setCurrentDate(currentDate.clone().add(1, 'jMonth'));
 
+  const closeEventForm = () => {
+    setIsAddOpen(false);
+    setEditingEventId(null);
+    setTitle('');
+    setDateStr(todayJalali());
+    setType('meeting');
+    setDescription('');
+    setTime('');
+    setLocation('');
+  };
+
+  const openEventEditor = (event: CalendarEvent) => {
+    setTitle(event.title);
+    setDateStr(event.date);
+    setType(event.type);
+    setDescription(event.description);
+    setTime(event.time ?? '');
+    setLocation(event.location ?? '');
+    setEditingEventId(event.id);
+    setSelectedEvent(null);
+    setIsAddOpen(true);
+  };
+
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const ok = await addCalendarEvent({
+    const event = {
       title,
       date: dateStr,
       type,
       description,
       time: time || undefined,
       location: location || undefined
-    });
-    if (!ok) return;
-    setIsAddOpen(false);
-    setTitle('');
-    setDescription('');
-    setTime('');
-    setLocation('');
+    };
+    const ok = editingEventId ? await updateCalendarEvent(editingEventId, event) : await addCalendarEvent(event);
+    if (ok) closeEventForm();
   };
 
   const handleSavePublicEvent = async (e: React.FormEvent) => {
@@ -360,13 +382,13 @@ export const CalendarModule: React.FC = () => {
 
       {isAddOpen && (
         <Modal
-          title="افزودن رویداد جدید به تقویم"
-          icon={<Plus className="w-5 h-5" />}
-          onClose={() => setIsAddOpen(false)}
+          title={editingEventId ? 'ویرایش رویداد' : 'افزودن رویداد جدید به تقویم'}
+          icon={editingEventId ? <Pencil className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+          onClose={closeEventForm}
           size="md"
           footer={
             <>
-              <button type="button" onClick={() => setIsAddOpen(false)} className={secondaryButtonClass}>انصراف</button>
+              <button type="button" onClick={closeEventForm} className={secondaryButtonClass}>انصراف</button>
               <button type="submit" form="add-event" className={primaryButtonClass}>ذخیره رویداد</button>
             </>
           }
@@ -457,15 +479,36 @@ export const CalendarModule: React.FC = () => {
             <div className="text-xs font-bold text-[#6E6A60]">مکان: <span className="text-[#2D2D2D]">{selectedEvent.location}</span></div>
           )}
           {isManager && calendarEvents.some((ev) => ev.id === selectedEvent.id) && (
-            <button
-              onClick={async () => {
-                await deleteCalendarEvent(selectedEvent.id);
-                setSelectedEvent(null);
-              }}
-              className="mt-4 flex items-center gap-1.5 text-xs font-bold text-red-700 hover:underline"
-            >
-              <Trash2 className="w-3.5 h-3.5" /> حذف این رویداد
-            </button>
+            <div className="mt-4 flex flex-wrap items-center gap-4">
+              {selectedEvent.trainingId ? (
+                // A training's calendar entry follows the training, so it is edited there.
+                <button
+                  onClick={() => {
+                    setSelectedEvent(null);
+                    setActiveTab('training', selectedEvent.trainingId!);
+                  }}
+                  className="flex items-center gap-1.5 text-xs font-bold text-[#991b1b] hover:underline"
+                >
+                  <Pencil className="w-3.5 h-3.5" /> ویرایش از صفحهٔ آموزش
+                </button>
+              ) : (
+                <button
+                  onClick={() => openEventEditor(selectedEvent)}
+                  className="flex items-center gap-1.5 text-xs font-bold text-[#991b1b] hover:underline"
+                >
+                  <Pencil className="w-3.5 h-3.5" /> ویرایش رویداد
+                </button>
+              )}
+              <button
+                onClick={async () => {
+                  await deleteCalendarEvent(selectedEvent.id);
+                  setSelectedEvent(null);
+                }}
+                className="flex items-center gap-1.5 text-xs font-bold text-red-700 hover:underline"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> حذف این رویداد
+              </button>
+            </div>
           )}
         </Modal>
       )}

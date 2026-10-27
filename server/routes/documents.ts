@@ -74,6 +74,24 @@ documentsRouter.post(
   }),
 );
 
+const editSchema = z.object({
+  title: requiredText(200),
+  description: optionalText(2000),
+  category: requiredText(100),
+});
+
+documentsRouter.put(
+  '/documents/:id',
+  requirePermission('documents.manage'),
+  route(async (req, res) => {
+    const body = parse(editSchema, req.body);
+    const [doc] = await db.update(documents).set(body).where(eq(documents.id, req.params.id)).returning();
+    if (!doc) throw new HttpError(404, 'سند یافت نشد.');
+    broadcastChange('documents');
+    res.json(doc);
+  }),
+);
+
 documentsRouter.delete(
   '/documents/:id',
   requirePermission('documents.manage'),

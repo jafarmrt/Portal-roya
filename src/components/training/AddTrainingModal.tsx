@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { CheckCircle2, GraduationCap } from 'lucide-react';
+import { CheckCircle2, GraduationCap, Pencil } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import type { TrainingProgram } from '../../types';
 import { FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
 import { JalaliDateInput } from '../common/JalaliDateInput';
+import { toPersianDigits } from '../../lib/jalali';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 
 interface AddTrainingModalProps {
-  isOpen: boolean;
+  /** The training to edit; a new one is created when omitted. */
+  training?: TrainingProgram;
   onClose: () => void;
 }
 
@@ -28,25 +30,27 @@ const emptyForm = (category: string): TrainingInput => ({
   coverImage: '',
 });
 
-export const AddTrainingModal: React.FC<AddTrainingModalProps> = ({ isOpen, onClose }) => {
-  const { addTraining, appSettings } = usePortal();
+export const AddTrainingModal: React.FC<AddTrainingModalProps> = ({ training, onClose }) => {
+  const { addTraining, updateTraining, appSettings } = usePortal();
   const categories = appSettings?.trainingCategories ?? [];
-  const [form, setForm] = useState<TrainingInput>(() => emptyForm(categories[0] ?? ''));
+  const [form, setForm] = useState<TrainingInput>(() => {
+    if (!training) return emptyForm(categories[0] ?? '');
+    const { id: _id, enrolledUserIds: _enrolled, ...rest } = training;
+    return { ...emptyForm(training.category), ...rest };
+  });
+  const enrolledCount = training?.enrolledUserIds.length ?? 0;
+  const [notifyEnrolled, setNotifyEnrolled] = useState(true);
   const [busy, setBusy] = useState(false);
-
-  if (!isOpen) return null;
 
   const set = <K extends keyof TrainingInput>(key: K, value: TrainingInput[K]) => setForm((f) => ({ ...f, [key]: value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    const ok = await addTraining({ ...form, category: form.category || categories[0] || 'عمومی' });
+    const input = { ...form, category: form.category || categories[0] || 'عمومی' };
+    const ok = training ? await updateTraining(training.id, input, notifyEnrolled && enrolledCount > 0) : await addTraining(input);
     setBusy(false);
-    if (ok) {
-      setForm(emptyForm(categories[0] ?? ''));
-      onClose();
-    }
+    if (ok) onClose();
   };
 
   const textField = (id: string, label: string, key: 'title' | 'instructor' | 'instructorRole' | 'time' | 'duration' | 'location' | 'prerequisites', opts: { required?: boolean; placeholder?: string } = {}) => (
@@ -58,16 +62,16 @@ export const AddTrainingModal: React.FC<AddTrainingModalProps> = ({ isOpen, onCl
 
   return (
     <Modal
-      title="تعریف دوره یا کارگاه آموزشی"
-      subtitle="به همهٔ همکاران اعلان داده می‌شود و در تقویم سازمان ثبت می‌شود"
-      icon={<GraduationCap className="w-5 h-5" />}
+      title={training ? 'ویرایش دورهٔ آموزشی' : 'تعریف دوره یا کارگاه آموزشی'}
+      subtitle={training ? 'ثبت‌نام‌ها حفظ می‌شوند و رویداد تقویم هم به‌روز می‌شود' : 'به همهٔ همکاران اعلان داده می‌شود و در تقویم سازمان ثبت می‌شود'}
+      icon={training ? <Pencil className="w-5 h-5" /> : <GraduationCap className="w-5 h-5" />}
       onClose={onClose}
       size="xl"
       footer={
         <>
           <button type="button" onClick={onClose} className={secondaryButtonClass}>انصراف</button>
           <button type="submit" form="add-training" disabled={busy} className={primaryButtonClass}>
-            <CheckCircle2 className="w-4 h-4" /> {busy ? 'در حال ثبت...' : 'انتشار دوره'}
+            <CheckCircle2 className="w-4 h-4" /> {busy ? 'در حال ثبت...' : training ? 'ذخیرهٔ تغییرات' : 'انتشار دوره'}
           </button>
         </>
       }
@@ -92,7 +96,7 @@ export const AddTrainingModal: React.FC<AddTrainingModalProps> = ({ isOpen, onCl
           {textField('tr-location', 'محل برگزاری', 'location')}
           <div>
             <label htmlFor="tr-capacity" className={labelClass}>ظرفیت *</label>
-            <input id="tr-capacity" type="number" min={1} max={1000} required value={form.capacity} onChange={(e) => set('capacity', Number(e.target.value))} className={inputClass} />
+            <input id="tr-capacity" type="number" min={Math.max(1, enrolledCount)} max={1000} required value={form.capacity} onChange={(e) => set('capacity', Number(e.target.value))} className={inputClass} />
           </div>
         </div>
         <div>
@@ -105,6 +109,15 @@ export const AddTrainingModal: React.FC<AddTrainingModalProps> = ({ isOpen, onCl
           <FileUpload accept={IMAGE_ACCEPT} label={form.coverImage ? 'تغییر تصویر' : 'تصویر جلد (اختیاری)'} onUploaded={(f) => set('coverImage', f.url)} />
           {form.coverImage && <button type="button" onClick={() => set('coverImage', '')} className="text-red-700 font-bold">حذف تصویر</button>}
         </div>
+        {enrolledCount > 0 && (
+          <label className="flex items-start gap-2 p-3 bg-[#F5F2ED] rounded-xl cursor-pointer">
+            <input type="checkbox" checked={notifyEnrolled} onChange={(e) => setNotifyEnrolled(e.target.checked)} className="mt-1 accent-[#991b1b]" />
+            <span>
+              به {toPersianDigits(enrolledCount)} نفر ثبت‌نام‌شده اطلاع داده شود
+              <span className="block text-[11px] text-[#6E6A60]">مثلاً وقتی تاریخ، ساعت یا محل دوره عوض شده است. برای اصلاح غلط تایپی لازم نیست.</span>
+            </span>
+          </label>
+        )}
       </form>
     </Modal>
   );

@@ -31,6 +31,20 @@ function visibleTo(viewer: SessionUser | null): SQL | undefined {
   );
 }
 
+/**
+ * Who an item is meant for: active colleagues with a portal account in its target departments.
+ * People listed only in the phone book can't read it, and the author is not counted.
+ */
+function audienceOf<T extends typeof employees.$inferSelect>(item: NewsRow, people: T[]) {
+  return people.filter(
+    (p) =>
+      p.isActive &&
+      p.hasAccount &&
+      p.id !== item.authorId &&
+      (item.targetDepartments.length === 0 || item.targetDepartments.includes(p.department)),
+  );
+}
+
 function statusOf(item: NewsRow) {
   const now = new Date();
   if (item.publishAt > now) return 'scheduled';
@@ -62,24 +76,16 @@ async function serializeMany(items: NewsRow[], viewer: SessionUser | null) {
 
   let readStats = new Map<string, { read: number; acknowledged: number; audience: number }>();
   if (can(viewer, 'news.manage')) {
-    const active = authors.filter((a) => a.isActive);
-    const counts = await db
-      .select({
-        newsId: newsReads.newsId,
-        read: sql<number>`count(*)::int`,
-        acknowledged: sql<number>`count(${newsReads.acknowledgedAt})::int`,
-      })
+    const allReads = await db
+      .select({ newsId: newsReads.newsId, userId: newsReads.userId, acknowledgedAt: newsReads.acknowledgedAt })
       .from(newsReads)
-      .where(inArray(newsReads.newsId, ids))
-      .groupBy(newsReads.newsId);
-    const countById = new Map(counts.map((c) => [c.newsId, c]));
+      .where(inArray(newsReads.newsId, ids));
     readStats = new Map(
       items.map((n) => {
-        const audience = n.targetDepartments.length
-          ? active.filter((a) => n.targetDepartments.includes(a.department)).length
-          : active.length;
-        const c = countById.get(n.id);
-        return [n.id, { read: c?.read ?? 0, acknowledged: c?.acknowledged ?? 0, audience }];
+        // Only reads by the item's audience count, so the numbers match the receipts list.
+        const audience = new Set(audienceOf(n, authors).map((a) => a.id));
+        const mine = allReads.filter((r) => r.newsId === n.id && audience.has(r.userId));
+        return [n.id, { read: mine.length, acknowledged: mine.filter((r) => r.acknowledgedAt).length, audience: audience.size }];
       }),
     );
   }
@@ -347,17 +353,7 @@ newsRouter.get(
   route(async (req, res) => {
     const [item] = await db.select().from(news).where(eq(news.id, req.params.id));
     if (!item) throw new HttpError(404, 'خبر یافت نشد.');
-    const audience = await db
-      .select()
-      .from(employees)
-      .where(
-        and(
-          eq(employees.isActive, true),
-          eq(employees.hasAccount, true),
-          item.targetDepartments.length ? inArray(employees.department, item.targetDepartments) : undefined,
-        ),
-      )
-      .orderBy(employees.department, employees.lastName);
+    const audience = audienceOf(item, await db.select().from(employees).orderBy(employees.department, employees.lastName));
     const reads = await db.select().from(newsReads).where(eq(newsReads.newsId, item.id));
     const readByUser = new Map(reads.map((r) => [r.userId, r]));
     res.json(

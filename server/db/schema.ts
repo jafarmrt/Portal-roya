@@ -50,6 +50,14 @@ export interface ExternalSystemRecord {
   textColor: string;
 }
 
+export interface BannerRecord {
+  text: string;
+  level: 'info' | 'warning';
+  expiresAt: string; // ISO time
+  updatedById: string;
+  updatedAt: string; // ISO time
+}
+
 export const roles = pgTable('roles', {
   id: text('id').primaryKey(), // 'admin' | 'manager' | 'employee' | 'role-<uuid>' for roles added by an admin
   name: text('name').notNull().unique(),
@@ -261,6 +269,8 @@ export const calendarEvents = pgTable('calendar_events', {
   time: text('time'),
   location: text('location'),
   badgeColor: text('badge_color'),
+  // Set for the calendar entry of a training, so it follows the training when it is edited or deleted.
+  trainingId: text('training_id').references(() => trainings.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -310,4 +320,6 @@ export const settings = pgTable('settings', {
   // Visitors who are not signed in may read public content; the staff directory is opt-in separately.
   guestAccess: boolean('guest_access').notNull().default(true),
   guestDirectory: boolean('guest_directory').notNull().default(false),
+  // Short message shown above every page until it expires (e.g. "the internet is down until noon").
+  banner: jsonb('banner').$type<BannerRecord | null>(),
 });

@@ -10,6 +10,7 @@ import {
   FileCheck2,
   FileText,
   Heart,
+  Megaphone,
   Newspaper,
   Paperclip,
   Pin,
@@ -25,6 +26,7 @@ import type { NewsItem } from '../../types';
 import { api, errorMessage } from '../../lib/api';
 import { formatDate, formatDateTime, formatFileSize, toPersianDigits } from '../../lib/jalali';
 import { Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
+import { BannerEditorModal } from '../common/SiteBanner';
 import { AddNewsModal } from './AddNewsModal';
 import { ReadReceiptsModal } from './ReadReceiptsModal';
 
@@ -32,12 +34,13 @@ type Filter = 'all' | 'unread' | 'ack' | string;
 
 export const NewsModule: React.FC = () => {
   const {
-    news, newsHasMore, loadMoreNews, can, appSettings, focusId, setActiveTab,
+    news, newsHasMore, loadMoreNews, can, appSettings, focusId, setActiveTab, isGuest,
     toggleLikeNews, markNewsRead, acknowledgeNews, deleteNews,
   } = usePortal();
   const isManager = can('news.manage');
 
   const [editor, setEditor] = useState<{ item?: NewsItem } | null>(null);
+  const [bannerOpen, setBannerOpen] = useState(false);
   const [receiptsFor, setReceiptsFor] = useState<NewsItem | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<NewsItem | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
@@ -85,12 +88,16 @@ export const NewsModule: React.FC = () => {
   }, [query, news]);
 
   const source = searchResults ?? news;
-  const visible = source.filter((n) => {
-    if (filter === 'all') return true;
-    if (filter === 'unread') return !n.isRead;
-    if (filter === 'ack') return n.requiresAck && !n.acknowledgedAt;
-    return n.category === filter;
-  });
+  // Circulars still waiting for this person's acknowledgement come first, so they don't sink under newer news.
+  const awaitsMyAck = (n: NewsItem) => !isGuest && n.status === 'published' && n.requiresAck && !n.acknowledgedAt;
+  const visible = source
+    .filter((n) => {
+      if (filter === 'all') return true;
+      if (filter === 'unread') return !n.isRead;
+      if (filter === 'ack') return n.requiresAck && !n.acknowledgedAt;
+      return n.category === filter;
+    })
+    .sort((a, b) => Number(awaitsMyAck(b)) - Number(awaitsMyAck(a)));
 
   const pendingAck = news.filter((n) => n.status === 'published' && n.requiresAck && !n.acknowledgedAt).length;
   const filters: { id: Filter; label: string }[] = [
@@ -114,13 +121,23 @@ export const NewsModule: React.FC = () => {
             </p>
           </div>
           {isManager && (
-            <button
-              onClick={() => setEditor({})}
-              className="px-5 py-3 text-xs font-bold text-[#7f1d1d] bg-white hover:bg-[#FDF2F2] rounded-2xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4" />
-              <span>انتشار خبر یا بخشنامه</span>
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setEditor({})}
+                className="px-5 py-3 text-xs font-bold text-[#7f1d1d] bg-white hover:bg-[#FDF2F2] rounded-2xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" />
+                <span>انتشار خبر یا بخشنامه</span>
+              </button>
+              <button
+                onClick={() => setBannerOpen(true)}
+                title="پیام کوتاه بالای همهٔ صفحه‌ها، مثلاً قطعی اینترنت"
+                className="px-4 py-3 text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/40 rounded-2xl transition-all flex items-center gap-2 whitespace-nowrap"
+              >
+                <Megaphone className="w-4 h-4" />
+                <span>پیام سراسری</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -206,6 +223,7 @@ export const NewsModule: React.FC = () => {
       )}
 
       {editor && <AddNewsModal item={editor.item} onClose={() => setEditor(null)} />}
+      {bannerOpen && <BannerEditorModal onClose={() => setBannerOpen(false)} />}
       {receiptsFor && <ReadReceiptsModal item={receiptsFor} onClose={() => setReceiptsFor(null)} />}
       {confirmDelete && (
         <Modal

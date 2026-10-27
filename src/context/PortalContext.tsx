@@ -17,6 +17,7 @@ import type {
   NotificationItem,
   Poll,
   PollType,
+  PollUpdate,
   Permission,
   PortalDocument,
   RoleInfo,
@@ -140,11 +141,14 @@ interface PortalContextType {
 
   // Actions
   updateSettings: (settings: Partial<AppSettings>) => Promise<boolean>;
+  setBanner: (banner: { text: string; level: 'info' | 'warning'; expiresAt: string }) => Promise<boolean>;
+  clearBanner: () => Promise<boolean>;
   submitMood: (mood: MoodState) => Promise<void>;
   addPoll: (poll: { title: string; description: string; department: string; type: PollType; expiryDate: string; options: string[] }) => Promise<boolean>;
   votePoll: (pollId: string, optionId?: string, freeText?: string) => Promise<boolean>;
   togglePollActiveStatus: (pollId: string) => Promise<void>;
   deletePoll: (pollId: string) => Promise<void>;
+  updatePoll: (pollId: string, poll: PollUpdate) => Promise<boolean>;
   /** Resolves to the one-time password (null when none is needed), or undefined when it failed. */
   addEmployee: (data: NewEmployeeInput) => Promise<{ temporaryPassword: string | null } | undefined>;
   grantAccess: (id: string, account: AccountInput) => Promise<{ temporaryPassword: string | null } | undefined>;
@@ -164,6 +168,7 @@ interface PortalContextType {
   enrollTraining: (trainingId: string) => Promise<void>;
   addTraining: (training: Omit<TrainingProgram, 'id' | 'enrolledUserIds'>) => Promise<boolean>;
   deleteTraining: (trainingId: string) => Promise<void>;
+  updateTraining: (trainingId: string, training: Omit<TrainingProgram, 'id' | 'enrolledUserIds'>, notifyEnrolled: boolean) => Promise<boolean>;
   sendBirthdayWish: (userId: string, text: string) => Promise<boolean>;
   sendWelcomeWish: (newColleagueId: string, message: string) => Promise<boolean>;
   deleteBirthdayWish: (wishId: string) => Promise<void>;
@@ -175,10 +180,12 @@ interface PortalContextType {
   deleteRole: (roleId: string) => Promise<boolean>;
   addCalendarEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<boolean>;
   deleteCalendarEvent: (id: string) => Promise<void>;
+  updateCalendarEvent: (id: string, event: Omit<CalendarEvent, 'id'>) => Promise<boolean>;
   setCustomHoliday: (date: string, title: string, isHoliday: boolean) => Promise<void>;
   removeCustomHoliday: (date: string) => Promise<void>;
   addDocument: (doc: { title: string; description: string; category: string; file: Attachment; notify: boolean }) => Promise<boolean>;
   deleteDocument: (id: string) => Promise<void>;
+  updateDocument: (id: string, doc: { title: string; description: string; category: string }) => Promise<boolean>;
   markNotificationRead: (id: string) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
@@ -419,6 +426,18 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return Boolean(updated);
   };
 
+  const setBanner: PortalContextType['setBanner'] = async (banner) => {
+    const updated = await attempt(() => api.put<AppSettings>('/api/settings/banner', banner), 'پیام سراسری منتشر شد.');
+    if (updated) setAppSettings(updated);
+    return Boolean(updated);
+  };
+
+  const clearBanner = async () => {
+    const updated = await attempt(() => api.delete<AppSettings>('/api/settings/banner'), 'پیام سراسری برداشته شد.');
+    if (updated) setAppSettings(updated);
+    return Boolean(updated);
+  };
+
   const submitMood = async (mood: MoodState) => {
     const result = await attempt(() => api.post<{ mood: UserMood }>('/api/moods', { mood }));
     if (result) setUserMoods((prev) => [result.mood, ...prev.filter((m) => m.date !== result.mood.date)]);
@@ -444,6 +463,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!poll) return;
     const updated = await attempt(() => api.patch<Poll>(`/api/polls/${pollId}/status`, { isActive: !poll.isActive }));
     if (updated) replacePoll(updated);
+  };
+
+  const updatePoll: PortalContextType['updatePoll'] = async (pollId, poll) => {
+    const updated = await attempt(() => api.put<Poll>(`/api/polls/${pollId}`, poll), 'نظرسنجی ویرایش شد.');
+    if (updated) replacePoll(updated);
+    return Boolean(updated);
   };
 
   const deletePoll = async (pollId: string) => {
@@ -562,9 +587,18 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return Boolean(ok);
   };
 
+  const updateTraining: PortalContextType['updateTraining'] = async (trainingId, training, notifyEnrolled) => {
+    const ok = await attempt(() => api.put(`/api/trainings/${trainingId}`, { ...training, notifyEnrolled }), 'دوره ویرایش شد.');
+    if (ok) await Promise.all([refresh('trainings'), refresh('calendar')]);
+    return Boolean(ok);
+  };
+
   const deleteTraining = async (trainingId: string) => {
     const ok = await attempt(() => api.delete(`/api/trainings/${trainingId}`), 'دوره حذف شد.');
-    if (ok !== undefined) setTrainings((prev) => prev.filter((t) => t.id !== trainingId));
+    if (ok !== undefined) {
+      setTrainings((prev) => prev.filter((t) => t.id !== trainingId));
+      setCalendarEvents((prev) => prev.filter((e) => e.trainingId !== trainingId));
+    }
   };
 
   const sendBirthdayWish = async (userId: string, text: string) => {
@@ -627,6 +661,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return Boolean(ok);
   };
 
+  const updateCalendarEvent: PortalContextType['updateCalendarEvent'] = async (id, event) => {
+    const ok = await attempt(() => api.put(`/api/calendar_events/${id}`, event), 'رویداد ویرایش شد.');
+    if (ok) await refresh('calendar');
+    return Boolean(ok);
+  };
+
   const deleteCalendarEvent = async (id: string) => {
     const ok = await attempt(() => api.delete(`/api/calendar_events/${id}`), 'رویداد حذف شد.');
     if (ok !== undefined) setCalendarEvents((prev) => prev.filter((e) => e.id !== id));
@@ -650,6 +690,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addDocument: PortalContextType['addDocument'] = async (doc) => {
     const ok = await attempt(() => api.post('/api/documents', doc), 'سند به کتابخانه اضافه شد.');
+    if (ok) await refresh('documents');
+    return Boolean(ok);
+  };
+
+  const updateDocument: PortalContextType['updateDocument'] = async (id, doc) => {
+    const ok = await attempt(() => api.put(`/api/documents/${id}`, doc), 'مشخصات سند ذخیره شد.');
     if (ok) await refresh('documents');
     return Boolean(ok);
   };
@@ -722,11 +768,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         userMoods,
         todayMoodSubmitted,
         updateSettings,
+        setBanner,
+        clearBanner,
         submitMood,
         addPoll,
         votePoll,
         togglePollActiveStatus,
         deletePoll,
+        updatePoll,
         addEmployee,
         grantAccess,
         revokeAccess,
@@ -745,6 +794,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         enrollTraining,
         addTraining,
         deleteTraining,
+        updateTraining,
         sendBirthdayWish,
         sendWelcomeWish,
         deleteBirthdayWish,
@@ -756,10 +806,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         deleteRole,
         addCalendarEvent,
         deleteCalendarEvent,
+        updateCalendarEvent,
         setCustomHoliday,
         removeCustomHoliday,
         addDocument,
         deleteDocument,
+        updateDocument,
         markNotificationRead,
         markAllNotificationsRead,
         deleteNotification,

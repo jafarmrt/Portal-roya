@@ -19,7 +19,8 @@ import {
   KeyRound,
   CheckCircle2,
   Trash2,
-  SlidersHorizontal,
+  BarChart2,
+  Settings,
   LayoutGrid,
   UserPen,
   LogIn
@@ -48,6 +49,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
     isGuest,
     requestLogin,
     can,
+    isAdmin,
     roleName
   } = usePortal();
 
@@ -378,8 +380,21 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#2D2D2D] hover:bg-[#F5F2ED] rounded-xl transition-colors text-right cursor-pointer"
                             >
-                              <SlidersHorizontal className="w-4 h-4 text-[#7A756D]" />
-                              <span>پنل گزارشات تحلیلی</span>
+                              <BarChart2 className="w-4 h-4 text-[#7A756D]" />
+                              <span>گزارش‌ها</span>
+                            </button>
+                          )}
+
+                          {(isAdmin || can('settings.manage')) && (
+                            <button
+                              onClick={() => {
+                                setActiveTab('admin');
+                                setIsUserMenuOpen(false);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#2D2D2D] hover:bg-[#F5F2ED] rounded-xl transition-colors text-right cursor-pointer"
+                            >
+                              <Settings className="w-4 h-4 text-[#7A756D]" />
+                              <span>تنظیمات پرتال</span>
                             </button>
                           )}
                           
