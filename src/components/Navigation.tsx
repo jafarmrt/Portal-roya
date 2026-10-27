@@ -24,8 +24,10 @@ import {
   ShieldCheck,
   Building2,
   LifeBuoy,
-  Library
+  Library,
+  MessageSquareText
 } from 'lucide-react';
+import { unreadTotal, useSuggestionSummary } from '../lib/suggestionSummary';
 
 interface NavigationProps {
   isMobileNavOpen: boolean;
@@ -38,6 +40,8 @@ interface NavItem {
   icon: React.ReactNode;
   badge?: string | number;
   badgeColor?: string;
+  /** On narrower desktop screens only the icon is shown, so the bar stays on one line. */
+  compact?: boolean;
 }
 
 /** A desktop menu entry: a page, or a drop-down of related pages. */
@@ -129,6 +133,8 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
   const pendingAckCount = isGuest ? 0 : news.filter(n => n.status === 'published' && n.requiresAck && !n.acknowledgedAt).length;
   const pendingDocumentCount = isGuest ? 0 : portalDocuments.filter(d => d.requiresAck && d.forMe && !d.acknowledgedAt).length;
 
+  const suggestionUnread = unreadTotal(useSuggestionSummary());
+
   const dashboard: NavItem = { id: 'dashboard', label: 'داشبورد', icon: <LayoutDashboard className="w-4 h-4" /> };
   const systems: NavItem = { id: 'systems', label: 'سامانه‌ها', icon: <LayoutGrid className="w-4 h-4" /> };
   const pollsItem: NavItem = {
@@ -157,6 +163,17 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
   const guides: NavItem = { id: 'guides', label: 'راهنماها و پرسش‌های رایج', icon: <LifeBuoy className="w-4 h-4" /> };
   const training: NavItem = { id: 'training', label: 'آموزش', icon: <GraduationCap className="w-4 h-4" /> };
   const calendar: NavItem = { id: 'calendar', label: 'تقویم', icon: <Calendar className="w-4 h-4" /> };
+  // Guests can't send, so the boxes are only in the menu of signed-in colleagues.
+  const suggestions: NavItem[] = isGuest
+    ? []
+    : [{
+        id: 'suggestions',
+        label: 'انتقادات و پیشنهادات',
+        icon: <MessageSquareText className="w-4 h-4" />,
+        badge: suggestionUnread > 0 ? `${toPersianDigits(suggestionUnread)} تازه` : undefined,
+        badgeColor: 'bg-amber-400 text-amber-950',
+        compact: true
+      }];
 
   // The phone book and org chart stay hidden from guests unless a manager opened them.
   const colleagueItems: NavItem[] =
@@ -186,12 +203,13 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
     ...groupOrItem('colleagues', 'همکاران', <Contact className="w-4 h-4" />, colleagueItems),
     { kind: 'item', item: training },
     { kind: 'item', item: calendar },
+    ...suggestions.map((item): NavEntry => ({ kind: 'item', item })),
     ...groupOrItem('admin', 'مدیریت', <ShieldCheck className="w-4 h-4" />, adminItems),
   ];
 
   // The phone drawer has room for everything, with management pages under their own heading.
   const mobileSections: { title?: string; items: NavItem[] }[] = [
-    { items: [dashboard, systems, newsItem, pollsItem, documents, guides, ...colleagueItems, training, calendar] },
+    { items: [dashboard, systems, newsItem, pollsItem, documents, guides, ...colleagueItems, training, calendar, ...suggestions] },
     ...(adminItems.length > 0 ? [{ title: 'مدیریت', items: adminItems }] : []),
   ];
 
@@ -212,10 +230,12 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
                   aria-current={isActive ? 'page' : undefined}
+                  aria-label={item.compact ? item.label : undefined}
+                  title={item.compact ? item.label : undefined}
                   className={desktopButtonClass(isActive)}
                 >
                   {item.icon}
-                  <span>{item.label}</span>
+                  <span className={item.compact ? 'hidden xl:inline' : undefined}>{item.label}</span>
                   <Badge item={item} className="text-[10px] px-1.5 py-0.2" />
                 </button>
               );

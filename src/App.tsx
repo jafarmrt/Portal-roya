@@ -36,6 +36,7 @@ const ReportsModule = named(() => import('./components/reports/ReportsModule'), 
 const PeopleManagement = named(() => import('./components/colleagues/PeopleManagement'), 'PeopleManagement');
 const AdminSettingsModule = named(() => import('./components/admin/AdminSettingsModule'), 'AdminSettingsModule');
 const AuditLogModule = named(() => import('./components/admin/AuditLogModule'), 'AuditLogModule');
+const SuggestionsModule = named(() => import('./components/suggestions/SuggestionsModule'), 'SuggestionsModule');
 
 const FullScreenLoader: React.FC<{ text: string }> = ({ text }) => (
   <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center gap-4" role="status">
@@ -135,6 +136,8 @@ const MainContent: React.FC = () => {
             {activeTab === 'calendar' && <CalendarModule />}
             {activeTab === 'notifications' &&
               (isGuest ? <LoginRequired message="برای دیدن اعلان‌های خود وارد حساب کاربری شوید." /> : <NotificationsInbox />)}
+            {activeTab === 'suggestions' &&
+              (isGuest ? <LoginRequired message="برای فرستادن انتقاد یا پیشنهاد وارد حساب کاربری شوید." /> : <SuggestionsModule />)}
             {activeTab === 'systems' && <SystemsModule />}
             {activeTab === 'reports' && can('reports.view') && <ReportsModule />}
             {activeTab === 'people' && can('users.manage') && <PeopleManagement />}

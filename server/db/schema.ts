@@ -670,3 +670,29 @@ export const reportSummaries = pgTable('report_summaries', {
   data: jsonb('data').$type<MonthlySummary>().notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Messages to the suggestions & complaints boxes. An anonymous message keeps no trace of its sender:
+ * sender_id stays empty, created_at holds only the day, and the sender follows the answer with a
+ * tracking code of which only a hash is stored.
+ */
+export const suggestions = pgTable(
+  'suggestions',
+  {
+    id: text('id').primaryKey(),
+    box: text('box').notNull(),
+    kind: text('kind').notNull().default('suggestion'),
+    subject: text('subject').notNull(),
+    body: text('body').notNull(),
+    isAnonymous: boolean('is_anonymous').notNull().default(false),
+    senderId: text('sender_id').references(() => employees.id, { onDelete: 'set null' }),
+    trackingHash: text('tracking_hash'),
+    reply: text('reply'),
+    repliedById: text('replied_by_id').references(() => employees.id, { onDelete: 'set null' }),
+    repliedAt: timestamp('replied_at', { withTimezone: true }),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    isClosed: boolean('is_closed').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('suggestions_box_idx').on(t.box), index('suggestions_sender_idx').on(t.senderId), uniqueIndex('suggestions_tracking_idx').on(t.trackingHash)],
+);
