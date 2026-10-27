@@ -1,13 +1,14 @@
 import { eq, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
-import { ADMIN_ROLE_ID, effectivePermissions, isPermission } from '../../shared/permissions.js';
+import { ADMIN_ROLE_ID, effectivePermissions, isPermission, PERMISSIONS } from '../../shared/permissions.js';
+import { audit } from '../audit.js';
 import { requireAdmin } from '../auth.js';
 import { db } from '../db/index.js';
 import { employees, roles } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
-import { HttpError, newId, parse, route } from '../http.js';
-import { optionalText, requiredText } from '../validation.js';
+import { currentUser, HttpError, newId, parse, route } from '../http.js';
+import { optionalText, requiredText, textValue } from '../validation.js';
 
 export const rolesRouter = Router();
 
@@ -62,12 +63,16 @@ const permissionList = z
   .transform((list) => [...new Set(list)])
   .refine((list) => list.every(isPermission), 'دسترسی نامعتبر است');
 
+/** "مدیریت نظرسنجی‌ها، مشاهدهٔ گزارش‌ها" for the change history. */
+const permissionNames = (keys: string[]) => PERMISSIONS.filter((p) => keys.includes(p.key)).map((p) => p.label).join('، ');
+
 const createSchema = z.object({
   name: requiredText(60),
   description: optionalText(300),
   permissions: permissionList.default([]),
 });
-const updateSchema = createSchema.partial();
+// No defaults here: a PATCH changes only the fields it sends.
+const updateSchema = z.object({ name: requiredText(60), description: textValue(300), permissions: permissionList }).partial();
 
 rolesRouter.post(
   '/roles',
@@ -79,6 +84,7 @@ rolesRouter.post(
       .insert(roles)
       .values({ id: newId('role'), name: body.name, description: body.description, permissions: body.permissions })
       .returning();
+    await audit(currentUser(req), { action: 'create', entity: 'role', id: role.id, title: role.name, detail: permissionNames(role.permissions) || 'بدون دسترسی مدیریتی' });
     broadcastChange('roles');
     res.status(201).json(serializeRole(role, 0));
   }),
@@ -95,6 +101,15 @@ rolesRouter.patch(
     }
     if (body.name !== undefined) await assertNameFree(body.name, role.id);
     const [updated] = await db.update(roles).set(body).where(eq(roles.id, role.id)).returning();
+    const granted = updated.permissions.filter((p) => !role.permissions.includes(p));
+    const taken = role.permissions.filter((p) => !updated.permissions.includes(p));
+    const detail = [
+      role.name !== updated.name ? `نام قبلی: ${role.name}` : '',
+      granted.length > 0 ? `داده شد: ${permissionNames(granted)}` : '',
+      taken.length > 0 ? `گرفته شد: ${permissionNames(taken)}` : '',
+      role.description !== updated.description ? 'توضیح' : '',
+    ].filter(Boolean);
+    if (detail.length > 0) await audit(currentUser(req), { action: 'update', entity: 'role', id: role.id, title: updated.name, detail: detail.join('؛ ') });
     // Clients refetch their own permissions when roles change.
     broadcastChange('roles');
     res.json(serializeRole(updated, (await memberCounts()).get(role.id) ?? 0));
@@ -112,6 +127,7 @@ rolesRouter.delete(
       throw new HttpError(409, `${members} همکار این نقش را دارند. ابتدا نقش آن‌ها را تغییر دهید.`);
     }
     await db.delete(roles).where(eq(roles.id, role.id));
+    await audit(currentUser(req), { action: 'delete', entity: 'role', id: role.id, title: role.name });
     broadcastChange('roles');
     res.json({ success: true });
   }),

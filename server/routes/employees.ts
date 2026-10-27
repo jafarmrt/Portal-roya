@@ -3,12 +3,13 @@ import { and, desc, eq, ne, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
-import { currentJalaliYear, todayJalali } from '../../shared/jalali.js';
+import { currentJalaliYear, todayJalali, toPersianDigits } from '../../shared/jalali.js';
+import { audit, fromTo } from '../audit.js';
 import { can, type Employee, hashPassword, isAdmin, requirePermission, type SessionUser } from '../auth.js';
 import { db } from '../db/index.js';
 import { addDepartments, departmentList, requireDepartment, requireLocation } from '../departments.js';
 import { checkRows, type ImportRow, importRowsSchema, type ImportUpdate, MAX_IMPORT_ROWS, newDepartments, rowsToRecords } from '../employeeImport.js';
-import { birthdayWishes, colleagueWishes, employees, newColleagues } from '../db/schema.js';
+import { birthdayWishes, colleagueWishes, employees, newColleagues, roles } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
 import { DIRECTORY_PASSWORD_MESSAGE, isDirectoryEnabled } from '../ldap.js';
@@ -25,6 +26,42 @@ export const employeesRouter = Router();
 /** Readable temporary password, shown once to the manager who created or reset the account. */
 function temporaryPassword() {
   return randomBytes(6).toString('base64url');
+}
+
+const MAX_NAMES = 20;
+const names = (people: Employee[]) =>
+  people.slice(0, MAX_NAMES).map(fullName).join('، ') + (people.length > MAX_NAMES ? ` و ${toPersianDigits(people.length - MAX_NAMES)} نفر دیگر` : '');
+
+async function roleName(id: string) {
+  const [role] = await db.select({ name: roles.name }).from(roles).where(eq(roles.id, id));
+  return role?.name ?? id;
+}
+
+async function personName(id: string | null) {
+  if (!id) return '';
+  const [emp] = await db.select().from(employees).where(eq(employees.id, id));
+  return emp ? fullName(emp) : '';
+}
+
+/** What a manager changed on someone's record, in words, for the change history. */
+async function recordChanges(before: Employee, after: Employee) {
+  const parts: string[] = [];
+  const pair = (label: string, was: string, now: string) => {
+    if (was !== now) parts.push(`${label}: ${fromTo(was, now)}`);
+  };
+  pair('نام', fullName(before), fullName(after));
+  pair('سمت', before.position, after.position);
+  pair('واحد', before.department, after.department);
+  pair('محل کار', before.location, after.location);
+  if (before.role !== after.role) parts.push(`نقش: ${fromTo(await roleName(before.role), await roleName(after.role))}`);
+  if (before.isActive !== after.isActive) parts.push(after.isActive ? 'دوباره فعال شد' : 'غیرفعال شد');
+  if (before.directManagerId !== after.directManagerId) {
+    parts.push(`مدیر مستقیم: ${fromTo(await personName(before.directManagerId), await personName(after.directManagerId))}`);
+  }
+  if (before.hireDate !== after.hireDate) parts.push('تاریخ استخدام');
+  const profile = (['email', 'mobile', 'extension', 'bio', 'avatarUrl', 'birthDate', 'hideBirthday'] as const).some((k) => before[k] !== after[k]);
+  if (profile) parts.push('اطلاعات تماس و پروفایل');
+  return parts.join('، ');
 }
 
 async function loadEmployee(id: string) {
@@ -211,6 +248,13 @@ employeesRouter.post(
       })
       .returning();
 
+    await audit(currentUser(req), {
+      action: 'create',
+      entity: 'employee',
+      id: emp.id,
+      title: fullName(emp),
+      detail: `${emp.position}، ${emp.department}؛ ${emp.hasAccount ? `با دسترسی پرتال و نقش ${await roleName(emp.role)}` : 'فقط در دفتر تلفن'}`,
+    });
     if (body.isNewColleague) {
       await introduceColleague(emp, body.newColleagueMessage, emp.hireDate);
       broadcastChange('new_colleagues');
@@ -246,6 +290,13 @@ employeesRouter.post(
       .set({ ...account.values, failedLogins: 0, lockedUntil: null })
       .where(eq(employees.id, target.id))
       .returning();
+    await audit(currentUser(req), {
+      action: 'update',
+      entity: 'employee',
+      id: updated.id,
+      title: fullName(updated),
+      detail: `دسترسی پرتال داده شد، نقش ${await roleName(updated.role)}`,
+    });
     broadcastChange('employees');
     res.json({ employee: serializeEmployee(updated, currentUser(req)), temporaryPassword: account.temporaryPassword });
   }),
@@ -270,6 +321,7 @@ employeesRouter.delete(
       .set({ ...NO_ACCOUNT, username: target.username, failedLogins: 0, lockedUntil: null })
       .where(eq(employees.id, target.id))
       .returning();
+    await audit(viewer, { action: 'update', entity: 'employee', id: updated.id, title: fullName(updated), detail: 'دسترسی پرتال برداشته شد' });
     broadcastChange('employees');
     res.json(serializeEmployee(updated, viewer));
   }),
@@ -334,6 +386,11 @@ employeesRouter.patch(
       .set({ ...rest, ...(avatar !== undefined ? { avatarUrl: avatar } : {}) })
       .where(eq(employees.id, target.id))
       .returning();
+    // Colleagues keeping their own contact details current is not a management change.
+    if (changesAccount || viewer.id !== target.id) {
+      const detail = await recordChanges(target, updated);
+      if (detail) await audit(viewer, { action: 'update', entity: 'employee', id: updated.id, title: fullName(updated), detail });
+    }
     broadcastChange('employees');
     res.json(serializeEmployee(updated, viewer));
   }),
@@ -353,6 +410,7 @@ employeesRouter.post(
       // With AD sign-in switched off, a reset turns an AD account back into a portal account.
       .set({ passwordHash: await hashPassword(temp), authSource: 'local', mustChangePassword: true, failedLogins: 0, lockedUntil: null })
       .where(eq(employees.id, target.id));
+    await audit(currentUser(req), { action: 'update', entity: 'employee', id: target.id, title: fullName(target), detail: 'رمز عبور بازنشانی شد' });
     res.json({ temporaryPassword: temp });
   }),
 );
@@ -718,7 +776,18 @@ employeesRouter.post(
       .filter((r) => !doneRows.has(r.row) && r.action !== 'unchanged')
       .map((r) => ({ row: r.row, username: r.data.username ?? '', errors: r.errors.length ? r.errors : ['این ردیف هم‌زمان در جای دیگری تغییر کرد.'] }));
 
-    if (created.length > 0 || updated.length > 0) broadcastChange('employees');
+    if (created.length > 0 || updated.length > 0) {
+      await audit(currentUser(req), {
+        action: 'import',
+        entity: 'employee',
+        title: 'ورود همکاران از فایل اکسل',
+        detail: [
+          created.length > 0 ? `${toPersianDigits(created.length)} نفر جدید: ${names(created.map((c) => c.emp))}` : '',
+          updated.length > 0 ? `${toPersianDigits(updated.length)} نفر به‌روز شد: ${names(updated.map((u) => u.emp))}` : '',
+        ].filter(Boolean).join('؛ '),
+      });
+      broadcastChange('employees');
+    }
     if (body.introduce && created.length > 0) {
       for (const { emp } of created) await introduceColleague(emp, '', emp.hireDate, false);
       const createdIds = new Set(created.map((c) => c.emp.id));
@@ -759,6 +828,11 @@ function wishIdParam(value: string) {
   return id;
 }
 
+/** A moderator removing someone else's message is kept in the change history, with what it said. */
+async function auditRemovedMessage(viewer: SessionUser, kind: string, senderId: string, text: string) {
+  await audit(viewer, { action: 'delete', entity: 'message', title: `پیام ${kind} از ${await personName(senderId)}`, detail: text });
+}
+
 function assertMayRemoveWish(viewer: SessionUser, senderId: string) {
   if (senderId !== viewer.id && !can(viewer, 'comments.moderate')) {
     throw new HttpError(403, 'فقط فرستنده یا مدیر پیام‌ها می‌تواند این پیام را حذف کند.');
@@ -774,6 +848,10 @@ employeesRouter.delete(
     if (!wish) throw new HttpError(404, 'پیام یافت نشد.');
     assertMayRemoveWish(viewer, wish.senderId);
     await db.delete(colleagueWishes).where(eq(colleagueWishes.id, id));
+    if (wish.senderId !== viewer.id) {
+      const [card] = await db.select({ userId: newColleagues.userId }).from(newColleagues).where(eq(newColleagues.id, wish.newColleagueId));
+      await auditRemovedMessage(viewer, `خوش‌آمد به ${await personName(card?.userId ?? null)}`, wish.senderId, wish.message);
+    }
     broadcastChange('new_colleagues');
     res.json({ success: true });
   }),
@@ -788,6 +866,7 @@ employeesRouter.delete(
     if (!wish) throw new HttpError(404, 'پیام یافت نشد.');
     assertMayRemoveWish(viewer, wish.senderId);
     await db.delete(birthdayWishes).where(eq(birthdayWishes.id, id));
+    if (wish.senderId !== viewer.id) await auditRemovedMessage(viewer, `تبریک تولد به ${await personName(wish.targetUserId)}`, wish.senderId, wish.text);
     broadcastChange('birthday_wishes');
     res.json({ success: true });
   }),

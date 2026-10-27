@@ -67,6 +67,21 @@ export function clearSession(res: Response) {
   res.clearCookie(SESSION_COOKIE, { path: '/' });
 }
 
+/** "Last seen" is written at most this often per colleague. */
+const SEEN_EVERY_MS = 5 * 60 * 1000;
+
+/** Notes that the colleague is using the portal, so the reports can list who has been away. */
+async function markSeen(user: Employee) {
+  const now = new Date();
+  if (user.lastSeenAt && now.getTime() - user.lastSeenAt.getTime() < SEEN_EVERY_MS) return;
+  try {
+    await db.update(employees).set({ lastSeenAt: now }).where(eq(employees.id, user.id));
+    user.lastSeenAt = now;
+  } catch (err) {
+    console.error('Last seen error:', err);
+  }
+}
+
 async function loadUserFromRequest(req: Request): Promise<SessionUser | null> {
   const token = req.cookies?.[SESSION_COOKIE];
   if (!token) return null;
@@ -76,6 +91,7 @@ async function loadUserFromRequest(req: Request): Promise<SessionUser | null> {
     const [user] = await db.select().from(employees).where(eq(employees.id, payload.sub)).limit(1);
     // Taking away portal access ends the colleague's open sessions too.
     if (!user || !user.isActive || !user.hasAccount) return null;
+    await markSeen(user);
     return await withPermissions(user);
   } catch {
     return null;

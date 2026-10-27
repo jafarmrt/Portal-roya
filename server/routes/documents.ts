@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { inAudience } from '../../shared/audience.js';
 import { jalaliToDate, toPersianDigits } from '../../shared/jalali.js';
 import { audienceIncludes, audienceOfRow, checkAudience } from '../audience.js';
+import { audit } from '../audit.js';
 import { can, requirePermission, type SessionUser } from '../auth.js';
 import { config } from '../config.js';
 import { db } from '../db/index.js';
@@ -215,6 +216,7 @@ documentsRouter.post(
         uploadedById: viewer.id,
       })
       .returning();
+    await audit(viewer, { action: 'create', entity: 'document', id: doc.id, title: doc.title, detail: doc.requiresAck ? 'لازم‌الاجرا' : '' });
     await indexDocumentText(doc.id);
     if (doc.requiresAck) {
       await askToConfirm(doc, viewer.id, 'سند لازم‌الاجرا: لطفاً مطالعه و تأیید کنید 📌');
@@ -255,6 +257,16 @@ documentsRouter.put(
       .where(eq(documents.id, existing.id))
       .returning();
     if (becameRequired) await askToConfirm(doc, viewer.id, 'سند لازم‌الاجرا: لطفاً مطالعه و تأیید کنید 📌');
+    await audit(viewer, {
+      action: 'update',
+      entity: 'document',
+      id: doc.id,
+      title: doc.title,
+      detail: [
+        existing.title !== doc.title ? `عنوان قبلی: ${existing.title}` : '',
+        becameRequired ? 'لازم‌الاجرا شد' : existing.requiresAck && !doc.requiresAck ? 'دیگر لازم‌الاجرا نیست' : '',
+      ].filter(Boolean).join('، '),
+    });
     broadcastChange('documents');
     const [serialized] = await serializeMany([doc], viewer);
     res.json(serialized);
@@ -346,6 +358,13 @@ documentsRouter.post(
         createdAt: existing.updatedAt,
       });
       return updated;
+    });
+    await audit(viewer, {
+      action: 'update',
+      entity: 'document',
+      id: doc.id,
+      title: doc.title,
+      detail: `نسخهٔ جدید (${toPersianDigits(doc.version)})${body.note ? `: ${body.note}` : ''}`,
     });
     await indexDocumentText(doc.id);
     if (reAck) {
@@ -455,8 +474,15 @@ documentsRouter.delete(
   requirePermission('documents.manage'),
   route(async (req, res) => {
     const earlier = await db.select({ fileUrl: documentVersions.fileUrl }).from(documentVersions).where(eq(documentVersions.documentId, req.params.id));
-    const deleted = await db.delete(documents).where(eq(documents.id, req.params.id)).returning({ fileUrl: documents.fileUrl });
+    const deleted = await db.delete(documents).where(eq(documents.id, req.params.id)).returning({ fileUrl: documents.fileUrl, title: documents.title, version: documents.version });
     if (deleted.length === 0) throw new HttpError(404, 'سند یافت نشد.');
+    await audit(currentUser(req), {
+      action: 'delete',
+      entity: 'document',
+      id: req.params.id,
+      title: deleted[0].title,
+      detail: deleted[0].version > 1 ? `با ${toPersianDigits(deleted[0].version)} نسخه` : '',
+    });
     // Each upload is stored under a unique name, so the files belong only to this document.
     for (const { fileUrl } of [...deleted, ...earlier]) {
       if (fileUrl.startsWith('/uploads/')) {

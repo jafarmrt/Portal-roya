@@ -10,6 +10,10 @@ import {
   timestamp,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import type { AuditAction, AuditEntity } from '../../shared/audit.js';
+import type { MonthlySummary } from '../../shared/reports.js';
+
+export type { AuditAction, AuditEntity };
 
 // Dates that are only meaningful on the Jalali calendar (birthdays, calendar
 // days) are stored as 'YYYY/MM/DD' Jalali strings. Moments in time (creation,
@@ -104,6 +108,8 @@ export const employees = pgTable('employees', {
   workExperiences: jsonb('work_experiences').$type<WorkExperienceRecord[]>().notNull().default([]),
   failedLogins: integer('failed_logins').notNull().default(0),
   lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  /** The last time the colleague used the portal (signing in or any page), kept to within a few minutes. */
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -607,4 +613,31 @@ export const settings = pgTable('settings', {
   dashboardCards: jsonb('dashboard_cards').$type<Record<string, boolean>>().notNull().default({}),
   // Company logo shown in the header and on the sign-in page ('' = the built-in ROYA wordmark).
   logoUrl: text('logo_url').notNull().default(''),
+});
+
+/** Who created, changed or deleted what in the portal's content, accounts and settings, for the admin. */
+export const auditLog = pgTable(
+  'audit_log',
+  {
+    id: serial('id').primaryKey(),
+    actorId: text('actor_id').references(() => employees.id, { onDelete: 'set null' }),
+    /** The actor's name at the time, so the entry reads the same later. */
+    actorName: text('actor_name').notNull(),
+    action: text('action').$type<AuditAction>().notNull(),
+    entity: text('entity').$type<AuditEntity>().notNull(),
+    entityId: text('entity_id'),
+    /** What it was about: the item's title, the colleague's name, the settings section. */
+    title: text('title').notNull(),
+    /** What changed, in words. */
+    detail: text('detail').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('audit_log_created_idx').on(t.createdAt), index('audit_log_entity_idx').on(t.entity, t.entityId)],
+);
+
+/** The reports' summary of a Jalali month, made once at the start of the next month. */
+export const reportSummaries = pgTable('report_summaries', {
+  month: text('month').primaryKey(), // Jalali YYYY/MM
+  data: jsonb('data').$type<MonthlySummary>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

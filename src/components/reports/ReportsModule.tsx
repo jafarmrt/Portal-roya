@@ -1,229 +1,183 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import React, { useEffect, useState } from 'react';
 import moment from 'moment-jalaali';
-import { Activity, BarChart2, FileCheck2, Newspaper, SearchX } from 'lucide-react';
-import { usePortal } from '../../context/PortalContext';
+import { BarChart2, Download, Loader2 } from 'lucide-react';
+import type { ReportOverview } from '../../../shared/reports';
 import { api, errorMessage } from '../../lib/api';
-import { formatDate, toPersianDigits } from '../../lib/jalali';
-import type { MoodState, MoodSummaryRow } from '../../types';
+import { formatDate, isValidJalaliDate, toLatinDigits } from '../../lib/jalali';
+import { JalaliDateInput } from '../common/JalaliDateInput';
+import { labelClass, secondaryButtonClass } from '../common/Modal';
+import { MonthlySummaries } from './MonthlySummaries';
+import { MoodReport } from './MoodReport';
+import { IdlePeopleCard, NewsReachReport } from './NewsReachReport';
+import { ParticipationReport } from './ParticipationReport';
+import { exportReport } from './reportExport';
 
-type Range = 'daily' | 'weekly' | 'monthly';
-const RANGE_DAYS: Record<Range, number> = { daily: 1, weekly: 7, monthly: 30 };
-const RANGE_LABELS: Record<Range, string> = { daily: 'امروز', weekly: '۷ روز اخیر', monthly: '۳۰ روز اخیر' };
+const DAY = 'jYYYY/jMM/jDD';
 
-const MOODS: { name: MoodState; color: string }[] = [
-  { name: 'خیلی بد', color: '#f87171' },
-  { name: 'بد', color: '#fca5a5' },
-  { name: 'معمولی', color: '#d4d4d8' },
-  { name: 'خوب', color: '#991b1b' },
-  { name: 'عالی', color: '#dc2626' },
+type Preset = 'last30' | 'thisMonth' | 'lastMonth' | 'thisYear' | 'custom';
+
+const PRESETS: { id: Exclude<Preset, 'custom'>; label: string; range: () => { from: string; to: string } }[] = [
+  { id: 'last30', label: '۳۰ روز اخیر', range: () => ({ from: moment().subtract(29, 'days').format(DAY), to: moment().format(DAY) }) },
+  { id: 'thisMonth', label: 'این ماه', range: () => ({ from: moment().startOf('jMonth').format(DAY), to: moment().format(DAY) }) },
+  {
+    id: 'lastMonth',
+    label: 'ماه گذشته',
+    range: () => {
+      const end = moment().startOf('jMonth').subtract(1, 'day');
+      return { from: end.clone().startOf('jMonth').format(DAY), to: end.format(DAY) };
+    },
+  },
+  { id: 'thisYear', label: 'امسال', range: () => ({ from: moment().startOf('jYear').format(DAY), to: moment().format(DAY) }) },
 ];
 
-interface SearchMiss {
-  query: string;
-  count: number;
-  lastAt: string;
-}
-
-/** What colleagues searched for and did not find in the last three months: topics worth a guide. */
-const SearchMissesCard: React.FC = () => {
-  const { can, setActiveTab } = usePortal();
-  const [misses, setMisses] = useState<SearchMiss[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    api
-      .get<SearchMiss[]>('/api/search/misses')
-      .then(setMisses)
-      .catch((err) => setError(errorMessage(err)));
-  }, []);
-
-  return (
-    <section aria-labelledby="search-misses-title" className="bg-white rounded-3xl p-6 border border-[#e5e5e5] shadow-xs space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <SearchX className="w-5 h-5 text-[#991b1b]" />
-          <div>
-            <h3 id="search-misses-title" className="text-base font-black text-[#2d2d2d]">جستجوهای بی‌نتیجه</h3>
-            <p className="text-xs text-[#6e6a60]">همکاران در سه ماه اخیر این‌ها را جستجو کرده‌اند و چیزی پیدا نکرده‌اند (بدون نام جستجوکننده)</p>
-          </div>
-        </div>
-        {can('documents.manage') && misses && misses.length > 0 && (
-          <button onClick={() => setActiveTab('guides')} className="px-4 py-2 text-xs font-bold text-[#2D2D2D] bg-white hover:bg-[#F5F2ED] border border-[#D9D4CB] rounded-xl w-fit">
-            نوشتن راهنما
-          </button>
-        )}
-      </div>
-      {error ? (
-        <p role="alert" className="text-xs text-red-700">{error}</p>
-      ) : !misses ? (
-        <p className="text-xs text-[#6E6A60]">در حال دریافت...</p>
-      ) : misses.length === 0 ? (
-        <p className="text-xs text-[#6E6A60] text-center py-6 bg-[#F5F2ED] rounded-xl">جستجوی بی‌نتیجه‌ای ثبت نشده است.</p>
-      ) : (
-        <ul className="flex flex-wrap gap-2">
-          {misses.map((m) => (
-            <li key={m.query} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#F5F2ED] text-xs" title={`آخرین بار ${formatDate(m.lastAt)}`}>
-              <span className="font-bold text-[#2D2D2D]">{toPersianDigits(m.query)}</span>
-              <span className="px-1.5 py-0.5 rounded-full bg-white text-[10px] font-bold text-[#991b1b]">{toPersianDigits(m.count)} بار</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-};
-
-const percent = (part: number, total: number) => (total > 0 ? Math.round((part / total) * 100) : 0);
+type Tab = 'reach' | 'participation' | 'mood';
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'reach', label: 'اثربخشی اطلاع‌رسانی' },
+  { id: 'participation', label: 'مشارکت همکاران' },
+  { id: 'mood', label: 'حال‌وهوای سازمان' },
+];
 
 export const ReportsModule: React.FC = () => {
-  const { news, setActiveTab } = usePortal();
-  const [rows, setRows] = useState<MoodSummaryRow[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [range, setRange] = useState<Range>('weekly');
+  const [tab, setTab] = useState<Tab>('reach');
+  const [preset, setPreset] = useState<Preset>('last30');
+  const [range, setRange] = useState(PRESETS[0].range);
+  const [custom, setCustom] = useState(range);
+  const [report, setReport] = useState<ReportOverview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    let current = true;
+    setLoading(true);
+    setError(null);
     api
-      .get<MoodSummaryRow[]>('/api/moods/summary')
-      .then(setRows)
-      .catch((err) => setLoadError(errorMessage(err)));
-  }, []);
+      .get<ReportOverview>(`/api/reports/overview?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`)
+      .then((data) => current && setReport(data))
+      .catch((err) => current && setError(errorMessage(err)))
+      .finally(() => current && setLoading(false));
+    return () => {
+      current = false;
+    };
+  }, [range]);
 
-  const { data, total } = useMemo(() => {
-    const since = moment().subtract(RANGE_DAYS[range] - 1, 'days').format('jYYYY/jMM/jDD');
-    const counts = new Map<MoodState, number>();
-    for (const row of rows) {
-      if (row.date >= since) counts.set(row.mood, (counts.get(row.mood) ?? 0) + row.count);
-    }
-    const chart = MOODS.map((m) => ({ ...m, count: counts.get(m.name) ?? 0 }));
-    return { data: chart, total: chart.reduce((sum, m) => sum + m.count, 0) };
-  }, [rows, range]);
-
-  // Reach of recent announcements, from the read statistics the server attaches for managers.
-  const reach = news
-    .filter((n) => n.status === 'published' && n.readStats)
-    .slice(0, 15)
-    .map((n) => ({ item: n, stats: n.readStats! }));
+  const choose = (id: Exclude<Preset, 'custom'>) => {
+    setPreset(id);
+    setRange(PRESETS.find((p) => p.id === id)!.range());
+  };
+  const showMonth = (from: string, to: string) => {
+    setPreset('custom');
+    setCustom({ from, to });
+    setRange({ from, to });
+    if (tab === 'mood') setTab('reach');
+  };
+  const customFrom = toLatinDigits(custom.from);
+  const customTo = toLatinDigits(custom.to);
+  const customValid = isValidJalaliDate(customFrom) && isValidJalaliDate(customTo) && customFrom <= customTo;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="p-3 bg-[#fdfbf7] text-[#991b1b] rounded-2xl border border-[#f5f2ed]">
-          <BarChart2 className="w-6 h-6" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-[#fdfbf7] text-[#991b1b] rounded-2xl border border-[#f5f2ed]">
+            <BarChart2 className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-[#2d2d2d]">گزارش‌ها</h2>
+            <p className="text-sm text-[#6e6a60] mt-1">اثر اطلاع‌رسانی، مشارکت همکاران و حال‌وهوای سازمان</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-xl font-black text-[#2d2d2d]">گزارش‌ها</h2>
-          <p className="text-sm text-[#6e6a60] mt-1">میزان دیده‌شدن اطلاعیه‌ها، جستجوهای بی‌نتیجه و حال‌وهوای سازمان</p>
-        </div>
+        {tab !== 'mood' && (
+          <button onClick={() => report && exportReport(report)} disabled={!report || loading} className={`${secondaryButtonClass} w-fit`}>
+            <Download className="w-4 h-4" /> خروجی اکسل
+          </button>
+        )}
       </div>
 
-      <section className="bg-white rounded-3xl p-6 border border-[#e5e5e5] shadow-xs space-y-4">
-        <div className="flex items-center gap-2">
-          <Newspaper className="w-5 h-5 text-[#991b1b]" />
-          <div>
-            <h3 className="text-base font-black text-[#2d2d2d]">دسترسی اطلاعیه‌های اخیر</h3>
-            <p className="text-xs text-[#6e6a60]">چند درصد از مخاطبان هر خبر آن را باز کرده‌اند و چند نفر بخشنامه را تأیید کرده‌اند</p>
-          </div>
-        </div>
-        {reach.length === 0 ? (
-          <p className="text-xs text-[#6E6A60] text-center py-6 bg-[#F5F2ED] rounded-xl">هنوز خبری منتشر نشده است.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-[#8C867A] border-b border-[#E6E0D5]">
-                  <th className="text-right font-bold py-2">عنوان</th>
-                  <th className="text-right font-bold py-2 whitespace-nowrap">تاریخ</th>
-                  <th className="text-right font-bold py-2 w-1/3">خوانده شده</th>
-                  <th className="text-right font-bold py-2 whitespace-nowrap">تأیید مطالعه</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reach.map(({ item, stats }) => {
-                  const readPct = percent(stats.read, stats.audience);
-                  return (
-                    <tr key={item.id} className="border-b border-[#F5F2ED] last:border-0">
-                      <td className="py-2.5 pl-3">
-                        <button onClick={() => setActiveTab('news', item.id)} className="font-bold text-[#2D2D2D] hover:text-[#dc2626] text-right">
-                          {item.title}
-                        </button>
-                      </td>
-                      <td className="py-2.5 pl-3 whitespace-nowrap text-[#6E6A60]">{formatDate(item.publishAt)}</td>
-                      <td className="py-2.5 pl-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-2 bg-[#F5F2ED] rounded-full overflow-hidden" role="progressbar" aria-valuenow={readPct} aria-valuemin={0} aria-valuemax={100}>
-                            <div className="h-full bg-[#991b1b] rounded-full" style={{ width: `${readPct}%` }} />
-                          </div>
-                          <span className="whitespace-nowrap text-[#6E6A60]">{toPersianDigits(`${stats.read}/${stats.audience}`)}</span>
-                        </div>
-                      </td>
-                      <td className="py-2.5 whitespace-nowrap">
-                        {item.requiresAck ? (
-                          <span className="flex items-center gap-1 font-bold text-[#991b1b]">
-                            <FileCheck2 className="w-3.5 h-3.5" />
-                            {toPersianDigits(`${stats.acknowledged}/${stats.audience}`)}
-                          </span>
-                        ) : (
-                          <span className="text-[#8C867A]">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <MonthlySummaries onShowMonth={showMonth} />
 
-      <SearchMissesCard />
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar" role="tablist" aria-label="بخش‌های گزارش">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={`px-4 py-2 text-sm font-bold rounded-xl whitespace-nowrap transition-all ${
+              tab === t.id ? 'bg-[#dc2626] text-white' : 'bg-white border border-[#E6E0D5] hover:bg-[#F5F2ED] text-[#2D2D2D]'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-      <section className="bg-white rounded-3xl p-6 border border-[#e5e5e5] shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Activity className="w-5 h-5 text-[#991b1b]" />
-            <div>
-              <h3 className="text-base font-black text-[#2d2d2d]">حال‌وهوای سازمان</h3>
-              <p className="text-xs text-[#6e6a60]">
-                جمع پاسخ‌های بی‌نام همکاران در {RANGE_LABELS[range]} ({toPersianDigits(total)} پاسخ)
-              </p>
-            </div>
-          </div>
-          <div className="flex bg-[#F5F2ED] rounded-xl p-1 border border-[#E6E0D5]" role="group" aria-label="بازهٔ زمانی">
-            {(Object.keys(RANGE_LABELS) as Range[]).map((r) => (
+      {tab === 'mood' ? (
+        <MoodReport />
+      ) : (
+        <>
+          <section aria-label="بازهٔ زمانی گزارش" className="bg-white rounded-2xl p-4 border border-[#e5e5e5] space-y-3">
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="بازهٔ زمانی">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => choose(p.id)}
+                  aria-pressed={preset === p.id}
+                  className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-colors ${
+                    preset === p.id ? 'bg-[#2D2D2D] text-white' : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D]'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
               <button
-                key={r}
-                onClick={() => setRange(r)}
-                aria-pressed={range === r}
-                className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${range === r ? 'bg-white text-[#dc2626] shadow-sm' : 'text-[#8C867A] hover:text-[#2D2D2D]'}`}
+                onClick={() => setPreset('custom')}
+                aria-pressed={preset === 'custom'}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-colors ${
+                  preset === 'custom' ? 'bg-[#2D2D2D] text-white' : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D]'
+                }`}
               >
-                {RANGE_LABELS[r]}
+                بازهٔ دلخواه
               </button>
-            ))}
-          </div>
-        </div>
-        {loadError ? (
-          <p role="alert" className="text-xs text-red-700">{loadError}</p>
-        ) : (
-          <div className="h-64 w-full" dir="ltr">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#6e6a60' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: '#6e6a60' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip
-                  cursor={{ fill: '#f5f2ed' }}
-                  formatter={(value) => [toPersianDigits(String(value)), 'تعداد']}
-                  contentStyle={{ borderRadius: '12px', border: '1px solid #e5e5e5', fontSize: '12px', textAlign: 'right' }}
-                />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                  {data.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </section>
+              <span className="text-[11px] text-[#6E6A60] mr-auto flex items-center gap-1.5">
+                {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                از {formatDate(range.from)} تا {formatDate(range.to)}
+              </span>
+            </div>
+            {preset === 'custom' && (
+              <form
+                className="flex flex-wrap items-end gap-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (customValid) setRange({ from: customFrom, to: customTo });
+                }}
+              >
+                <div className="w-40">
+                  <label htmlFor="report-from" className={labelClass}>از تاریخ</label>
+                  <JalaliDateInput id="report-from" value={custom.from} onChange={(from) => setCustom({ ...custom, from })} />
+                </div>
+                <div className="w-40">
+                  <label htmlFor="report-to" className={labelClass}>تا تاریخ</label>
+                  <JalaliDateInput id="report-to" value={custom.to} onChange={(to) => setCustom({ ...custom, to })} />
+                </div>
+                <button type="submit" disabled={!customValid} className={secondaryButtonClass}>نمایش</button>
+              </form>
+            )}
+          </section>
+
+          {error ? (
+            <p role="alert" className="text-sm text-red-700 bg-white rounded-2xl p-4 border border-red-100">{error}</p>
+          ) : !report ? (
+            <div className="py-16 flex justify-center"><Loader2 className="w-7 h-7 text-red-600 animate-spin" /></div>
+          ) : tab === 'reach' ? (
+            <>
+              <NewsReachReport report={report.news} />
+              <IdlePeopleCard people={report.idle} />
+            </>
+          ) : (
+            <ParticipationReport report={report.participation} />
+          )}
+        </>
+      )}
     </div>
   );
 };

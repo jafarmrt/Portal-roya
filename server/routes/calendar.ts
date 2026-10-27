@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { inAudience } from '../../shared/audience.js';
 import { todayJalali, toPersianDigits } from '../../shared/jalali.js';
 import { audienceIncludes, audienceOfRow, checkAudience } from '../audience.js';
+import { audit, fromTo } from '../audit.js';
 import { can, requirePermission, type SessionUser } from '../auth.js';
 import { config } from '../config.js';
 import { db } from '../db/index.js';
@@ -159,6 +160,7 @@ calendarRouter.post(
         createdById: viewer.id,
       })
       .returning();
+    await audit(viewer, { action: 'create', entity: 'calendar_event', id: event.id, title: event.title, detail: `تاریخ ${toPersianDigits(event.date)}` });
     if (event.notify && event.date >= todayJalali()) {
       await createNotifications(await audienceIdsFor(audience, viewer.id), {
         title: `${TYPE_NAMES[event.type] ?? 'رویداد'} در تقویم 📅`,
@@ -198,6 +200,16 @@ calendarRouter.put(
       })
       .where(eq(calendarEvents.id, existing.id))
       .returning();
+    await audit(viewer, {
+      action: 'update',
+      entity: 'calendar_event',
+      id: event.id,
+      title: event.title,
+      detail: [
+        existing.title !== event.title ? `عنوان قبلی: ${existing.title}` : '',
+        existing.date !== event.date ? `تاریخ: ${toPersianDigits(fromTo(existing.date, event.date))}` : '',
+      ].filter(Boolean).join('، '),
+    });
     // Announced when notifications are turned on, and again when the day or hour changes.
     const announce = event.notify && event.date >= todayJalali() && (!existing.notify || moved);
     if (announce) {
@@ -222,6 +234,7 @@ calendarRouter.delete(
     const viewer = currentUser(req);
     const [deleted] = await db.delete(calendarEvents).where(eq(calendarEvents.id, req.params.id)).returning();
     if (!deleted) throw new HttpError(404, 'رویداد یافت نشد.');
+    await audit(viewer, { action: 'delete', entity: 'calendar_event', id: deleted.id, title: deleted.title, detail: `تاریخ ${toPersianDigits(deleted.date)}` });
     if (deleted.notify && !deleted.trainingId && deleted.date >= todayJalali()) {
       await createNotifications(await audienceIdsFor(audienceOfRow(deleted), viewer.id), {
         title: `${TYPE_NAMES[deleted.type] ?? 'رویداد'} لغو شد`,
@@ -357,6 +370,13 @@ calendarRouter.put(
       .insert(customHolidays)
       .values({ date, ...body })
       .onConflictDoUpdate({ target: customHolidays.date, set: body });
+    await audit(currentUser(req), {
+      action: 'update',
+      entity: 'holiday',
+      id: date,
+      title: toPersianDigits(date.replace(/-/g, '/')),
+      detail: [body.isHoliday ? 'تعطیل' : 'غیرتعطیل', body.title].filter(Boolean).join('، '),
+    });
     broadcastChange('holidays');
     res.json({ success: true });
   }),
@@ -367,7 +387,10 @@ calendarRouter.delete(
   requirePermission('calendar.manage'),
   route(async (req, res) => {
     const date = parse(holidayKey, req.params.date);
-    await db.delete(customHolidays).where(eq(customHolidays.date, date));
+    const deleted = await db.delete(customHolidays).where(eq(customHolidays.date, date)).returning();
+    if (deleted.length > 0) {
+      await audit(currentUser(req), { action: 'delete', entity: 'holiday', id: date, title: toPersianDigits(date.replace(/-/g, '/')), detail: deleted[0].title });
+    }
     broadcastChange('holidays');
     res.json({ success: true });
   }),

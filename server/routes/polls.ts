@@ -2,8 +2,9 @@ import { and, desc, eq, gt, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
 import { inAudience } from '../../shared/audience.js';
-import { jalaliEndOfDay, toJalali } from '../../shared/jalali.js';
+import { jalaliEndOfDay, toJalali, toPersianDigits } from '../../shared/jalali.js';
 import { audienceIncludes, audienceOfRow, checkAudience } from '../audience.js';
+import { audit } from '../audit.js';
 import { can, type SessionUser, requirePermission } from '../auth.js';
 import { db } from '../db/index.js';
 import {
@@ -275,6 +276,7 @@ pollsRouter.post(
       for (const [i, q] of body.questions.entries()) await insertQuestion(tx, created.id, q, i);
       return created;
     });
+    await audit(viewer, { action: 'create', entity: 'poll', id: poll.id, title: poll.title });
 
     await createNotifications(await audienceIdsFor(audience, viewer.id), {
       title: 'نظرسنجی جدید 🗳️',
@@ -363,6 +365,7 @@ pollsRouter.put(
         .returning();
       return updated;
     });
+    await audit(viewer, { action: 'update', entity: 'poll', id: poll.id, title: poll.title, detail: existing.title !== poll.title ? `عنوان قبلی: ${existing.title}` : '' });
     broadcastChange('polls');
     const [serialized] = await serializePolls([poll], viewer);
     res.json(serialized);
@@ -509,6 +512,9 @@ pollsRouter.patch(
     const existing = await loadRun(req.params.id, viewer);
     const { isActive } = parse(z.object({ isActive: z.boolean() }), req.body);
     const [poll] = await db.update(polls).set({ isActive }).where(eq(polls.id, existing.id)).returning();
+    if (isActive !== existing.isActive) {
+      await audit(viewer, { action: 'update', entity: 'poll', id: poll.id, title: poll.title, detail: isActive ? 'دوباره باز شد' : 'بسته شد' });
+    }
     broadcastChange('polls');
     const [serialized] = await serializePolls([poll], viewer);
     res.json(serialized);
@@ -519,8 +525,11 @@ pollsRouter.delete(
   '/polls/:id',
   requirePermission('polls.manage'),
   route(async (req, res) => {
-    const deleted = await db.delete(polls).where(eq(polls.id, req.params.id)).returning({ id: polls.id });
-    if (deleted.length === 0) throw new HttpError(404, 'نظرسنجی یافت نشد.');
+    // Counted first: the answers go with the poll.
+    const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(pollResponses).where(eq(pollResponses.pollId, req.params.id));
+    const [deleted] = await db.delete(polls).where(eq(polls.id, req.params.id)).returning({ id: polls.id, title: polls.title });
+    if (!deleted) throw new HttpError(404, 'نظرسنجی یافت نشد.');
+    await audit(currentUser(req), { action: 'delete', entity: 'poll', id: deleted.id, title: deleted.title, detail: count > 0 ? `با ${toPersianDigits(count)} پاسخ` : '' });
     broadcastChange('polls');
     res.json({ success: true });
   }),

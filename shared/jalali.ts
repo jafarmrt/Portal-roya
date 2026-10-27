@@ -4,6 +4,11 @@ import moment from 'moment-jalaali';
 export const JALALI_DATE_RE = /^1[34]\d{2}\/(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])$/;
 export const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+export const JALALI_MONTH_NAMES = [
+  'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+  'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند',
+];
+
 export function isValidJalaliDate(value: string): boolean {
   if (!JALALI_DATE_RE.test(value)) return false;
   return moment(value, 'jYYYY/jMM/jDD', true).isValid();
@@ -45,4 +50,10 @@ export function toLatinDigits(value: string): string {
 
 export function toPersianDigits(value: string | number): string {
   return String(value).replace(/\d/g, (d) => PERSIAN_DIGITS[Number(d)]);
+}
+
+/** "آبان ۱۴۰۵" for a Jalali 'YYYY/MM' month. */
+export function jalaliMonthLabel(month: string): string {
+  const [year, m] = month.split('/').map(Number);
+  return `${JALALI_MONTH_NAMES[m - 1] ?? ''} ${toPersianDigits(year)}`;
 }

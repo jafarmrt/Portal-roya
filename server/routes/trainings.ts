@@ -3,6 +3,7 @@ import { Router } from 'express';
 import moment from 'moment-jalaali';
 import { z } from 'zod';
 import { todayJalali, toPersianDigits } from '../../shared/jalali.js';
+import { audit, fromTo } from '../audit.js';
 import { can, requirePermission, type SessionUser } from '../auth.js';
 import { db } from '../db/index.js';
 import { calendarEvents, employees, trainingEnrollments, trainingFeedback, trainings } from '../db/schema.js';
@@ -157,6 +158,7 @@ trainingsRouter.post(
       // Every training also appears on the organization calendar.
       await tx.insert(calendarEvents).values({ id: newId('evt'), trainingId: id, ...calendarEntryFor(body) });
     });
+    await audit(viewer, { action: 'create', entity: 'training', id, title: body.title, detail: `تاریخ ${toPersianDigits(body.date)}` });
     await createNotifications(await audienceIds([], viewer.id), {
       title: 'دوره آموزشی جدید 🎓',
       message: `دوره «${body.title}» برای تاریخ ${body.date} تعریف شد.`,
@@ -182,7 +184,7 @@ trainingsRouter.put(
     const viewer = currentUser(req);
     const { notifyEnrolled, ...body } = parse(updateSchema, req.body);
     await checkInstructor(body);
-    const { training, signedUp, promoted } = await db.transaction(async (tx) => {
+    const { training, before, signedUp, promoted } = await db.transaction(async (tx) => {
       const existing = await lockTraining(tx, req.params.id);
       const rows = await tx.select().from(trainingEnrollments).where(eq(trainingEnrollments.trainingId, existing.id));
       const enrolled = rows.filter((r) => r.status === 'enrolled').length;
@@ -201,7 +203,20 @@ trainingsRouter.put(
       if (linked.length === 0) await tx.insert(calendarEvents).values({ id: newId('evt'), trainingId: existing.id, ...entry });
       // A larger capacity takes people off the waitlist.
       const promoted = await fillFromWaitlist(tx, updated);
-      return { training: updated, signedUp: rows.map((r) => r.userId), promoted };
+      return { training: updated, before: existing, signedUp: rows.map((r) => r.userId), promoted };
+    });
+    await audit(viewer, {
+      action: 'update',
+      entity: 'training',
+      id: training.id,
+      title: training.title,
+      detail: [
+        before.title !== training.title ? `عنوان قبلی: ${before.title}` : '',
+        before.date !== training.date ? `تاریخ: ${toPersianDigits(fromTo(before.date, training.date))}` : '',
+        before.time !== training.time ? `ساعت: ${toPersianDigits(fromTo(before.time, training.time))}` : '',
+        before.location !== training.location ? `مکان: ${fromTo(before.location, training.location)}` : '',
+        before.capacity !== training.capacity ? `ظرفیت: ${toPersianDigits(fromTo(String(before.capacity), String(training.capacity)))}` : '',
+      ].filter(Boolean).join('، '),
     });
     if (notifyEnrolled) {
       await createNotifications(
@@ -234,6 +249,13 @@ trainingsRouter.delete(
     // The training's calendar entry goes with it (foreign key cascade).
     const [deleted] = await db.delete(trainings).where(eq(trainings.id, req.params.id)).returning();
     if (!deleted) throw new HttpError(404, 'دوره یافت نشد.');
+    await audit(viewer, {
+      action: 'delete',
+      entity: 'training',
+      id: deleted.id,
+      title: deleted.title,
+      detail: `تاریخ ${toPersianDigits(deleted.date)}${signedUp.length > 0 ? `، ${toPersianDigits(signedUp.length)} ثبت‌نام` : ''}`,
+    });
     if (deleted.date >= todayJalali()) {
       await createNotifications(
         signedUp.map((r) => r.userId).filter((id) => id !== viewer.id),
