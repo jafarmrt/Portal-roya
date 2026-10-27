@@ -14,6 +14,8 @@ import { idsWithPermission } from '../roles.js';
 import { fullName } from '../serializers.js';
 import { assetUrl, attachment, jalaliDate, optionalText, requiredText, timeOfDay } from '../validation.js';
 import { audienceIncludes, audienceOfRow, checkAudience } from '../audience.js';
+import { audit, changedLabels } from '../audit.js';
+import { NEWS_FIELD_LABELS } from '../../shared/audit.js';
 
 export const newsRouter = Router();
 
@@ -39,7 +41,7 @@ const audienceOfItem = (item: NewsRow): Audience => audienceOfRow(item);
  * Who an item is meant for: active colleagues with a portal account in its audience.
  * People listed only in the phone book can't read it, and the author is not counted.
  */
-function audienceOf<T extends typeof employees.$inferSelect>(item: NewsRow, people: T[]) {
+export function audienceOf<T extends typeof employees.$inferSelect>(item: NewsRow, people: T[]) {
   const audience = audienceOfItem(item);
   return people.filter((p) => p.isActive && p.hasAccount && p.id !== item.authorId && inAudience(p, audience));
 }
@@ -323,6 +325,13 @@ function changedKeys(before: NewsSnapshot, after: NewsSnapshot) {
 /** "۱۴۰۵/۰۸/۱۰" for notification texts. */
 const deadlineText = (deadline: Date) => toPersianDigits(toJalali(deadline));
 
+/** How an item went out, for the change history: kept as a draft, or scheduled for later. */
+function publishingNote(item: NewsRow) {
+  if (item.isDraft) return 'پیش‌نویس';
+  if (item.publishAt > new Date()) return `زمان‌بندی برای ${toPersianDigits(toJalali(item.publishAt, 'jYYYY/jMM/jDD، HH:mm'))}`;
+  return '';
+}
+
 /** Sends in-portal notifications (and e-mail for urgent items) once an item is live. */
 export async function announceNews(item: NewsRow) {
   const claimed = await db
@@ -357,6 +366,7 @@ newsRouter.post(
       .values({ id: newId('news'), authorId: viewer.id, ...values })
       .returning();
     if (!item.isDraft && item.publishAt <= new Date()) await announceNews(item);
+    await audit(viewer, { action: 'create', entity: 'news', id: item.id, title: item.title, detail: publishingNote(item) });
     broadcastChange('news');
     const [serialized] = await serializeMany([item], viewer);
     res.status(201).json(serialized);
@@ -377,7 +387,7 @@ newsRouter.patch(
     if (!body.publishDate && !existing.isDraft && existing.publishAt <= new Date()) values.publishAt = existing.publishAt;
     // A new deadline gets its own reminder and report.
     const deadlineMoved = values.ackDeadline?.getTime() !== existing.ackDeadline?.getTime();
-    const item = await db.transaction(async (tx) => {
+    const { item, changed } = await db.transaction(async (tx) => {
       const [updated] = await tx
         .update(news)
         .set({ ...values, updatedAt: new Date(), ...(deadlineMoved ? { ackAutoRemindedAt: null, ackReportedAt: null } : {}) })
@@ -391,10 +401,16 @@ newsRouter.patch(
         if (changed.length > 0) {
           await tx.insert(newsRevisions).values({ newsId: existing.id, editorId: viewer.id, action: 'edit', changed, snapshot: snapshotOf(existing) });
         }
+        return { item: updated, changed };
       }
-      return updated;
+      return { item: updated, changed: [] };
     });
     if (!item.isDraft && item.publishAt <= new Date()) await announceNews(item);
+    if (existing.isDraft && !item.isDraft) {
+      await audit(viewer, { action: 'publish', entity: 'news', id: item.id, title: item.title, detail: publishingNote(item) });
+    } else if (changed.length > 0) {
+      await audit(viewer, { action: 'update', entity: 'news', id: item.id, title: item.title, detail: changedLabels(changed, NEWS_FIELD_LABELS) });
+    }
     broadcastChange('news');
     const [serialized] = await serializeMany([item], viewer);
     res.json(serialized);
@@ -405,8 +421,9 @@ newsRouter.delete(
   '/news/:id',
   requirePermission('news.manage'),
   route(async (req, res) => {
-    const deleted = await db.delete(news).where(eq(news.id, req.params.id)).returning({ id: news.id });
-    if (deleted.length === 0) throw new HttpError(404, 'خبر یافت نشد.');
+    const [deleted] = await db.delete(news).where(eq(news.id, req.params.id)).returning({ id: news.id, title: news.title, isDraft: news.isDraft });
+    if (!deleted) throw new HttpError(404, 'خبر یافت نشد.');
+    await audit(currentUser(req), { action: 'delete', entity: 'news', id: deleted.id, title: deleted.title, detail: deleted.isDraft ? 'پیش‌نویس' : '' });
     broadcastChange('news');
     res.json({ success: true });
   }),
@@ -735,6 +752,7 @@ newsRouter.post(
       .insert(newsTemplates)
       .values({ id: newId('tpl'), ...body, content: sanitizeRichText(body.content), createdById: viewer.id })
       .returning();
+    await audit(viewer, { action: 'create', entity: 'news_template', id: row.id, title: row.name });
     res.status(201).json(serializeTemplate(row));
   }),
 );
@@ -750,6 +768,7 @@ newsRouter.put(
       .where(eq(newsTemplates.id, req.params.id))
       .returning();
     if (!row) throw new HttpError(404, 'قالب یافت نشد.');
+    await audit(currentUser(req), { action: 'update', entity: 'news_template', id: row.id, title: row.name });
     res.json(serializeTemplate(row));
   }),
 );
@@ -758,8 +777,9 @@ newsRouter.delete(
   '/news-templates/:id',
   requirePermission('news.manage'),
   route(async (req, res) => {
-    const deleted = await db.delete(newsTemplates).where(eq(newsTemplates.id, req.params.id)).returning({ id: newsTemplates.id });
-    if (deleted.length === 0) throw new HttpError(404, 'قالب یافت نشد.');
+    const [deleted] = await db.delete(newsTemplates).where(eq(newsTemplates.id, req.params.id)).returning({ id: newsTemplates.id, name: newsTemplates.name });
+    if (!deleted) throw new HttpError(404, 'قالب یافت نشد.');
+    await audit(currentUser(req), { action: 'delete', entity: 'news_template', id: deleted.id, title: deleted.name });
     res.json({ success: true });
   }),
 );

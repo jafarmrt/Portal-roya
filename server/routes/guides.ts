@@ -2,6 +2,7 @@ import { and, eq, inArray, isNotNull, isNull, lte } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
 import { jalaliToDate } from '../../shared/jalali.js';
+import { audit } from '../audit.js';
 import { can, requirePermission, type SessionUser } from '../auth.js';
 import { db } from '../db/index.js';
 import { employees, guideFeedback, guides } from '../db/schema.js';
@@ -119,6 +120,7 @@ guidesRouter.post(
         updatedById: viewer.id,
       })
       .returning();
+    await audit(viewer, { action: 'create', entity: 'guide', id: guide.id, title: guide.title });
     broadcastChange('guides');
     const [serialized] = await serializeMany([guide], viewer);
     res.status(201).json(serialized);
@@ -151,6 +153,7 @@ guidesRouter.put(
       })
       .where(eq(guides.id, existing.id))
       .returning();
+    await audit(viewer, { action: 'update', entity: 'guide', id: guide.id, title: guide.title, detail: existing.title !== guide.title ? `عنوان قبلی: ${existing.title}` : '' });
     broadcastChange('guides');
     const [serialized] = await serializeMany([guide], viewer);
     res.json(serialized);
@@ -161,8 +164,9 @@ guidesRouter.delete(
   '/guides/:id',
   requirePermission('documents.manage'),
   route(async (req, res) => {
-    const deleted = await db.delete(guides).where(eq(guides.id, req.params.id)).returning({ id: guides.id });
-    if (deleted.length === 0) throw new HttpError(404, 'راهنما یافت نشد.');
+    const [deleted] = await db.delete(guides).where(eq(guides.id, req.params.id)).returning({ id: guides.id, title: guides.title });
+    if (!deleted) throw new HttpError(404, 'راهنما یافت نشد.');
+    await audit(currentUser(req), { action: 'delete', entity: 'guide', id: deleted.id, title: deleted.title });
     broadcastChange('guides');
     res.json({ success: true });
   }),

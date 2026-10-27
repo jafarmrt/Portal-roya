@@ -11,6 +11,7 @@ import {
   Newspaper,
   GraduationCap,
   Calendar,
+  History,
   Settings,
   BarChart2,
   FolderOpen,
@@ -171,6 +172,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
   if (can('users.manage')) adminItems.push({ id: 'people', label: 'مدیریت کارکنان', icon: <UserCog className="w-4 h-4" /> });
   if (can('reports.view')) adminItems.push({ id: 'reports', label: 'گزارش‌ها', icon: <BarChart2 className="w-4 h-4" /> });
   if (isAdmin || can('settings.manage')) adminItems.push({ id: 'admin', label: 'تنظیمات', icon: <Settings className="w-4 h-4" /> });
+  if (isAdmin) adminItems.push({ id: 'audit', label: 'تاریخچهٔ تغییرات', icon: <History className="w-4 h-4" /> });
 
   // Desktop bar: the org apps already have their own "سامانه‌ها" button in the header, and related
   // pages share a drop-down, so every entry fits on one line even for admins.

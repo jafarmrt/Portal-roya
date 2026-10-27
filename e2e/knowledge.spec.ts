@@ -106,6 +106,7 @@ test.describe('guides, department pages and search', () => {
 
     const reports = await asRole(browser, 'admin');
     await reports.page.goto('/#reports');
+    await reports.page.getByRole('tab', { name: 'مشارکت همکاران' }).click();
     await expect(reports.page.getByRole('region', { name: 'جستجوهای بی‌نتیجه' })).toContainText('بیمه تکمیلی دندان');
     await reports.context.close();
   });

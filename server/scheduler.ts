@@ -12,6 +12,7 @@ import { processEventReminders } from './routes/calendar.js';
 import { processTrainingReminders } from './routes/trainings.js';
 import { indexMissingDocumentTexts } from './textExtract.js';
 import { announceNews, processAckDeadlines } from './routes/news.js';
+import { processMonthlySummary } from './reports.js';
 import { fullName } from './serializers.js';
 
 const INTERVAL_MS = 60_000;
@@ -87,6 +88,7 @@ export function startScheduler() {
     processPollDeadlines().catch((err) => console.error('Poll reminder error:', err));
     processEventReminders().catch((err) => console.error('Event reminder error:', err));
     processTrainingReminders().catch((err) => console.error('Training reminder error:', err));
+    processMonthlySummary().catch((err) => console.error('Monthly summary error:', err));
     runNightlyMaintenance().catch((err) => console.error('Maintenance error:', err));
   }, INTERVAL_MS);
   timer.unref();

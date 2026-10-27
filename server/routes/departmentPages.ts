@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
+import { audit } from '../audit.js';
 import { can } from '../auth.js';
 import { db } from '../db/index.js';
 import { departmentPages, employees } from '../db/schema.js';
@@ -67,6 +68,15 @@ departmentPagesRouter.put(
       .insert(departmentPages)
       .values({ department, ...values })
       .onConflictDoUpdate({ target: departmentPages.department, set: values });
+    const headChanged = headId !== (existing?.headId ?? null);
+    const [head] = headChanged && headId ? await db.select().from(employees).where(eq(employees.id, headId)) : [];
+    await audit(viewer, {
+      action: 'update',
+      entity: 'department_page',
+      id: department,
+      title: department,
+      detail: headChanged ? `مسئول واحد: ${head ? fullName(head) : 'بدون مسئول'}` : 'معرفی واحد',
+    });
     broadcastChange('department_pages');
     res.json({ department, ...values, updatedAt: values.updatedAt.toISOString(), updatedBy: fullName(viewer) });
   }),

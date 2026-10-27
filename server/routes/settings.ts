@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
+import { audit, fromTo } from '../audit.js';
 import { can, requirePermission } from '../auth.js';
 import { db } from '../db/index.js';
 import { settings } from '../db/schema.js';
@@ -78,6 +79,49 @@ const updateSchema = z
   })
   .partial();
 
+const SETTING_LABELS: Record<keyof z.infer<typeof updateSchema>, string> = {
+  departments: 'واحدهای سازمانی',
+  newsCategories: 'دسته‌بندی اخبار',
+  trainingCategories: 'دسته‌بندی دوره‌ها',
+  documentCategories: 'دسته‌بندی اسناد',
+  systems: 'لینک سامانه‌ها',
+  guestAccess: 'دسترسی مهمان',
+  guestDirectory: 'دفتر تلفن برای مهمان',
+  locations: 'محل‌های استقرار',
+  dashboardCards: 'کارت‌های داشبورد',
+  logoUrl: 'لوگوی شرکت',
+};
+
+type SettingsRow = typeof settings.$inferSelect;
+
+/** What a settings save changed, in words: items added to and removed from a list, a switch turned on or off. */
+function settingChanges(before: SettingsRow, after: SettingsRow, keys: (keyof typeof SETTING_LABELS)[]) {
+  const changes: { label: string; detail: string }[] = [];
+  for (const key of keys) {
+    const was = before[key];
+    const now = after[key];
+    if (JSON.stringify(was) === JSON.stringify(now)) continue;
+    let detail = '';
+    if (typeof now === 'boolean') detail = now ? 'روشن شد' : 'خاموش شد';
+    else if (key === 'systems') {
+      const names = (list: SettingsRow['systems']) => list.map((s) => s.name);
+      const added = names(after.systems).filter((n) => !names(before.systems).includes(n));
+      const removed = names(before.systems).filter((n) => !names(after.systems).includes(n));
+      detail = [added.length ? `اضافه: ${added.join('، ')}` : '', removed.length ? `حذف: ${removed.join('، ')}` : ''].filter(Boolean).join('؛ ') || 'ویرایش';
+    } else if (Array.isArray(now) && Array.isArray(was)) {
+      const added = (now as string[]).filter((n) => !(was as string[]).includes(n));
+      const removed = (was as string[]).filter((n) => !(now as string[]).includes(n));
+      detail = [added.length ? `اضافه: ${added.join('، ')}` : '', removed.length ? `حذف: ${removed.join('، ')}` : ''].filter(Boolean).join('؛ ') || 'ترتیب';
+    } else if (key === 'dashboardCards') {
+      detail = 'روشن و خاموش کردن کارت‌ها';
+    } else if (key === 'logoUrl') {
+      detail = after.logoUrl ? 'لوگوی جدید' : 'برگشت به لوگوی پیش‌فرض';
+    }
+    changes.push({ label: SETTING_LABELS[key], detail });
+  }
+  return changes;
+}
+
 settingsRouter.put(
   '/settings',
   route(async (req, res) => {
@@ -91,11 +135,14 @@ settingsRouter.put(
     if (Object.keys(lists).length > 0 && !can(viewer, 'settings.manage')) {
       throw new HttpError(403, 'شما اجازهٔ تغییر تنظیمات پرتال را ندارید.');
     }
-    await ensureSettings();
+    const before = await ensureSettings();
     if (body.departments) body.departments = await checkDepartmentList(body.departments);
     if (body.locations) body.locations = await checkLocationList(body.locations);
     for (const system of systems ?? []) if (system.department) system.department = await requireDepartment(system.department);
     const [updated] = await db.update(settings).set(body).where(eq(settings.id, 'global')).returning();
+    for (const change of settingChanges(before, updated, Object.keys(body) as (keyof typeof SETTING_LABELS)[])) {
+      await audit(viewer, { action: 'update', entity: 'settings', title: change.label, detail: change.detail });
+    }
     broadcastChange('settings');
     res.json(publicSettings(updated));
   }),
@@ -124,6 +171,7 @@ settingsRouter.put(
     await ensureSettings();
     const banner = { text: body.text, level: body.level, expiresAt: expiresAt.toISOString(), updatedById: viewer.id, updatedAt: now.toISOString() };
     const [updated] = await db.update(settings).set({ banner }).where(eq(settings.id, 'global')).returning();
+    await audit(viewer, { action: 'update', entity: 'settings', title: 'پیام سراسری', detail: body.text });
     broadcastChange('settings');
     res.json(publicSettings(updated));
   }),
@@ -132,9 +180,10 @@ settingsRouter.put(
 settingsRouter.delete(
   '/settings/banner',
   requirePermission('news.manage'),
-  route(async (_req, res) => {
-    await ensureSettings();
+  route(async (req, res) => {
+    const before = await ensureSettings();
     const [updated] = await db.update(settings).set({ banner: null }).where(eq(settings.id, 'global')).returning();
+    if (before.banner) await audit(currentUser(req), { action: 'delete', entity: 'settings', title: 'پیام سراسری', detail: before.banner.text });
     broadcastChange('settings');
     res.json(publicSettings(updated));
   }),
@@ -168,7 +217,9 @@ settingsRouter.post(
   requirePermission('settings.manage'),
   route(async (req, res) => {
     const body = parse(renameSchema, req.body);
-    res.json(await renameDepartment(body.from, body.to));
+    const result = await renameDepartment(body.from, body.to);
+    await audit(currentUser(req), { action: 'update', entity: 'settings', title: 'واحدهای سازمانی', detail: `${fromTo(result.from, result.to)}${result.merged ? ' (ادغام)' : ''}` });
+    res.json(result);
   }),
 );
 
@@ -189,6 +240,8 @@ settingsRouter.post(
   requirePermission('settings.manage'),
   route(async (req, res) => {
     const body = parse(renameSchema, req.body);
-    res.json(await renameLocation(body.from, body.to));
+    const result = await renameLocation(body.from, body.to);
+    await audit(currentUser(req), { action: 'update', entity: 'settings', title: 'محل‌های استقرار', detail: `${fromTo(result.from, result.to)}${result.merged ? ' (ادغام)' : ''}` });
+    res.json(result);
   }),
 );

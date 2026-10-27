@@ -1,12 +1,7 @@
 import moment from 'moment-jalaali';
 
 export * from '../../shared/jalali';
-import { toPersianDigits } from '../../shared/jalali';
-
-export const JALALI_MONTH_NAMES = [
-  'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
-  'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند',
-];
+import { JALALI_MONTH_NAMES, toPersianDigits } from '../../shared/jalali';
 
 /** "۴ آبان ۱۴۰۵" from an ISO timestamp or a Jalali 'YYYY/MM/DD' string. */
 export function formatDate(value: string | null | undefined): string {

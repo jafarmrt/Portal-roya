@@ -3,33 +3,12 @@ import { ChevronDown, History } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { api } from '../../lib/api';
 import { formatDate, formatDateTime } from '../../lib/jalali';
+import { NEWS_FIELD_LABELS } from '../../../shared/audit';
 import type { NewsHistory, NewsItem, NewsSnapshot } from '../../types';
 import { Modal, secondaryButtonClass } from '../common/Modal';
 import { audienceSummary, NewsContent } from './NewsBody';
 
-/** How a changed field is named in the history; audience lists and text format share a name. */
-const FIELD_LABELS: Record<keyof NewsSnapshot, string> = {
-  title: 'عنوان',
-  summary: 'خلاصه',
-  content: 'متن',
-  contentFormat: 'متن',
-  category: 'دسته‌بندی',
-  image: 'تصویر',
-  isPinned: 'سنجاق',
-  isUrgent: 'فوری',
-  requiresAck: 'بخشنامه',
-  tags: 'برچسب‌ها',
-  targetDepartments: 'مخاطبان',
-  targetLocations: 'مخاطبان',
-  targetRoles: 'مخاطبان',
-  targetUserIds: 'مخاطبان',
-  attachments: 'پیوست‌ها',
-  publishAt: 'زمان انتشار',
-  expiresAt: 'تاریخ انقضا',
-  ackDeadline: 'مهلت تأیید',
-};
-
-const changedLabels = (changed: (keyof NewsSnapshot)[]) => [...new Set(changed.map((k) => FIELD_LABELS[k]))];
+const changedLabels = (changed: (keyof NewsSnapshot)[]) => [...new Set(changed.map((k) => NEWS_FIELD_LABELS[k]))];
 const yesNo = (v: boolean) => (v ? 'بله' : 'خیر');
 
 /** The earlier value of each changed field other than the texts, which are shown in full. */

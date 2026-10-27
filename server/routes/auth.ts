@@ -255,9 +255,11 @@ authRouter.post(
       throw invalid;
     }
 
-    if (authed === user) {
-      await db.update(employees).set({ failedLogins: 0, lockedUntil: null }).where(eq(employees.id, user.id));
-    }
+    // Signing in clears the failed attempts and counts as using the portal (for the reports).
+    await db
+      .update(employees)
+      .set({ lastSeenAt: new Date(), ...(authed === user ? { failedLogins: 0, lockedUntil: null } : {}) })
+      .where(eq(employees.id, authed.id));
     issueSession(res, authed.id);
     res.json({ user: serializeMe(await withPermissions(authed)) });
   }),

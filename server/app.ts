@@ -21,6 +21,8 @@ import { uploadsRouter } from './routes/uploads.js';
 import { departmentPagesRouter } from './routes/departmentPages.js';
 import { guidesRouter } from './routes/guides.js';
 import { searchRouter } from './routes/search.js';
+import { reportsRouter } from './routes/reports.js';
+import { auditRouter } from './routes/audit.js';
 import { buildInfo, changelog } from './version.js';
 
 /** Builds the API application. The static/Vite front-end is attached in server/index.ts. */
@@ -78,6 +80,8 @@ export function createApp() {
   api.use(guidesRouter);
   api.use(departmentPagesRouter);
   api.use(searchRouter);
+  api.use(reportsRouter);
+  api.use(auditRouter);
   api.use(uploadsRouter);
   api.use((_req, res) => res.status(404).json({ error: 'مسیر یافت نشد.' }));
 
