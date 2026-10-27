@@ -71,6 +71,13 @@
       "when": 1793085155748,
       "tag": "0009_settings_logo",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793085597617,
+      "tag": "0010_guides_departments_search",
+      "breakpoints": true
     }
   ]
 }

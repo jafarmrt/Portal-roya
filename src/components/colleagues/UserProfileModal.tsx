@@ -33,7 +33,7 @@ interface UserProfileModalProps {
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onEdit }) => {
-  const { currentUser, can, endorseSkill, addWorkExperience, addSkill, removeWorkExperience, removeSkill, newColleagues } = usePortal();
+  const { currentUser, can, endorseSkill, addWorkExperience, addSkill, removeWorkExperience, removeSkill, newColleagues, appSettings, setActiveTab } = usePortal();
   const [introducing, setIntroducing] = useState(false);
   const introduction = newColleagues.find((nc) => nc.userId === user.id);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -140,10 +140,22 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                   <span>{user.position}</span>
                 </p>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[#6E6A60]">
-                  <span className="flex items-center gap-1">
-                    <Building2 className="w-3 h-3 text-[#8C867A]" />
-                    <span>بخش: {user.department}</span>
-                  </span>
+                  {appSettings?.departments.includes(user.department) ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('departments', user.department)}
+                      className="flex items-center gap-1 hover:text-[#dc2626] underline-offset-2 hover:underline"
+                      title="صفحهٔ واحد"
+                    >
+                      <Building2 className="w-3 h-3 text-[#8C867A]" />
+                      <span>بخش: {user.department}</span>
+                    </button>
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <Building2 className="w-3 h-3 text-[#8C867A]" />
+                      <span>بخش: {user.department}</span>
+                    </span>
+                  )}
                   {user.location && (
                     <>
                       <span>•</span>

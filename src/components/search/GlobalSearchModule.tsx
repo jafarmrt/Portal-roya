@@ -1,23 +1,88 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import type { SearchResultItem } from '../../types';
-import { toPersianDigits } from '../../lib/jalali';
+import { api } from '../../lib/api';
+import { formatDate, toPersianDigits } from '../../lib/jalali';
 import {
   Search,
-  ChevronLeft
+  ChevronLeft,
+  FileSearch
 } from 'lucide-react';
+
+interface FileHit {
+  id: string;
+  snippet: string;
+}
+
+/** Words inside document files are searched on the server, a moment after typing stops. */
+function useFileHits(query: string) {
+  const [hits, setHits] = useState<{ query: string; documents: FileHit[] } | null>(null);
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      api
+        .get<{ documents: FileHit[] }>(`/api/search?q=${encodeURIComponent(q)}`)
+        .then((result) => !cancelled && setHits({ query: q, documents: result.documents }))
+        .catch(() => !cancelled && setHits({ query: q, documents: [] }));
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query]);
+  return hits?.query === query.trim() ? hits.documents : null;
+}
 
 export const GlobalSearchModule: React.FC = () => {
   const {
     globalSearchQuery,
     setGlobalSearchQuery,
     getGlobalSearchResults,
-    setActiveTab
+    setActiveTab,
+    documents,
+    currentUser
   } = usePortal();
 
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const fileHits = useFileHits(globalSearchQuery);
 
   const results = getGlobalSearchResults(globalSearchQuery);
+  for (const hit of fileHits ?? []) {
+    const doc = documents.find((d) => d.id === hit.id);
+    const listed = results.find((r) => r.type === 'اسناد' && r.targetId === hit.id);
+    if (listed) {
+      if (hit.snippet && !listed.snippet) listed.snippet = toPersianDigits(hit.snippet);
+      continue;
+    }
+    if (!doc) continue;
+    results.push({
+      id: `res-doc-file-${doc.id}`,
+      type: 'اسناد',
+      title: doc.title,
+      subtitle: ['یافته در متن فایل', doc.category, formatDate(doc.updatedAt)].join(' | '),
+      snippet: toPersianDigits(hit.snippet),
+      targetTab: 'documents',
+      targetId: doc.id,
+      badgeColor: 'bg-stone-100 text-stone-800 border-stone-300',
+    });
+  }
+
+  // A search that finds nothing tells the people who write guides what colleagues are missing.
+  const searching = globalSearchQuery.trim().length >= 2 && fileHits === null;
+  const nothingFound = !searching && globalSearchQuery.trim().length >= 3 && results.length === 0;
+  const loggedMiss = useRef('');
+  useEffect(() => {
+    const q = globalSearchQuery.trim();
+    if (!nothingFound || !currentUser || loggedMiss.current === q) return;
+    const timer = setTimeout(() => {
+      loggedMiss.current = q;
+      void api.post('/api/search/misses', { q }).catch(() => undefined);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [nothingFound, globalSearchQuery, currentUser]);
+
   const groupOf = (type: SearchResultItem['type']) => (type === 'اطلاعیه' ? 'اخبار' : type);
 
   const filteredResults = results.filter((r) => categoryFilter === 'all' || groupOf(r.type) === categoryFilter);
@@ -28,6 +93,8 @@ export const GlobalSearchModule: React.FC = () => {
     { id: 'همکاران', label: 'همکاران', count: countOf('همکاران'), active: 'bg-emerald-600' },
     { id: 'اخبار', label: 'اخبار و اطلاعیه‌ها', count: countOf('اخبار'), active: 'bg-red-600' },
     { id: 'اسناد', label: 'اسناد و فرم‌ها', count: countOf('اسناد'), active: 'bg-stone-700' },
+    { id: 'راهنما', label: 'راهنماها', count: countOf('راهنما'), active: 'bg-teal-700' },
+    { id: 'واحد', label: 'واحدها', count: countOf('واحد'), active: 'bg-orange-700' },
     { id: 'نظرسنجی', label: 'نظرسنجی‌ها', count: countOf('نظرسنجی'), active: 'bg-indigo-600' },
     { id: 'آموزش', label: 'دوره‌های آموزشی', count: countOf('آموزش'), active: 'bg-blue-600' },
     { id: 'تقویم', label: 'تقویم', count: countOf('تقویم'), active: 'bg-purple-600' },
@@ -45,7 +112,7 @@ export const GlobalSearchModule: React.FC = () => {
           </div>
           <h1 className="text-xl sm:text-3xl font-black text-white">جستجوی جامع در تمامی محتواهای سازمان</h1>
           <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
-            جستجوی هم‌زمان در نام و تلفن داخلی همکاران، اخبار و اطلاعیه‌ها، اسناد و فرم‌ها، دوره‌های آموزشی، نظرسنجی‌ها و تقویم سازمان.
+            جستجوی هم‌زمان در نام و تلفن داخلی همکاران، اخبار و اطلاعیه‌ها، راهنماها، صفحهٔ واحدها، دوره‌های آموزشی، نظرسنجی‌ها و تقویم سازمان؛ و در متن فایل اسناد (PDF، Word، Excel و PowerPoint).
           </p>
 
           {/* Big Search Input */}
@@ -98,11 +165,19 @@ export const GlobalSearchModule: React.FC = () => {
               می‌توانید کلماتی مانند نام همکار، شماره تلفن داخلی، اخبار جدید، دوره‌های آموزشی یا عنوان نظرسنجی‌ها را جستجو نمایید.
             </p>
           </div>
+        ) : filteredResults.length === 0 && searching ? (
+          <div className="bg-white rounded-2xl p-8 text-center border border-dashed border-slate-300 text-xs text-slate-500" role="status">
+            <FileSearch className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            در حال جستجو در متن فایل‌ها...
+          </div>
         ) : filteredResults.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-2">
             <Search className="w-10 h-10 text-slate-300 mx-auto" />
             <h3 className="text-sm font-bold text-slate-700">هیچ نتیجه مرتبطی برای "{globalSearchQuery}" یافت نشد.</h3>
             <p className="text-xs text-slate-400">لطفاً کلمات کلیدی دیگری را امتحان کنید.</p>
+            {nothingFound && currentUser && (
+              <p className="text-[11px] text-slate-400">جستجوهای بی‌نتیجه (بدون نام جستجوکننده) ثبت می‌شوند تا برایشان راهنما نوشته شود.</p>
+            )}
           </div>
         ) : (
           <div className="space-y-3">

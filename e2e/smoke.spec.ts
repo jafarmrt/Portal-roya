@@ -3,7 +3,9 @@ import { expect, test, type Page } from '@playwright/test';
 
 type Role = 'admin' | 'employee' | 'guest';
 
-const COMMON_TABS = ['dashboard', 'news', 'polls', 'colleagues', 'orgchart', 'search', 'documents', 'training', 'calendar', 'systems'];
+const COMMON_TABS = [
+  'dashboard', 'news', 'polls', 'colleagues', 'orgchart', 'departments', 'departments/فروش', 'search', 'documents', 'guides', 'training', 'calendar', 'systems',
+];
 const TABS: Record<Role, string[]> = {
   admin: [...COMMON_TABS, 'notifications', 'reports', 'people', 'admin'],
   employee: [...COMMON_TABS, 'notifications'],

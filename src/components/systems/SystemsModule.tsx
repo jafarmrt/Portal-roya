@@ -160,7 +160,7 @@ export const SystemsModule: React.FC = () => {
                         />
                       </div>
                     </div>
-                    <div className="pt-3 border-t border-[#E6E0D5] grid grid-cols-2 gap-4">
+                    <div className="pt-3 border-t border-[#E6E0D5] grid grid-cols-2 sm:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-bold text-[#6E6A60] mb-1">آیکون</label>
                         <select
@@ -186,6 +186,20 @@ export const SystemsModule: React.FC = () => {
                         >
                           {colorOptions.map(opt => (
                             <option key={opt.bg} value={`${opt.bg}|${opt.text}`}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <label htmlFor={`system-department-${system.id}`} className="block text-xs font-bold text-[#6E6A60] mb-1">واحد مسئول</label>
+                        <select
+                          id={`system-department-${system.id}`}
+                          value={system.department ?? ''}
+                          onChange={(e) => handleUpdateSystem(system.id, 'department', e.target.value)}
+                          className="w-full px-3 py-2 text-xs bg-[#F5F2ED] border border-[#E6E0D5] rounded-lg outline-hidden"
+                        >
+                          <option value="">بدون واحد</option>
+                          {[...new Set([...(appSettings?.departments ?? []), ...(system.department ? [system.department] : [])])].map((d) => (
+                            <option key={d} value={d}>{d}</option>
                           ))}
                         </select>
                       </div>

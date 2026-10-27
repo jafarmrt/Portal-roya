@@ -13,6 +13,8 @@ export type ResourceName =
   | 'new_colleagues'
   | 'birthday_wishes'
   | 'documents'
+  | 'guides'
+  | 'department_pages'
   | 'settings'
   | 'roles';
 

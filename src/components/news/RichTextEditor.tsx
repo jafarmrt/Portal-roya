@@ -35,6 +35,7 @@ interface RichTextEditorProps {
   value: string;
   onChange: (html: string, isEmpty: boolean) => void;
   id?: string;
+  placeholder?: string;
 }
 
 const ToolButton: React.FC<{ label: string; active?: boolean; disabled?: boolean; onClick: () => void; children: React.ReactNode }> = ({
@@ -60,9 +61,9 @@ const ToolButton: React.FC<{ label: string; active?: boolean; disabled?: boolean
 
 const Divider = () => <span className="w-px h-5 bg-[#D9D4CB] mx-0.5" aria-hidden="true" />;
 
-/** Adds or changes the link on the selected text: a web address, or a document of the portal. */
+/** Adds or changes the link on the selected text: a web address, or a document or guide of the portal. */
 const LinkForm: React.FC<{ editor: Editor; onDone: () => void }> = ({ editor, onDone }) => {
-  const { documents } = usePortal();
+  const { documents, guides } = usePortal();
   const [href, setHref] = useState<string>(editor.getAttributes('link').href ?? '');
 
   const apply = (value: string) => {
@@ -98,13 +99,24 @@ const LinkForm: React.FC<{ editor: Editor; onDone: () => void }> = ({ editor, on
         <button type="button" onClick={() => apply(href)} className={primaryButtonClass}>ثبت</button>
         <button type="button" onClick={onDone} className={secondaryButtonClass}>انصراف</button>
       </div>
-      {documents.length > 0 && (
-        <select aria-label="پیوند به سند" value="" onChange={(e) => e.target.value && apply(e.target.value)} className={inputClass}>
-          <option value="">یا پیوند به یکی از اسناد پرتال...</option>
-          {documents.map((d) => (
-            // The document's page, not its file: the link keeps working when a new version replaces the file.
-            <option key={d.id} value={`#documents/${d.id}`}>{d.title}</option>
-          ))}
+      {documents.length + guides.length > 0 && (
+        <select aria-label="پیوند به سند یا راهنما" value="" onChange={(e) => e.target.value && apply(e.target.value)} className={inputClass}>
+          <option value="">یا پیوند به یکی از اسناد یا راهنماهای پرتال...</option>
+          {documents.length > 0 && (
+            <optgroup label="اسناد و فرم‌ها">
+              {documents.map((d) => (
+                // The document's page, not its file: the link keeps working when a new version replaces the file.
+                <option key={d.id} value={`#documents/${d.id}`}>{d.title}</option>
+              ))}
+            </optgroup>
+          )}
+          {guides.length > 0 && (
+            <optgroup label="راهنماها">
+              {guides.map((g) => (
+                <option key={g.id} value={`#guides/${g.id}`}>{g.title}</option>
+              ))}
+            </optgroup>
+          )}
         </select>
       )}
     </div>
@@ -115,7 +127,7 @@ const LinkForm: React.FC<{ editor: Editor; onDone: () => void }> = ({ editor, on
  * The editor for news text: headings, bold, lists, links, tables and pictures. It writes HTML; the
  * server keeps only this formatting when the item is saved.
  */
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, id }) => {
+export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, id, placeholder = 'متن کامل خبر یا بخشنامه را اینجا بنویسید...' }) => {
   const [linkOpen, setLinkOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -130,7 +142,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
       }),
       Image,
       TableKit.configure({ table: { resizable: false } }),
-      Placeholder.configure({ placeholder: 'متن کامل خبر یا بخشنامه را اینجا بنویسید...' }),
+      Placeholder.configure({ placeholder }),
     ],
     content: value,
     immediatelyRender: true,

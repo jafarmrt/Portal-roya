@@ -48,6 +48,8 @@ export interface ExternalSystemRecord {
   url: string;
   bgColor: string;
   textColor: string;
+  /** The department that runs the system, so it shows on that department's page. */
+  department?: string;
 }
 
 export interface BannerRecord {
@@ -338,6 +340,9 @@ export const documents = pgTable('documents', {
   targetLocations: text('target_locations').array().notNull().default([]),
   targetRoles: text('target_roles').array().notNull().default([]),
   targetUserIds: text('target_user_ids').array().notNull().default([]),
+  // Words of the current file (PDF, Word, Excel, PowerPoint, text) for search, normalized like the
+  // search box (see server/textExtract.ts). Null until read; empty when nothing could be read.
+  contentText: text('content_text'),
 });
 
 // Earlier files of a document, kept so its history can be opened and old links still download.
@@ -369,6 +374,54 @@ export const documentAcks = pgTable(
   },
   (t) => [primaryKey({ columns: [t.documentId, t.userId] })],
 );
+
+// Short "how do I...?" pages, e.g. requesting petty cash or leave, linking to the system or form to use.
+export const guides = pgTable('guides', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  category: text('category').notNull(),
+  summary: text('summary').notNull().default(''),
+  // HTML from the editor, sanitized when saved (server/richText.ts).
+  content: text('content').notNull(),
+  // The department the guide belongs to, shown on that department's page ('' for none).
+  department: text('department').notNull().default(''),
+  ownerId: text('owner_id').references(() => employees.id, { onDelete: 'set null' }),
+  reviewAt: timestamp('review_at', { withTimezone: true }),
+  reviewRemindedAt: timestamp('review_reminded_at', { withTimezone: true }),
+  createdById: text('created_by_id').notNull().references(() => employees.id),
+  updatedById: text('updated_by_id').notNull().references(() => employees.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// "Was this guide helpful?", one answer per colleague (the latest counts).
+export const guideFeedback = pgTable(
+  'guide_feedback',
+  {
+    guideId: text('guide_id').notNull().references(() => guides.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    helpful: boolean('helpful').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.guideId, t.userId] })],
+);
+
+// A department's own page: who leads it and what colleagues can come to it for.
+export const departmentPages = pgTable('department_pages', {
+  department: text('department').primaryKey(),
+  headId: text('head_id').references(() => employees.id, { onDelete: 'set null' }),
+  // "What to come to us for", HTML from the editor, sanitized when saved.
+  about: text('about').notNull().default(''),
+  updatedById: text('updated_by_id').references(() => employees.id, { onDelete: 'set null' }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Searches that found nothing, so the people who write guides see what is missing.
+export const searchMisses = pgTable('search_misses', {
+  query: text('query').primaryKey(),
+  count: integer('count').notNull().default(1),
+  lastAt: timestamp('last_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const settings = pgTable('settings', {
   id: text('id').primaryKey(), // single row: 'global'

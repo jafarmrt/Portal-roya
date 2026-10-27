@@ -61,7 +61,7 @@ export function parseCsv(text: string): string[][] {
 }
 
 /** Extracts the files of a zip archive that `wanted` accepts. */
-function unzip(buffer: Buffer, wanted: (name: string) => boolean): Map<string, string> {
+export function unzip(buffer: Buffer, wanted: (name: string) => boolean): Map<string, string> {
   let eocd = -1;
   for (let i = buffer.length - 22; i >= Math.max(0, buffer.length - 65_557); i--) {
     if (buffer.readUInt32LE(i) === 0x06054b50) {
@@ -101,7 +101,7 @@ function unzip(buffer: Buffer, wanted: (name: string) => boolean): Map<string, s
   return files;
 }
 
-function decodeXml(value: string) {
+export function decodeXml(value: string) {
   return value.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (_m, entity: string) => {
     const e = entity.toLowerCase();
     if (e.startsWith('#x')) return String.fromCodePoint(parseInt(e.slice(2), 16));
