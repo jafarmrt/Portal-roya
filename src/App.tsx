@@ -12,6 +12,7 @@ import { CompleteProfilePage } from './components/CompleteProfilePage';
 import { DashboardModule } from './components/dashboard/DashboardModule';
 import { ErrorBoundary, loadModule } from './components/common/ErrorBoundary';
 import { SiteBanner } from './components/common/SiteBanner';
+import { InstallApp } from './components/common/InstallApp';
 import { VersionInfo } from './components/common/VersionInfo';
 import { currentJalaliYear, toPersianDigits } from './lib/jalali';
 import { useTabBadge } from './lib/tabBadge';
@@ -184,6 +185,7 @@ const MainContent: React.FC = () => {
           <div className="flex flex-col items-center sm:items-end gap-1 text-[11px] text-[#E6E0D5]/80">
             <span>© {toPersianDigits(currentJalaliYear())}</span>
             <VersionInfo />
+            <InstallApp />
           </div>
         </div>
       </footer>

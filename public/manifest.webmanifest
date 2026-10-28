@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "پرتال سازمانی رویا طرح داخلی",
+  "short_name": "پرتال رویا",
+  "description": "پرتال داخلی شرکت رویا طرح داخلی برای اخبار، اطلاعیه‌ها، بخشنامه‌ها و ارتباط همکاران",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f8fafc",
+  "theme_color": "#991b1b",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
