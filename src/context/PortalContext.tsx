@@ -51,6 +51,8 @@ const NEWS_PAGE_SIZE = 30;
 export const PRESENCE_EVENT = 'portal:presence';
 /** Fired on window with an IncomingKudos when a colleague sends this person an emoji. */
 export const KUDOS_EVENT = 'portal:kudos';
+/** Pages spread their refetches after a live signal over this long, so they do not all ask at once. */
+const LIVE_SPREAD_MS = 800;
 
 /** How a colleague with portal access signs in: a portal password, or their Active Directory password. */
 export type SignInMethod = 'local' | 'ldap';
@@ -515,8 +517,21 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     if (!sessionKey) return;
 
-    // Live updates: the server sends "changed" signals and we refetch that resource.
+    // Live updates: the server sends "changed" signals and we refetch that resource. Every open page
+    // gets a signal at the same moment, so each waits a random moment (under a second) before fetching,
+    // and several signals for one resource meanwhile still mean one fetch.
     const source = new EventSource('/api/events');
+    const waiting = new Map<Resource, number>();
+    const refreshSoon = (resource: Resource) => {
+      if (waiting.has(resource)) return;
+      waiting.set(
+        resource,
+        window.setTimeout(() => {
+          waiting.delete(resource);
+          void refresh(resource);
+        }, Math.random() * LIVE_SPREAD_MS),
+      );
+    };
     // The browser reconnects on its own (after an update restarts the server, a dropped Wi-Fi, a laptop
     // waking up); whatever changed meanwhile was not signalled, so everything is fetched again.
     // A refetch that a signal asked for while the network was down failed, so coming back online does the same.
@@ -534,15 +549,24 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     source.addEventListener('changed', (e) => {
       try {
         const { resource } = JSON.parse((e as MessageEvent).data) as { resource: string };
-        if (resource === 'roles' || resource === 'employees') void refresh('me');
+        if (resource === 'roles' || resource === 'employees') refreshSoon('me');
         if (resource === 'presence') window.dispatchEvent(new Event(PRESENCE_EVENT));
-        if (resource in loaders) void refresh(resource as Resource);
+        if (resource in loaders) refreshSoon(resource as Resource);
       } catch {
         // Ignore malformed events.
       }
     });
     source.addEventListener('notification', () => {
       void refresh('notifications');
+    });
+    // Someone liked or unliked a news item: only its count changed.
+    source.addEventListener('news-likes', (e) => {
+      try {
+        const { id, likesCount } = JSON.parse((e as MessageEvent).data) as { id: string; likesCount: number };
+        setNews((prev) => (prev.some((n) => n.id === id) ? prev.map((n) => (n.id === id ? { ...n, likesCount } : n)) : prev));
+      } catch {
+        // Ignore malformed events.
+      }
     });
     source.addEventListener('kudos', (e) => {
       try {
@@ -554,6 +578,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => {
       source.close();
       window.removeEventListener('online', refreshAll);
+      for (const timer of waiting.values()) clearTimeout(timer);
     };
   }, [isReady, sessionKey, loaders, refresh]);
 

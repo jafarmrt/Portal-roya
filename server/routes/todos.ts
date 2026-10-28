@@ -5,6 +5,7 @@ import { isValidJalaliDate, toJalali, toPersianDigits } from '../../shared/jalal
 import { featureVisible } from '../../shared/features.js';
 import {
   addJalaliDays,
+  dayOfMonth,
   nextDueDate,
   TODO_KEEP_DONE_DAYS,
   TODO_NOTE_MAX,
@@ -148,6 +149,7 @@ todosRouter.post(
         dueDate: input.dueDate,
         important: input.important ?? false,
         repeat: input.repeat ?? null,
+        repeatDay: input.repeat === 'monthly' && input.dueDate ? dayOfMonth(input.dueDate) : null,
         remind: input.remind ?? 'day',
         steps: withIds(input.steps ?? []),
         sourceType: input.source?.type ?? null,
@@ -159,6 +161,24 @@ todosRouter.post(
     res.status(201).json(serializeTodo(row));
   }),
 );
+
+/**
+ * Whether the next note of a repeating one is still exactly as it was written when the earlier one was
+ * ticked off. Un-ticking takes back only such a note; one the person edited or worked on stays.
+ */
+function isUnchangedCopy(next: TodoRow, from: TodoRow, due: string) {
+  const texts = (steps: TodoRow['steps']) => JSON.stringify(steps.map((step) => step.text));
+  return (
+    next.title === from.title &&
+    next.note === from.note &&
+    next.dueDate === due &&
+    next.important === from.important &&
+    next.repeat === from.repeat &&
+    next.remind === from.remind &&
+    texts(next.steps) === texts(from.steps) &&
+    next.steps.every((step) => !step.done)
+  );
+}
 
 todosRouter.patch(
   '/todos/:id',
@@ -177,8 +197,16 @@ todosRouter.patch(
       changes.dueDate = input.dueDate;
       Object.assign(changes, remindersFor(input.dueDate));
     }
-    if ((changes.repeat ?? existing.repeat) && !(changes.dueDate ?? existing.dueDate)) {
+    const repeatAfter = changes.repeat !== undefined ? changes.repeat : existing.repeat;
+    const dueAfter = changes.dueDate !== undefined ? changes.dueDate : existing.dueDate;
+    if (repeatAfter && !dueAfter) {
       throw new HttpError(400, 'یادداشت تکراری تاریخ سررسید می‌خواهد.');
+    }
+    // A monthly note keeps the day it is set for; choosing a new date (or making it monthly) sets that day.
+    if (repeatAfter !== 'monthly') {
+      if (existing.repeatDay !== null) changes.repeatDay = null;
+    } else if (changes.dueDate !== undefined || existing.repeat !== 'monthly' || existing.repeatDay === null) {
+      changes.repeatDay = dayOfMonth(dueAfter!);
     }
     const ticked = input.done === true && !existing.doneAt;
     const unticked = input.done === false && Boolean(existing.doneAt);
@@ -188,9 +216,16 @@ todosRouter.patch(
       const [updated] = Object.keys(changes).length
         ? await tx.update(personalTodos).set(changes).where(eq(personalTodos.id, existing.id)).returning()
         : [existing];
-      // A repeating note writes its next one when ticked off, and takes it back when un-ticked.
-      if (ticked && updated.repeat && updated.dueDate) {
-        const due = nextDueDate(updated.dueDate, updated.repeat, toJalali(new Date()));
+      // A repeating note writes its next one when ticked off (unless that one is still there from an
+      // earlier tick), and takes it back when un-ticked if the person has not changed it since.
+      const following = ticked || unticked
+        ? await tx
+            .select()
+            .from(personalTodos)
+            .where(and(eq(personalTodos.userId, viewer.id), eq(personalTodos.previousId, existing.id), isNull(personalTodos.doneAt)))
+        : [];
+      if (ticked && updated.repeat && updated.dueDate && following.length === 0) {
+        const due = nextDueDate(updated.dueDate, updated.repeat, toJalali(updated.doneAt ?? new Date()), updated.repeatDay);
         await tx.insert(personalTodos).values({
           id: newId('todo'),
           userId: viewer.id,
@@ -199,6 +234,7 @@ todosRouter.patch(
           dueDate: due,
           important: updated.important,
           repeat: updated.repeat,
+          repeatDay: updated.repeatDay,
           remind: updated.remind,
           steps: updated.steps.map((step) => ({ ...step, id: newId('step'), done: false })),
           sourceType: updated.sourceType,
@@ -207,10 +243,10 @@ todosRouter.patch(
           ...remindersFor(due),
         });
       }
-      if (unticked) {
-        await tx
-          .delete(personalTodos)
-          .where(and(eq(personalTodos.userId, viewer.id), eq(personalTodos.previousId, existing.id), isNull(personalTodos.doneAt)));
+      if (unticked && existing.repeat && existing.dueDate && existing.doneAt) {
+        const due = nextDueDate(existing.dueDate, existing.repeat, toJalali(existing.doneAt), existing.repeatDay);
+        const untouched = following.filter((next) => isUnchangedCopy(next, existing, due)).map((next) => next.id);
+        if (untouched.length > 0) await tx.delete(personalTodos).where(inArray(personalTodos.id, untouched));
       }
       return updated;
     });

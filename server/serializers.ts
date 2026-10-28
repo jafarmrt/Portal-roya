@@ -1,5 +1,6 @@
 import { can, type Employee, type SessionUser } from './auth.js';
 import { needsProfile } from '../shared/profile.js';
+import { toJalali } from '../shared/jalali.js';
 
 export function fullName(e: Pick<Employee, 'firstName' | 'lastName'>) {
   return `${e.firstName} ${e.lastName}`.trim();
@@ -46,6 +47,9 @@ export function serializeEmployee(e: Employee, viewer: Viewer | null, managersBy
     avatar: e.avatarUrl,
     ...birthdayFields(e, viewer),
     hireDate: e.hireDate,
+    // For user managers: the hire date is the day the person was added to the portal, which is right for
+    // a new hire and usually a leftover default for someone who was already here.
+    ...(can(viewer, 'users.manage') ? { hireDateIsEntryDay: e.hireDate !== '' && e.hireDate === toJalali(e.createdAt) } : {}),
     hideAnniversary: e.hideAnniversary,
     directManagerId: e.directManagerId,
     directManager: manager ? fullName(manager) : '',

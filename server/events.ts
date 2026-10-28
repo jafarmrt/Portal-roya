@@ -29,6 +29,14 @@ interface Client {
 
 const clients = new Set<Client>();
 const HEARTBEAT_MS = 25_000;
+/**
+ * Every open page refetches a resource when it is signalled, so with the whole company online a burst
+ * of changes (likes, an import, a run of edits) would mean that many refetches. The first signal goes
+ * at once; more for the same resource within this long are sent as one at its end.
+ */
+export const COALESCE_MS = 1000;
+const lastSent = new Map<ResourceName, number>();
+const queued = new Set<ResourceName>();
 
 let onConnectionsChanged: (userId: string, opened: boolean) => void = () => undefined;
 /** Called when someone opens or closes a page of the portal («همکاران آنلاین» listens). */
@@ -69,8 +77,28 @@ export function addClient(userId: string, res: Response) {
   });
 }
 
-export function broadcastChange(resource: ResourceName) {
+function sendChange(resource: ResourceName) {
+  lastSent.set(resource, Date.now());
   for (const client of clients) send(client.res, 'changed', { resource });
+}
+
+export function broadcastChange(resource: ResourceName) {
+  if (queued.has(resource)) return;
+  const wait = (lastSent.get(resource) ?? 0) + COALESCE_MS - Date.now();
+  if (wait <= 0) {
+    sendChange(resource);
+    return;
+  }
+  queued.add(resource);
+  setTimeout(() => {
+    queued.delete(resource);
+    sendChange(resource);
+  }, wait).unref?.();
+}
+
+/** A small change with its details for every open page (e.g. a like count), instead of a full refetch. */
+export function broadcastEvent(event: string, data: unknown) {
+  for (const client of clients) send(client.res, event, data);
 }
 
 /** A change only this person sees (e.g. their own notes), so their other open tabs refetch it. */

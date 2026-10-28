@@ -129,6 +129,38 @@ describe('«یادداشت‌های من»: private to-do notes with a morning r
     expect(list[0].doneAt).toBeNull();
   });
 
+  it('keeps a next note the person changed when the earlier one is un-ticked, and does not write a second one', async () => {
+    await db.delete(personalTodos);
+    const today = toJalali(new Date());
+    const weekly = (await owner.agent.post('/api/todos').send({ title: 'جلسهٔ هفتگی', dueDate: today, repeat: 'weekly' }).expect(201)).body;
+    await owner.agent.patch(`/api/todos/${weekly.id}`).send({ done: true }).expect(200);
+    const [next] = await db.select().from(personalTodos).where(eq(personalTodos.previousId, weekly.id));
+    await owner.agent.patch(`/api/todos/${next.id}`).send({ note: 'دستور جلسه را بفرستم' }).expect(200);
+
+    await owner.agent.patch(`/api/todos/${weekly.id}`).send({ done: false }).expect(200);
+    let list = (await owner.agent.get('/api/todos').expect(200)).body as { id: string; doneAt: string | null }[];
+    expect(list.map((t) => t.id).sort()).toEqual([weekly.id, next.id].sort());
+    // Ticking the first one off again finds the kept note and writes no other.
+    await owner.agent.patch(`/api/todos/${weekly.id}`).send({ done: true }).expect(200);
+    list = (await owner.agent.get('/api/todos').expect(200)).body;
+    expect(list).toHaveLength(2);
+    expect(list.filter((t) => !t.doneAt).map((t) => t.id)).toEqual([next.id]);
+  });
+
+  it('keeps the day of a monthly note, also after a shorter month', async () => {
+    await db.delete(personalTodos);
+    const created = (await owner.agent.post('/api/todos').send({ title: 'اجارهٔ انبار', dueDate: '1405/06/31', repeat: 'monthly' }).expect(201)).body;
+    await owner.agent.patch(`/api/todos/${created.id}`).send({ done: true }).expect(200);
+    const [next] = await db.select().from(personalTodos).where(eq(personalTodos.previousId, created.id));
+    expect(next.repeatDay).toBe(31);
+    expect(next.dueDate).toBe(nextDueDate('1405/06/31', 'monthly', toJalali(new Date()), 31));
+    // A new date sets the day again; a note that stops repeating forgets it.
+    await owner.agent.patch(`/api/todos/${next.id}`).send({ dueDate: '1405/12/15' }).expect(200);
+    expect((await db.select().from(personalTodos).where(eq(personalTodos.id, next.id)))[0].repeatDay).toBe(15);
+    await owner.agent.patch(`/api/todos/${next.id}`).send({ repeat: null }).expect(200);
+    expect((await db.select().from(personalTodos).where(eq(personalTodos.id, next.id)))[0].repeatDay).toBeNull();
+  });
+
   it('works out due dates: quick buttons, groups and the next repeat', () => {
     // 6 Aban 1405 is a Wednesday, the last working day of its week.
     expect(quickDueDates('1405/08/06').map((d) => d.date)).toEqual(['1405/08/06', '1405/08/07', '1405/08/06', '1405/08/13']);
@@ -146,6 +178,11 @@ describe('«یادداشت‌های من»: private to-do notes with a morning r
     expect(nextDueDate('1405/06/31', 'monthly', '1405/06/31')).toBe('1405/07/30');
     expect(nextDueDate('1405/06/31', 'monthly', '1405/07/30')).toBe('1405/08/30');
     expect(nextDueDate('1405/06/31', 'monthly', '1405/09/01')).toBe('1405/09/30');
+    // A note for the 31st keeps its day: 30 in the 30-day months, 29 or 30 in Esfand, 31 again in spring.
+    expect(nextDueDate('1405/07/30', 'monthly', '1405/07/30', 31)).toBe('1405/08/30');
+    expect(nextDueDate('1405/11/30', 'monthly', '1405/11/30', 31)).toBe('1405/12/29');
+    expect(nextDueDate('1405/12/29', 'monthly', '1405/12/29', 31)).toBe('1406/01/31');
+    expect(nextDueDate('1405/12/29', 'monthly', '1405/12/29', 15)).toBe('1406/01/15');
   });
 
   it('adds a news item, event, course or document once while its note is open', async () => {

@@ -163,6 +163,25 @@ describe('«همکاران آنلاین»: who has the portal open, and ready-ma
     await db.delete(kudos).where(eq(kudos.fromId, sara.id));
   });
 
+  it('keeps the limits when several are sent at the same moment', async () => {
+    // A double click or two open pages: only one emoji to the same colleague gets through.
+    const results = await Promise.all(
+      ['flower', 'thanks', 'bravo'].map((emoji) => sara.agent.post('/api/kudos').send({ to: maryam.id, emoji })),
+    );
+    expect(results.map((r) => r.status).sort()).toEqual([201, 429, 429]);
+
+    // And the daily cap holds for a burst to different colleagues.
+    await db.delete(kudos).where(eq(kudos.fromId, reza.id));
+    const today = new Date(Date.now() - 20 * 60_000);
+    await db.insert(kudos).values(
+      Array.from({ length: KUDOS_DAILY_LIMIT - 1 }, () => ({ fromId: reza.id, toId: adminId, emoji: '🌹', label: 'گل', createdAt: today })),
+    );
+    const burst = await Promise.all([maryam.id, sara.id].map((to) => reza.agent.post('/api/kudos').send({ to, emoji: 'smile' })));
+    expect(burst.map((r) => r.status).sort()).toEqual([201, 429]);
+    await db.delete(kudos).where(eq(kudos.fromId, reza.id));
+    await db.delete(kudos).where(eq(kudos.fromId, sara.id));
+  });
+
   it('lets the administrator change the list of emoji', async () => {
     const list = [
       { id: 'cake', emoji: '🎂', label: 'شیرینی' },

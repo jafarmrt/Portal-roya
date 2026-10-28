@@ -92,12 +92,25 @@ export function todoGroup(due: string | null, today: string): TodoGroup {
   return due <= addJalaliDays(today, 6 - weekdayIndex(today)) ? 'week' : 'later';
 }
 
-/** The due date of the next note of a repeating one: one step on from its own date, and never today or earlier. */
-export function nextDueDate(due: string, repeat: TodoRepeat, today: string) {
-  // Counted from the note's own date each time, so a monthly note on the 31st comes back on the 31st.
-  const step = (n: number) =>
-    repeat === 'monthly' ? parse(due).add(n, 'jMonth') : parse(due).add(n * (repeat === 'weekly' ? 7 : 1), 'day');
+/** The day of the month a monthly note keeps (its first due date's day). */
+export const dayOfMonth = (date: string) => Number(date.slice(8, 10));
+
+/**
+ * The due date of the next note of a repeating one: one step on from its own date, and never today or
+ * earlier. A monthly note keeps its day (`day`, the day it was first set for): on the 31st it falls on
+ * the 30th in a 30-day month and is back on the 31st in the next 31-day month.
+ */
+export function nextDueDate(due: string, repeat: TodoRepeat, today: string, day: number | null = null) {
+  const keep = day ?? dayOfMonth(due);
+  const [year, month] = due.split('/').map(Number);
+  const monthly = (n: number) => {
+    const index = year * 12 + month - 1 + n;
+    const y = Math.floor(index / 12);
+    const m = (index % 12) + 1;
+    return `${y}/${String(m).padStart(2, '0')}/${String(Math.min(keep, moment.jDaysInMonth(y, m - 1))).padStart(2, '0')}`;
+  };
+  const step = (n: number) => (repeat === 'monthly' ? monthly(n) : parse(due).add(n * (repeat === 'weekly' ? 7 : 1), 'day').format(FORMAT));
   let n = 1;
-  while (step(n).format(FORMAT) <= today) n++;
-  return step(n).format(FORMAT);
+  while (step(n) <= today) n++;
+  return step(n);
 }

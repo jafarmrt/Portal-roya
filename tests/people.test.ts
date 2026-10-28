@@ -3,6 +3,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { db, pool } from '../server/db/index';
 import { notifications } from '../server/db/schema';
+import { toJalali } from '../shared/jalali';
 import { app, createEmployee, resetDatabase, setupAdmin } from './helpers';
 
 type Agent = Awaited<ReturnType<typeof setupAdmin>>;
@@ -41,6 +42,22 @@ describe('people without a portal account', () => {
     const colleague = await createEmployee(admin, { username: 'sara' });
     const list = (await colleague.agent.get('/api/employees').expect(200)).body as Profile[];
     expect(list.find((e) => e.id === workerId)).toMatchObject({ hasAccount: false, username: '' });
+  });
+
+  it('leaves the hire date empty unless the person is introduced as a new colleague', async () => {
+    const today = toJalali(new Date());
+    const veteran = (await admin.post('/api/employees').send({ ...worker, firstName: 'قدیمی', hasAccount: false }).expect(201)).body.employee;
+    expect(veteran.hireDate).toBe('');
+    const newcomer = (await admin.post('/api/employees').send({ ...worker, firstName: 'تازه', hasAccount: false, isNewColleague: true }).expect(201)).body.employee;
+    expect(newcomer.hireDate).toBe(today);
+    // User managers are told whose hire date is the day they were added, to check it.
+    expect(newcomer.hireDateIsEntryDay).toBe(true);
+    const sara = await createEmployee(admin, { username: 'hire.sara' });
+    const seen = ((await sara.agent.get('/api/employees').expect(200)).body as { id: string; hireDateIsEntryDay?: boolean }[]).find((e) => e.id === newcomer.id)!;
+    expect(seen).not.toHaveProperty('hireDateIsEntryDay');
+    await admin.patch(`/api/employees/${newcomer.id}`).send({ hireDate: '1398/02/01' }).expect(200);
+    const fixed = ((await admin.get('/api/employees').expect(200)).body as { id: string; hireDateIsEntryDay: boolean }[]).find((e) => e.id === newcomer.id)!;
+    expect(fixed.hireDateIsEntryDay).toBe(false);
   });
 
   it('keeps roles and password resets for people with an account', async () => {
