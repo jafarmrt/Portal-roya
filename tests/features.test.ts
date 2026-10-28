@@ -36,6 +36,7 @@ describe('switching parts of the portal off until they are introduced', () => {
     expect(Object.keys(settings.features).sort()).toEqual(existing.sort());
     expect(Object.values(settings.features).every((s) => s === 'on')).toBe(true);
     expect(FEATURES.filter((f) => f.defaultState !== 'on').every((f) => f.defaultState === 'off')).toBe(true);
+    expect(settings.features).not.toHaveProperty('occasionThemes');
     // The pilot group and the raw switches are for the settings page only.
     expect(settings).not.toHaveProperty('pilotUserIds');
     expect(settings).not.toHaveProperty('featureLaunches');

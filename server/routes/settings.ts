@@ -57,7 +57,8 @@ export function publicSettings(row: typeof settings.$inferSelect, viewer: Sessio
       featureNews.push({ key, badge: launch.badge, card: launch.card });
     }
   }
-  return { ...rest, banner, features, featureNews };
+  // Guests cannot switch the effect off, but can stop it each time it plays.
+  return { ...rest, banner, features, featureNews, occasionEffects: viewer?.occasionEffects ?? true };
 }
 
 settingsRouter.get(
@@ -301,6 +302,7 @@ const FEATURE_RESOURCES: Record<FeatureKey, ResourceName[]> = {
   departmentPages: ['department_pages'],
   mood: ['moods'],
   todos: ['todos', 'notifications'],
+  occasionThemes: [],
 };
 
 function broadcastFeatures(keys: FeatureKey[]) {
@@ -422,5 +424,16 @@ settingsRouter.post(
       await db.update(employees).set({ seenFeatures: seen }).where(eq(employees.id, viewer.id));
     }
     res.json(publicSettings(await ensureSettings(), { ...viewer, seenFeatures: seen }));
+  }),
+);
+
+/** The colleague's own switch for the once-a-day effect of the occasions and seasons. */
+settingsRouter.put(
+  '/settings/occasion-effects',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const { on } = parse(z.object({ on: z.boolean() }), req.body);
+    await db.update(employees).set({ occasionEffects: on }).where(eq(employees.id, viewer.id));
+    res.json(publicSettings(await ensureSettings(), { ...viewer, occasionEffects: on }));
   }),
 );

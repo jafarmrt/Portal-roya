@@ -7,6 +7,7 @@ import { usePortal } from '../../context/PortalContext';
 import { api, errorMessage } from '../../lib/api';
 import { formatDate } from '../../lib/jalali';
 import { inputClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
+import { DayThemePreview } from './DayThemePreview';
 
 interface FeatureRow {
   key: FeatureKey;
@@ -277,6 +278,7 @@ export const FeatureSettings: React.FC = () => {
                   {STATE_HINTS[f.state]}
                   {f.state === 'on' && f.launchedAt && ` روشن‌شده در ${formatDate(f.launchedAt)}.`}
                 </p>
+                {f.key === 'occasionThemes' && <DayThemePreview />}
               </li>
             ))}
           </ul>

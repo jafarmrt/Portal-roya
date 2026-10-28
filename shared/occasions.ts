@@ -6,11 +6,15 @@ import moment from 'moment-jalaali';
 
 export type OccasionKind = 'solar' | 'lunar' | 'world';
 
+/** Festive days get a festive look on the dashboard; mourning days never do. */
+export type OccasionTone = 'joy' | 'mourning' | 'normal';
+
 export interface Occasion {
   title: string;
   /** Official public holiday in Iran. */
   holiday: boolean;
   kind: OccasionKind;
+  tone: OccasionTone;
 }
 
 export interface HijriDate {
@@ -292,9 +296,20 @@ export function hijriDate(jy: number, jm: number, jd: number): HijriDate {
   return hijriFromDayNumber(jalaliDayNumber(jy, jm, jd));
 }
 
+// Read from the title, so a day an admin entered on the calendar page gets its tone too.
+const MOURNING_WORDS = ['شهادت', 'رحلت', 'وفات', 'تاسوعا', 'عاشورا', 'اربعین', 'ضربت', 'شب قدر', 'سوگواری', 'عزا'];
+const JOY_WORDS = ['نوروز', 'عید', 'ولادت', 'میلاد', 'جشن', 'یلدا', 'مبعث', 'نیمه شعبان', 'روز طبیعت', 'چهارشنبه‌سوری', 'سال نو'];
+
+/** Whether an occasion is festive, a day of mourning or neither; mourning wins when a title mentions both. */
+export function occasionTone(title: string): OccasionTone {
+  if (MOURNING_WORDS.some((w) => title.includes(w))) return 'mourning';
+  if (JOY_WORDS.some((w) => title.includes(w))) return 'joy';
+  return 'normal';
+}
+
 const pad = (n: number) => String(n).padStart(2, '0');
 const toOccasions = (entries: Entry[] | undefined, kind: OccasionKind): Occasion[] =>
-  (entries ?? []).map(([title, holiday]) => ({ title, holiday: Boolean(holiday), kind }));
+  (entries ?? []).map(([title, holiday]) => ({ title, holiday: Boolean(holiday), kind, tone: occasionTone(title) }));
 
 /** Built-in occasions of a Jalali day (month 1-12), official holidays first. */
 export function occasionsFor(jy: number, jm: number, jd: number): Occasion[] {
@@ -303,7 +318,7 @@ export function occasionsFor(jy: number, jm: number, jd: number): Occasion[] {
 
   // Chaharshanbe Suri is the evening of the year's last Tuesday.
   if (jm === 12 && new Date(dayNumber * DAY_MS).getUTCDay() === 2 && jd > moment.jDaysInMonth(jy, 11) - 7) {
-    result.push({ title: 'چهارشنبه‌سوری', holiday: false, kind: 'solar' });
+    result.push({ title: 'چهارشنبه‌سوری', holiday: false, kind: 'solar', tone: 'joy' });
   }
 
   const hijri = hijriFromDayNumber(dayNumber);

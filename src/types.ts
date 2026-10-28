@@ -735,6 +735,8 @@ export interface AppSettings {
   features: Partial<Record<FeatureKey, 'preview' | 'on'>>;
   /** Parts introduced in the last two weeks that this person has not opened yet. */
   featureNews: { key: FeatureKey; badge: boolean; card: boolean }[];
+  /** This person wants the once-a-day effect of the occasions and seasons (always true for guests). */
+  occasionEffects: boolean;
 }
 
 export interface SiteBanner {

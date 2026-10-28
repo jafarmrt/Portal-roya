@@ -118,6 +118,8 @@ export const employees = pgTable('employees', {
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   /** Newly introduced parts of the portal the colleague has opened or whose introduction they closed. */
   seenFeatures: text('seen_features').array().notNull().default([]),
+  /** The colleague wants the once-a-day effect of Nowruz, the seasons and the feasts on their dashboard. */
+  occasionEffects: boolean('occasion_effects').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
