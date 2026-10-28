@@ -3,6 +3,7 @@ import { Printer } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { downloadCsv } from '../../lib/download';
 import { toPersianDigits, todayJalali } from '../../lib/jalali';
+import { NO_DEPARTMENT } from '../../../shared/profile';
 import type { UserProfile } from '../../types';
 import { Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { Letterhead, PrintPortal, QrCode } from '../common/PrintSheet';
@@ -21,10 +22,10 @@ const byName = (a: UserProfile, b: UserProfile) =>
 function groupPeople(people: UserProfile[], key: GroupBy, order: string[]): Group[] {
   const groups = new Map<string, UserProfile[]>();
   for (const p of people) {
-    const name = (key === 'department' ? p.department : p.location) || 'نامشخص';
+    const name = key === 'department' ? p.department || NO_DEPARTMENT : p.location || 'نامشخص';
     groups.set(name, [...(groups.get(name) ?? []), p]);
   }
-  const rank = (name: string) => (order.includes(name) ? order.indexOf(name) : name === 'نامشخص' ? Number.MAX_SAFE_INTEGER : order.length);
+  const rank = (name: string) => (order.includes(name) ? order.indexOf(name) : name === 'نامشخص' || name === NO_DEPARTMENT ? Number.MAX_SAFE_INTEGER : order.length);
   return [...groups]
     .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b, 'fa'))
     .map(([name, list]) => ({ name, people: list.sort(byName) }));

@@ -146,18 +146,18 @@ describe('Active Directory sign-in', () => {
     }
   });
 
-  it('keeps AD departments in step with the portal department list', async () => {
+  it('takes the unit from AD only when the portal unit list has it', async () => {
     // A spelling variant of a listed department uses the list's spelling.
     directory.authenticate.mockResolvedValue(adUser({ username: 'variant.user', department: 'فروش ' }));
     const variant = await request(app).post('/api/auth/login').send({ username: 'variant.user', password: 'ad-password' }).expect(200);
     expect(variant.body.user.department).toBe('فروش');
-    // A department only AD knows is added to the list, so filters and audiences can use it.
+    // A department only AD knows (often an OU) is not a unit: it is not added, and the colleague picks their own.
     directory.authenticate.mockResolvedValue(adUser({ username: 'new.dept', department: 'بازاريابي' }));
     const added = await request(app).post('/api/auth/login').send({ username: 'new.dept', password: 'ad-password' }).expect(200);
-    expect(added.body.user.department).toBe('بازاریابی');
+    expect(added.body.user).toMatchObject({ department: '', needsProfile: true });
     const settings = await admin.get('/api/settings').expect(200);
     expect(settings.body.departments.filter((d: string) => d.startsWith('فروش'))).toEqual(['فروش']);
-    expect(settings.body.departments).toContain('بازاریابی');
+    expect(settings.body.departments).not.toContain('بازاریابی');
   });
 
   it('answers 503 when AD is down, but local accounts still sign in', async () => {

@@ -12,19 +12,20 @@ import {
   MAX_FAILED_LOGINS,
   requireAuth,
   type Employee,
+  type SessionUser,
   verifyPassword,
   withPermissions,
 } from '../auth.js';
-import { cleanDepartmentName } from '../../shared/departments.js';
+import { cleanDepartmentName, findDepartment } from '../../shared/departments.js';
 import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID } from '../../shared/permissions.js';
-import { isPersian, needsProfile } from '../../shared/profile.js';
+import { isPersian, profileGaps } from '../../shared/profile.js';
 import { systemLink } from '../../shared/systemLinks.js';
 import { audit } from '../audit.js';
 import { claimPhoneBookEntry, phoneBookMatches } from '../claim.js';
 import { config } from '../config.js';
 import { db } from '../db/index.js';
 import { employees } from '../db/schema.js';
-import { ensureDepartment } from '../departments.js';
+import { departmentList, ensureDepartment, requireDepartment } from '../departments.js';
 import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, newId, parse, route } from '../http.js';
 import {
@@ -38,7 +39,8 @@ import {
 import { fullName, serializeMe } from '../serializers.js';
 import { fromCompanyNetwork } from '../network.js';
 import { ensureSettings, logoFile } from '../settings.js';
-import { ensureRoles } from '../roles.js';
+import { createNotifications } from '../notify.js';
+import { ensureRoles, idsWithPermission } from '../roles.js';
 import { jalaliDateValue, optionalText, password, requiredText, username } from '../validation.js';
 
 export const authRouter = Router();
@@ -211,11 +213,11 @@ async function otherActiveAdmins(excludeId: string) {
 
 /**
  * Whether an AD value replaces the portal's. AD often holds text in English while the portal is in
- * Persian, so an English value never replaces a Persian one (other than the placeholder «نامشخص»).
+ * Persian, so an English value never replaces a Persian one.
  */
 function takeFromDirectory(portalValue: string | undefined, directoryValue: string) {
   if (!directoryValue) return false;
-  const portalIsPersian = Boolean(portalValue) && portalValue !== 'نامشخص' && isPersian(portalValue!);
+  const portalIsPersian = Boolean(portalValue) && isPersian(portalValue!);
   return !portalIsPersian || isPersian(directoryValue);
 }
 
@@ -223,11 +225,13 @@ function takeFromDirectory(portalValue: string | undefined, directoryValue: stri
 async function syncDirectoryUser(dir: DirectoryUser, existing: Employee | undefined): Promise<Employee> {
   // AD only overwrites a field when it has a value, so details entered in the portal survive. Names
   // never come from AD (they are in English there): colleagues enter their own on first sign-in.
+  // Only a unit of the portal's list is taken from AD; an OU or department name the list does not have
+  // is not a unit, so it is left out and the colleague picks their unit at first sign-in.
+  const department = dir.department ? findDepartment(await departmentList(), dir.department) : undefined;
   const profile = {
     ...(dir.email ? { email: dir.email } : {}),
     ...(takeFromDirectory(existing?.position, dir.position) ? { position: dir.position } : {}),
-    // A department AD knows but the portal does not is added to the list, so the two stay in step.
-    ...(takeFromDirectory(existing?.department, dir.department) ? { department: await ensureDepartment(dir.department) } : {}),
+    ...(department && takeFromDirectory(existing?.department, department) ? { department } : {}),
     ...(dir.extension ? { extension: dir.extension } : {}),
     ...(dir.mobile ? { mobile: dir.mobile } : {}),
   };
@@ -256,8 +260,9 @@ async function syncDirectoryUser(dir: DirectoryUser, existing: Employee | undefi
       role: dir.isAdmin ? ADMIN_ROLE_ID : DEFAULT_ROLE_ID,
       firstName: dir.username,
       lastName: '',
-      position: 'نامشخص',
-      department: profile.department ?? (await ensureDepartment('نامشخص')),
+      // Not set until the colleague picks them on the first-sign-in form (see profileGaps).
+      position: '',
+      department: '',
       ...profile,
       ...session,
     })
@@ -355,8 +360,8 @@ authRouter.get(
   }),
 );
 
-// The first-sign-in form of AD accounts (see needsProfile); names must be in Persian, since that is
-// what the form asks for and why it appears.
+// The first-sign-in form (see profileGaps). Names must be in Persian, since that is what the form asks
+// for and why it appears; the unit and position are only taken while they are not set.
 const profileSchema = z.object({
   // Written the Persian way (ی and ک, single spaces), so the same name is spelled the same everywhere.
   firstName: requiredText(100).transform(cleanDepartmentName).refine(isPersian, 'نام را با حروف فارسی بنویسید'),
@@ -366,17 +371,51 @@ const profileSchema = z.object({
   // The colleague's answer to "is this you?": the phone-book entry that is them, or null for none.
   claim: z.string().max(100).nullable().optional(),
 });
+const placeSchema = z.object({
+  department: z.string().trim().max(100).default(''),
+  position: z.string().max(100).default('').transform(cleanDepartmentName),
+});
+
+/** Tells the people who manage staff that a colleague placed themselves, so a wrong unit is caught. */
+async function reportChosenPlace(user: SessionUser, chosen: { department?: string; position?: string }) {
+  const parts = [
+    chosen.position ? `سمت «${chosen.position}»` : '',
+    chosen.department ? `واحد «${chosen.department}»` : '',
+  ].filter(Boolean).join(' و ');
+  await audit(user, { action: 'update', entity: 'employee', id: user.id, title: fullName(user), detail: `در اولین ورود ${parts} را برای خودش انتخاب کرد` });
+  await createNotifications((await idsWithPermission('users.manage')).filter((id) => id !== user.id), {
+    title: 'همکار تازه در پرتال',
+    message: `${fullName(user)} (${user.username}) وارد پرتال شد و ${parts} را برای خودش انتخاب کرد؛ اگر درست نیست در «مدیریت کارکنان» اصلاحش کنید.`,
+    type: 'profile',
+    linkTab: 'people',
+  });
+}
 
 authRouter.post(
   '/auth/profile',
   requireAuth,
   route(async (req, res) => {
-    const { claim, ...profile } = parse(profileSchema, req.body);
     const user = currentUser(req);
+    const gaps = profileGaps(user);
+    const { claim, ...names } = gaps.names ? parse(profileSchema, req.body) : { claim: null };
+    // Only what is not set yet; a unit or position someone already has is changed in staff management.
+    const place: { department?: string; position?: string } = {};
+    if (gaps.department || gaps.position) {
+      const given = parse(placeSchema, req.body);
+      if (gaps.department) {
+        if (!given.department) throw new HttpError(400, 'واحد خود را انتخاب کنید.');
+        place.department = await requireDepartment(given.department);
+      }
+      if (gaps.position) {
+        if (!given.position) throw new HttpError(400, 'سمت خود را بنویسید.');
+        place.position = given.position;
+      }
+    }
 
     // On the first-sign-in form, someone already in the phone book without a username (entered by hand
     // or from Excel) is probably this colleague; they are asked before a second entry stays behind.
-    if (user.authSource === 'ldap' && needsProfile(user) && claim !== null) {
+    if (user.authSource === 'ldap' && gaps.names && claim !== null) {
+      const profile = names as z.infer<typeof profileSchema>;
       const matches = await phoneBookMatches(profile.firstName, profile.lastName);
       if (claim === undefined && matches.length > 0) {
         res.json({ matches: matches.map((e) => ({ id: e.id, name: fullName(e), position: e.position, department: e.department })) });
@@ -385,7 +424,12 @@ authRouter.post(
       if (claim !== undefined) {
         const person = matches.find((e) => e.id === claim);
         if (!person) throw new HttpError(400, 'این ردیف دفتر تلفن پیدا نشد؛ دوباره تلاش کنید.');
-        const joined = await withPermissions(await claimPhoneBookEntry(user, person, profile));
+        // The entry's unit and position were set by whoever entered it, so they stay.
+        const chosen = {
+          ...(person.department ? {} : { department: place.department }),
+          ...(person.position ? {} : { position: place.position }),
+        };
+        const joined = await withPermissions(await claimPhoneBookEntry(user, person, { ...profile, ...chosen }));
         issueSession(res, joined);
         await audit(joined, {
           action: 'update',
@@ -394,15 +438,23 @@ authRouter.post(
           title: fullName(joined),
           detail: `در اولین ورود با اکتیو دایرکتوری (${joined.username}) به ردیف موجود دفتر تلفن وصل شد`,
         });
+        if (chosen.department || chosen.position) await reportChosenPlace(joined, chosen);
         broadcastChange('employees');
         res.json({ user: serializeMe(joined) });
         return;
       }
     }
 
-    const [updated] = await db.update(employees).set(profile).where(eq(employees.id, user.id)).returning();
+    const changes = { ...names, ...place };
+    if (Object.keys(changes).length === 0) {
+      res.json({ user: serializeMe(user) });
+      return;
+    }
+    const [updated] = await db.update(employees).set(changes).where(eq(employees.id, user.id)).returning();
+    const me = await withPermissions(updated);
+    if (place.department || place.position) await reportChosenPlace(me, place);
     broadcastChange('employees');
-    res.json({ user: serializeMe(await withPermissions(updated)) });
+    res.json({ user: serializeMe(me) });
   }),
 );
 

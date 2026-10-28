@@ -233,7 +233,7 @@ const departments = managedList({
   usedIn: '(همکاران، اخبار، اسناد، راهنماها، نظرسنجی‌ها یا رویدادهای تقویم)',
   usedNames: async (tx) => {
     const used = await tx.execute<{ name: string }>(sql`
-      select department as name from employees
+      select department as name from employees where department <> ''
       union select d from news, unnest(target_departments) as d
       union select d from documents, unnest(target_departments) as d
       union select d from polls, unnest(target_departments) as d

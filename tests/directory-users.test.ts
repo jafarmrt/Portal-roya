@@ -84,7 +84,7 @@ describe('Active Directory users list and first sign-in', () => {
     ]);
     const res = await admin.get('/api/employees/directory').expect(200);
     expect(res.body.newUsers).toEqual([
-      { firstName: 'Ali', lastName: 'Rezaei', username: 'ali.rezaei', position: 'نامشخص', department: 'Edari', email: '', mobile: '', extension: '' },
+      { firstName: 'Ali', lastName: 'Rezaei', username: 'ali.rezaei', position: '', department: 'Edari', email: '', mobile: '', extension: '' },
     ]);
     expect(res.body.inPortal).toBe(1);
     expect(res.body.unnamed).toEqual(['scanner']);
@@ -119,19 +119,49 @@ describe('Active Directory users list and first sign-in', () => {
     expect(user).toMatchObject({ firstName: 'علی', lastName: 'رضایی', authSource: 'ldap', mustChangePassword: false, needsProfile: true });
   });
 
-  it('asks a new AD user for a Persian name and birthday, and never takes the name from AD', async () => {
+  it('asks a new AD user for a Persian name, birthday, unit and position, and never takes the name from AD', async () => {
     const { agent, user } = await signInWithAd(adUser());
-    expect(user).toMatchObject({ firstName: 'nima.sadeghi', lastName: '', needsProfile: true });
+    expect(user).toMatchObject({ firstName: 'nima.sadeghi', lastName: '', position: '', department: '', needsProfile: true });
 
-    await agent.post('/api/auth/profile').send({ firstName: 'Nima', lastName: 'Sadeghi', birthDate: '1370/05/12' }).expect(400);
-    await agent.post('/api/auth/profile').send({ firstName: 'نیما', lastName: 'صادقی', birthDate: '' }).expect(400);
-    const done = await agent.post('/api/auth/profile').send({ firstName: 'نیما', lastName: 'صادقی', birthDate: '1370/05/12', hideBirthday: true }).expect(200);
-    expect(done.body.user).toMatchObject({ firstName: 'نیما', lastName: 'صادقی', birthDate: '1370/05/12', hideBirthday: true, needsProfile: false });
+    const place = { department: 'فروش', position: 'کارشناس فروش' };
+    await agent.post('/api/auth/profile').send({ firstName: 'Nima', lastName: 'Sadeghi', birthDate: '1370/05/12', ...place }).expect(400);
+    await agent.post('/api/auth/profile').send({ firstName: 'نیما', lastName: 'صادقی', birthDate: '', ...place }).expect(400);
+    const names = { firstName: 'نیما', lastName: 'صادقی', birthDate: '1370/05/12', hideBirthday: true };
+    expect((await agent.post('/api/auth/profile').send(names).expect(400)).body.error).toContain('واحد');
+    await agent.post('/api/auth/profile').send({ ...names, department: 'Unknown OU', position: 'کارشناس' }).expect(400);
+    const done = await agent.post('/api/auth/profile').send({ ...names, ...place }).expect(200);
+    expect(done.body.user).toMatchObject({ firstName: 'نیما', lastName: 'صادقی', birthDate: '1370/05/12', hideBirthday: true, ...place, needsProfile: false });
+
+    // Whoever manages staff is told, and the change history says the colleague chose it.
+    const told = (await admin.get('/api/notifications').expect(200)).body.find((n: { title: string }) => n.title === 'همکار تازه در پرتال');
+    expect(told.message).toBe('نیما صادقی (nima.sadeghi) وارد پرتال شد و سمت «کارشناس فروش» و واحد «فروش» را برای خودش انتخاب کرد؛ اگر درست نیست در «مدیریت کارکنان» اصلاحش کنید.');
+    expect(told.linkTab).toBe('people');
+    const history = (await admin.get('/api/audit-log').expect(200)).body;
+    expect(JSON.stringify(history)).toContain('در اولین ورود سمت «کارشناس فروش» و واحد «فروش» را برای خودش انتخاب کرد');
+    // Once set, the unit and position are no longer the colleague's to change.
+    await agent.post('/api/auth/profile').send({ ...names, department: 'تولید', position: 'مدیر' }).expect(200);
+    expect((await agent.get('/api/auth/me').expect(200)).body.user).toMatchObject(place);
 
     // Later sign-ins keep the Persian name and an English AD title does not replace a Persian position.
     await admin.patch(`/api/employees/${user.id}`).send({ position: 'کارشناس اداری' }).expect(200);
     const again = await signInWithAd(adUser({ position: 'Office Clerk', department: 'Admin' }));
-    expect(again.user).toMatchObject({ firstName: 'نیما', lastName: 'صادقی', position: 'کارشناس اداری', needsProfile: false });
+    expect(again.user).toMatchObject({ firstName: 'نیما', lastName: 'صادقی', position: 'کارشناس اداری', department: 'فروش', needsProfile: false });
+  });
+
+  it('takes a unit from AD only when the unit list has it, and never adds AD names to the list', async () => {
+    const before = (await admin.get('/api/settings').expect(200)).body.departments;
+    const known = await signInWithAd(adUser({ username: 'mina.ad', department: 'طراحي', position: 'طراح' }));
+    expect(known.user).toMatchObject({ department: 'طراحی', position: 'طراح', needsProfile: true });
+    const unknown = await signInWithAd(adUser({ username: 'reza.ad', department: 'OU-Workshop' }));
+    expect(unknown.user).toMatchObject({ department: '', position: '' });
+    expect((await admin.get('/api/settings').expect(200)).body.departments).toEqual(before);
+
+    // Staff management counts them as needing completion until they choose; a manager can also set it.
+    const listed = (await admin.get('/api/employees').expect(200)).body.find((e: { id: string }) => e.id === unknown.user.id);
+    expect(listed).toMatchObject({ department: '', position: '' });
+    await admin.patch(`/api/employees/${unknown.user.id}`).send({ department: 'تولید', position: 'تکنسین' }).expect(200);
+    const again = await signInWithAd(adUser({ username: 'reza.ad', department: 'OU-Workshop' }));
+    expect(again.user).toMatchObject({ department: 'تولید', position: 'تکنسین' });
   });
 
   it('joins a first AD sign-in to the phone-book entry with the same name instead of keeping two', async () => {
@@ -145,7 +175,8 @@ describe('Active Directory users list and first sign-in', () => {
     const report = await createEmployee(admin, { username: 'report.of.sara' });
     await admin.patch(`/api/employees/${report.id}`).send({ directManagerId: user.id }).expect(200);
 
-    const profile = { firstName: 'سارا', lastName: 'كاظمي', birthDate: '1368/02/03' };
+    // A unit and position chosen on the form do not replace the entry's.
+    const profile = { firstName: 'سارا', lastName: 'كاظمي', birthDate: '1368/02/03', department: 'تولید', position: 'کارشناس' };
     const asked = await agent.post('/api/auth/profile').send(profile).expect(200);
     expect(asked.body.matches).toEqual([{ id: personId, name: 'سارا کاظمی', position: 'حسابدار', department: 'فروش' }]);
     await agent.post('/api/auth/profile').send({ ...profile, claim: 'emp-unknown' }).expect(400);
@@ -157,6 +188,7 @@ describe('Active Directory users list and first sign-in', () => {
       hasAccount: true,
       authSource: 'ldap',
       position: 'حسابدار',
+      department: 'فروش',
       mobile: '09120000000',
       extension: '230',
       birthDate: '1368/02/03',
@@ -175,7 +207,7 @@ describe('Active Directory users list and first sign-in', () => {
   it('keeps a separate entry when the colleague says the namesake is someone else', async () => {
     await admin.post('/api/employees').send({ hasAccount: false, firstName: 'امید', lastName: 'نوری', position: 'انباردار', department: 'تولید' }).expect(201);
     const { agent } = await signInWithAd(adUser({ username: 'omid.nouri' }));
-    const profile = { firstName: 'امید', lastName: 'نوری', birthDate: '1372/09/09' };
+    const profile = { firstName: 'امید', lastName: 'نوری', birthDate: '1372/09/09', department: 'تولید', position: 'انباردار' };
     expect((await agent.post('/api/auth/profile').send(profile).expect(200)).body.matches).toHaveLength(1);
     const own = await agent.post('/api/auth/profile').send({ ...profile, claim: null }).expect(200);
     expect(own.body.user).toMatchObject({ username: 'omid.nouri', needsProfile: false });

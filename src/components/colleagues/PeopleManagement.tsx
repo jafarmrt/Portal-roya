@@ -3,6 +3,7 @@ import { Download, Edit3, Eye, FileSpreadsheet, KeyRound, Search, ShieldOff, Use
 import { usePortal } from '../../context/PortalContext';
 import { toPersianDigits } from '../../lib/jalali';
 import { matches } from '../../lib/search';
+import { placeText } from '../../../shared/profile';
 import type { UserProfile } from '../../types';
 import { Avatar } from '../common/Avatar';
 import { inputClass } from '../common/Modal';
@@ -13,16 +14,19 @@ import { downloadCsv } from '../../lib/download';
 import { ImportEmployeesModal, TEMPLATE_HEADER } from './ImportEmployeesModal';
 import { useCoversRole } from './RoleSelect';
 
-type View = 'active' | 'account' | 'noAccount' | 'inactive' | 'all' | 'hireDate';
+type View = 'active' | 'account' | 'noAccount' | 'inactive' | 'all' | 'incomplete' | 'hireDate';
 
-const VIEWS: { id: View; label: string; test: (e: UserProfile) => boolean }[] = [
+const VIEWS: { id: View; label: string; test: (e: UserProfile) => boolean; whenAny?: boolean }[] = [
   { id: 'active', label: 'همه کارکنان فعال', test: (e) => e.isActive },
   { id: 'account', label: 'با حساب پرتال', test: (e) => e.isActive && e.hasAccount },
   { id: 'noAccount', label: 'فقط دفتر تلفن', test: (e) => e.isActive && !e.hasAccount },
   { id: 'inactive', label: 'غیرفعال', test: (e) => !e.isActive },
   { id: 'all', label: 'همه', test: () => true },
-  // Shown only while someone matches: a hire date that may be the form's old «today» default.
-  { id: 'hireDate', label: 'بررسی تاریخ استخدام', test: (e) => e.isActive && Boolean(e.hireDateIsEntryDay) },
+  // The views below are shown only while someone matches.
+  // No unit or position yet: not signed in since AD created them, or imported without them.
+  { id: 'incomplete', label: 'نیاز به تکمیل', test: (e) => e.isActive && (!e.department || !e.position), whenAny: true },
+  // A hire date that may be the form's old «today» default.
+  { id: 'hireDate', label: 'بررسی تاریخ استخدام', test: (e) => e.isActive && Boolean(e.hireDateIsEntryDay), whenAny: true },
 ];
 
 const badge = 'inline-block px-2 py-0.5 text-[10px] font-bold rounded-md whitespace-nowrap';
@@ -44,7 +48,7 @@ export const PeopleManagement: React.FC = () => {
   const [editing, setEditing] = useState<UserProfile | null>(null);
   const [access, setAccess] = useState<UserProfile | null>(null);
 
-  const departments = [...new Set([...(appSettings?.departments ?? []), ...employees.map((e) => e.department)])];
+  const departments = [...new Set([...(appSettings?.departments ?? []), ...employees.map((e) => e.department)])].filter(Boolean);
   const test = VIEWS.find((v) => v.id === view)!.test;
   const shown = employees.filter(
     (e) =>
@@ -104,7 +108,7 @@ export const PeopleManagement: React.FC = () => {
 
       <div className="bg-white p-4 rounded-2xl border border-[#E6E0D5] space-y-3">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar" role="tablist" aria-label="دسته‌بندی کارکنان">
-          {VIEWS.filter((v) => v.id !== 'hireDate' || view === v.id || employees.some(v.test)).map((v) => (
+          {VIEWS.filter((v) => !v.whenAny || view === v.id || employees.some(v.test)).map((v) => (
             <button
               key={v.id}
               role="tab"
@@ -134,6 +138,13 @@ export const PeopleManagement: React.FC = () => {
             {departments.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </div>
+        {view === 'incomplete' && (
+          <p className="p-3 text-xs leading-relaxed text-amber-900 bg-amber-50 border border-amber-200 rounded-xl">
+            واحد یا سمت این همکاران ثبت نشده است. هر کدام که حساب پرتال دارد در اولین ورود خودش انتخاب می‌کند و به شما
+            خبر داده می‌شود؛ می‌توانید همین حالا هم با «ویرایش» ثبتشان کنید. تا آن وقت در فیلتر واحدها و مخاطبان واحدها
+            نیستند و فقط خبرهای «همه» به آن‌ها می‌رسد.
+          </p>
+        )}
         {view === 'hireDate' && (
           <p className="p-3 text-xs leading-relaxed text-amber-900 bg-amber-50 border border-amber-200 rounded-xl">
             تاریخ استخدام این همکاران همان روزی است که در پرتال ثبت شده‌اند. برای همکار تازه‌وارد درست است، ولی برای کسی
@@ -160,11 +171,12 @@ export const PeopleManagement: React.FC = () => {
                   <Avatar src={e.avatar} firstName={e.firstName} lastName={e.lastName} className={`w-11 h-11 rounded-xl text-sm shrink-0 ${e.isActive ? '' : 'opacity-60'}`} />
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-[#2D2D2D] truncate">{e.firstName} {e.lastName}</p>
-                    <p className="text-[11px] text-[#6E6A60] truncate">{e.position} · {e.department}{e.extension ? ` · داخلی ${e.extension}` : ''}</p>
+                    <p className="text-[11px] text-[#6E6A60] truncate">{placeText(e)}{e.extension ? ` · داخلی ${e.extension}` : ''}</p>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 md:w-64">
                   {!e.isActive && <span className={`${badge} bg-stone-200 text-stone-700`}>غیرفعال</span>}
+                  {e.isActive && (!e.department || !e.position) && <span className={`${badge} bg-amber-50 text-amber-900`}>نیاز به تکمیل</span>}
                   {e.hasAccount ? (
                     <>
                       <span className={`${badge} bg-emerald-50 text-emerald-800`} dir="ltr">{e.username}</span>

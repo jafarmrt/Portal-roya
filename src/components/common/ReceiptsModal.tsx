@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlarmClock, BarChart3, BellRing, Check, Copy, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { NewsItem, ReadReceipt } from '../../types';
+import { NO_DEPARTMENT } from '../../../shared/profile';
 import { api, errorMessage } from '../../lib/api';
 import { downloadCsv } from '../../lib/download';
 import { formatDate, formatDateTime, toPersianDigits } from '../../lib/jalali';
@@ -47,7 +48,8 @@ export const ReceiptsModal: React.FC<{ item: ReceiptsSource; onClose: () => void
   const isDone = (r: ReadReceipt) => (item.requiresAck ? Boolean(r.acknowledgedAt) : Boolean(r.readAt));
   const isLate = (r: ReadReceipt) => deadline !== null && r.acknowledgedAt !== null && new Date(r.acknowledgedAt).getTime() > deadline;
 
-  const all = useMemo(() => receipts ?? [], [receipts]);
+  // Someone whose unit is not set yet is counted under that name rather than an empty one.
+  const all = useMemo(() => (receipts ?? []).map((r) => (r.department ? r : { ...r, department: NO_DEPARTMENT })), [receipts]);
   const filtered = all.filter((r) => (!department || r.department === department) && (!location || r.location === location));
   const pending = filtered.filter((r) => !isDone(r));
   const done = filtered.filter(isDone);

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { eq, sql } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -201,5 +202,67 @@ describe('updating people from Excel', () => {
     const me = (await admin.get('/api/auth/me').expect(200)).body.user as Profile;
     const res = await run([{ id: me.id, role: 'کارشناس' }]);
     expect(res.body.skipped[0].errors.join(' ')).toContain('ادمین');
+  });
+});
+
+describe('colleagues without a unit or position yet', () => {
+  let admin: Agent;
+
+  beforeAll(async () => {
+    await resetDatabase();
+    admin = await setupAdmin();
+  });
+
+  it('imports accounts without them, to be chosen at first sign-in, but not phone-book-only rows', async () => {
+    const res = await admin
+      .post('/api/employees/import')
+      .send({
+        rows: [
+          { firstName: 'مینا', lastName: 'نو', username: 'mina.new', position: '', department: '' },
+          { firstName: 'رضا', lastName: 'دفتری', position: '', department: '' },
+        ],
+      })
+      .expect(201);
+    expect(res.body.created).toHaveLength(1);
+    expect(res.body.created[0]).toMatchObject({ username: 'mina.new', position: '', department: '' });
+    expect(res.body.skipped[0].errors.join(' ')).toContain('سمت');
+
+    // A local account goes through the password change first, then picks its unit and position.
+    const agent = request.agent(app);
+    await agent.post('/api/auth/login').send({ username: 'mina.new', password: res.body.created[0].temporaryPassword }).expect(200);
+    const changed = await agent
+      .post('/api/auth/change-password')
+      .send({ currentPassword: res.body.created[0].temporaryPassword, newPassword: 'Mina-pass-12345' })
+      .expect(200);
+    expect(changed.body.user).toMatchObject({ needsProfile: true });
+    // Names and birthday are not asked of a local account; only what is missing.
+    const done = await agent.post('/api/auth/profile').send({ department: 'طراحی', position: 'طراح' }).expect(200);
+    expect(done.body.user).toMatchObject({ firstName: 'مینا', department: 'طراحی', position: 'طراح', needsProfile: false });
+  });
+
+  it('moves the old «نامشخص» placeholder out of the unit list and off people on upgrade', async () => {
+    const person = await admin.post('/api/employees').send({ ...worker, hasAccount: false }).expect(201);
+    const id = person.body.employee.id;
+    await admin.put('/api/settings').send({ departments: ['فناوری اطلاعات', 'فروش', 'طراحی', 'تولید', 'نامشخص'] }).expect(200);
+    await pool.query(`UPDATE employees SET department = 'نامشخص', position = 'نامشخص' WHERE id = $1`, [id]);
+
+    for (const statement of readFileSync('drizzle/0028_unset_department.sql', 'utf8').split('--> statement-breakpoint')) {
+      await pool.query(statement);
+    }
+    expect((await admin.get('/api/settings').expect(200)).body.departments).not.toContain('نامشخص');
+    const moved = (await admin.get('/api/employees').expect(200)).body.find((e: { id: string }) => e.id === id);
+    expect(moved).toMatchObject({ department: '', position: '' });
+  });
+
+  it('keeps «نامشخص» as a unit when news is addressed to it', async () => {
+    await admin.put('/api/settings').send({ departments: ['فناوری اطلاعات', 'فروش', 'طراحی', 'تولید', 'نامشخص'] }).expect(200);
+    await admin
+      .post('/api/news')
+      .send({ title: 'برای واحد', summary: 'خلاصه', content: 'متن', category: 'اخبار', targetDepartments: ['نامشخص'] })
+      .expect(201);
+    for (const statement of readFileSync('drizzle/0028_unset_department.sql', 'utf8').split('--> statement-breakpoint')) {
+      await pool.query(statement);
+    }
+    expect((await admin.get('/api/settings').expect(200)).body.departments).toContain('نامشخص');
   });
 });

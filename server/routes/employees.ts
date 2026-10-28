@@ -967,9 +967,9 @@ employeesRouter.get(
           firstName: u.firstName,
           lastName: u.lastName,
           username: u.username,
-          // The import needs a position and department; «نامشخص» is what AD sign-in uses too.
-          position: u.position || 'نامشخص',
-          department: u.department || 'نامشخص',
+          // Left empty when AD has none: the colleague picks them at first sign-in (or fill them in the file).
+          position: u.position,
+          department: u.department,
           email: u.email,
           mobile: u.mobile,
           extension: u.extension,
