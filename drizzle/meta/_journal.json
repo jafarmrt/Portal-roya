@@ -155,6 +155,13 @@
       "when": 1793167554766,
       "tag": "0021_dashboard_order",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793173656475,
+      "tag": "0022_suggestion_box_names",
+      "breakpoints": true
     }
   ]
 }

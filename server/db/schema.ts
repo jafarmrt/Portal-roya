@@ -13,6 +13,7 @@ import {
 import type { AuditAction, AuditEntity } from '../../shared/audit.js';
 import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
 import type { MonthlySummary } from '../../shared/reports.js';
+import type { SuggestionBoxNames } from '../../shared/suggestions.js';
 
 export type { AuditAction, AuditEntity };
 
@@ -657,6 +658,8 @@ export const settings = pgTable('settings', {
   // Who sees parts in preview besides the administrator: whole roles and named colleagues.
   pilotRoles: text('pilot_roles').array().notNull().default([]),
   pilotUserIds: text('pilot_user_ids').array().notNull().default([]),
+  // The names an administrator gave the suggestion boxes, e.g. { management: { label: 'صندوق مدیرعامل', to: 'مدیرعامل' } }.
+  suggestionBoxNames: jsonb('suggestion_box_names').$type<SuggestionBoxNames>().notNull().default({}),
 });
 
 /** Who created, changed or deleted what in the portal's content, accounts and settings, for the admin. */

@@ -11,7 +11,9 @@ import {
   featureVisible,
   isFeatureKey,
   LAUNCH_NEWS_DAYS,
+  switchable,
 } from '../../shared/features.js';
+import { boxNames, SUGGESTION_BOXES } from '../../shared/suggestions.js';
 import { dashboardOrder } from '../../shared/dashboard.js';
 import { toPersianDigits } from '../../shared/jalali.js';
 import { audit, fromTo } from '../audit.js';
@@ -127,6 +129,13 @@ const updateSchema = z
     // The company's founding day and the message everyone sees on it.
     foundingDate: jalaliDateValue,
     foundingMessage: z.string().trim().max(500),
+    // The suggestion boxes' names, e.g. «صندوق مدیرعامل»; '' keeps the built-in name.
+    suggestionBoxNames: z.object(
+      Object.fromEntries(SUGGESTION_BOXES.map((b) => [b.id, z.object({ label: z.string().trim().max(60), to: z.string().trim().max(60) }).optional()])) as Record<
+        (typeof SUGGESTION_BOXES)[number]['id'],
+        z.ZodOptional<z.ZodObject<{ label: z.ZodString; to: z.ZodString }>>
+      >,
+    ),
   })
   .partial();
 
@@ -143,6 +152,7 @@ const SETTING_LABELS: Record<keyof z.infer<typeof updateSchema>, string> = {
   logoUrl: 'لوگوی شرکت',
   foundingDate: 'تاریخ تأسیس شرکت',
   foundingMessage: 'پیام سالگرد تأسیس',
+  suggestionBoxNames: 'نام صندوق‌های انتقادات و پیشنهادات',
 };
 
 type SettingsRow = typeof settings.$inferSelect;
@@ -171,6 +181,11 @@ function settingChanges(before: SettingsRow, after: SettingsRow, keys: (keyof ty
       detail = after.logoUrl ? 'لوگوی جدید' : 'برگشت به لوگوی پیش‌فرض';
     } else if (key === 'foundingDate') {
       detail = fromTo(before.foundingDate, after.foundingDate);
+    } else if (key === 'suggestionBoxNames') {
+      const names = (row: SettingsRow, id: string) => Object.values(boxNames(row.suggestionBoxNames, id)).join(' / ');
+      detail = SUGGESTION_BOXES.filter((b) => names(before, b.id) !== names(after, b.id))
+        .map((b) => fromTo(names(before, b.id), names(after, b.id)))
+        .join('؛ ');
     }
     changes.push({ label: SETTING_LABELS[key], detail });
   }
@@ -194,6 +209,8 @@ settingsRouter.put(
     if (body.departments) body.departments = await checkDepartmentList(body.departments);
     if (body.locations) body.locations = await checkLocationList(body.locations);
     for (const system of systems ?? []) if (system.department) system.department = await requireDepartment(system.department);
+    // A box left out keeps its names.
+    if (body.suggestionBoxNames) body.suggestionBoxNames = { ...before.suggestionBoxNames, ...body.suggestionBoxNames };
     const [updated] = await db.update(settings).set(body).where(eq(settings.id, 'global')).returning();
     for (const change of settingChanges(before, updated, Object.keys(body) as (keyof typeof SETTING_LABELS)[])) {
       await audit(viewer, { action: 'update', entity: 'settings', title: change.label, detail: change.detail });
@@ -306,6 +323,8 @@ settingsRouter.post(
 /** What an open page loads again when a part appears or disappears for someone. */
 const FEATURE_RESOURCES: Record<FeatureKey, ResourceName[]> = {
   suggestions: ['notifications'],
+  suggestionsManagement: ['notifications'],
+  suggestionsHr: ['notifications'],
   polls: ['polls', 'notifications'],
   training: ['trainings', 'calendar', 'notifications'],
   guides: ['guides'],
@@ -320,14 +339,21 @@ function broadcastFeatures(keys: FeatureKey[]) {
   for (const resource of new Set(['settings' as const, ...keys.flatMap((k) => FEATURE_RESOURCES[k])])) broadcastChange(resource);
 }
 
-/** Every part with its state and the pilot group, for the settings page. */
+/** A part's name as the settings page and the change history show it; a suggestion box by the name the administrator gave it. */
+function featureLabel(row: SettingsRow, key: FeatureKey) {
+  const box = SUGGESTION_BOXES.find((b) => b.feature === key);
+  return box ? boxNames(row.suggestionBoxNames, box.id).label : featureInfo(key).label;
+}
+
+/** Every part with a switch of its own, with its state and the pilot group, for the settings page. */
 async function featureSettings() {
   const row = await ensureSettings();
   return {
-    features: FEATURES.map((f) => ({
+    features: FEATURES.filter((f) => switchable(f.key)).map((f) => ({
       key: f.key,
-      label: f.label,
+      label: featureLabel(row, f.key),
       hint: f.hint,
+      group: 'group' in f ? f.group : null,
       state: featureState({ states: row.features }, f.key),
       launchedAt: row.featureLaunches[f.key]?.at ?? null,
     })),
@@ -359,21 +385,34 @@ settingsRouter.put(
     const viewer = currentUser(req);
     const key = String(req.params.key);
     if (!isFeatureKey(key)) throw new HttpError(404, 'این بخش در پرتال نیست.');
+    if (!switchable(key)) throw new HttpError(400, 'این بخش کلید جداگانه ندارد؛ هر صندوق را جدا روشن یا خاموش کنید.');
     const body = parse(featureUpdateSchema, req.body);
     const row = await ensureSettings();
     const before = featureState({ states: row.features }, key);
     const info = featureInfo(key);
+    const label = featureLabel(row, key);
+    const states = { ...row.features };
+    // A box of a section that had one switch for both: the other box keeps the section's old state.
+    const group = info.group && isFeatureKey(info.group) ? info.group : null;
+    const groupBefore = group ? featureState({ states: row.features }, group) : null;
+    if (group && states[group] !== undefined) {
+      for (const f of FEATURES) if ('group' in f && f.group === group && states[f.key] === undefined) states[f.key] = states[group];
+      delete states[group];
+    }
+    states[key] = body.state;
     const launches = { ...row.featureLaunches };
     let draftId: string | null = null;
     if (body.state === 'on' && before !== 'on') {
       const { badge = false, card = false, draft = false } = body.announce;
-      launches[key] = { at: new Date().toISOString(), badge, card };
+      const launch = { at: new Date().toISOString(), badge, card };
+      // The first box switched on for everyone introduces the whole section (its page and its «جدید»).
+      launches[group && groupBefore !== 'on' ? group : key] = launch;
       // A draft only: whoever publishes news edits and publishes it when the day comes.
       if (draft) {
         draftId = newId('news');
         await db.insert(news).values({
           id: draftId,
-          title: `تازه در پرتال: ${info.label}`,
+          title: `تازه در پرتال: ${label}`,
           summary: info.hint,
           content: `${info.intro}\n\nاگر پرسشی داشتید، با واحد فناوری اطلاعات در میان بگذارید.`,
           contentFormat: 'text',
@@ -384,14 +423,11 @@ settingsRouter.put(
         broadcastChange('news');
       }
     }
-    await db
-      .update(settings)
-      .set({ features: { ...row.features, [key]: body.state }, featureLaunches: launches })
-      .where(eq(settings.id, 'global'));
+    await db.update(settings).set({ features: states, featureLaunches: launches }).where(eq(settings.id, 'global'));
     if (before !== body.state) {
-      await audit(viewer, { action: 'update', entity: 'settings', title: `امکانات پرتال: ${info.label}`, detail: fromTo(stateLabel(before), stateLabel(body.state)) });
+      await audit(viewer, { action: 'update', entity: 'settings', title: `امکانات پرتال: ${label}`, detail: fromTo(stateLabel(before), stateLabel(body.state)) });
     }
-    broadcastFeatures([key]);
+    broadcastFeatures(group ? [key, group] : [key]);
     res.json({ ...(await featureSettings()), draftId });
   }),
 );

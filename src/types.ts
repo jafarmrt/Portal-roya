@@ -1,5 +1,6 @@
 import type { WishDesign, WishOccasion } from '../shared/celebrations';
 import type { FeatureKey } from '../shared/features';
+import type { SuggestionBoxNames } from '../shared/suggestions';
 import type { Permission } from '../shared/permissions';
 import type { TodoSourceType } from '../shared/todos';
 
@@ -739,6 +740,8 @@ export interface AppSettings {
   occasionEffects: boolean;
   /** This person's own order of the dashboard cards ([] = the default order; see shared/dashboard.ts). */
   dashboardOrder: string[];
+  /** The names the administrator gave the suggestion boxes (see boxNames in shared/suggestions.ts). */
+  suggestionBoxNames: SuggestionBoxNames;
 }
 
 export interface SiteBanner {

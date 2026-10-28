@@ -1,18 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Megaphone, Search, ToggleRight, Users, X } from 'lucide-react';
+import { Inbox, Megaphone, Search, ToggleRight, Users, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { FEATURE_STATES, type FeatureKey, type FeatureState } from '../../../shared/features';
 import { ADMIN_ROLE_ID } from '../../../shared/permissions';
+import { SUGGESTION_BOXES, type SuggestionBox, type SuggestionBoxNames } from '../../../shared/suggestions';
 import { usePortal } from '../../context/PortalContext';
 import { api, errorMessage } from '../../lib/api';
 import { formatDate } from '../../lib/jalali';
 import { inputClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { DayThemePreview } from './DayThemePreview';
+import { useUnsavedChanges } from './unsavedChanges';
 
 interface FeatureRow {
   key: FeatureKey;
   label: string;
   hint: string;
+  /** The section it is one switch of, e.g. a suggestion box. */
+  group: FeatureKey | null;
   state: FeatureState;
   launchedAt: string | null;
 }
@@ -32,6 +36,10 @@ const STATE_HINTS: Record<FeatureState, string> = {
 const chipClass = (active: boolean) =>
   `px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-colors ${active ? 'bg-red-700 text-white border-red-700' : 'bg-white border-[#D9D4CB] hover:border-red-300'}`;
 
+// The portal is officially launched on 10 Aban 1405; until then no introduction card is offered by default.
+const INTRO_CARDS_FROM = new Date('2026-11-01T00:00:00+03:30');
+const introCardsAllowed = () => Date.now() >= INTRO_CARDS_FROM.getTime();
+
 /** How to introduce a part that is switched on for everyone. */
 const LaunchModal: React.FC<{ feature: FeatureRow; onClose: () => void; onLaunch: (announce: { badge: boolean; card: boolean; draft: boolean }) => Promise<void> }> = ({
   feature,
@@ -40,12 +48,20 @@ const LaunchModal: React.FC<{ feature: FeatureRow; onClose: () => void; onLaunch
 }) => {
   const { can } = usePortal();
   const [badge, setBadge] = useState(true);
-  const [card, setCard] = useState(true);
+  const [card, setCard] = useState(introCardsAllowed);
   const [draft, setDraft] = useState(can('news.manage'));
   const [busy, setBusy] = useState(false);
   const options: { id: string; checked: boolean; set: (v: boolean) => void; label: string; hint: string; hidden?: boolean }[] = [
     { id: 'badge', checked: badge, set: setBadge, label: 'برچسب «جدید» در منو', hint: 'تا دو هفته، یا تا وقتی هر نفر یک بار آن را باز کند.' },
-    { id: 'card', checked: card, set: setCard, label: 'کارت معرفی روی داشبورد', hint: 'یک بار برای هر نفر، با دکمهٔ «ببینم»؛ تا دو هفته.' },
+    {
+      id: 'card',
+      checked: card,
+      set: setCard,
+      label: 'کارت معرفی روی داشبورد',
+      hint: introCardsAllowed()
+        ? 'یک بار برای هر نفر، با دکمهٔ «ببینم»؛ تا دو هفته.'
+        : 'یک بار برای هر نفر، با دکمهٔ «ببینم»؛ تا دو هفته. تا ۱۰ آبان ۱۴۰۵ که پرتال رسماً راه‌اندازی می‌شود، پیش‌فرض خاموش است.',
+    },
     { id: 'draft', checked: draft, set: setDraft, label: 'پیش‌نویس خبر معرفی', hint: 'در «پیش‌نویس‌ها»ی اخبار ساخته می‌شود؛ خودکار منتشر نمی‌شود.', hidden: !can('news.manage') },
   ];
 
@@ -99,6 +115,7 @@ const PilotGroupEditor: React.FC<{ data: FeatureSettingsData; onSaved: (data: Fe
   const people = useMemo(() => employees.filter((e) => e.isActive && e.hasAccount), [employees]);
   const byId = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
   const dirty = JSON.stringify([pilotRoles, userIds]) !== JSON.stringify([data.pilotRoles, data.pilotUserIds]);
+  useUnsavedChanges('pilot-group', dirty);
   const matches = query.trim()
     ? people.filter((p) => !userIds.includes(p.id) && `${p.firstName} ${p.lastName} ${p.position} ${p.department}`.includes(query.trim())).slice(0, 6)
     : [];
@@ -117,7 +134,7 @@ const PilotGroupEditor: React.FC<{ data: FeatureSettingsData; onSaved: (data: Fe
   };
 
   return (
-    <div className="p-4 rounded-2xl border border-[#E6E0D5] space-y-3">
+    <div className="p-4 rounded-2xl border border-[#E6E0D5] space-y-3 scroll-mt-24" id="settings-pilot">
       <div className="flex items-center gap-2">
         <Users className="w-4 h-4 text-red-700" />
         <h4 className="text-xs font-black text-[#2D2D2D]">گروه آزمایشی</h4>
@@ -190,6 +207,116 @@ const PilotGroupEditor: React.FC<{ data: FeatureSettingsData; onSaved: (data: Fe
   );
 };
 
+/** The three states of one part, as buttons; «روشن برای همه» asks how to introduce it first. */
+const StateChips: React.FC<{ feature: FeatureRow; busy: boolean; onChange: (state: FeatureState) => void; onLaunch: () => void }> = ({ feature: f, busy, onChange, onLaunch }) => (
+  <>
+    <div role="radiogroup" aria-label={`وضعیت ${f.label}`} className="flex flex-wrap gap-1.5">
+      {FEATURE_STATES.map((s) => (
+        <button
+          key={s.id}
+          type="button"
+          role="radio"
+          aria-checked={f.state === s.id}
+          disabled={busy}
+          onClick={() => {
+            if (f.state === s.id) return;
+            if (s.id === 'on') onLaunch();
+            else onChange(s.id);
+          }}
+          className={chipClass(f.state === s.id)}
+        >
+          {s.label}
+        </button>
+      ))}
+    </div>
+    <p className="text-[10px] text-[#8C867A]">
+      {STATE_HINTS[f.state]}
+      {f.state === 'on' && f.launchedAt && ` روشن‌شده در ${formatDate(f.launchedAt)}.`}
+    </p>
+  </>
+);
+
+/**
+ * The suggestion boxes: each has its own switch and the name colleagues see. A box switched off takes
+ * no new messages, but its readers still see and answer the earlier ones; with both off the page is gone.
+ */
+const SuggestionBoxSettings: React.FC<{ rows: FeatureRow[]; busyKey: FeatureKey | null; onChange: (row: FeatureRow, state: FeatureState) => void; onLaunch: (row: FeatureRow) => void }> = ({
+  rows,
+  busyKey,
+  onChange,
+  onLaunch,
+}) => {
+  const { appSettings, updateSettings } = usePortal();
+  const saved = appSettings?.suggestionBoxNames ?? {};
+  const [names, setNames] = useState(() => Object.fromEntries(SUGGESTION_BOXES.map((b) => [b.id, { label: saved[b.id]?.label ?? '', to: saved[b.id]?.to ?? '' }])) as Record<SuggestionBox, { label: string; to: string }>);
+  const [busy, setBusy] = useState(false);
+  const dirty = SUGGESTION_BOXES.some((b) => names[b.id].label.trim() !== (saved[b.id]?.label ?? '') || names[b.id].to.trim() !== (saved[b.id]?.to ?? ''));
+  useUnsavedChanges('suggestion-box-names', dirty);
+
+  const save = async () => {
+    setBusy(true);
+    await updateSettings({
+      suggestionBoxNames: Object.fromEntries(SUGGESTION_BOXES.map((b) => [b.id, { label: names[b.id].label.trim(), to: names[b.id].to.trim() }])) as SuggestionBoxNames,
+    });
+    setBusy(false);
+  };
+
+  return (
+    <div className="p-4 rounded-2xl border border-[#E6E0D5] space-y-3 scroll-mt-24" id="settings-suggestion-boxes">
+      <div className="flex items-center gap-2">
+        <Inbox className="w-4 h-4 text-red-700" />
+        <h4 className="text-xs font-black text-[#2D2D2D]">صندوق‌های انتقادات و پیشنهادات</h4>
+      </div>
+      <p className="text-[11px] text-[#6E6A60] leading-relaxed">
+        هر صندوق جدا روشن و خاموش می‌شود. اگر فقط یک صندوق روشن باشد، فرم ارسال انتخاب صندوق را نشان نمی‌دهد؛ اگر هر دو خاموش باشند، بخش «انتقادات و پیشنهادات» از منو برداشته می‌شود.
+        صندوقی که خاموش شود پیام تازه نمی‌گیرد، ولی پیام‌های قبلی پاک نمی‌شوند و خوانندگانش (تا وقتی صندوق دیگر روشن است) آن‌ها را می‌بینند و پاسخ می‌دهند. خوانندگان را در تب «نقش‌ها و دسترسی» تعیین کنید.
+      </p>
+      <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {SUGGESTION_BOXES.map((b) => {
+          const row = rows.find((r) => r.key === b.feature);
+          if (!row) return null;
+          return (
+            <li key={b.id} className="p-3 rounded-xl bg-[#F5F2ED] space-y-2">
+              <span className="block text-xs font-bold text-[#2D2D2D]">{row.label}</span>
+              <StateChips feature={row} busy={busyKey === row.key} onChange={(state) => onChange(row, state)} onLaunch={() => onLaunch(row)} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="block text-[11px] font-bold text-[#4B4740] mb-1">نام صندوق</span>
+                  <input
+                    value={names[b.id].label}
+                    maxLength={60}
+                    placeholder={b.label}
+                    onChange={(e) => setNames({ ...names, [b.id]: { ...names[b.id], label: e.target.value } })}
+                    className={inputClass}
+                  />
+                </label>
+                <label className="block">
+                  <span className="block text-[11px] font-bold text-[#4B4740] mb-1">پیام به چه کسی می‌رسد</span>
+                  <input
+                    value={names[b.id].to}
+                    maxLength={60}
+                    placeholder={b.to}
+                    onChange={(e) => setNames({ ...names, [b.id]: { ...names[b.id], to: e.target.value } })}
+                    className={inputClass}
+                  />
+                </label>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {dirty && (
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] text-[#8C867A]">نام خالی یعنی همان نام پیش‌فرض.</p>
+          <button type="button" disabled={busy} onClick={() => void save()} className={primaryButtonClass}>
+            {busy ? 'در حال ذخیره...' : 'ذخیرهٔ نام صندوق‌ها'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /** Parts of the portal kept hidden until they are introduced, then switched on for everyone. */
 export const FeatureSettings: React.FC = () => {
   const { setActiveTab } = usePortal();
@@ -236,7 +363,7 @@ export const FeatureSettings: React.FC = () => {
   };
 
   return (
-    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3 lg:col-span-2" aria-labelledby="feature-settings-title">
+    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3" aria-labelledby="feature-settings-title">
       <div className="flex items-center gap-2">
         <ToggleRight className="w-4 h-4 text-red-700" />
         <h3 id="feature-settings-title" className="text-sm font-black text-[#2D2D2D]">امکانات پرتال</h3>
@@ -249,39 +376,23 @@ export const FeatureSettings: React.FC = () => {
       {data && (
         <>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {data.features.map((f) => (
-              <li key={f.key} className="p-3 rounded-xl bg-[#F5F2ED] space-y-2">
+            {data.features.filter((f) => !f.group).map((f) => (
+              <li key={f.key} id={`settings-${f.key === 'occasionThemes' ? 'occasions' : `feature-${f.key}`}`} className="p-3 rounded-xl bg-[#F5F2ED] space-y-2 scroll-mt-24">
                 <div>
                   <span className="block text-xs font-bold text-[#2D2D2D]">{f.label}</span>
                   <span className="block text-[11px] text-[#6E6A60] mt-0.5 leading-relaxed">{f.hint}</span>
                 </div>
-                <div role="radiogroup" aria-label={`وضعیت ${f.label}`} className="flex flex-wrap gap-1.5">
-                  {FEATURE_STATES.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={f.state === s.id}
-                      disabled={busyKey === f.key}
-                      onClick={() => {
-                        if (f.state === s.id) return;
-                        if (s.id === 'on') setLaunching(f);
-                        else void change(f, s.id);
-                      }}
-                      className={chipClass(f.state === s.id)}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[10px] text-[#8C867A]">
-                  {STATE_HINTS[f.state]}
-                  {f.state === 'on' && f.launchedAt && ` روشن‌شده در ${formatDate(f.launchedAt)}.`}
-                </p>
+                <StateChips feature={f} busy={busyKey === f.key} onChange={(state) => void change(f, state)} onLaunch={() => setLaunching(f)} />
                 {f.key === 'occasionThemes' && <DayThemePreview />}
               </li>
             ))}
           </ul>
+          <SuggestionBoxSettings
+            rows={data.features.filter((f) => f.group === 'suggestions')}
+            busyKey={busyKey}
+            onChange={(row, state) => void change(row, state)}
+            onLaunch={setLaunching}
+          />
           <PilotGroupEditor key={JSON.stringify([data.pilotRoles, data.pilotUserIds])} data={data} onSaved={setData} />
         </>
       )}

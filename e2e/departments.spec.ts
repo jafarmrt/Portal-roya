@@ -17,7 +17,7 @@ test.describe('departments', () => {
   });
 
   test('settings add and rename a department, and ask where people go before removing one', async ({ page }) => {
-    await page.goto('/#admin');
+    await page.goto('/#admin/lists');
     const section = page.locator('section[aria-labelledby="departments-title"]');
     await expect(section).toBeVisible();
 
