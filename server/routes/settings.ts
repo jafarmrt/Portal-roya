@@ -12,6 +12,7 @@ import {
   isFeatureKey,
   LAUNCH_NEWS_DAYS,
 } from '../../shared/features.js';
+import { dashboardOrder } from '../../shared/dashboard.js';
 import { toPersianDigits } from '../../shared/jalali.js';
 import { audit, fromTo } from '../audit.js';
 import { can, requirePermission, type SessionUser } from '../auth.js';
@@ -29,6 +30,7 @@ import {
   renameLocation,
 } from '../departments.js';
 import { broadcastChange, type ResourceName } from '../events.js';
+import { featureConfig } from '../features.js';
 import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
 import { serverStatus } from '../maintenance.js';
 import { ensureSettings } from '../settings.js';
@@ -58,7 +60,15 @@ export function publicSettings(row: typeof settings.$inferSelect, viewer: Sessio
     }
   }
   // Guests cannot switch the effect off, but can stop it each time it plays.
-  return { ...rest, banner, features, featureNews, occasionEffects: viewer?.occasionEffects ?? true };
+  return {
+    ...rest,
+    banner,
+    features,
+    featureNews,
+    occasionEffects: viewer?.occasionEffects ?? true,
+    // The colleague's own card order, only while the switch for it is on; otherwise the default order.
+    dashboardOrder: viewer && features.dashboardLayout ? viewer.dashboardOrder : [],
+  };
 }
 
 settingsRouter.get(
@@ -303,6 +313,7 @@ const FEATURE_RESOURCES: Record<FeatureKey, ResourceName[]> = {
   mood: ['moods'],
   todos: ['todos', 'notifications'],
   occasionThemes: [],
+  dashboardLayout: [],
 };
 
 function broadcastFeatures(keys: FeatureKey[]) {
@@ -435,5 +446,18 @@ settingsRouter.put(
     const { on } = parse(z.object({ on: z.boolean() }), req.body);
     await db.update(employees).set({ occasionEffects: on }).where(eq(employees.id, viewer.id));
     res.json(publicSettings(await ensureSettings(), { ...viewer, occasionEffects: on }));
+  }),
+);
+
+/** The colleague's own order of the dashboard cards; an empty list puts the default order back. */
+settingsRouter.put(
+  '/settings/dashboard-order',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    if (!featureVisible(await featureConfig(), 'dashboardLayout', viewer)) throw new HttpError(404, 'مسیر یافت نشد.');
+    const { order } = parse(z.object({ order: z.array(z.string().max(50)).max(50) }), req.body);
+    const saved = order.length === 0 ? [] : dashboardOrder(order);
+    await db.update(employees).set({ dashboardOrder: saved }).where(eq(employees.id, viewer.id));
+    res.json(publicSettings(await ensureSettings(), { ...viewer, dashboardOrder: saved }));
   }),
 );

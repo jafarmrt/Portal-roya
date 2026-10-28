@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { BirthdayCard } from './BirthdayCard';
 import { MyCelebrationCard } from './MyCelebrationCard';
@@ -9,6 +9,8 @@ import { MoodTrackerWidget } from './MoodTrackerWidget';
 import { WelcomeNewColleagueCard } from './WelcomeNewColleagueCard';
 import { DashboardCalendar } from './DashboardCalendar';
 import { isCardOn } from './dashboardCards';
+import { DashboardLayoutModal } from './DashboardLayoutModal';
+import { dashboardOrder, DASHBOARD_LAYOUT, type DashboardCardKey } from '../../../shared/dashboard';
 import { MobileFold } from './MobileFold';
 import { MyTasksCard } from './MyTasksCard';
 import { PersonalTodosCard } from './PersonalTodosCard';
@@ -25,7 +27,8 @@ import {
   Pin,
   FileCheck2,
   AlertTriangle,
-  CalendarDays
+  CalendarDays,
+  LayoutDashboard
 } from 'lucide-react';
 
 export const DashboardModule: React.FC = () => {
@@ -41,6 +44,14 @@ export const DashboardModule: React.FC = () => {
     featureOn,
   } = usePortal();
   const on = (id: Parameters<typeof isCardOn>[1]) => isCardOn(appSettings, id);
+  const [arranging, setArranging] = useState(false);
+  // The person's own order of the cards: one column on a phone, and the same order inside each part
+  // of the page on a computer (see shared/dashboard.ts). Fixed banners come before them (order 1-2).
+  const cardOrder = dashboardOrder(appSettings?.dashboardOrder ?? []);
+  const place = (id: DashboardCardKey): React.CSSProperties => ({ order: 10 + cardOrder.indexOf(id) });
+  const canArrange = Boolean(currentUser) && featureOn('dashboardLayout');
+  // The cards switched on for this person, whether or not they have something to show today.
+  const arrangeable = DASHBOARD_LAYOUT.map((c) => c.id).filter((id) => id === 'news' || on(id));
 
   const activePoll = polls.find(p => p.isActive && (isGuest || p.forMe) && !p.hasVoted);
   const publishedNews = news.filter(n => n.status === 'published');
@@ -58,8 +69,8 @@ export const DashboardModule: React.FC = () => {
   const todayOccasions = dayOccasions(customHolidays, now.jYear(), now.jMonth() + 1, now.jDate());
 
 
-  // On phones the cards are one column in the order below (order-N); from lg the two-column layout
-  // applies and the order classes are reset. Wrappers of cards that render nothing are hidden.
+  // On phones the cards are one column; from lg the cards across the top come first, then the two
+  // columns. Either way each card's place comes from the person's order. Wrappers of cards that render nothing are hidden.
   return (
     <div className="flex flex-col gap-6 [&>*:empty]:hidden">
       {/* Hero Welcome Banner */}
@@ -109,49 +120,59 @@ export const DashboardModule: React.FC = () => {
                 <span>{toPersianDigits(isGuest ? publishedNews.length : unreadCount)} مورد</span>
               </div>
             </button>
+
+            {canArrange && (
+              <button
+                onClick={() => setArranging(true)}
+                className="self-stretch px-3 py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl backdrop-blur-xs border border-white/10 text-[11px] font-bold text-[#E6E0D5] flex items-center gap-1.5 transition-all"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                چیدمان داشبورد
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Nowruz, the seasons, Yalda, the feasts and the founding day; quiet on days of mourning */}
-      <div className="order-1 lg:order-none">
+      <div className="order-1">
         <DayThemeBanner />
       </div>
 
       {/* Parts of the portal introduced in the last two weeks */}
-      <div className="order-1 lg:order-none">
+      <div className="order-1">
         <FeatureIntroCard />
       </div>
 
       {/* What this person still has to do; when the card is switched off, circulars are still listed */}
       {on('myTasks') && !isGuest && (
-        <div className="order-1 lg:order-none">
+        <div style={place('myTasks')}>
           <MyTasksCard />
         </div>
       )}
 
       {/* The person's own to-do notes, right under what the portal asks of them */}
       {on('todos') && !isGuest && (
-        <div className="order-1 lg:order-none">
+        <div style={place('todos')}>
           <PersonalTodosCard />
         </div>
       )}
 
       {on('anniversary') && !isGuest && (
-        <div className="order-2 lg:order-none">
+        <div style={place('anniversary')}>
           <MyCelebrationCard />
         </div>
       )}
 
       {/* Organisation apps sit near the top so they are reachable without scrolling */}
       {on('systems') && (
-        <div className="order-4 lg:order-none">
+        <div style={place('systems')}>
           <QuickSystemsWidget />
         </div>
       )}
 
       {!on('myTasks') && pendingAcks.length > 0 && (
-        <section className="bg-amber-50 border border-amber-300 rounded-3xl p-5 sm:p-6 space-y-3" aria-labelledby="pending-acks-title">
+        <section className="order-2 bg-amber-50 border border-amber-300 rounded-3xl p-5 sm:p-6 space-y-3" aria-labelledby="pending-acks-title">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-amber-700" />
             <h2 id="pending-acks-title" className="text-sm font-black text-amber-900">
@@ -178,11 +199,11 @@ export const DashboardModule: React.FC = () => {
       )}
 
       {/* On phones the grid and its columns step aside (display: contents) so their cards can be reordered */}
-      <div className="contents lg:grid lg:grid-cols-3 lg:gap-6">
+      <div className="contents lg:grid lg:grid-cols-3 lg:gap-6 lg:order-[100]">
         {/* Left 2 Columns: News Highlights, Active Poll, Training */}
-        <div className="contents lg:block lg:col-span-2 lg:space-y-6 [&>*:empty]:hidden">
+        <div className="contents lg:flex lg:flex-col lg:col-span-2 lg:gap-6 [&>*:empty]:hidden">
           {/* Pinned / Latest News Section */}
-          <div className="order-3 lg:order-none bg-white rounded-3xl p-5 sm:p-6 border border-[#E6E0D5] shadow-xs space-y-4">
+          <div style={place('news')} className="bg-white rounded-3xl p-5 sm:p-6 border border-[#E6E0D5] shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
               <div className="flex items-center gap-2">
                 <div className="p-2 bg-[#F5F2ED] text-[#dc2626] rounded-xl">
@@ -242,14 +263,14 @@ export const DashboardModule: React.FC = () => {
 
           {/* Welcome New Colleagues Wall */}
           {on('welcome') && (
-            <div className="order-7 lg:order-none">
+            <div style={place('welcome')}>
               <WelcomeNewColleagueCard />
             </div>
           )}
 
           {/* Active Poll Spotlight Card */}
           {on('poll') && activePoll && (
-            <MobileFold id="poll" title="نظرسنجی ویژه" icon={<Vote className="w-4 h-4" />} className="order-8 lg:order-none">
+            <MobileFold id="poll" title="نظرسنجی ویژه" icon={<Vote className="w-4 h-4" />} style={place('poll')}>
               <div className="bg-gradient-to-br from-[#F5F2ED] via-white to-[#F7F3ED] rounded-3xl p-6 border border-[#E6E0D5] shadow-xs relative overflow-hidden">
                 <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
                   <div className="flex items-center gap-2">
@@ -289,31 +310,31 @@ export const DashboardModule: React.FC = () => {
         </div>
 
         {/* Right Column: Birthdays & Upcoming Training Widget */}
-        <div className="contents lg:block lg:space-y-6 [&>*:empty]:hidden">
+        <div className="contents lg:flex lg:flex-col lg:gap-6 [&>*:empty]:hidden">
           {/* Dashboard Calendar Widget */}
           {on('calendar') && (
-            <MobileFold id="calendar" title="تقویم" icon={<CalendarDays className="w-4 h-4" />} className="order-5 lg:order-none">
+            <MobileFold id="calendar" title="تقویم" icon={<CalendarDays className="w-4 h-4" />} style={place('calendar')}>
               <DashboardCalendar />
             </MobileFold>
           )}
 
           {/* Birthday Celebrations Card */}
           {on('birthdays') && (
-            <div className="order-6 lg:order-none">
+            <div style={place('birthdays')}>
               <BirthdayCard />
             </div>
           )}
 
           {/* Mood check-in (anonymous in reports) */}
           {on('mood') && !isGuest && (
-            <div className="order-10 lg:order-none">
+            <div style={place('mood')}>
               <MoodTrackerWidget />
             </div>
           )}
 
           {/* Upcoming Training Highlight */}
           {on('training') && upcomingTraining && (
-            <MobileFold id="training" title="کارگاه آموزشی پیش‌رو" icon={<GraduationCap className="w-4 h-4" />} className="order-9 lg:order-none">
+            <MobileFold id="training" title="کارگاه آموزشی پیش‌رو" icon={<GraduationCap className="w-4 h-4" />} style={place('training')}>
               <div className="bg-white rounded-3xl p-6 border border-[#E6E0D5] shadow-xs space-y-3">
                 <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
                   <div className="flex items-center gap-2">
@@ -350,6 +371,7 @@ export const DashboardModule: React.FC = () => {
 
       </div>
 
+      {arranging && <DashboardLayoutModal shown={arrangeable} onClose={() => setArranging(false)} />}
     </div>
   );
 };

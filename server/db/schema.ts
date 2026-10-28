@@ -120,6 +120,8 @@ export const employees = pgTable('employees', {
   seenFeatures: text('seen_features').array().notNull().default([]),
   /** The colleague wants the once-a-day effect of Nowruz, the seasons and the feasts on their dashboard. */
   occasionEffects: boolean('occasion_effects').notNull().default(true),
+  /** The colleague's own order of the dashboard cards ([] = the default order). */
+  dashboardOrder: text('dashboard_order').array().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
