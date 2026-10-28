@@ -32,7 +32,7 @@ describe('each colleague’s own order of the dashboard cards', () => {
     expect(zone).toMatchObject({ systems: 'top', myTasks: 'side', todos: 'side' });
     const side = DASHBOARD_LAYOUT.filter((c) => c.zone === 'side').map((c) => c.id);
     expect(side.slice(0, 2)).toEqual(['myTasks', 'todos']);
-    // On a phone: the apps, then «کارهای من», the notes and the news.
+    // On a phone: the apps, then «منتظر اقدام شما», the notes and the news.
     expect(dashboardOrder([]).slice(0, 5)).toEqual(['systems', 'myTasks', 'todos', 'anniversary', 'news']);
   });
 

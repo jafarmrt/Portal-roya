@@ -6,7 +6,7 @@ const asRole = async (browser: Browser, role: 'admin' | 'employee') => {
   return { context, page: await context.newPage() };
 };
 
-// «یادداشت کارهای من» is on from the start and sits in the dashboard's side column under «کارهای من».
+// «یادداشت‌های من» is on from the start and sits in the dashboard's side column under «منتظر اقدام شما».
 // A colleague writes a note with a one-tap due date, adds a circular from the news page (a date is
 // required), ticks a note off and takes it back with «برگردان», and finds the note in the calendar.
 test.describe('personal to-do notes', () => {
@@ -15,12 +15,12 @@ test.describe('personal to-do notes', () => {
   test('a colleague writes notes, adds a circular and ticks a note off', async ({ browser }) => {
     const { context, page } = await asRole(browser, 'employee');
     await page.goto('/#dashboard');
-    const card = page.getByRole('region', { name: 'یادداشت کارهای من' });
+    const card = page.getByRole('region', { name: 'یادداشت‌های من' });
     await expect(card).toContainText('فقط خودتان می‌بینید');
 
     // The apps come first; the two to-do cards head the narrow side column, next to the news.
     const systems = await page.getByRole('region', { name: 'سامانه‌های سازمان' }).boundingBox();
-    const tasks = await page.getByRole('region', { name: 'کارهای من', exact: true }).boundingBox();
+    const tasks = await page.getByRole('region', { name: 'منتظر اقدام شما', exact: true }).boundingBox();
     const notes = await card.boundingBox();
     const news = await page.getByRole('heading', { name: 'آخرین اخبار و اطلاعیه‌ها' }).boundingBox();
     expect(systems!.y).toBeLessThan(tasks!.y);
@@ -28,8 +28,8 @@ test.describe('personal to-do notes', () => {
     expect(notes!.width).toBeLessThan(systems!.width / 2);
     expect(notes!.x).toBeLessThan(news!.x);
 
-    await card.getByRole('button', { name: 'کار تازه' }).click();
-    await card.getByRole('textbox', { name: 'عنوان کار تازه' }).fill('تمدید بیمهٔ تکمیلی');
+    await card.getByRole('button', { name: 'یادداشت تازه' }).click();
+    await card.getByRole('textbox', { name: 'عنوان یادداشت تازه' }).fill('تمدید بیمهٔ تکمیلی');
     // No due date, no note.
     await expect(card.getByRole('button', { name: 'افزودن' })).toBeDisabled();
     await card.getByRole('button', { name: 'امروز' }).click();
@@ -38,7 +38,7 @@ test.describe('personal to-do notes', () => {
     await expect(row).toBeVisible();
     await expect(card.getByRole('group', { name: 'امروز' })).toContainText('تمدید بیمهٔ تکمیلی');
     // Due today: counted next to «داشبورد» in the menu.
-    await expect(page.getByRole('navigation', { name: 'منوی اصلی' }).getByRole('button', { name: /داشبورد/ })).toContainText('۱ کار');
+    await expect(page.getByRole('navigation', { name: 'منوی اصلی' }).getByRole('button', { name: /داشبورد/ })).toContainText('۱ یادداشت');
 
     // Starred, then postponed to tomorrow.
     await card.getByRole('button', { name: 'مهم: تمدید بیمهٔ تکمیلی' }).click();
@@ -50,14 +50,14 @@ test.describe('personal to-do notes', () => {
     await page.goto('/#news');
     await page.getByRole('button', { name: 'بخشنامهٔ ایمنی' }).first().click();
     const article = page.getByRole('dialog', { name: 'بخشنامهٔ ایمنی' });
-    await article.getByRole('button', { name: 'افزودن به یادداشت کارهای من' }).click();
-    const form = page.getByRole('dialog', { name: 'افزودن به یادداشت کارهای من' });
+    await article.getByRole('button', { name: 'افزودن به یادداشت‌های من' }).click();
+    const form = page.getByRole('dialog', { name: 'افزودن به یادداشت‌های من' });
     await expect(form.getByLabel('چه کاری؟')).toHaveValue('مطالعه و تأیید: بخشنامهٔ ایمنی');
     await expect(form.getByRole('button', { name: 'افزودن', exact: true })).toBeDisabled();
     await form.getByRole('button', { name: 'امروز' }).click();
     await form.getByRole('button', { name: 'افزودن', exact: true }).click();
     await expect(form).toBeHidden();
-    await expect(article.getByRole('button', { name: 'در یادداشت کارهای من' })).toBeVisible();
+    await expect(article.getByRole('button', { name: 'در یادداشت‌های من' })).toBeVisible();
     await article.getByRole('button', { name: 'بستن' }).last().click();
 
     // Ticked off by mistake and taken back, then ticked off for real.
@@ -89,7 +89,7 @@ test.describe('personal to-do notes', () => {
     }
     await page.reload();
     // The dashboard card stays short and opens the page.
-    const card = page.getByRole('region', { name: 'یادداشت کارهای من' });
+    const card = page.getByRole('region', { name: 'یادداشت‌های من' });
     await expect(card.getByRole('button', { name: /نمایش همه/ })).toBeVisible();
     await card.getByRole('button', { name: 'صفحهٔ یادداشت‌های من' }).click();
     await expect(page).toHaveURL(/#todos/);
@@ -121,8 +121,8 @@ test.describe('personal to-do notes', () => {
     expect((await admin.page.request.put('/api/settings/features/todos', { data: { state: 'off' } })).ok()).toBe(true);
     const { context, page } = await asRole(browser, 'employee');
     await page.goto('/#dashboard');
-    await expect(page.getByRole('region', { name: 'کارهای من', exact: true })).toBeVisible();
-    await expect(page.getByRole('region', { name: 'یادداشت کارهای من' })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'منتظر اقدام شما', exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'یادداشت‌های من' })).toHaveCount(0);
     await expect(page.getByRole('navigation', { name: 'منوی اصلی' }).getByRole('button', { name: 'یادداشت‌های من' })).toHaveCount(0);
     await page.goto('/#todos');
     await expect(page.getByRole('heading', { name: 'یادداشت‌های من' })).toHaveCount(0);

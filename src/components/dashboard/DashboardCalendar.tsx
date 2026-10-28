@@ -72,7 +72,7 @@ export const DashboardCalendar: React.FC = () => {
           </div>
           <div className="grid grid-cols-7 gap-1 text-center">
             {blanks.map(b => (
-              <div key={`blank-${b}`} className="aspect-square p-1"></div>
+              <div key={`blank-${b}`} className="aspect-square lg:aspect-auto lg:h-11 p-1"></div>
             ))}
             {days.map(day => {
               const evt = getEventForDay(day);
@@ -93,7 +93,7 @@ export const DashboardCalendar: React.FC = () => {
                 <div 
                   key={day} 
                   onClick={open}
-                  className={`aspect-square flex flex-col items-center justify-center rounded-lg text-xs font-medium relative transition-all ${
+                  className={`aspect-square lg:aspect-auto lg:h-11 flex flex-col items-center justify-center rounded-lg text-xs font-medium relative transition-all ${
                     open ? 'cursor-pointer' : 'cursor-default'
                   } ${
                     isToday ? 'bg-[#dc2626] text-white shadow-sm' : 

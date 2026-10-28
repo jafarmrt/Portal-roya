@@ -187,7 +187,7 @@ export const DashboardModule: React.FC = () => {
 
       {/* On phones the grid and its columns step aside (display: contents) so their cards can be reordered */}
       <div className="contents lg:grid lg:grid-cols-3 lg:gap-6 lg:order-[100]">
-        {/* Left 2 Columns: News Highlights, Active Poll, Training */}
+        {/* Wide column: news, new colleagues, the featured poll, the calendar and the next course */}
         <div className="contents lg:flex lg:flex-col lg:col-span-2 lg:gap-6 [&>*:empty]:hidden">
           {/* Pinned / Latest News Section */}
           <div style={place('news')} className="bg-white rounded-3xl p-5 sm:p-6 border border-[#E6E0D5] shadow-xs space-y-4">
@@ -294,50 +294,11 @@ export const DashboardModule: React.FC = () => {
               </div>
             </MobileFold>
           )}
-        </div>
-
-        {/* Side column (on the left): what the person has to do, then the calendar and birthdays */}
-        <div className="contents lg:flex lg:flex-col lg:gap-6 [&>*:empty]:hidden">
-          {/* What this person still has to do; when the card is switched off, circulars are still listed */}
-          {on('myTasks') && !isGuest && (
-            <div style={place('myTasks')}>
-              <MyTasksCard />
-            </div>
-          )}
-
-          {/* The person's own to-do notes, right under what the portal asks of them */}
-          {on('todos') && !isGuest && (
-            <div style={place('todos')}>
-              <PersonalTodosCard />
-            </div>
-          )}
-
-          {/* Colleagues who have the portal open, and a ready-made emoji to one of them */}
-          {on('online') && !isGuest && (
-            <div style={place('online')}>
-              <OnlineColleaguesCard />
-            </div>
-          )}
-
           {/* Dashboard Calendar Widget */}
           {on('calendar') && (
             <MobileFold id="calendar" title="تقویم" icon={<CalendarDays className="w-4 h-4" />} style={place('calendar')}>
               <DashboardCalendar />
             </MobileFold>
-          )}
-
-          {/* Birthday Celebrations Card */}
-          {on('birthdays') && (
-            <div style={place('birthdays')}>
-              <BirthdayCard />
-            </div>
-          )}
-
-          {/* Mood check-in (anonymous in reports) */}
-          {on('mood') && !isGuest && (
-            <div style={place('mood')}>
-              <MoodTrackerWidget />
-            </div>
           )}
 
           {/* Upcoming Training Highlight */}
@@ -373,6 +334,44 @@ export const DashboardModule: React.FC = () => {
                 </button>
               </div>
             </MobileFold>
+          )}
+        </div>
+
+        {/* Side column (on the left): what the person has to do, the online colleagues, birthdays and mood */}
+        <div className="contents lg:flex lg:flex-col lg:gap-6 [&>*:empty]:hidden">
+          {/* What this person still has to do; when the card is switched off, circulars are still listed */}
+          {on('myTasks') && !isGuest && (
+            <div style={place('myTasks')}>
+              <MyTasksCard />
+            </div>
+          )}
+
+          {/* The person's own to-do notes, right under what the portal asks of them */}
+          {on('todos') && !isGuest && (
+            <div style={place('todos')}>
+              <PersonalTodosCard />
+            </div>
+          )}
+
+          {/* Colleagues who have the portal open, and a ready-made emoji to one of them */}
+          {on('online') && !isGuest && (
+            <div style={place('online')}>
+              <OnlineColleaguesCard />
+            </div>
+          )}
+
+          {/* Birthday Celebrations Card */}
+          {on('birthdays') && (
+            <div style={place('birthdays')}>
+              <BirthdayCard />
+            </div>
+          )}
+
+          {/* Mood check-in (anonymous in reports) */}
+          {on('mood') && !isGuest && (
+            <div style={place('mood')}>
+              <MoodTrackerWidget />
+            </div>
           )}
 
         </div>

@@ -56,46 +56,46 @@ export const MoodTrackerWidget: React.FC = () => {
 
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+      <div className="grid grid-cols-5 gap-1 pt-1">
         <button 
           type="button"
           onClick={() => handleMoodSelect('خیلی بد')} 
-          className="flex-1 min-w-[64px] flex flex-col items-center gap-1.5 p-2.5 rounded-2xl hover:bg-[#FEF2F2] hover:text-[#991b1b] text-[#7A756D] transition-all border border-transparent hover:border-[#FCA5A5]/40 cursor-pointer"
+          className="min-w-0 flex flex-col items-center gap-1.5 px-1 py-2.5 rounded-2xl hover:bg-[#FEF2F2] hover:text-[#991b1b] text-[#7A756D] transition-all border border-transparent hover:border-[#FCA5A5]/40 cursor-pointer"
         >
           <Frown className="w-7 h-7 text-[#DC2626]" />
-          <span className="text-[10px] font-bold">خیلی بد</span>
+          <span className="text-[10px] font-bold whitespace-nowrap">خیلی بد</span>
         </button>
         <button 
           type="button"
           onClick={() => handleMoodSelect('بد')} 
-          className="flex-1 min-w-[64px] flex flex-col items-center gap-1.5 p-2.5 rounded-2xl hover:bg-[#F5F2ED] hover:text-[#B45309] text-[#7A756D] transition-all border border-transparent hover:border-[#EAE6DF] cursor-pointer"
+          className="min-w-0 flex flex-col items-center gap-1.5 px-1 py-2.5 rounded-2xl hover:bg-[#F5F2ED] hover:text-[#B45309] text-[#7A756D] transition-all border border-transparent hover:border-[#EAE6DF] cursor-pointer"
         >
           <Frown className="w-7 h-7 text-[#D97706] opacity-80" />
-          <span className="text-[10px] font-bold">بد</span>
+          <span className="text-[10px] font-bold whitespace-nowrap">بد</span>
         </button>
         <button 
           type="button"
           onClick={() => handleMoodSelect('معمولی')} 
-          className="flex-1 min-w-[64px] flex flex-col items-center gap-1.5 p-2.5 rounded-2xl hover:bg-[#F5F2ED] hover:text-[#605C54] text-[#7A756D] transition-all border border-transparent hover:border-[#EAE6DF] cursor-pointer"
+          className="min-w-0 flex flex-col items-center gap-1.5 px-1 py-2.5 rounded-2xl hover:bg-[#F5F2ED] hover:text-[#605C54] text-[#7A756D] transition-all border border-transparent hover:border-[#EAE6DF] cursor-pointer"
         >
           <Meh className="w-7 h-7 text-[#7A756D]" />
-          <span className="text-[10px] font-bold">معمولی</span>
+          <span className="text-[10px] font-bold whitespace-nowrap">معمولی</span>
         </button>
         <button 
           type="button"
           onClick={() => handleMoodSelect('خوب')} 
-          className="flex-1 min-w-[64px] flex flex-col items-center gap-1.5 p-2.5 rounded-2xl hover:bg-[#F0FDF4] hover:text-[#15803D] text-[#7A756D] transition-all border border-transparent hover:border-[#BBF7D0] cursor-pointer"
+          className="min-w-0 flex flex-col items-center gap-1.5 px-1 py-2.5 rounded-2xl hover:bg-[#F0FDF4] hover:text-[#15803D] text-[#7A756D] transition-all border border-transparent hover:border-[#BBF7D0] cursor-pointer"
         >
           <Smile className="w-7 h-7 text-[#16A34A] opacity-90" />
-          <span className="text-[10px] font-bold">خوب</span>
+          <span className="text-[10px] font-bold whitespace-nowrap">خوب</span>
         </button>
         <button 
           type="button"
           onClick={() => handleMoodSelect('عالی')} 
-          className="flex-1 min-w-[64px] flex flex-col items-center gap-1.5 p-2.5 rounded-2xl hover:bg-[#FEF2F2] hover:text-[#991b1b] text-[#7A756D] transition-all border border-transparent hover:border-[#FCA5A5]/40 cursor-pointer"
+          className="min-w-0 flex flex-col items-center gap-1.5 px-1 py-2.5 rounded-2xl hover:bg-[#FEF2F2] hover:text-[#991b1b] text-[#7A756D] transition-all border border-transparent hover:border-[#FCA5A5]/40 cursor-pointer"
         >
           <Smile className="w-7 h-7 text-[#991b1b]" />
-          <span className="text-[10px] font-bold">عالی</span>
+          <span className="text-[10px] font-bold whitespace-nowrap">عالی</span>
         </button>
       </div>
     </div>

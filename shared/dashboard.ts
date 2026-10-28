@@ -12,21 +12,21 @@ export const DASHBOARD_ZONE_LABELS: Record<DashboardZone, string> = {
 
 /**
  * The built-in order, which is also the order on a phone: the organisation's apps first, then what the
- * person has to do. On a computer the apps run across the top and «کارهای من» and «یادداشت کارهای من»
+ * person has to do. On a computer the apps run across the top and «منتظر اقدام شما» and «یادداشت‌های من»
  * open the side column (the left one, as the page reads right to left).
  */
 export const DASHBOARD_LAYOUT = [
   { id: 'systems', label: 'سامانه‌ها', zone: 'top' },
-  { id: 'myTasks', label: 'کارهای من', zone: 'side' },
-  { id: 'todos', label: 'یادداشت کارهای من', zone: 'side' },
+  { id: 'myTasks', label: 'منتظر اقدام شما', zone: 'side' },
+  { id: 'todos', label: 'یادداشت‌های من', zone: 'side' },
   { id: 'anniversary', label: 'تبریک تولد و سالگرد همکاری', zone: 'top' },
   { id: 'news', label: 'آخرین اخبار و اطلاعیه‌ها', zone: 'main' },
   { id: 'online', label: 'همکاران آنلاین', zone: 'side' },
-  { id: 'calendar', label: 'تقویم', zone: 'side' },
+  { id: 'calendar', label: 'تقویم', zone: 'main' },
   { id: 'birthdays', label: 'تولد همکاران', zone: 'side' },
   { id: 'welcome', label: 'خوش‌آمد همکاران جدید', zone: 'main' },
   { id: 'poll', label: 'نظرسنجی ویژه', zone: 'main' },
-  { id: 'training', label: 'دورهٔ آموزشی پیش‌رو', zone: 'side' },
+  { id: 'training', label: 'دورهٔ آموزشی پیش‌رو', zone: 'main' },
   { id: 'mood', label: 'حال‌وهوای روزانه', zone: 'side' },
 ] as const satisfies readonly { id: string; label: string; zone: DashboardZone }[];
 

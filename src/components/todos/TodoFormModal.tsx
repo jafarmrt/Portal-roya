@@ -26,7 +26,7 @@ interface TodoFormModalProps {
   onClose: () => void;
 }
 
-/** Writes or edits a note in «یادداشت کارهای من». */
+/** Writes or edits a note in «یادداشت‌های من». */
 export const TodoFormModal: React.FC<TodoFormModalProps> = ({ todo, initial, onClose }) => {
   const { addTodo, updateTodo, deleteTodo } = usePortal();
   const formId = useId();
@@ -68,7 +68,7 @@ export const TodoFormModal: React.FC<TodoFormModalProps> = ({ todo, initial, onC
 
   return (
     <Modal
-      title={todo ? 'ویرایش کار' : 'افزودن به یادداشت کارهای من'}
+      title={todo ? 'ویرایش یادداشت' : 'افزودن به یادداشت‌های من'}
       subtitle="فقط خودتان این یادداشت را می‌بینید."
       icon={<ListPlus className="w-5 h-5" />}
       onClose={onClose}

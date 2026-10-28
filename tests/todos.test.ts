@@ -19,7 +19,7 @@ const at = (hours: number, minutes = 0) => {
 const todoNotifications = (userId: string) =>
   db.select().from(notifications).where(and(eq(notifications.userId, userId), eq(notifications.type, 'todo')));
 
-describe('«یادداشت کارهای من»: private to-do notes with a morning reminder', () => {
+describe('«یادداشت‌های من»: private to-do notes with a morning reminder', () => {
   let admin: Agent;
   let owner: Person;
   let other: Person;
@@ -185,7 +185,7 @@ describe('«یادداشت کارهای من»: private to-do notes with a morni
     expect(await processTodoReminders(morning)).toBe(1);
     const [note, ...more] = await todoNotifications(owner.id);
     expect(more).toHaveLength(0);
-    expect(note.title).toBe('۲ کار امروز سررسید دارد');
+    expect(note.title).toBe('۲ یادداشت امروز سررسید دارد');
     expect(note.message).toContain('گزارش ماهانه');
     expect(note.message).toContain('تمدید قرارداد');
     expect(note.message).not.toContain('انجام شده');
@@ -235,7 +235,7 @@ describe('«یادداشت کارهای من»: private to-do notes with a morni
 
     expect(await processTodoReminders(morning)).toBe(1);
     const [note] = await todoNotifications(owner.id);
-    expect(note.title).toBe('یادآوری کار فردا: قرارداد');
+    expect(note.title).toBe('یادآوری یادداشت فردا: قرارداد');
     expect(await processTodoReminders(at(10))).toBe(0);
 
     // The next morning both notes due that day are reminded about, once.
@@ -243,7 +243,7 @@ describe('«یادداشت کارهای من»: private to-do notes with a morni
     expect(await processTodoReminders(nextMorning)).toBe(1);
     const all = await todoNotifications(owner.id);
     expect(all).toHaveLength(2);
-    expect(all.map((n) => n.title)).toContain('۲ کار امروز سررسید دارد');
+    expect(all.map((n) => n.title)).toContain('۲ یادداشت امروز سررسید دارد');
   });
 
   it('marks a reminder whose morning has passed as sent when the date is set', async () => {

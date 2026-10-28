@@ -31,7 +31,7 @@ import { byImportanceAndDue, GROUP_STYLE, shortDue } from './todoText';
 type Filter = 'open' | 'urgent' | 'week' | 'important' | 'repeat' | 'done';
 
 const FILTERS: { id: Filter; label: string }[] = [
-  { id: 'open', label: 'همهٔ کارهای باز' },
+  { id: 'open', label: 'همهٔ یادداشت‌های باز' },
   { id: 'urgent', label: 'امروز و عقب‌افتاده' },
   { id: 'week', label: 'این هفته' },
   { id: 'important', label: 'مهم' },
@@ -96,12 +96,13 @@ export const TodosPage: React.FC = () => {
             یادداشت‌های من
             {featureInPreview(appSettings, 'todos') && <span className="px-2 py-0.5 text-[10px] font-bold bg-violet-100 text-violet-800 rounded-full">پیش‌نمایش</span>}
           </h2>
-          <p className="text-sm text-[#6E6A60] flex items-center gap-1">
-            <Lock className="w-3.5 h-3.5" /> فقط خودتان می‌بینید · {toPersianDigits(open.length)} کار باز
+          <p className="text-sm text-[#6E6A60] flex flex-wrap items-center gap-x-1">
+            <span className="flex items-center gap-1 whitespace-nowrap"><Lock className="w-3.5 h-3.5" /> فقط خودتان می‌بینید</span>
+            <span className="whitespace-nowrap">· {toPersianDigits(open.length)} یادداشت باز</span>
           </p>
         </div>
         <button type="button" onClick={() => setWriting(true)} className={primaryButtonClass}>
-          <Plus className="w-4 h-4" /> کار تازه
+          <Plus className="w-4 h-4" /> یادداشت تازه
         </button>
       </div>
 
@@ -141,10 +142,10 @@ export const TodosPage: React.FC = () => {
           {query.trim()
             ? 'یادداشتی با این جستجو پیدا نشد.'
             : filter === 'done'
-              ? 'هنوز کاری را تیک نزده‌اید.'
+              ? 'هنوز یادداشتی را تیک نزده‌اید.'
               : filter === 'open'
-                ? 'کار بازی ندارید. با «کار تازه» شروع کنید، یا از هر خبر، رویداد، دوره و سند «افزودن به یادداشت کارهای من» را بزنید.'
-                : 'در این دسته کاری نیست.'}
+                ? 'یادداشت بازی ندارید. با «یادداشت تازه» شروع کنید، یا از هر خبر، رویداد، دوره و سند «افزودن به یادداشت‌های من» را بزنید.'
+                : 'در این دسته یادداشتی نیست.'}
         </p>
       ) : filter === 'done' ? (
         <section aria-label="سوابق انجام‌شده‌ها" className="space-y-3">
@@ -157,14 +158,17 @@ export const TodosPage: React.FC = () => {
           <CardGrid items={listed} today={today} onEdit={setEditing} />
         </section>
       ) : (
-        groups.map((g) => (
-          <section key={g.id} aria-labelledby={`todo-group-${g.id}`} className="space-y-2">
-            <h3 id={`todo-group-${g.id}`} className={`text-sm font-black ${GROUP_STYLE[g.id]}`}>
-              {g.label} <span className="font-bold">({toPersianDigits(g.items.length)})</span>
-            </h3>
-            <CardGrid items={g.items} today={today} onEdit={setEditing} />
-          </section>
-        ))
+        // On a computer several groups stand side by side as columns, so the page is not mostly empty.
+        <div className={groups.length > 1 ? 'space-y-5 lg:space-y-0 lg:grid lg:grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] lg:gap-4 lg:items-start' : ''}>
+          {groups.map((g) => (
+            <section key={g.id} aria-labelledby={`todo-group-${g.id}`} className="space-y-2">
+              <h3 id={`todo-group-${g.id}`} className={`text-sm font-black ${GROUP_STYLE[g.id]}`}>
+                {g.label} <span className="font-bold">({toPersianDigits(g.items.length)})</span>
+              </h3>
+              <CardGrid items={g.items} today={today} onEdit={setEditing} column={groups.length > 1} />
+            </section>
+          ))}
+        </div>
       )}
 
       {editing && <TodoFormModal todo={editing} onClose={() => setEditing(null)} />}
@@ -173,8 +177,9 @@ export const TodosPage: React.FC = () => {
   );
 };
 
-const CardGrid: React.FC<{ items: PersonalTodo[]; today: string; onEdit: (todo: PersonalTodo) => void }> = ({ items, today, onEdit }) => (
-  <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-start">
+/** The cards of one group; `column` keeps them in one column on a computer, where groups sit side by side. */
+const CardGrid: React.FC<{ items: PersonalTodo[]; today: string; onEdit: (todo: PersonalTodo) => void; column?: boolean }> = ({ items, today, onEdit, column = false }) => (
+  <ul className={`grid grid-cols-1 sm:grid-cols-2 ${column ? 'lg:grid-cols-1' : 'lg:grid-cols-3 xl:grid-cols-4'} gap-3 items-start`}>
     {items.map((t) => (
       <TodoCard key={t.id} todo={t} today={today} onEdit={() => onEdit(t)} />
     ))}
@@ -206,7 +211,7 @@ const TodoCard: React.FC<{ todo: PersonalTodo; today: string; onEdit: () => void
           type="button"
           role="checkbox"
           aria-checked={isDone}
-          aria-label={isDone ? `برگرداندن «${todo.title}» به کارهای باز` : `انجام شد: ${todo.title}`}
+          aria-label={isDone ? `برگرداندن «${todo.title}» به یادداشت‌های باز` : `انجام شد: ${todo.title}`}
           onClick={() => (isDone ? void updateTodo(todo.id, { done: false }) : void tick(todo))}
           className="p-0.5 rounded-lg hover:bg-white shrink-0"
         >
@@ -286,7 +291,7 @@ const TodoCard: React.FC<{ todo: PersonalTodo; today: string; onEdit: () => void
           </button>
         )}
         {isDone && (
-          <button type="button" onClick={() => void updateTodo(todo.id, { done: false })} aria-label={`برگرداندن ${todo.title}`} title="برگرداندن به کارهای باز" className={iconButton}>
+          <button type="button" onClick={() => void updateTodo(todo.id, { done: false })} aria-label={`برگرداندن ${todo.title}`} title="برگرداندن به یادداشت‌های باز" className={iconButton}>
             <RotateCcw className="w-4 h-4" />
           </button>
         )}

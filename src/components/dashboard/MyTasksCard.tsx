@@ -197,9 +197,9 @@ export const MyTasksCard: React.FC = () => {
 
   if (tasks.length === 0) {
     return (
-      <section className="bg-white border border-[#E6E0D5] rounded-2xl px-4 py-3 flex items-center gap-2 text-xs text-[#4B4740] leading-relaxed" aria-label="کارهای من">
+      <section className="bg-white border border-[#E6E0D5] rounded-2xl px-4 py-3 flex items-center gap-2 text-xs text-[#4B4740] leading-relaxed" aria-label="منتظر اقدام شما">
         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-        <span><strong>کارهای من:</strong> بخشنامه، سند یا نظرسنجی منتظر و برنامه‌ای برای این هفته ندارید.</span>
+        <span><strong>منتظر اقدام شما:</strong> فعلاً چیزی نیست؛ بخشنامه، سند یا نظرسنجی بی‌پاسخ و برنامه‌ای برای این هفته ندارید.</span>
       </section>
     );
   }
@@ -209,7 +209,7 @@ export const MyTasksCard: React.FC = () => {
     <section className="bg-white border border-amber-300 rounded-3xl p-4 space-y-2.5" aria-labelledby="my-tasks-title">
       <div className="flex items-center gap-2">
         <span className="p-1.5 bg-amber-100 text-amber-800 rounded-xl"><ListTodo className="w-4 h-4" /></span>
-        <h2 id="my-tasks-title" className="text-sm font-black text-[#2D2D2D]">کارهای من</h2>
+        <h2 id="my-tasks-title" className="text-sm font-black text-[#2D2D2D]">منتظر اقدام شما</h2>
         <span className="px-2 py-0.5 text-[11px] font-bold bg-amber-100 text-amber-900 rounded-full">{toPersianDigits(tasks.length)} مورد</span>
       </div>
       <ul className="space-y-1">

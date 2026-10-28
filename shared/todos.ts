@@ -1,6 +1,6 @@
 import moment from 'moment-jalaali';
 
-// «یادداشت کارهای من»: each person's private to-do notes on the dashboard. They are never assigned
+// «یادداشت‌های من»: each person's private to-do notes on the dashboard. They are never assigned
 // to anyone else; a note may be added from a news item, event, course or document and links back to it.
 
 export const TODO_SOURCES = [

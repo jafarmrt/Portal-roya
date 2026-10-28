@@ -684,7 +684,7 @@ newsRouter.delete(
   }),
 );
 
-/** Unanswered questions this person should answer, for «کارهای من». */
+/** Unanswered questions this person should answer, for «منتظر اقدام شما». */
 newsRouter.get(
   '/news-questions/pending',
   route(async (req, res) => {
