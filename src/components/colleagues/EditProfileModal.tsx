@@ -9,6 +9,20 @@ import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass
 import { AccountAccessModal, TemporaryPasswordNotice } from './AccountAccessModal';
 import { RoleSelect } from './RoleSelect';
 import { LocationSelect } from './LocationSelect';
+import { OnlineChoices } from '../online/OnlineChoices';
+import { usePresence } from '../online/usePresence';
+
+/** «همکاران آنلاین» choices; saved as soon as they are ticked, apart from the rest of the form. */
+const OnlineProfileChoices: React.FC = () => {
+  const { data, setChoice } = usePresence(true);
+  if (!data) return null;
+  return (
+    <fieldset className="p-3 rounded-2xl border border-[#E6E0D5] space-y-1">
+      <legend className="text-xs font-black px-1">همکاران آنلاین</legend>
+      <OnlineChoices me={data.me} onChange={(choice) => void setChoice(choice)} />
+    </fieldset>
+  );
+};
 
 interface EditProfileModalProps {
   user: UserProfile;
@@ -16,7 +30,7 @@ interface EditProfileModalProps {
 }
 
 export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClose }) => {
-  const { updateUserProfile, resetEmployeePassword, directoryLogin, can, isAdmin: viewerIsAdmin, appSettings, employees, currentUser } = usePortal();
+  const { updateUserProfile, resetEmployeePassword, directoryLogin, can, isAdmin: viewerIsAdmin, appSettings, employees, currentUser, featureOn } = usePortal();
   // Admin accounts can only be changed by an admin; the server enforces the same rule.
   const isAdmin = can('users.manage') && (viewerIsAdmin || user.role !== 'admin');
   const isSelf = currentUser?.id === user.id;
@@ -153,6 +167,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
           <label htmlFor="edit-bio" className={labelClass}>معرفی کوتاه</label>
           <textarea id="edit-bio" rows={3} value={form.bio} onChange={(e) => set('bio', e.target.value)} className={inputClass} />
         </div>
+
+        {isSelf && featureOn('onlineColleagues') && <OnlineProfileChoices />}
 
         {isAdmin && (
           <fieldset className="p-4 bg-[#F5F2ED] rounded-2xl space-y-4">

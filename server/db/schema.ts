@@ -12,6 +12,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { AuditAction, AuditEntity } from '../../shared/audit.js';
 import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
+import type { KudosEmoji } from '../../shared/kudos.js';
 import type { MonthlySummary } from '../../shared/reports.js';
 import type { TodoRemind, TodoRepeat, TodoStep } from '../../shared/todos.js';
 
@@ -123,6 +124,10 @@ export const employees = pgTable('employees', {
   occasionEffects: boolean('occasion_effects').notNull().default(true),
   /** The colleague's own order of the dashboard cards ([] = the default order). */
   dashboardOrder: text('dashboard_order').array().notNull().default([]),
+  /** The colleague appears in «همکاران آنلاین»; turning it off also hides the list from them. */
+  showOnline: boolean('show_online').notNull().default(true),
+  /** Colleagues may send them a ready-made emoji. */
+  acceptKudos: boolean('accept_kudos').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -660,6 +665,8 @@ export const settings = pgTable('settings', {
   pilotUserIds: text('pilot_user_ids').array().notNull().default([]),
   // The order of the dashboard cards for everyone who has not arranged their own ([] = the built-in order).
   dashboardDefaultOrder: text('dashboard_default_order').array().notNull().default([]),
+  // The emoji colleagues can send each other ([] = the built-in six, see shared/kudos.ts).
+  kudosEmojis: jsonb('kudos_emojis').$type<KudosEmoji[]>().notNull().default([]),
 });
 
 /** Who created, changed or deleted what in the portal's content, accounts and settings, for the admin. */
@@ -747,4 +754,21 @@ export const personalTodos = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('personal_todos_user_idx').on(t.userId)],
+);
+
+/** Ready-made emoji colleagues sent each other from «همکاران آنلاین». */
+export const kudos = pgTable(
+  'kudos',
+  {
+    id: serial('id').primaryKey(),
+    fromId: text('from_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    toId: text('to_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    // The emoji and its label at the time, so a later change of the list does not rewrite it.
+    emoji: text('emoji').notNull(),
+    label: text('label').notNull(),
+    // The emoji this one answers; an answer cannot itself be answered.
+    replyToId: integer('reply_to_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('kudos_from_idx').on(t.fromId, t.createdAt), uniqueIndex('kudos_reply_idx').on(t.replyToId)],
 );

@@ -8,6 +8,7 @@ import { describeDirectoryUser } from './ldap.js';
 import { isMailEnabled } from './mailer.js';
 import { ensureRoles } from './roles.js';
 import { startScheduler } from './scheduler.js';
+import { startPresenceSweep } from './presence.js';
 
 // A promise that fails outside a request (a timer, a background job) is logged instead of stopping
 // the portal for everyone; request errors already reach the error handler.
@@ -53,6 +54,7 @@ async function main() {
   }
 
   startScheduler();
+  startPresenceSweep();
   app.listen(config.port, config.host, () => {
     console.log(`Portal running on http://${config.host}:${config.port}`);
     console.log(`E-mail notifications: ${isMailEnabled() ? 'enabled' : 'disabled (SMTP_HOST not set)'}`);

@@ -19,7 +19,8 @@ export type ResourceName =
   | 'roles'
   | 'notifications'
   | 'moods'
-  | 'todos';
+  | 'todos'
+  | 'presence';
 
 interface Client {
   userId: string;
@@ -28,6 +29,17 @@ interface Client {
 
 const clients = new Set<Client>();
 const HEARTBEAT_MS = 25_000;
+
+let onConnectionsChanged: (userId: string, opened: boolean) => void = () => undefined;
+/** Called when someone opens or closes a page of the portal («همکاران آنلاین» listens). */
+export function watchConnections(listener: (userId: string, opened: boolean) => void) {
+  onConnectionsChanged = listener;
+}
+
+/** The people who have at least one page of the portal open. */
+export function connectedUserIds() {
+  return new Set([...clients].map((c) => c.userId));
+}
 
 function send(res: Response, event: string, data: unknown) {
   try {
@@ -47,11 +59,13 @@ export function addClient(userId: string, res: Response) {
 
   const client: Client = { userId, res };
   clients.add(client);
+  onConnectionsChanged(userId, true);
   const heartbeat = setInterval(() => res.write(': ping\n\n'), HEARTBEAT_MS);
 
   res.on('close', () => {
     clearInterval(heartbeat);
     clients.delete(client);
+    onConnectionsChanged(userId, false);
   });
 }
 
@@ -70,5 +84,12 @@ export function notifyUsers(userIds: string[]) {
   const targets = new Set(userIds);
   for (const client of clients) {
     if (targets.has(client.userId)) send(client.res, 'notification', {});
+  }
+}
+
+/** Something for this person's open pages only, with its details (e.g. an emoji a colleague sent). */
+export function sendToUser(userId: string, event: string, data: unknown) {
+  for (const client of clients) {
+    if (client.userId === userId) send(client.res, event, data);
   }
 }

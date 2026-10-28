@@ -20,6 +20,7 @@ import type {
   DepartmentPage,
   Guide,
   GuideInput,
+  IncomingKudos,
   MoodState,
   NewColleagueWelcome,
   NewsInput,
@@ -45,6 +46,11 @@ import type {
 import { todayJalali, toPersianDigits } from '../lib/jalali';
 
 const NEWS_PAGE_SIZE = 30;
+
+/** Fired on window when the list of online colleagues may have changed. */
+export const PRESENCE_EVENT = 'portal:presence';
+/** Fired on window with an IncomingKudos when a colleague sends this person an emoji. */
+export const KUDOS_EVENT = 'portal:kudos';
 
 /** How a colleague with portal access signs in: a portal password, or their Active Directory password. */
 export type SignInMethod = 'local' | 'ldap';
@@ -508,12 +514,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     source.addEventListener('open', () => {
       if (connectedBefore) refreshAll();
       connectedBefore = true;
+      // «همکاران آنلاین» keeps its own list (see src/components/online).
+      window.dispatchEvent(new Event(PRESENCE_EVENT));
     });
     window.addEventListener('online', refreshAll);
     source.addEventListener('changed', (e) => {
       try {
         const { resource } = JSON.parse((e as MessageEvent).data) as { resource: string };
         if (resource === 'roles' || resource === 'employees') void refresh('me');
+        if (resource === 'presence') window.dispatchEvent(new Event(PRESENCE_EVENT));
         if (resource in loaders) void refresh(resource as Resource);
       } catch {
         // Ignore malformed events.
@@ -521,6 +530,13 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
     source.addEventListener('notification', () => {
       void refresh('notifications');
+    });
+    source.addEventListener('kudos', (e) => {
+      try {
+        window.dispatchEvent(new CustomEvent<IncomingKudos>(KUDOS_EVENT, { detail: JSON.parse((e as MessageEvent).data) }));
+      } catch {
+        // Ignore malformed events.
+      }
     });
     return () => {
       source.close();

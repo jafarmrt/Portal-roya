@@ -13,7 +13,8 @@ import {
   GraduationCap,
   User,
   FileText,
-  ServerCog
+  ServerCog,
+  Heart
 } from 'lucide-react';
 
 export const NotificationsInbox: React.FC = () => {
@@ -51,6 +52,8 @@ export const NotificationsInbox: React.FC = () => {
         return <FileText className="w-5 h-5 text-stone-600" />;
       case 'suggestion':
         return <MessageSquareText className="w-5 h-5 text-indigo-700" />;
+      case 'kudos':
+        return <Heart className="w-5 h-5 text-rose-600" />;
       case 'system':
         return <ServerCog className="w-5 h-5 text-amber-700" />;
       default:
