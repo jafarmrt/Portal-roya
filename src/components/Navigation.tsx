@@ -25,7 +25,8 @@ import {
   Building2,
   LifeBuoy,
   Library,
-  MessageSquareText
+  MessageSquareText,
+  NotebookPen,
 } from 'lucide-react';
 import { unreadTotal, useSuggestionSummary } from '../lib/suggestionSummary';
 import { tabLabelBadge, tabOn } from '../lib/features';
@@ -173,6 +174,10 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
   const guides: NavItem = { id: 'guides', label: 'راهنماها و پرسش‌های رایج', icon: <LifeBuoy className="w-4 h-4" /> };
   const training: NavItem = { id: 'training', label: 'آموزش', icon: <GraduationCap className="w-4 h-4" /> };
   const calendar: NavItem = { id: 'calendar', label: 'تقویم', icon: <Calendar className="w-4 h-4" /> };
+  // The person's own notes; guests have none.
+  const todosItem: NavItem[] = isGuest
+    ? []
+    : [{ id: 'todos', label: 'یادداشت‌های من', icon: <NotebookPen className="w-4 h-4" />, compact: true }];
   // Guests can't send, so the boxes are only in the menu of signed-in colleagues.
   const suggestions: NavItem[] = isGuest
     ? []
@@ -226,13 +231,14 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
     ...groupOrItem('colleagues', 'همکاران', <Contact className="w-4 h-4" />, shown(colleagueItems)),
     ...shown([training]).map((item): NavEntry => ({ kind: 'item', item })),
     { kind: 'item', item: calendar },
+    ...shown(todosItem).map((item): NavEntry => ({ kind: 'item', item })),
     ...shown(suggestions).map((item): NavEntry => ({ kind: 'item', item })),
     ...groupOrItem('admin', 'مدیریت', <ShieldCheck className="w-4 h-4" />, adminItems),
   ];
 
   // The phone drawer has room for everything, with management pages under their own heading.
   const mobileSections: { title?: string; items: NavItem[] }[] = [
-    { items: shown([dashboard, systems, newsItem, pollsItem, documents, guides, ...colleagueItems, training, calendar, ...suggestions]) },
+    { items: shown([dashboard, systems, newsItem, pollsItem, documents, guides, ...colleagueItems, training, calendar, ...todosItem, ...suggestions]) },
     ...(adminItems.length > 0 ? [{ title: 'مدیریت', items: adminItems }] : []),
   ];
 

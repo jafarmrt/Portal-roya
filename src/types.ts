@@ -641,7 +641,8 @@ export type ActiveTab =
   | 'people'
   | 'admin'
   | 'audit'
-  | 'suggestions';
+  | 'suggestions'
+  | 'todos';
 
 export interface SearchResultItem {
   id: string;
