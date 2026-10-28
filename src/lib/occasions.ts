@@ -1,4 +1,4 @@
-import { HIJRI_MONTHS, hijriDate, occasionsFor, type Occasion } from '../../shared/occasions';
+import { HIJRI_MONTHS, hijriDate, occasionsFor, occasionTone, type Occasion } from '../../shared/occasions';
 import type { CustomHolidays } from '../types';
 import { toPersianDigits } from './jalali';
 
@@ -27,7 +27,7 @@ export function dayOccasions(custom: CustomHolidays | undefined, jy: number, jm:
   if (override) {
     if (!override.title) return null;
     return {
-      items: [{ title: override.title, holiday: override.isHoliday, kind: 'solar' }],
+      items: [{ title: override.title, holiday: override.isHoliday, kind: 'solar', tone: occasionTone(override.title) }],
       isHoliday: override.isHoliday,
       title: override.title,
       custom: true,

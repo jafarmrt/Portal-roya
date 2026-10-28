@@ -186,6 +186,8 @@ interface PortalContextType {
   featureOn: (key: FeatureKey) => boolean;
   /** «جدید» goes away once the person opens the part or closes its introduction. */
   markFeatureSeen: (key: FeatureKey) => void;
+  /** Switches the once-a-day effect of the occasions and seasons on or off for this person. */
+  setOccasionEffects: (on: boolean) => Promise<boolean>;
 
   // Actions
   updateSettings: (settings: Partial<AppSettings>) => Promise<boolean>;
@@ -558,6 +560,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     if (tabIsNew && unseenTabFeature) markFeatureSeen(unseenTabFeature);
   }, [tabIsNew, unseenTabFeature, markFeatureSeen]);
+
+  const setOccasionEffects = async (on: boolean) => {
+    const updated = await attempt(
+      () => api.put<AppSettings>('/api/settings/occasion-effects', { on }),
+      on ? 'افکت مناسبت‌ها برای شما روشن شد.' : 'افکت مناسبت‌ها برای شما خاموش شد.',
+    );
+    if (updated) setAppSettings(updated);
+    return Boolean(updated);
+  };
 
   const updateSettings = async (settings: Partial<AppSettings>) => {
     const updated = await attempt(() => api.put<AppSettings>('/api/settings', settings), 'تنظیمات ذخیره شد.');
@@ -1038,6 +1049,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         todos,
         featureOn,
         markFeatureSeen,
+        setOccasionEffects,
         updateSettings,
         setBanner,
         clearBanner,

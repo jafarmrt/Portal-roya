@@ -1,0 +1,1 @@
+ALTER TABLE "employees" ADD COLUMN "occasion_effects" boolean DEFAULT true NOT NULL;

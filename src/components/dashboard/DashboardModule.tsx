@@ -3,7 +3,7 @@ import { usePortal } from '../../context/PortalContext';
 import { BirthdayCard } from './BirthdayCard';
 import { MyCelebrationCard } from './MyCelebrationCard';
 import { FeatureIntroCard } from './FeatureIntroCard';
-import { FoundingDayBanner } from './FoundingDayBanner';
+import { DayThemeBanner } from './DayThemeBanner';
 import { QuickSystemsWidget } from './QuickSystemsWidget';
 import { MoodTrackerWidget } from './MoodTrackerWidget';
 import { WelcomeNewColleagueCard } from './WelcomeNewColleagueCard';
@@ -113,9 +113,9 @@ export const DashboardModule: React.FC = () => {
         </div>
       </div>
 
-      {/* Once a year, on the company's founding day */}
+      {/* Nowruz, the seasons, Yalda, the feasts and the founding day; quiet on days of mourning */}
       <div className="order-1 lg:order-none">
-        <FoundingDayBanner />
+        <DayThemeBanner />
       </div>
 
       {/* Parts of the portal introduced in the last two weeks */}

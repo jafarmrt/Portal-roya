@@ -4,7 +4,7 @@ import { daysSinceYearly, defaultFoundingMessage, yearsLabel, yearsSince } from 
 import { usePortal } from '../../context/PortalContext';
 
 /** On the company's founding day everyone, guests included, sees this greeting at the top of the dashboard. */
-export const FoundingDayBanner: React.FC = () => {
+export const FoundingDayBanner: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const { appSettings } = usePortal();
   const foundingDate = appSettings?.foundingDate ?? '';
   const years = yearsSince(foundingDate);
@@ -28,6 +28,7 @@ export const FoundingDayBanner: React.FC = () => {
           <p className="text-xs sm:text-sm text-[#4B4740] mt-1.5 leading-relaxed whitespace-pre-line max-w-2xl">
             {appSettings?.foundingMessage || defaultFoundingMessage(years)}
           </p>
+          {children}
         </div>
       </div>
     </section>

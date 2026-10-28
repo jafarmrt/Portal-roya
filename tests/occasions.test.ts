@@ -37,7 +37,7 @@ describe('built-in calendar occasions', () => {
   });
 
   it('includes solar, cultural and world days that are not holidays', () => {
-    expect(occasionsFor(1405, 2, 12)).toEqual([{ title: 'روز معلم', holiday: false, kind: 'solar' }]);
+    expect(occasionsFor(1405, 2, 12)).toEqual([{ title: 'روز معلم', holiday: false, kind: 'solar', tone: 'normal' }]);
     expect(titles(1405, 9, 30)).toContain('شب یلدا');
     expect(titles(1405, 10, 4)).toContain('میلاد حضرت عیسی مسیح (ع)');
     expect(titles(1405, 12, 25)).toContain('چهارشنبه‌سوری');
