@@ -13,6 +13,7 @@ import {
 import type { AuditAction, AuditEntity } from '../../shared/audit.js';
 import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
 import type { MonthlySummary } from '../../shared/reports.js';
+import type { TodoRemind, TodoRepeat, TodoStep } from '../../shared/todos.js';
 
 export type { AuditAction, AuditEntity };
 
@@ -657,6 +658,8 @@ export const settings = pgTable('settings', {
   // Who sees parts in preview besides the administrator: whole roles and named colleagues.
   pilotRoles: text('pilot_roles').array().notNull().default([]),
   pilotUserIds: text('pilot_user_ids').array().notNull().default([]),
+  // The order of the dashboard cards for everyone who has not arranged their own ([] = the built-in order).
+  dashboardDefaultOrder: text('dashboard_default_order').array().notNull().default([]),
 });
 
 /** Who created, changed or deleted what in the portal's content, accounts and settings, for the admin. */
@@ -730,6 +733,17 @@ export const personalTodos = pgTable(
     doneAt: timestamp('done_at', { withTimezone: true }),
     // The Jalali day the morning reminder went out, so it is sent once.
     remindedOn: text('reminded_on'),
+    // The same for the reminder the morning before, when the person asked for it.
+    remindedBeforeOn: text('reminded_before_on'),
+    // 'day' (the morning of the due date), 'both' (the morning before too) or 'none'.
+    remind: text('remind').$type<TodoRemind>().notNull().default('day'),
+    // Starred notes come first in their group.
+    important: boolean('important').notNull().default(false),
+    // Ticking off a repeating note writes the next one ('daily' | 'weekly' | 'monthly').
+    repeat: text('repeat').$type<TodoRepeat>(),
+    // The repeating note this one was written after; un-ticking that one takes this one back.
+    previousId: text('previous_id'),
+    steps: jsonb('steps').$type<TodoStep[]>().notNull().default([]),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('personal_todos_user_idx').on(t.userId)],

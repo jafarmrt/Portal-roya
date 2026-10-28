@@ -43,7 +43,7 @@ export const AddToTodosButton: React.FC<AddToTodosButtonProps> = ({ type, id, ti
       {open && (
         <TodoFormModal
           todo={existing}
-          initial={existing ? undefined : { title, dueDate: dueDate ?? null, source: { type, id } }}
+          initial={existing ? undefined : { title, dueDate: dueDate ?? undefined, source: { type, id } }}
           onClose={() => setOpen(false)}
         />
       )}

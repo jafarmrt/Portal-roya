@@ -1,15 +1,22 @@
-import { and, asc, eq, inArray, isNotNull, isNull, lt } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, lt, ne, or } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
-import { JALALI_DATE_RE, toJalali, toPersianDigits } from '../../shared/jalali.js';
+import { isValidJalaliDate, toJalali, toPersianDigits } from '../../shared/jalali.js';
 import { featureVisible } from '../../shared/features.js';
 import {
+  addJalaliDays,
+  nextDueDate,
   TODO_KEEP_DONE_DAYS,
   TODO_NOTE_MAX,
   TODO_OPEN_LIMIT,
   TODO_REMIND_HOUR,
+  TODO_REMINDERS,
+  TODO_REPEATS,
   TODO_SOURCES,
+  TODO_STEP_MAX,
+  TODO_STEPS_MAX,
   TODO_TITLE_MAX,
+  type TodoRemind,
 } from '../../shared/todos.js';
 import { db } from '../db/index.js';
 import { employees, personalTodos } from '../db/schema.js';
@@ -29,6 +36,10 @@ const serializeTodo = (t: TodoRow) => ({
   title: t.title,
   note: t.note,
   dueDate: t.dueDate,
+  important: t.important,
+  repeat: t.repeat,
+  remind: t.remind,
+  steps: t.steps,
   sourceType: t.sourceType,
   sourceId: t.sourceId,
   doneAt: t.doneAt?.toISOString() ?? null,
@@ -37,13 +48,29 @@ const serializeTodo = (t: TodoRow) => ({
 
 const title = z.string().trim().min(1, 'عنوان را بنویسید.').max(TODO_TITLE_MAX);
 const note = z.string().trim().max(TODO_NOTE_MAX);
-const dueDate = z.string().regex(JALALI_DATE_RE, 'تاریخ نامعتبر است.').nullable();
+// Every note has a due date; notes from before it became required keep theirs empty until given one.
+const dueDate = z.string({ error: 'تاریخ سررسید را انتخاب کنید.' }).refine(isValidJalaliDate, 'تاریخ سررسید را درست وارد کنید.');
 const sourceTypes = TODO_SOURCES.map((s) => s.type) as [string, ...string[]];
+const repeat = z.enum(TODO_REPEATS.map((r) => r.id) as [TodoRepeatId, ...TodoRepeatId[]]).nullable();
+const remind = z.enum(TODO_REMINDERS.map((r) => r.id) as [TodoRemind, ...TodoRemind[]]);
+const steps = z
+  .array(
+    z.object({
+      id: z.string().min(1).max(50).optional(),
+      text: z.string().trim().min(1, 'گام خالی را پاک کنید.').max(TODO_STEP_MAX),
+      done: z.boolean().default(false),
+    }),
+  )
+  .max(TODO_STEPS_MAX, `حداکثر ${TODO_STEPS_MAX} گام`);
 
 const createSchema = z.object({
   title,
   note: note.optional(),
-  dueDate: dueDate.optional(),
+  dueDate,
+  important: z.boolean().optional(),
+  repeat: repeat.optional(),
+  remind: remind.optional(),
+  steps: steps.optional(),
   source: z.object({ type: z.enum(sourceTypes), id: z.string().min(1).max(100) }).optional(),
 });
 
@@ -51,18 +78,30 @@ const updateSchema = z.object({
   title: title.optional(),
   note: note.optional(),
   dueDate: dueDate.optional(),
+  important: z.boolean().optional(),
+  repeat: repeat.optional(),
+  remind: remind.optional(),
+  steps: steps.optional(),
   done: z.boolean().optional(),
 });
 
+type TodoRepeatId = (typeof TODO_REPEATS)[number]['id'];
+
+const withIds = (list: z.infer<typeof steps>) => list.map((step) => ({ id: step.id ?? newId('step'), text: step.text, done: step.done }));
+
 /**
- * The morning reminder is for notes that are due today and were written before it went out. A note
- * set for today after that hour, or for a day already past, is not reminded about: the person just
- * wrote it.
+ * A reminder is for notes written before it went out. Setting a date whose reminder morning has
+ * already come (today after 08:00, or a day already past) marks that reminder as sent: the person
+ * just wrote it. Returns the reminded-on days for the morning of the due date and the morning before.
  */
-function remindedOnFor(due: string | null, now = new Date()) {
-  if (!due) return null;
+function remindersFor(due: string | null, now = new Date()) {
+  if (!due) return { remindedOn: null, remindedBeforeOn: null };
   const today = toJalali(now);
-  return due < today || (due === today && now.getHours() >= TODO_REMIND_HOUR) ? today : null;
+  const passed = (morning: string) => morning < today || (morning === today && now.getHours() >= TODO_REMIND_HOUR);
+  return {
+    remindedOn: passed(due) ? today : null,
+    remindedBeforeOn: passed(addJalaliDays(due, -1)) ? today : null,
+  };
 }
 
 async function ownTodo(userId: string, id: string) {
@@ -99,7 +138,6 @@ todosRouter.post(
     if (input.source && open.some((t) => t.sourceType === input.source!.type && t.sourceId === input.source!.id)) {
       throw new HttpError(409, 'این مورد از قبل در یادداشت کارهای شماست.');
     }
-    const due = input.dueDate ?? null;
     const [row] = await db
       .insert(personalTodos)
       .values({
@@ -107,10 +145,14 @@ todosRouter.post(
         userId: viewer.id,
         title: input.title,
         note: input.note ?? '',
-        dueDate: due,
+        dueDate: input.dueDate,
+        important: input.important ?? false,
+        repeat: input.repeat ?? null,
+        remind: input.remind ?? 'day',
+        steps: withIds(input.steps ?? []),
         sourceType: input.source?.type ?? null,
         sourceId: input.source?.id ?? null,
-        remindedOn: remindedOnFor(due),
+        ...remindersFor(input.dueDate),
       })
       .returning();
     signalUser(viewer.id, 'todos');
@@ -127,14 +169,51 @@ todosRouter.patch(
     const changes: Partial<TodoRow> = {};
     if (input.title !== undefined) changes.title = input.title;
     if (input.note !== undefined) changes.note = input.note;
+    if (input.important !== undefined) changes.important = input.important;
+    if (input.remind !== undefined) changes.remind = input.remind;
+    if (input.repeat !== undefined) changes.repeat = input.repeat;
+    if (input.steps !== undefined) changes.steps = withIds(input.steps);
     if (input.dueDate !== undefined && input.dueDate !== existing.dueDate) {
       changes.dueDate = input.dueDate;
-      changes.remindedOn = remindedOnFor(input.dueDate);
+      Object.assign(changes, remindersFor(input.dueDate));
     }
-    if (input.done !== undefined) changes.doneAt = input.done ? (existing.doneAt ?? new Date()) : null;
-    const [row] = Object.keys(changes).length
-      ? await db.update(personalTodos).set(changes).where(eq(personalTodos.id, existing.id)).returning()
-      : [existing];
+    if ((changes.repeat ?? existing.repeat) && !(changes.dueDate ?? existing.dueDate)) {
+      throw new HttpError(400, 'کار تکراری تاریخ سررسید می‌خواهد.');
+    }
+    const ticked = input.done === true && !existing.doneAt;
+    const unticked = input.done === false && Boolean(existing.doneAt);
+    if (ticked) changes.doneAt = new Date();
+    if (unticked) changes.doneAt = null;
+    const row = await db.transaction(async (tx) => {
+      const [updated] = Object.keys(changes).length
+        ? await tx.update(personalTodos).set(changes).where(eq(personalTodos.id, existing.id)).returning()
+        : [existing];
+      // A repeating note writes its next one when ticked off, and takes it back when un-ticked.
+      if (ticked && updated.repeat && updated.dueDate) {
+        const due = nextDueDate(updated.dueDate, updated.repeat, toJalali(new Date()));
+        await tx.insert(personalTodos).values({
+          id: newId('todo'),
+          userId: viewer.id,
+          title: updated.title,
+          note: updated.note,
+          dueDate: due,
+          important: updated.important,
+          repeat: updated.repeat,
+          remind: updated.remind,
+          steps: updated.steps.map((step) => ({ ...step, id: newId('step'), done: false })),
+          sourceType: updated.sourceType,
+          sourceId: updated.sourceId,
+          previousId: updated.id,
+          ...remindersFor(due),
+        });
+      }
+      if (unticked) {
+        await tx
+          .delete(personalTodos)
+          .where(and(eq(personalTodos.userId, viewer.id), eq(personalTodos.previousId, existing.id), isNull(personalTodos.doneAt)));
+      }
+      return updated;
+    });
     signalUser(viewer.id, 'todos');
     res.json(serializeTodo(row));
   }),
@@ -165,20 +244,24 @@ todosRouter.delete(
 const shorten = (text: string, max = 60) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 
 /**
- * From 08:00, one notification per person listing their notes due today. Each note is reminded about
- * once; nobody is reminded while the part is hidden from them. Returns how many people were reminded.
+ * From 08:00, one notification per person listing their notes due today and, for notes that asked
+ * for it, those due tomorrow. Each reminder goes out once; nobody is reminded while the part is hidden
+ * from them. Returns how many people were reminded.
  */
 export async function processTodoReminders(now = new Date()) {
   if (now.getHours() < TODO_REMIND_HOUR) return 0;
   const today = toJalali(now);
+  const tomorrow = addJalaliDays(today, 1);
   const due = await db
-    .select({ id: personalTodos.id, userId: personalTodos.userId, title: personalTodos.title, role: employees.role })
+    .select({ id: personalTodos.id, userId: personalTodos.userId, dueDate: personalTodos.dueDate, role: employees.role })
     .from(personalTodos)
     .innerJoin(employees, eq(employees.id, personalTodos.userId))
     .where(
       and(
-        eq(personalTodos.dueDate, today),
-        isNull(personalTodos.remindedOn),
+        or(
+          and(eq(personalTodos.dueDate, today), isNull(personalTodos.remindedOn), ne(personalTodos.remind, 'none')),
+          and(eq(personalTodos.dueDate, tomorrow), isNull(personalTodos.remindedBeforeOn), eq(personalTodos.remind, 'both')),
+        ),
         isNull(personalTodos.doneAt),
         eq(employees.isActive, true),
         eq(employees.hasAccount, true),
@@ -189,25 +272,46 @@ export async function processTodoReminders(now = new Date()) {
   const visible = due.filter((t) => featureVisible(config, 'todos', { id: t.userId, role: t.role }));
   if (visible.length === 0) return 0;
   // Claimed first, so a second server tick or a restart does not remind twice.
-  const claimed = await db
-    .update(personalTodos)
-    .set({ remindedOn: today })
-    .where(and(inArray(personalTodos.id, visible.map((t) => t.id)), isNull(personalTodos.remindedOn)))
-    .returning({ id: personalTodos.id, userId: personalTodos.userId, title: personalTodos.title, createdAt: personalTodos.createdAt });
-  const byUser = new Map<string, typeof claimed>();
-  for (const t of claimed.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())) {
-    byUser.set(t.userId, [...(byUser.get(t.userId) ?? []), t]);
+  const returning = { id: personalTodos.id, userId: personalTodos.userId, title: personalTodos.title, createdAt: personalTodos.createdAt };
+  const idsDue = (day: string) => visible.filter((t) => t.dueDate === day).map((t) => t.id);
+  const claimedToday = idsDue(today).length
+    ? await db
+        .update(personalTodos)
+        .set({ remindedOn: today })
+        .where(and(inArray(personalTodos.id, idsDue(today)), isNull(personalTodos.remindedOn)))
+        .returning(returning)
+    : [];
+  const claimedTomorrow = idsDue(tomorrow).length
+    ? await db
+        .update(personalTodos)
+        .set({ remindedBeforeOn: today })
+        .where(and(inArray(personalTodos.id, idsDue(tomorrow)), isNull(personalTodos.remindedBeforeOn)))
+        .returning(returning)
+    : [];
+  type Claimed = (typeof claimedToday)[number];
+  const byUser = new Map<string, { today: Claimed[]; tomorrow: Claimed[] }>();
+  const oldestFirst = (a: Claimed, b: Claimed) => a.createdAt.getTime() - b.createdAt.getTime();
+  for (const [when, list] of [['today', claimedToday], ['tomorrow', claimedTomorrow]] as const) {
+    for (const t of [...list].sort(oldestFirst)) {
+      const entry = byUser.get(t.userId) ?? { today: [], tomorrow: [] };
+      entry[when].push(t);
+      byUser.set(t.userId, entry);
+    }
   }
-  for (const [userId, todos] of byUser) {
-    await createNotifications([userId], {
-      title: todos.length === 1 ? `یادآوری کار امروز: ${shorten(todos[0].title)}` : `${toPersianDigits(todos.length)} کار امروز سررسید دارد`,
-      message:
-        todos.length === 1
-          ? 'سررسید این کار از یادداشت کارهای شما امروز است.'
-          : `سررسید این کارها از یادداشت کارهای شما امروز است: ${todos.map((t) => shorten(t.title, 40)).join('، ')}`,
-      type: 'todo',
-      linkTab: 'dashboard',
-    });
+  const titles = (list: Claimed[]) => list.map((t) => shorten(t.title, 40)).join('، ');
+  for (const [userId, { today: now, tomorrow: next }] of byUser) {
+    const count = now.length + next.length;
+    const title =
+      count === 1
+        ? `یادآوری کار ${now.length ? 'امروز' : 'فردا'}: ${shorten((now[0] ?? next[0]).title)}`
+        : now.length && next.length
+          ? `${toPersianDigits(count)} کار امروز و فردا سررسید دارد`
+          : `${toPersianDigits(count)} کار ${now.length ? 'امروز' : 'فردا'} سررسید دارد`;
+    const message =
+      count === 1
+        ? `سررسید این کار از یادداشت کارهای شما ${now.length ? 'امروز' : 'فردا'} است.`
+        : [now.length ? `امروز: ${titles(now)}` : '', next.length ? `فردا: ${titles(next)}` : ''].filter(Boolean).join(' · ');
+    await createNotifications([userId], { title, message, type: 'todo', linkTab: 'dashboard' });
   }
   return byUser.size;
 }

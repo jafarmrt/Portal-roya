@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Megaphone, Search, ToggleRight, Users, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { FEATURE_STATES, type FeatureKey, type FeatureState } from '../../../shared/features';
+import { FEATURE_STATES, introCardsAllowed, type FeatureKey, type FeatureState } from '../../../shared/features';
 import { ADMIN_ROLE_ID } from '../../../shared/permissions';
 import { usePortal } from '../../context/PortalContext';
 import { api, errorMessage } from '../../lib/api';
@@ -40,12 +40,21 @@ const LaunchModal: React.FC<{ feature: FeatureRow; onClose: () => void; onLaunch
 }) => {
   const { can } = usePortal();
   const [badge, setBadge] = useState(true);
-  const [card, setCard] = useState(true);
+  // No introduction cards before the portal's full launch on 10 Aban 1405.
+  const cardsAllowed = introCardsAllowed();
+  const [card, setCard] = useState(cardsAllowed);
   const [draft, setDraft] = useState(can('news.manage'));
   const [busy, setBusy] = useState(false);
-  const options: { id: string; checked: boolean; set: (v: boolean) => void; label: string; hint: string; hidden?: boolean }[] = [
+  const options: { id: string; checked: boolean; set: (v: boolean) => void; label: string; hint: string; hidden?: boolean; disabled?: boolean }[] = [
     { id: 'badge', checked: badge, set: setBadge, label: 'برچسب «جدید» در منو', hint: 'تا دو هفته، یا تا وقتی هر نفر یک بار آن را باز کند.' },
-    { id: 'card', checked: card, set: setCard, label: 'کارت معرفی روی داشبورد', hint: 'یک بار برای هر نفر، با دکمهٔ «ببینم»؛ تا دو هفته.' },
+    {
+      id: 'card',
+      checked: card,
+      set: setCard,
+      label: 'کارت معرفی روی داشبورد',
+      hint: cardsAllowed ? 'یک بار برای هر نفر، با دکمهٔ «ببینم»؛ تا دو هفته.' : 'تا ۱۰ آبان ۱۴۰۵ (راه‌اندازی کامل پرتال) کارت معرفی روی داشبورد نمی‌آید.',
+      disabled: !cardsAllowed,
+    },
     { id: 'draft', checked: draft, set: setDraft, label: 'پیش‌نویس خبر معرفی', hint: 'در «پیش‌نویس‌ها»ی اخبار ساخته می‌شود؛ خودکار منتشر نمی‌شود.', hidden: !can('news.manage') },
   ];
 
@@ -76,8 +85,8 @@ const LaunchModal: React.FC<{ feature: FeatureRow; onClose: () => void; onLaunch
     >
       <div className="space-y-2">
         {options.filter((o) => !o.hidden).map((o) => (
-          <label key={o.id} className="flex items-start gap-3 p-3 rounded-xl bg-[#F5F2ED] cursor-pointer">
-            <input type="checkbox" checked={o.checked} onChange={(e) => o.set(e.target.checked)} className="mt-0.5 w-4 h-4 accent-red-700" />
+          <label key={o.id} className={`flex items-start gap-3 p-3 rounded-xl bg-[#F5F2ED] ${o.disabled ? 'opacity-60' : 'cursor-pointer'}`}>
+            <input type="checkbox" checked={o.checked} disabled={o.disabled} onChange={(e) => o.set(e.target.checked)} className="mt-0.5 w-4 h-4 accent-red-700" />
             <span>
               <span className="block text-xs font-bold text-[#2D2D2D]">{o.label}</span>
               <span className="block text-[11px] text-[#6E6A60] mt-0.5 leading-relaxed">{o.hint}</span>
