@@ -3,6 +3,7 @@ import { Avatar } from '../common/Avatar';
 import { matches } from '../../lib/search';
 import { toPersianDigits } from '../../lib/jalali';
 import { usePortal } from '../../context/PortalContext';
+import { NO_DEPARTMENT, NO_POSITION } from '../../../shared/profile';
 import { UserProfile } from '../../types';
 import { UserProfileModal } from './UserProfileModal';
 import { EditProfileModal } from './EditProfileModal';
@@ -204,10 +205,10 @@ export const ColleaguesDirectory: React.FC = () => {
                       {emp.firstName} {emp.lastName}
                     </h3>
                     <p className="text-xs font-semibold text-[#6E6A60] truncate mt-0.5">
-                      {emp.position}
+                      {emp.position || NO_POSITION}
                     </p>
-                    <span className="inline-block mt-1.5 px-2 py-0.5 text-[10px] font-medium bg-[#F5F2ED] text-[#991b1b] rounded-md">
-                      {emp.department}
+                    <span className={`inline-block mt-1.5 px-2 py-0.5 text-[10px] font-medium rounded-md ${emp.department ? 'bg-[#F5F2ED] text-[#991b1b]' : 'bg-stone-100 text-stone-500'}`}>
+                      {emp.department || NO_DEPARTMENT}
                     </span>
                     {unitHeads.has(emp.id) && <span className="inline-block mt-1.5 mr-1 px-2 py-0.5 text-[10px] font-bold bg-red-50 text-red-800 rounded-md">مسئول واحد</span>}
                     {emp.location && (

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CheckCircle2, KeyRound, ShieldOff, User } from 'lucide-react';
 import { usePortal, type ProfileUpdate } from '../../context/PortalContext';
+import { NO_DEPARTMENT } from '../../../shared/profile';
 import type { UserProfile } from '../../types';
 import { FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
 import { JalaliDateInput } from '../common/JalaliDateInput';
@@ -175,8 +176,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
             {adminField('edit-position', 'سمت *', 'position')}
             <div>
               <label htmlFor="edit-department" className={labelClass}>واحد *</label>
-              <select id="edit-department" value={form.department} onChange={(e) => set('department', e.target.value)} disabled={!isAdmin} className={inputClass}>
-                {[...new Set([form.department, ...(appSettings?.departments ?? [])])].map((d) => <option key={d} value={d}>{d}</option>)}
+              <select id="edit-department" required value={form.department} onChange={(e) => set('department', e.target.value)} disabled={!isAdmin} className={inputClass}>
+                {!form.department && <option value="" disabled>{NO_DEPARTMENT} (انتخاب کنید)</option>}
+                {[...new Set([form.department, ...(appSettings?.departments ?? [])])].filter(Boolean).map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
             <div>

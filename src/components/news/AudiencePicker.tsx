@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Search, Users, X } from 'lucide-react';
 import { inAudience, isForEveryone, type Audience } from '../../../shared/audience';
+import { placeText } from '../../../shared/profile';
 import { usePortal } from '../../context/PortalContext';
 import { toPersianDigits } from '../../lib/jalali';
 import { inputClass, labelClass } from '../common/Modal';
@@ -149,7 +150,7 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
                       className="w-full text-right px-3 py-2 hover:bg-[#F9F7F4]"
                     >
                       <span className="font-bold">{p.firstName} {p.lastName}</span>
-                      <span className="text-[11px] text-[#6E6A60]"> · {p.position} · {p.department}</span>
+                      <span className="text-[11px] text-[#6E6A60]"> · {placeText(p)}</span>
                     </button>
                   </li>
                 ))}

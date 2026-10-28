@@ -113,6 +113,9 @@ export interface FirstProfile {
   lastName: string;
   birthDate: string;
   hideBirthday: boolean;
+  /** Only while the colleague has none (see profileGaps). */
+  department?: string;
+  position?: string;
   /** The phone-book entry the colleague said is them, or null for none of them. */
   claim?: string | null;
 }

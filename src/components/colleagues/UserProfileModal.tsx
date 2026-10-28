@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
+import { NO_DEPARTMENT, NO_POSITION } from '../../../shared/profile';
 import type { UserProfile } from '../../types';
 import { Avatar } from '../common/Avatar';
 import { formatBirthDay } from '../../lib/jalali';
@@ -139,7 +140,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                 </h2>
                 <p className="text-xs font-bold text-[#dc2626] flex items-center gap-1.5">
                   <Briefcase className="w-3.5 h-3.5" />
-                  <span>{user.position}</span>
+                  <span>{user.position || NO_POSITION}</span>
                 </p>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[#6E6A60]">
                   {appSettings?.departments.includes(user.department) && tabOn(appSettings, 'departments') ? (
@@ -155,7 +156,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                   ) : (
                     <span className="flex items-center gap-1">
                       <Building2 className="w-3 h-3 text-[#8C867A]" />
-                      <span>بخش: {user.department}</span>
+                      <span>{user.department ? `بخش: ${user.department}` : NO_DEPARTMENT}</span>
                     </span>
                   )}
                   {user.location && (

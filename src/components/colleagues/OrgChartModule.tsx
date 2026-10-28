@@ -3,6 +3,7 @@ import { ChevronDown, ChevronLeft, Network } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { toPersianDigits } from '../../lib/jalali';
 import type { UserProfile } from '../../types';
+import { placeText } from '../../../shared/profile';
 import { Avatar } from '../common/Avatar';
 
 interface OrgNode {
@@ -61,7 +62,7 @@ const OrgNodeView: React.FC<{ node: OrgNode; depth: number }> = ({ node, depth }
           <span>
             <span className="block text-sm font-bold text-[#2D2D2D]">{person.firstName} {person.lastName}</span>
             <span className="block text-[11px] text-[#6E6A60]">
-              {person.position} · {person.department}
+              {placeText(person)}
               {total > 0 && ` · ${toPersianDigits(total)} نفر زیرمجموعه`}
             </span>
           </span>
@@ -86,7 +87,7 @@ export const OrgChartModule: React.FC = () => {
     [active, department],
   );
   const departments = [...new Set([...(appSettings?.departments ?? []), ...active.map((e) => e.department)])].filter((d) =>
-    active.some((e) => e.department === d),
+    d && active.some((e) => e.department === d),
   );
 
   return (

@@ -76,6 +76,9 @@ const rowSchema = z.object({
   birthDate: optionalJalaliDate,
   hireDate: optionalJalaliDate,
 });
+// Someone with a portal account may come without a unit and position: they pick their own at first
+// sign-in. Someone only in the phone book never signs in, so they need both.
+const accountRowSchema = rowSchema.extend({ position: textValue(100), department: textValue(100) });
 export type ImportRow = z.infer<typeof rowSchema>;
 
 export const importRowsSchema = z.object({
@@ -384,8 +387,9 @@ export async function checkRows(
       mobile: cleanMobile(text.mobile ?? ''),
       extension: toLatinDigits(text.extension ?? ''),
     };
-    const parsed = rowSchema.safeParse(candidate);
+    const parsed = (login ? accountRowSchema : rowSchema).safeParse(candidate);
     const warnings = !login && text.role ? ['بدون نام کاربری حساب پرتال ساخته نمی‌شود؛ ستون سطح دسترسی نادیده گرفته شد.'] : [];
+    if (login && (!text.position || !text.department)) warnings.push('واحد یا سمت خالی است؛ همکار در اولین ورود خودش انتخاب می‌کند و به شما خبر داده می‌شود.');
     return parsed.success
       ? withDepartment({ row, data: text, errors: [], warnings, action: 'create', value: parsed.data })
       : { row, data: text, errors: firstIssue(parsed.error), warnings };
