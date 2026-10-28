@@ -13,6 +13,8 @@ import { buildNumber, WhatsNewModal } from '../common/VersionInfo';
 import { inputClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { RoyaLogo } from '../common/RoyaLogo';
 import { DASHBOARD_CARDS } from '../dashboard/dashboardCards';
+import { DashboardLayoutModal } from '../dashboard/DashboardLayoutModal';
+import { DASHBOARD_LAYOUT } from '../../../shared/dashboard';
 import { FeatureSettings } from './FeatureSettings';
 import { RolesEditor } from './RolesEditor';
 
@@ -427,6 +429,7 @@ const FoundingDaySettings: React.FC<{ settings: AppSettings }> = ({ settings }) 
 const DashboardCardsSettings: React.FC<{ settings: AppSettings }> = ({ settings }) => {
   const { updateSettings } = usePortal();
   const [busy, setBusy] = useState(false);
+  const [arranging, setArranging] = useState(false);
   const set = async (id: string, value: boolean) => {
     setBusy(true);
     await updateSettings({ dashboardCards: { ...settings.dashboardCards, [id]: value } });
@@ -438,13 +441,20 @@ const DashboardCardsSettings: React.FC<{ settings: AppSettings }> = ({ settings 
       <div className="flex items-center gap-2">
         <LayoutDashboard className="w-4 h-4 text-red-700" />
         <h3 className="text-sm font-black text-[#2D2D2D]">کارت‌های داشبورد</h3>
+        <button type="button" onClick={() => setArranging(true)} className={`${secondaryButtonClass} ms-auto`}>
+          ترتیب پیش‌فرض برای همه
+        </button>
       </div>
-      <p className="text-[11px] text-[#6E6A60]">کارت‌های خاموش برای هیچ‌کس نمایش داده نمی‌شوند. «آخرین اخبار» همیشه روشن است.</p>
+      <p className="text-[11px] text-[#6E6A60]">
+        کارت‌های خاموش برای هیچ‌کس نمایش داده نمی‌شوند. «آخرین اخبار» همیشه روشن است.
+        {settings.dashboardDefaultOrder?.length ? ' ترتیب کارت‌ها را خودتان برای همه چیده‌اید.' : ''}
+      </p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
         {DASHBOARD_CARDS.map((card) => (
           <Toggle key={card.id} label={card.label} hint={card.hint} checked={settings.dashboardCards?.[card.id] !== false} disabled={busy} onChange={(value) => set(card.id, value)} />
         ))}
       </div>
+      {arranging && <DashboardLayoutModal mode="everyone" shown={DASHBOARD_LAYOUT.map((c) => c.id)} onClose={() => setArranging(false)} />}
     </section>
   );
 };

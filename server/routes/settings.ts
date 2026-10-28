@@ -9,6 +9,7 @@ import {
   featureInfo,
   featureState,
   featureVisible,
+  introCardsAllowed,
   isFeatureKey,
   LAUNCH_NEWS_DAYS,
 } from '../../shared/features.js';
@@ -55,8 +56,9 @@ export function publicSettings(row: typeof settings.$inferSelect, viewer: Sessio
     const state = featureState(config, key);
     features[key] = state === 'on' ? 'on' : 'preview';
     const launch = featureLaunches[key];
-    if (state === 'on' && viewer && launch && (launch.badge || launch.card) && new Date(launch.at).getTime() > since && !viewer.seenFeatures.includes(key)) {
-      featureNews.push({ key, badge: launch.badge, card: launch.card });
+    const card = Boolean(launch?.card && introCardsAllowed(launch.at));
+    if (state === 'on' && viewer && launch && (launch.badge || card) && new Date(launch.at).getTime() > since && !viewer.seenFeatures.includes(key)) {
+      featureNews.push({ key, badge: launch.badge, card });
     }
   }
   // Guests cannot switch the effect off, but can stop it each time it plays.
@@ -127,6 +129,8 @@ const updateSchema = z
     // The company's founding day and the message everyone sees on it.
     foundingDate: jalaliDateValue,
     foundingMessage: z.string().trim().max(500),
+    // The order of the dashboard cards for everyone who has not arranged their own; [] = the built-in order.
+    dashboardDefaultOrder: z.array(z.string().max(50)).max(50).transform((order) => (order.length ? dashboardOrder(order) : [])),
   })
   .partial();
 
@@ -143,6 +147,7 @@ const SETTING_LABELS: Record<keyof z.infer<typeof updateSchema>, string> = {
   logoUrl: 'لوگوی شرکت',
   foundingDate: 'تاریخ تأسیس شرکت',
   foundingMessage: 'پیام سالگرد تأسیس',
+  dashboardDefaultOrder: 'ترتیب پیش‌فرض کارت‌های داشبورد',
 };
 
 type SettingsRow = typeof settings.$inferSelect;
@@ -161,6 +166,8 @@ function settingChanges(before: SettingsRow, after: SettingsRow, keys: (keyof ty
       const added = names(after.systems).filter((n) => !names(before.systems).includes(n));
       const removed = names(before.systems).filter((n) => !names(after.systems).includes(n));
       detail = [added.length ? `اضافه: ${added.join('، ')}` : '', removed.length ? `حذف: ${removed.join('، ')}` : ''].filter(Boolean).join('؛ ') || 'ویرایش';
+    } else if (key === 'dashboardDefaultOrder') {
+      detail = after.dashboardDefaultOrder.length ? 'ترتیب تازه' : 'برگشت به ترتیب اولیه';
     } else if (Array.isArray(now) && Array.isArray(was)) {
       const added = (now as string[]).filter((n) => !(was as string[]).includes(n));
       const removed = (was as string[]).filter((n) => !(now as string[]).includes(n));

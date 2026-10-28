@@ -70,7 +70,7 @@ test.describe('publisher tools', () => {
   test('the publisher answers for everyone and fixes the title', async ({ browser }) => {
     const { context, page } = await asRole(browser, 'admin');
     await page.goto('/#dashboard');
-    await page.getByRole('region', { name: 'کارهای من' }).getByRole('button', { name: new RegExp(TITLE) }).click();
+    await page.getByRole('region', { name: 'کارهای من', exact: true }).getByRole('button', { name: new RegExp(TITLE) }).click();
     const dialog = page.getByRole('dialog', { name: TITLE });
     const question = dialog.getByRole('listitem', { name: 'پرسش سارا احمدی، فروش' });
     await question.getByLabel('پاسخ شما').fill('بله، ایمیل‌ها بعد از وصل شدن دوباره می‌رسند.');

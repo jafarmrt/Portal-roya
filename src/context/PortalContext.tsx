@@ -4,6 +4,7 @@ import { ApiError, api, errorMessage, setUnauthorizedHandler } from '../lib/api'
 import { buildSearchResults } from '../lib/search';
 import { systemLink } from '../../shared/systemLinks';
 import { type FeatureKey, featureOfTab } from '../../shared/features';
+import type { TodoStep } from '../../shared/todos';
 import { featureOn as isFeatureOn } from '../lib/features';
 import type {
   ExternalSystem,
@@ -198,8 +199,17 @@ interface PortalContextType {
   submitMood: (mood: MoodState) => Promise<void>;
   /** Resolves to the new note, or undefined when it failed (e.g. it is already in the list). */
   addTodo: (input: TodoInput) => Promise<PersonalTodo | undefined>;
-  updateTodo: (id: string, changes: Partial<Pick<PersonalTodo, 'title' | 'note' | 'dueDate'>> & { done?: boolean }) => Promise<boolean>;
+  updateTodo: (
+    id: string,
+    changes: Partial<Pick<PersonalTodo, 'title' | 'note' | 'important' | 'repeat' | 'remind'>> & {
+      dueDate?: string;
+      steps?: Pick<TodoStep, 'text' | 'done'>[];
+      done?: boolean;
+    },
+  ) => Promise<boolean>;
   deleteTodo: (id: string) => Promise<boolean>;
+  /** This person's open notes due on a Jalali day, for the calendar; none while the part is hidden. */
+  myDueTodos: (date: string) => PersonalTodo[];
   clearDoneTodos: () => Promise<boolean>;
   addPoll: (poll: PollInput) => Promise<boolean>;
   votePoll: (pollId: string, answers: PollAnswerInput[]) => Promise<boolean>;
@@ -614,6 +624,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const updateTodo: PortalContextType['updateTodo'] = async (id, changes) => {
     const updated = await attempt(() => api.patch<PersonalTodo>(`/api/todos/${id}`, changes));
     if (updated) setTodos((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    // Ticking a repeating note off writes the next one, and un-ticking takes it back.
+    if (updated && changes.done !== undefined && updated.repeat) void refresh('todos');
     return Boolean(updated);
   };
 
@@ -622,6 +634,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (ok) setTodos((prev) => prev.filter((t) => t.id !== id));
     return Boolean(ok);
   };
+
+  const myDueTodos: PortalContextType['myDueTodos'] = (date) =>
+    featureOn('todos') ? todos.filter((t) => !t.doneAt && t.dueDate === date) : [];
 
   const clearDoneTodos: PortalContextType['clearDoneTodos'] = async () => {
     const ok = await attempt(() => api.delete('/api/todos/done').then(() => true));
@@ -1069,6 +1084,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addTodo,
         updateTodo,
         deleteTodo,
+        myDueTodos,
         clearDoneTodos,
         addPoll,
         votePoll,

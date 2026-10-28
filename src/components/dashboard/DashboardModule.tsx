@@ -47,7 +47,7 @@ export const DashboardModule: React.FC = () => {
   const [arranging, setArranging] = useState(false);
   // The person's own order of the cards: one column on a phone, and the same order inside each part
   // of the page on a computer (see shared/dashboard.ts). Fixed banners come before them (order 1-2).
-  const cardOrder = dashboardOrder(appSettings?.dashboardOrder ?? []);
+  const cardOrder = dashboardOrder(appSettings?.dashboardOrder ?? [], appSettings?.dashboardDefaultOrder ?? []);
   const place = (id: DashboardCardKey): React.CSSProperties => ({ order: 10 + cardOrder.indexOf(id) });
   const canArrange = Boolean(currentUser) && featureOn('dashboardLayout');
   // The cards switched on for this person, whether or not they have something to show today.
@@ -144,30 +144,16 @@ export const DashboardModule: React.FC = () => {
         <FeatureIntroCard />
       </div>
 
-      {/* What this person still has to do; when the card is switched off, circulars are still listed */}
-      {on('myTasks') && !isGuest && (
-        <div style={place('myTasks')}>
-          <MyTasksCard />
-        </div>
-      )}
-
-      {/* The person's own to-do notes, right under what the portal asks of them */}
-      {on('todos') && !isGuest && (
-        <div style={place('todos')}>
-          <PersonalTodosCard />
+      {/* Organisation apps sit at the very top so they are reachable without scrolling */}
+      {on('systems') && (
+        <div style={place('systems')}>
+          <QuickSystemsWidget />
         </div>
       )}
 
       {on('anniversary') && !isGuest && (
         <div style={place('anniversary')}>
           <MyCelebrationCard />
-        </div>
-      )}
-
-      {/* Organisation apps sit near the top so they are reachable without scrolling */}
-      {on('systems') && (
-        <div style={place('systems')}>
-          <QuickSystemsWidget />
         </div>
       )}
 
@@ -309,8 +295,22 @@ export const DashboardModule: React.FC = () => {
           )}
         </div>
 
-        {/* Right Column: Birthdays & Upcoming Training Widget */}
+        {/* Side column (on the left): what the person has to do, then the calendar and birthdays */}
         <div className="contents lg:flex lg:flex-col lg:gap-6 [&>*:empty]:hidden">
+          {/* What this person still has to do; when the card is switched off, circulars are still listed */}
+          {on('myTasks') && !isGuest && (
+            <div style={place('myTasks')}>
+              <MyTasksCard />
+            </div>
+          )}
+
+          {/* The person's own to-do notes, right under what the portal asks of them */}
+          {on('todos') && !isGuest && (
+            <div style={place('todos')}>
+              <PersonalTodosCard />
+            </div>
+          )}
+
           {/* Dashboard Calendar Widget */}
           {on('calendar') && (
             <MobileFold id="calendar" title="تقویم" icon={<CalendarDays className="w-4 h-4" />} style={place('calendar')}>

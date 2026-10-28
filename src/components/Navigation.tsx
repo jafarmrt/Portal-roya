@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { usePortal } from '../context/PortalContext';
 import { ActiveTab } from '../types';
 import { Avatar } from './common/Avatar';
-import { currentJalaliYear, toPersianDigits } from '../lib/jalali';
+import { currentJalaliYear, toPersianDigits, todayJalali } from '../lib/jalali';
 import { useEscapeKey } from '../lib/useEscapeKey';
 import {
   LayoutDashboard,
@@ -125,7 +125,7 @@ const NavGroup: React.FC<{ entry: Extract<NavEntry, { kind: 'group' }>; activeTa
 };
 
 export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onCloseMobileNav }) => {
-  const { activeTab, setActiveTab, currentUser, isGuest, requestLogin, appSettings, can, isAdmin, polls, news, documents: portalDocuments } = usePortal();
+  const { activeTab, setActiveTab, currentUser, isGuest, requestLogin, appSettings, can, isAdmin, polls, news, documents: portalDocuments, todos, featureOn } = usePortal();
   useEscapeKey(onCloseMobileNav, isMobileNavOpen);
 
   // Read/vote badges are personal, so guests don't get them.
@@ -135,8 +135,17 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
   const pendingDocumentCount = isGuest ? 0 : portalDocuments.filter(d => d.requiresAck && d.forMe && !d.acknowledgedAt).length;
 
   const suggestionUnread = unreadTotal(useSuggestionSummary());
+  // The person's own notes due today or overdue, so they are remembered without opening the dashboard.
+  const today = todayJalali();
+  const dueTodoCount = isGuest || !featureOn('todos') ? 0 : todos.filter(t => !t.doneAt && t.dueDate !== null && t.dueDate <= today).length;
 
-  const dashboard: NavItem = { id: 'dashboard', label: 'داشبورد', icon: <LayoutDashboard className="w-4 h-4" /> };
+  const dashboard: NavItem = {
+    id: 'dashboard',
+    label: 'داشبورد',
+    icon: <LayoutDashboard className="w-4 h-4" />,
+    badge: dueTodoCount > 0 ? `${toPersianDigits(dueTodoCount)} کار` : undefined,
+    badgeColor: 'bg-sky-200 text-sky-950'
+  };
   const systems: NavItem = { id: 'systems', label: 'سامانه‌ها', icon: <LayoutGrid className="w-4 h-4" /> };
   const pollsItem: NavItem = {
     id: 'polls',

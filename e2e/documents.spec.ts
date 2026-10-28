@@ -39,7 +39,7 @@ test.describe('mandatory documents', () => {
   test('the employee confirms it from “my tasks”', async ({ browser }) => {
     const { context, page } = await asRole(browser, 'employee');
     await page.goto('/#dashboard');
-    await page.getByRole('region', { name: 'کارهای من' }).getByRole('button', { name: new RegExp(TITLE) }).click();
+    await page.getByRole('region', { name: 'کارهای من', exact: true }).getByRole('button', { name: new RegExp(TITLE) }).click();
     const card = page.getByRole('listitem').filter({ hasText: TITLE });
     await card.getByRole('button', { name: 'مطالعه کردم و رعایت می‌کنم' }).click();
     await expect(card).toContainText('تأیید کرده‌اید');

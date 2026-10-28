@@ -23,15 +23,19 @@ interface Task {
 
 const WEEK_EVENT_TYPES = new Set(['meeting', 'event', 'holiday']);
 
+/** Tasks shown before «نمایش همه»; the card sits in the narrow side column. */
+const SHOWN = 5;
+
 /**
  * What this person still has to do or attend: circulars and mandatory documents to acknowledge,
  * documents of theirs due for review, polls to answer, events asking whether they will attend, recent
  * courses to give feedback on, questions about their news items, and their trainings and events in the
- * coming seven days. Sits at the top of the dashboard.
+ * coming seven days. Opens the side column of the dashboard, one line per task.
  */
 export const MyTasksCard: React.FC = () => {
   const { currentUser, news, polls, trainings, calendarEvents, documents, guides, can, setActiveTab } = usePortal();
   const [questions, setQuestions] = useState<PendingNewsQuestion[]>([]);
+  const [showAll, setShowAll] = useState(false);
   const suggestionSummary = useSuggestionSummary();
   const userId = currentUser?.id;
   // Asked and answered questions reload the news list, so this follows it.
@@ -193,40 +197,47 @@ export const MyTasksCard: React.FC = () => {
 
   if (tasks.length === 0) {
     return (
-      <section className="bg-white border border-[#E6E0D5] rounded-2xl px-4 py-3 flex items-center gap-2 text-xs text-[#4B4740]" aria-label="کارهای من">
+      <section className="bg-white border border-[#E6E0D5] rounded-2xl px-4 py-3 flex items-center gap-2 text-xs text-[#4B4740] leading-relaxed" aria-label="کارهای من">
         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
         <span><strong>کارهای من:</strong> بخشنامه، سند یا نظرسنجی منتظر و برنامه‌ای برای این هفته ندارید.</span>
       </section>
     );
   }
 
+  const shown = showAll ? tasks : tasks.slice(0, SHOWN);
   return (
-    <section className="bg-white border border-amber-300 rounded-3xl p-4 sm:p-5 space-y-3" aria-labelledby="my-tasks-title">
+    <section className="bg-white border border-amber-300 rounded-3xl p-4 space-y-2.5" aria-labelledby="my-tasks-title">
       <div className="flex items-center gap-2">
         <span className="p-1.5 bg-amber-100 text-amber-800 rounded-xl"><ListTodo className="w-4 h-4" /></span>
         <h2 id="my-tasks-title" className="text-sm font-black text-[#2D2D2D]">کارهای من</h2>
         <span className="px-2 py-0.5 text-[11px] font-bold bg-amber-100 text-amber-900 rounded-full">{toPersianDigits(tasks.length)} مورد</span>
       </div>
-      <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        {tasks.map((t) => (
+      <ul className="space-y-1">
+        {shown.map((t) => (
           <li key={t.key}>
             <button
               onClick={t.open}
-              className={`w-full h-full flex items-center gap-3 p-3 rounded-2xl border text-right transition-colors ${
+              title={`${t.kind}: ${t.title} (${t.when})`}
+              className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-xl border text-right transition-colors ${
                 t.urgent ? 'bg-red-50 border-red-200 hover:border-red-500' : 'bg-[#F9F7F4] border-[#E6E0D5] hover:border-[#dc2626]'
               }`}
             >
-              <span className="shrink-0">{t.icon}</span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-[10px] font-bold text-[#6E6A60]">{t.kind}</span>
-                <span className="block text-xs font-bold text-[#2D2D2D] truncate">{t.title}</span>
+              <span className="shrink-0" aria-hidden="true">{t.icon}</span>
+              <span className="flex-1 min-w-0 truncate text-xs font-bold text-[#2D2D2D]">
+                <span className="sr-only">{t.kind}: </span>
+                {t.title}
               </span>
-              <span className={`text-[11px] whitespace-nowrap ${t.urgent ? 'text-red-700 font-bold' : 'text-[#6E6A60]'}`}>{t.when}</span>
-              <ChevronLeft className="w-4 h-4 text-[#A8A295] shrink-0" />
+              <span className={`text-[10px] whitespace-nowrap ${t.urgent ? 'text-red-700 font-bold' : 'text-[#6E6A60]'}`}>{t.when}</span>
+              <ChevronLeft className="w-3.5 h-3.5 text-[#A8A295] shrink-0" />
             </button>
           </li>
         ))}
       </ul>
+      {tasks.length > SHOWN && (
+        <button type="button" onClick={() => setShowAll((s) => !s)} className="tap-area text-xs font-bold text-amber-800 hover:underline">
+          {showAll ? 'نمایش کمتر' : `نمایش همه (${toPersianDigits(tasks.length)})`}
+        </button>
+      )}
     </section>
   );
 };

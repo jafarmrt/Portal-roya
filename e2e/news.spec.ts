@@ -63,7 +63,7 @@ test.describe('targeted circulars', () => {
   test('the employee finds it under “my tasks” and acknowledges it', async ({ browser }) => {
     const { context, page } = await asRole(browser, 'employee');
     await page.goto('/#dashboard');
-    const tasks = page.getByRole('region', { name: 'کارهای من' });
+    const tasks = page.getByRole('region', { name: 'کارهای من', exact: true });
     await tasks.getByRole('button', { name: new RegExp(TITLE) }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('heading', { name: 'مراحل کار' })).toBeVisible();
