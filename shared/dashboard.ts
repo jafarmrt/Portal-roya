@@ -21,6 +21,7 @@ export const DASHBOARD_LAYOUT = [
   { id: 'todos', label: 'یادداشت کارهای من', zone: 'side' },
   { id: 'anniversary', label: 'تبریک تولد و سالگرد همکاری', zone: 'top' },
   { id: 'news', label: 'آخرین اخبار و اطلاعیه‌ها', zone: 'main' },
+  { id: 'online', label: 'همکاران آنلاین', zone: 'side' },
   { id: 'calendar', label: 'تقویم', zone: 'side' },
   { id: 'birthdays', label: 'تولد همکاران', zone: 'side' },
   { id: 'welcome', label: 'خوش‌آمد همکاران جدید', zone: 'main' },

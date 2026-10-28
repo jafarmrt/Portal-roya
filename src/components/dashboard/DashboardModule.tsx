@@ -14,6 +14,7 @@ import { dashboardOrder, DASHBOARD_LAYOUT, type DashboardCardKey } from '../../.
 import { MobileFold } from './MobileFold';
 import { MyTasksCard } from './MyTasksCard';
 import { PersonalTodosCard } from './PersonalTodosCard';
+import { OnlineColleaguesCard } from '../online/OnlineColleaguesCard';
 import moment from 'moment-jalaali';
 import { JALALI_MONTHS, JALALI_WEEKDAYS } from '../../data/holidays';
 import { formatDate, toPersianDigits, todayJalali } from '../../lib/jalali';
@@ -308,6 +309,13 @@ export const DashboardModule: React.FC = () => {
           {on('todos') && !isGuest && (
             <div style={place('todos')}>
               <PersonalTodosCard />
+            </div>
+          )}
+
+          {/* Colleagues who have the portal open, and a ready-made emoji to one of them */}
+          {on('online') && !isGuest && (
+            <div style={place('online')}>
+              <OnlineColleaguesCard />
             </div>
           )}
 

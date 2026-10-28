@@ -3,6 +3,7 @@ import type { FeatureKey } from '../shared/features';
 import type { SuggestionBoxNames } from '../shared/suggestions';
 import type { Permission } from '../shared/permissions';
 import type { TodoRemind, TodoRepeat, TodoSourceType, TodoStep } from '../shared/todos';
+import type { KudosEmoji } from '../shared/kudos';
 
 export type { Permission };
 
@@ -501,7 +502,7 @@ export interface CalendarRsvpRow {
   respondedAt: string | null;
 }
 
-export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system' | 'suggestion';
+export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system' | 'suggestion' | 'todo' | 'kudos';
 
 export interface NotificationItem {
   id: string;
@@ -755,6 +756,8 @@ export interface AppSettings {
   suggestionBoxNames: SuggestionBoxNames;
   /** The administrator's order of the cards for everyone who has not arranged their own ([] = the built-in order). */
   dashboardDefaultOrder: string[];
+  /** The emoji of «همکاران آنلاین» ([] = the built-in six). */
+  kudosEmojis: KudosEmoji[];
 }
 
 export interface SiteBanner {
@@ -805,3 +808,34 @@ export interface BackupFile {
 }
 
 export type CustomHolidays = Record<string, { title: string; isHoliday: boolean }>;
+
+/** A colleague in «همکاران آنلاین». */
+export interface OnlineColleague {
+  id: string;
+  firstName: string;
+  lastName: string;
+  avatar: string;
+  position: string;
+  department: string;
+  acceptKudos: boolean;
+}
+
+export interface PresenceInfo {
+  me: { showOnline: boolean; acceptKudos: boolean };
+  emojis: KudosEmoji[];
+  online: OnlineColleague[];
+  /** When this person may next send to a colleague they just sent to (ISO), by colleague id. */
+  waits: Record<string, string>;
+  sentToday: number;
+  dailyLimit: number;
+}
+
+/** An emoji a colleague just sent, as the server pushes it to the receiver's open pages. */
+export interface IncomingKudos {
+  id: number;
+  from: { id: string; firstName: string; lastName: string; avatar: string };
+  emoji: string;
+  label: string;
+  message: string;
+  canReply: boolean;
+}

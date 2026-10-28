@@ -16,6 +16,7 @@ import { VersionInfo } from './components/common/VersionInfo';
 import { currentJalaliYear, toPersianDigits } from './lib/jalali';
 import { useTabBadge } from './lib/tabBadge';
 import { tabOn } from './lib/features';
+import { KudosListener } from './components/online/KudosListener';
 
 // Secondary modules load on demand to keep the first download small.
 const named = <T,>(loader: () => Promise<T>, key: keyof T) =>
@@ -107,7 +108,7 @@ const GuestBanner: React.FC = () => {
 };
 
 const MainContent: React.FC = () => {
-  const { activeTab, isSetupComplete, authChecked, currentUser, isGuest, appSettings, isLoading, error, can, isAdmin, notifications } = usePortal();
+  const { activeTab, isSetupComplete, authChecked, currentUser, isGuest, appSettings, isLoading, error, can, isAdmin, notifications, featureOn } = usePortal();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   useTabBadge(notifications.filter((n) => !n.isRead).length);
 
@@ -171,6 +172,7 @@ const MainContent: React.FC = () => {
       </main>
 
       <MobileBottomBar />
+      {currentUser && featureOn('onlineColleagues') && <KudosListener emojis={appSettings?.kudosEmojis ?? []} />}
       {isGuest && <LoginModal />}
 
       <footer className="bg-[#7f1d1d] text-[#E6E0D5] border-t border-[#7f1d1d] py-6 mt-12 text-xs">

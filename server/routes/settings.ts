@@ -16,6 +16,7 @@ import {
 } from '../../shared/features.js';
 import { boxNames, SUGGESTION_BOXES } from '../../shared/suggestions.js';
 import { dashboardOrder } from '../../shared/dashboard.js';
+import { KUDOS_EMOJI_MAX } from '../../shared/kudos.js';
 import { toPersianDigits } from '../../shared/jalali.js';
 import { audit, fromTo } from '../audit.js';
 import { can, requirePermission, type SessionUser } from '../auth.js';
@@ -140,6 +141,11 @@ const updateSchema = z
     ),
     // The order of the dashboard cards for everyone who has not arranged their own; [] = the built-in order.
     dashboardDefaultOrder: z.array(z.string().max(50)).max(50).transform((order) => (order.length ? dashboardOrder(order) : [])),
+    // The emoji colleagues can send each other in «همکاران آنلاین»; [] = the built-in six.
+    kudosEmojis: z
+      .array(z.object({ id: requiredText(50), emoji: requiredText(16), label: requiredText(40) }))
+      .max(KUDOS_EMOJI_MAX, `حداکثر ${KUDOS_EMOJI_MAX} ایموجی`)
+      .refine((list) => new Set(list.map((e) => e.id)).size === list.length, 'ایموجی تکراری در فهرست است'),
   })
   .partial();
 
@@ -158,6 +164,7 @@ const SETTING_LABELS: Record<keyof z.infer<typeof updateSchema>, string> = {
   foundingMessage: 'پیام سالگرد تأسیس',
   suggestionBoxNames: 'نام صندوق‌های انتقادات و پیشنهادات',
   dashboardDefaultOrder: 'ترتیب پیش‌فرض کارت‌های داشبورد',
+  kudosEmojis: 'ایموجی‌های همکاران آنلاین',
 };
 
 type SettingsRow = typeof settings.$inferSelect;
@@ -178,6 +185,9 @@ function settingChanges(before: SettingsRow, after: SettingsRow, keys: (keyof ty
       detail = [added.length ? `اضافه: ${added.join('، ')}` : '', removed.length ? `حذف: ${removed.join('، ')}` : ''].filter(Boolean).join('؛ ') || 'ویرایش';
     } else if (key === 'dashboardDefaultOrder') {
       detail = after.dashboardDefaultOrder.length ? 'ترتیب تازه' : 'برگشت به ترتیب اولیه';
+    } else if (key === 'kudosEmojis') {
+      const shown = (list: SettingsRow['kudosEmojis']) => (list.length ? list.map((e) => `${e.emoji} ${e.label}`).join('، ') : 'فهرست پیش‌فرض');
+      detail = shown(after.kudosEmojis);
     } else if (Array.isArray(now) && Array.isArray(was)) {
       const added = (now as string[]).filter((n) => !(was as string[]).includes(n));
       const removed = (was as string[]).filter((n) => !(now as string[]).includes(n));
@@ -340,6 +350,7 @@ const FEATURE_RESOURCES: Record<FeatureKey, ResourceName[]> = {
   todos: ['todos', 'notifications'],
   occasionThemes: [],
   dashboardLayout: [],
+  onlineColleagues: ['presence', 'notifications'],
 };
 
 function broadcastFeatures(keys: FeatureKey[]) {

@@ -137,6 +137,8 @@ export interface MonthlySummary {
   };
   /** Colleagues who had not used the portal for IDLE_DAYS when the summary was made. */
   idle: number;
+  /** Emoji colleagues sent each other in «همکاران آنلاین» (only the total; summaries before v2.38 lack it). */
+  kudos?: number;
 }
 
 export interface StoredMonthlySummary extends MonthlySummary {

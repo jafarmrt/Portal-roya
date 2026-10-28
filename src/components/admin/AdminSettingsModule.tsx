@@ -36,6 +36,7 @@ import { DASHBOARD_CARDS } from '../dashboard/dashboardCards';
 import { DashboardLayoutModal } from '../dashboard/DashboardLayoutModal';
 import { DASHBOARD_LAYOUT } from '../../../shared/dashboard';
 import { FeatureSettings } from './FeatureSettings';
+import { KudosEmojiSettings } from './KudosEmojiSettings';
 import { RolesEditor } from './RolesEditor';
 import { confirmDiscard, hasUnsavedChanges, useUnsavedChanges } from './unsavedChanges';
 
@@ -627,6 +628,7 @@ const SEARCH_INDEX: { id: string; tab: SettingsTab; title: string; keywords: str
   { id: 'suggestion-boxes', tab: 'features', title: 'صندوق‌های انتقادات و پیشنهادات', keywords: 'صندوق انتقاد پیشنهاد مدیریت مدیرعامل منابع انسانی' },
   { id: 'pilot', tab: 'features', title: 'گروه آزمایشی', keywords: 'آزمایشی پیش نمایش پایلوت' },
   { id: 'dashboard-cards', tab: 'features', title: 'کارت‌های داشبورد', keywords: 'داشبورد کارت تولد حال و هوا' },
+  { id: 'kudos-emojis', tab: 'features', title: 'ایموجی‌های همکاران آنلاین', keywords: 'ایموجی آنلاین گل تشکر همکاران آنلاین شکلک' },
   { id: 'departments', tab: 'lists', title: 'واحدهای سازمانی', keywords: 'واحد دپارتمان بخش سازمانی' },
   { id: 'locations', tab: 'lists', title: 'محل‌های استقرار', keywords: 'محل شعبه انبار طبقه دفتر' },
   { id: 'newsCategories', tab: 'lists', title: 'دسته‌های اخبار و اطلاعیه‌ها', keywords: 'دسته اخبار خبر اطلاعیه' },
@@ -839,6 +841,9 @@ export const AdminSettingsModule: React.FC = () => {
             <>
               <Panel id="features" wide><FeatureSettings /></Panel>
               <Panel id="dashboard-cards" wide><DashboardCardsSettings settings={appSettings} /></Panel>
+              <Panel id="kudos-emojis" wide>
+                <KudosEmojiSettings key={JSON.stringify(appSettings.kudosEmojis)} settings={appSettings} />
+              </Panel>
             </>
           )}
           {tab === 'lists' && (
