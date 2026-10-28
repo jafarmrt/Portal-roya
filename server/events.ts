@@ -18,7 +18,8 @@ export type ResourceName =
   | 'settings'
   | 'roles'
   | 'notifications'
-  | 'moods';
+  | 'moods'
+  | 'todos';
 
 interface Client {
   userId: string;
@@ -56,6 +57,13 @@ export function addClient(userId: string, res: Response) {
 
 export function broadcastChange(resource: ResourceName) {
   for (const client of clients) send(client.res, 'changed', { resource });
+}
+
+/** A change only this person sees (e.g. their own notes), so their other open tabs refetch it. */
+export function signalUser(userId: string, resource: ResourceName) {
+  for (const client of clients) {
+    if (client.userId === userId) send(client.res, 'changed', { resource });
+  }
 }
 
 export function notifyUsers(userIds: string[]) {

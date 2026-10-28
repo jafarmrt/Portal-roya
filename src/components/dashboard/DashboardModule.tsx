@@ -11,6 +11,7 @@ import { DashboardCalendar } from './DashboardCalendar';
 import { isCardOn } from './dashboardCards';
 import { MobileFold } from './MobileFold';
 import { MyTasksCard } from './MyTasksCard';
+import { PersonalTodosCard } from './PersonalTodosCard';
 import moment from 'moment-jalaali';
 import { JALALI_MONTHS, JALALI_WEEKDAYS } from '../../data/holidays';
 import { formatDate, toPersianDigits, todayJalali } from '../../lib/jalali';
@@ -126,6 +127,13 @@ export const DashboardModule: React.FC = () => {
       {on('myTasks') && !isGuest && (
         <div className="order-1 lg:order-none">
           <MyTasksCard />
+        </div>
+      )}
+
+      {/* The person's own to-do notes, right under what the portal asks of them */}
+      {on('todos') && !isGuest && (
+        <div className="order-1 lg:order-none">
+          <PersonalTodosCard />
         </div>
       )}
 

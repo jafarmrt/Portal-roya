@@ -9,6 +9,7 @@ import type { CalendarEvent, CalendarRsvpRow } from '../../types';
 import { Modal } from '../common/Modal';
 import { audienceLabel } from '../polls/pollText';
 import { timeRange, TypeIcon, TYPE_LABELS, typeChipClass } from './eventText';
+import { AddToTodosButton } from '../todos/AddToTodosButton';
 
 const answerLabel = (attending: boolean | null) => (attending === null ? 'پاسخ نداده' : attending ? 'شرکت می‌کند' : 'شرکت نمی‌کند');
 
@@ -173,6 +174,7 @@ export const EventDetailsModal: React.FC<{ event: CalendarEvent; onClose: () => 
           <a href={`/api/calendar_events/${event.id}/ics`} download className={`${linkClass} text-sky-800`}>
             <CalendarPlus className="w-4 h-4" /> افزودن به Outlook
           </a>
+          <AddToTodosButton type="event" id={event.id} title={event.title} dueDate={event.date} className={`${linkClass} text-sky-800`} />
           {event.trainingId && (
             <button
               type="button"

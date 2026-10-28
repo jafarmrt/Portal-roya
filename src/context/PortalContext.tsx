@@ -28,10 +28,12 @@ import type {
   PollAnswerInput,
   PollInput,
   Permission,
+  PersonalTodo,
   PortalDocument,
   DocumentDetails,
   RoleInfo,
   SearchResultItem,
+  TodoInput,
   TrainingInput,
   TrainingProgram,
   UserMood,
@@ -177,6 +179,8 @@ interface PortalContextType {
   departmentPages: DepartmentPage[];
   userMoods: UserMood[];
   todayMoodSubmitted: boolean;
+  /** This person's own to-do notes (empty for guests and while the part is hidden). */
+  todos: PersonalTodo[];
 
   /** Whether this person sees a part an administrator can keep hidden until it is introduced. */
   featureOn: (key: FeatureKey) => boolean;
@@ -188,6 +192,11 @@ interface PortalContextType {
   setBanner: (banner: { text: string; level: 'info' | 'warning'; expiresAt: string }) => Promise<boolean>;
   clearBanner: () => Promise<boolean>;
   submitMood: (mood: MoodState) => Promise<void>;
+  /** Resolves to the new note, or undefined when it failed (e.g. it is already in the list). */
+  addTodo: (input: TodoInput) => Promise<PersonalTodo | undefined>;
+  updateTodo: (id: string, changes: Partial<Pick<PersonalTodo, 'title' | 'note' | 'dueDate'>> & { done?: boolean }) => Promise<boolean>;
+  deleteTodo: (id: string) => Promise<boolean>;
+  clearDoneTodos: () => Promise<boolean>;
   addPoll: (poll: PollInput) => Promise<boolean>;
   votePoll: (pollId: string, answers: PollAnswerInput[]) => Promise<boolean>;
   togglePollActiveStatus: (pollId: string) => Promise<void>;
@@ -323,6 +332,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [guides, setGuides] = useState<Guide[]>([]);
   const [departmentPages, setDepartmentPages] = useState<DepartmentPage[]>([]);
   const [userMoods, setUserMoods] = useState<UserMood[]>([]);
+  const [todos, setTodos] = useState<PersonalTodo[]>([]);
   const [roles, setRoles] = useState<RoleInfo[]>([]);
   const newsCount = useRef(NEWS_PAGE_SIZE);
 
@@ -438,6 +448,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       guides: () => api.get<Guide[]>('/api/guides').then(setGuides),
       department_pages: () => api.get<DepartmentPage[]>('/api/department_pages').then(setDepartmentPages),
       moods: () => api.get<UserMood[]>('/api/moods/me').then(setUserMoods),
+      todos: () => api.get<PersonalTodo[]>('/api/todos').then(setTodos),
       roles: () => api.get<RoleInfo[]>('/api/roles').then(setRoles),
       // An admin may change this user's role or the role's permissions at any time.
       me: () => api.get<{ user: CurrentUser }>('/api/auth/me').then(({ user }) => setCurrentUser(user)),
@@ -458,11 +469,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setIsLoading(true);
     setError(null);
     // Guests only load the shared, read-only content; personal data comes after sign-in.
-    const { notifications: loadNotifications, moods: loadMoods, me: loadMe, ...shared } = loaders;
-    const toLoad = sessionKey ? [...Object.values(shared), loadNotifications, loadMoods, loadMe] : Object.values(shared);
+    const { notifications: loadNotifications, moods: loadMoods, todos: loadTodos, me: loadMe, ...shared } = loaders;
+    const toLoad = sessionKey ? [...Object.values(shared), loadNotifications, loadMoods, loadTodos, loadMe] : Object.values(shared);
     if (!sessionKey) {
       setNotifications([]);
       setUserMoods([]);
+      setTodos([]);
     }
     Promise.all(toLoad.map((load) => load()))
       .catch((err) => setError(errorMessage(err)))
@@ -570,6 +582,30 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (result) setUserMoods((prev) => [result.mood, ...prev.filter((m) => m.date !== result.mood.date)]);
   };
   const todayMoodSubmitted = userMoods.some((m) => m.date === todayJalali());
+
+  const addTodo: PortalContextType['addTodo'] = async (input) => {
+    const created = await attempt(() => api.post<PersonalTodo>('/api/todos', input), 'به یادداشت کارهای شما اضافه شد.');
+    if (created) setTodos((prev) => [...prev.filter((t) => t.id !== created.id), created]);
+    return created;
+  };
+
+  const updateTodo: PortalContextType['updateTodo'] = async (id, changes) => {
+    const updated = await attempt(() => api.patch<PersonalTodo>(`/api/todos/${id}`, changes));
+    if (updated) setTodos((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    return Boolean(updated);
+  };
+
+  const deleteTodo: PortalContextType['deleteTodo'] = async (id) => {
+    const ok = await attempt(() => api.delete(`/api/todos/${id}`).then(() => true));
+    if (ok) setTodos((prev) => prev.filter((t) => t.id !== id));
+    return Boolean(ok);
+  };
+
+  const clearDoneTodos: PortalContextType['clearDoneTodos'] = async () => {
+    const ok = await attempt(() => api.delete('/api/todos/done').then(() => true));
+    if (ok) setTodos((prev) => prev.filter((t) => !t.doneAt));
+    return Boolean(ok);
+  };
 
   const replacePoll = (poll: Poll) => setPolls((prev) => prev.map((p) => (p.id === poll.id ? poll : p)));
 
@@ -999,12 +1035,17 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         departmentPages,
         userMoods,
         todayMoodSubmitted,
+        todos,
         featureOn,
         markFeatureSeen,
         updateSettings,
         setBanner,
         clearBanner,
         submitMood,
+        addTodo,
+        updateTodo,
+        deleteTodo,
+        clearDoneTodos,
         addPoll,
         votePoll,
         togglePollActiveStatus,

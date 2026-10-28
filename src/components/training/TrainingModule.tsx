@@ -6,6 +6,7 @@ import { Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal
 import { AddTrainingModal } from './AddTrainingModal';
 import { EnrollmentsModal } from './EnrollmentsModal';
 import { TrainingFeedbackModal } from './TrainingFeedbackModal';
+import { AddToTodosButton } from '../todos/AddToTodosButton';
 import {
   GraduationCap,
   Plus,
@@ -329,6 +330,16 @@ export const TrainingModule: React.FC = () => {
                         </>
                       )}
                     </button>
+
+                    {!isPast && (
+                      <AddToTodosButton
+                        type="training"
+                        id={program.id}
+                        title={program.title}
+                        dueDate={program.date}
+                        className="w-full py-1.5 text-xs font-bold text-sky-800 hover:underline flex items-center justify-center gap-1.5"
+                      />
+                    )}
                   </div>
 
                 </div>

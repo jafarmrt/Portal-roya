@@ -30,10 +30,12 @@ describe('switching parts of the portal off until they are introduced', () => {
   });
   afterAll(() => pool.end());
 
-  it('shows every existing part to everyone until an administrator changes it', async () => {
+  it('shows every existing part to everyone and keeps new parts switched off until an administrator changes it', async () => {
     const settings = (await colleague.agent.get('/api/settings').expect(200)).body;
-    expect(Object.keys(settings.features).sort()).toEqual(FEATURES.map((f) => f.key).sort());
+    const existing = FEATURES.filter((f) => f.defaultState === 'on').map((f) => f.key);
+    expect(Object.keys(settings.features).sort()).toEqual(existing.sort());
     expect(Object.values(settings.features).every((s) => s === 'on')).toBe(true);
+    expect(FEATURES.filter((f) => f.defaultState !== 'on').every((f) => f.defaultState === 'off')).toBe(true);
     // The pilot group and the raw switches are for the settings page only.
     expect(settings).not.toHaveProperty('pilotUserIds');
     expect(settings).not.toHaveProperty('featureLaunches');

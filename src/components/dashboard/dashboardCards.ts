@@ -4,6 +4,7 @@ import { cardFeatureOn } from '../../lib/features';
 /** Dashboard cards an administrator can switch off in settings; all are on until switched off. */
 export const DASHBOARD_CARDS = [
   { id: 'myTasks', label: 'کارهای من', hint: 'بخشنامه‌های منتظر تأیید، نظرسنجی‌های باز و دوره‌ها و رویدادهای هفتهٔ هر نفر.' },
+  { id: 'todos', label: 'یادداشت کارهای من', hint: 'فهرست کارهای شخصی هر نفر با تاریخ سررسید؛ فقط خود فرد آن را می‌بیند.' },
   { id: 'systems', label: 'سامانه‌ها', hint: 'میان‌بر سامانه‌های سازمان زیر خوش‌آمدگویی.' },
   { id: 'calendar', label: 'تقویم', hint: 'تقویم ماه با تعطیلات و رویدادها.' },
   { id: 'birthdays', label: 'تولد همکاران', hint: 'تولدهای امروز و پیش‌رو و ثبت تبریک.' },

@@ -707,3 +707,26 @@ export const suggestions = pgTable(
   },
   (t) => [index('suggestions_box_idx').on(t.box), index('suggestions_sender_idx').on(t.senderId), uniqueIndex('suggestions_tracking_idx').on(t.trackingHash)],
 );
+
+/**
+ * Each person's own to-do notes: private to them (nobody else, not even an administrator, reads them
+ * through the portal) and never assigned to anyone else. A note may point back at the news item,
+ * event, course or document it was added from.
+ */
+export const personalTodos = pgTable(
+  'personal_todos',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    note: text('note').notNull().default(''),
+    dueDate: text('due_date'), // Jalali YYYY/MM/DD
+    sourceType: text('source_type'),
+    sourceId: text('source_id'),
+    doneAt: timestamp('done_at', { withTimezone: true }),
+    // The Jalali day the morning reminder went out, so it is sent once.
+    remindedOn: text('reminded_on'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('personal_todos_user_idx').on(t.userId)],
+);

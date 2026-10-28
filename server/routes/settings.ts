@@ -300,6 +300,7 @@ const FEATURE_RESOURCES: Record<FeatureKey, ResourceName[]> = {
   guides: ['guides'],
   departmentPages: ['department_pages'],
   mood: ['moods'],
+  todos: ['todos', 'notifications'],
 };
 
 function broadcastFeatures(keys: FeatureKey[]) {
