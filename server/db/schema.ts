@@ -14,6 +14,7 @@ import type { AuditAction, AuditEntity } from '../../shared/audit.js';
 import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
 import type { KudosEmoji } from '../../shared/kudos.js';
 import type { MonthlySummary } from '../../shared/reports.js';
+import type { SuggestionBoxNames } from '../../shared/suggestions.js';
 import type { TodoRemind, TodoRepeat, TodoStep } from '../../shared/todos.js';
 
 export type { AuditAction, AuditEntity };
@@ -663,6 +664,8 @@ export const settings = pgTable('settings', {
   // Who sees parts in preview besides the administrator: whole roles and named colleagues.
   pilotRoles: text('pilot_roles').array().notNull().default([]),
   pilotUserIds: text('pilot_user_ids').array().notNull().default([]),
+  // The names an administrator gave the suggestion boxes, e.g. { management: { label: 'صندوق مدیرعامل', to: 'مدیرعامل' } }.
+  suggestionBoxNames: jsonb('suggestion_box_names').$type<SuggestionBoxNames>().notNull().default({}),
   // The order of the dashboard cards for everyone who has not arranged their own ([] = the built-in order).
   dashboardDefaultOrder: text('dashboard_default_order').array().notNull().default([]),
   // The emoji colleagues can send each other ([] = the built-in six, see shared/kudos.ts).

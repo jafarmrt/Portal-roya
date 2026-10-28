@@ -20,6 +20,11 @@ describe('switching parts of the portal off until they are introduced', () => {
 
   const setState = (key: string, state: string, announce?: object) =>
     admin.put(`/api/settings/features/${key}`).send({ state, announce }).expect(200);
+  // The suggestions page has no switch of its own: it follows its two boxes.
+  const setBoxes = async (state: string) => {
+    await setState('suggestionsManagement', state);
+    await setState('suggestionsHr', state);
+  };
 
   beforeAll(async () => {
     await resetDatabase();
@@ -45,7 +50,7 @@ describe('switching parts of the portal off until they are introduced', () => {
   });
 
   it('keeps a part in preview out of reach of everyone but the administrator and the pilot group', async () => {
-    await setState('suggestions', 'preview');
+    await setBoxes('preview');
     const colleagueSettings = (await colleague.agent.get('/api/settings').expect(200)).body;
     expect(colleagueSettings.features).not.toHaveProperty('suggestions');
     await colleague.agent.get('/api/suggestions/mine').expect(404);
@@ -70,8 +75,10 @@ describe('switching parts of the portal off until they are introduced', () => {
     await colleague.agent.get('/api/suggestions/mine').expect(404);
 
     const config = (await admin.get('/api/settings/features').expect(200)).body;
-    expect(config.features.find((f: { key: string }) => f.key === 'suggestions').state).toBe('preview');
-    const [entry] = await db.select().from(auditLog).where(eq(auditLog.title, 'امکانات پرتال: صندوق انتقادات و پیشنهادات'));
+    expect(config.features.find((f: { key: string }) => f.key === 'suggestionsHr').state).toBe('preview');
+    expect(config.features.some((f: { key: string }) => f.key === 'suggestions')).toBe(false);
+    await admin.put('/api/settings/features/suggestions').send({ state: 'off' }).expect(400);
+    const [entry] = await db.select().from(auditLog).where(eq(auditLog.title, 'امکانات پرتال: صندوق منابع انسانی'));
     expect(entry.detail).toBe('روشن برای همه ← پیش‌نمایش');
   });
 
@@ -111,10 +118,11 @@ describe('switching parts of the portal off until they are introduced', () => {
   });
 
   it('introduces a part with «جدید», a dashboard card and a news draft, until each person opens it', async () => {
-    const res = await setState('suggestions', 'on', { badge: true, card: true, draft: true });
+    // The first box switched on for everyone introduces the whole suggestions page.
+    const res = await setState('suggestionsHr', 'on', { badge: true, card: true, draft: true });
     expect(res.body.draftId).toBeTruthy();
     const [draft] = await db.select().from(news).where(eq(news.id, res.body.draftId));
-    expect(draft).toMatchObject({ isDraft: true, title: 'تازه در پرتال: صندوق انتقادات و پیشنهادات' });
+    expect(draft).toMatchObject({ isDraft: true, title: 'تازه در پرتال: صندوق منابع انسانی' });
     // Colleagues do not see the draft; it waits for whoever publishes news.
     expect((await colleague.agent.get('/api/news').expect(200)).body.items.map((n: { id: string }) => n.id)).not.toContain(draft.id);
 
@@ -153,7 +161,7 @@ describe('switching parts of the portal off until they are introduced', () => {
     // Saving "on" again does not start a second introduction or a second draft.
     const drafts = async () => (await db.select().from(news).where(and(eq(news.isDraft, true)))).length;
     const count = await drafts();
-    await setState('suggestions', 'on', { badge: true, card: true, draft: true });
+    await setState('suggestionsHr', 'on', { badge: true, card: true, draft: true });
     expect(await drafts()).toBe(count);
     await admin.put('/api/settings/features/unknown').send({ state: 'on' }).expect(404);
   });

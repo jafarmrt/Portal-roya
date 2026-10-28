@@ -7,7 +7,7 @@ import { dayLabel, formatDate, toPersianDigits, todayJalali } from '../../lib/ja
 import type { PendingNewsQuestion } from '../../types';
 import { deadlineState } from '../news/NewsBody';
 import { useSuggestionSummary } from '../../lib/suggestionSummary';
-import { suggestionBox } from '../../../shared/suggestions';
+import { boxNames } from '../../../shared/suggestions';
 
 interface Task {
   key: string;
@@ -33,7 +33,7 @@ const SHOWN = 5;
  * coming seven days. Opens the side column of the dashboard, one line per task.
  */
 export const MyTasksCard: React.FC = () => {
-  const { currentUser, news, polls, trainings, calendarEvents, documents, guides, can, setActiveTab } = usePortal();
+  const { currentUser, news, polls, trainings, calendarEvents, documents, guides, can, setActiveTab, appSettings } = usePortal();
   const [questions, setQuestions] = useState<PendingNewsQuestion[]>([]);
   const [showAll, setShowAll] = useState(false);
   const suggestionSummary = useSuggestionSummary();
@@ -85,7 +85,7 @@ export const MyTasksCard: React.FC = () => {
       key: `suggestions-${box}`,
       icon: <MessageSquareText className="w-4 h-4 text-indigo-700" />,
       kind: `${toPersianDigits(count)} پیام نخوانده`,
-      title: suggestionBox(box)?.label ?? box,
+      title: boxNames(appSettings?.suggestionBoxNames, box).label,
       when: 'انتقادات و پیشنهادات',
       rank: '1-0',
       open: () => setActiveTab('suggestions', box),

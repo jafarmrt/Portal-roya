@@ -5,6 +5,7 @@ import { usePortal } from '../../context/PortalContext';
 import { toPersianDigits } from '../../lib/jalali';
 import type { Permission, RoleInfo } from '../../types';
 import { inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
+import { useUnsavedChanges } from './unsavedChanges';
 
 const sameSet = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x) => b.includes(x));
 
@@ -15,6 +16,7 @@ const RoleCard: React.FC<{ role: RoleInfo }> = ({ role }) => {
   const [permissions, setPermissions] = useState<Permission[]>(role.permissions);
   const [busy, setBusy] = useState(false);
   const dirty = name.trim() !== role.name || description.trim() !== role.description || !sameSet(permissions, role.permissions);
+  useUnsavedChanges(`role-${role.id}`, dirty);
 
   const toggle = (key: Permission) =>
     setPermissions((list) => (list.includes(key) ? list.filter((p) => p !== key) : [...list, key]));
