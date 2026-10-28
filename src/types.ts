@@ -61,6 +61,8 @@ export interface UserProfile {
   /** The colleague chose not to show their birthday to others. */
   hideBirthday: boolean;
   hireDate: string; // Jalali 'YYYY/MM/DD' or ''
+  /** Sent to user managers: the hire date is the day the person was added to the portal. */
+  hireDateIsEntryDay?: boolean;
   /** The colleague chose not to be congratulated on their work anniversary in front of others. */
   hideAnniversary: boolean;
   bio: string;

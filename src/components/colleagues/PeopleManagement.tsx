@@ -13,7 +13,7 @@ import { downloadCsv } from '../../lib/download';
 import { ImportEmployeesModal, TEMPLATE_HEADER } from './ImportEmployeesModal';
 import { useCoversRole } from './RoleSelect';
 
-type View = 'active' | 'account' | 'noAccount' | 'inactive' | 'all';
+type View = 'active' | 'account' | 'noAccount' | 'inactive' | 'all' | 'hireDate';
 
 const VIEWS: { id: View; label: string; test: (e: UserProfile) => boolean }[] = [
   { id: 'active', label: 'همه کارکنان فعال', test: (e) => e.isActive },
@@ -21,6 +21,8 @@ const VIEWS: { id: View; label: string; test: (e: UserProfile) => boolean }[] = 
   { id: 'noAccount', label: 'فقط دفتر تلفن', test: (e) => e.isActive && !e.hasAccount },
   { id: 'inactive', label: 'غیرفعال', test: (e) => !e.isActive },
   { id: 'all', label: 'همه', test: () => true },
+  // Shown only while someone matches: a hire date that may be the form's old «today» default.
+  { id: 'hireDate', label: 'بررسی تاریخ استخدام', test: (e) => e.isActive && Boolean(e.hireDateIsEntryDay) },
 ];
 
 const badge = 'inline-block px-2 py-0.5 text-[10px] font-bold rounded-md whitespace-nowrap';
@@ -102,7 +104,7 @@ export const PeopleManagement: React.FC = () => {
 
       <div className="bg-white p-4 rounded-2xl border border-[#E6E0D5] space-y-3">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar" role="tablist" aria-label="دسته‌بندی کارکنان">
-          {VIEWS.map((v) => (
+          {VIEWS.filter((v) => v.id !== 'hireDate' || view === v.id || employees.some(v.test)).map((v) => (
             <button
               key={v.id}
               role="tab"
@@ -132,6 +134,13 @@ export const PeopleManagement: React.FC = () => {
             {departments.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </div>
+        {view === 'hireDate' && (
+          <p className="p-3 text-xs leading-relaxed text-amber-900 bg-amber-50 border border-amber-200 rounded-xl">
+            تاریخ استخدام این همکاران همان روزی است که در پرتال ثبت شده‌اند. برای همکار تازه‌وارد درست است، ولی برای کسی
+            که از قبل در شرکت بوده معمولاً همان «امروزِ» پیش‌فرض فرم قدیمی است و سالگرد همکاری او را اشتباه نشان می‌دهد.
+            تاریخ درست را با «ویرایش» ثبت کنید یا خالی بگذارید.
+          </p>
+        )}
       </div>
 
       {shown.length === 0 ? (

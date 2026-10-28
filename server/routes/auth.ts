@@ -46,6 +46,9 @@ export const authRouter = Router();
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: config.isTest ? 1000 : 30,
+  // Only failed attempts count, so colleagues behind one address (or one person signing in on several
+  // devices) are not locked out by ordinary sign-ins.
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'تعداد تلاش‌های ورود زیاد است. چند دقیقه دیگر دوباره امتحان کنید.' },

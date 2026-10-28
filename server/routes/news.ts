@@ -6,7 +6,7 @@ import { jalaliEndOfDay, jalaliToDate, toJalali, toPersianDigits } from '../../s
 import { can, type SessionUser, requirePermission } from '../auth.js';
 import { db } from '../db/index.js';
 import { employees, news, newsLikes, newsQuestions, newsReads, newsRevisions, type NewsSnapshot, newsTemplates } from '../db/schema.js';
-import { broadcastChange } from '../events.js';
+import { broadcastChange, broadcastEvent, signalUser } from '../events.js';
 import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
 import { audienceIdsFor, createNotifications } from '../notify.js';
 import { richTextToPlain, sanitizeRichText } from '../richText.js';
@@ -444,7 +444,9 @@ newsRouter.post(
       await db.insert(newsLikes).values({ newsId: item.id, userId: viewer.id }).onConflictDoNothing();
     }
     const [serialized] = await serializeMany([item], viewer);
-    broadcastChange('news');
+    // Others only need the new count; this person's other pages also need «liked by me».
+    broadcastEvent('news-likes', { id: item.id, likesCount: serialized.likesCount });
+    signalUser(viewer.id, 'news');
     res.json(serialized);
   }),
 );

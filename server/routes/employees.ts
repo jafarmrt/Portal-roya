@@ -265,7 +265,8 @@ employeesRouter.post(
         avatarUrl: body.avatar,
         birthDate: body.birthDate,
         hideBirthday: body.hideBirthday,
-        hireDate: body.hireDate || todayJalali(),
+        // Only a new colleague starts today; for anyone else an empty date means «not known yet».
+        hireDate: body.hireDate || (body.isNewColleague ? todayJalali() : ''),
         directManagerId: body.directManagerId || null,
       })
       .returning();

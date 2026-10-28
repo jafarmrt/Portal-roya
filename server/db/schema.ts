@@ -755,6 +755,8 @@ export const personalTodos = pgTable(
     important: boolean('important').notNull().default(false),
     // Ticking off a repeating note writes the next one ('daily' | 'weekly' | 'monthly').
     repeat: text('repeat').$type<TodoRepeat>(),
+    // The day of the month a monthly note keeps, so one for the 31st is back on the 31st after a 30-day month.
+    repeatDay: integer('repeat_day'),
     // The repeating note this one was written after; un-ticking that one takes this one back.
     previousId: text('previous_id'),
     steps: jsonb('steps').$type<TodoStep[]>().notNull().default([]),

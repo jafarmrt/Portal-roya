@@ -19,7 +19,8 @@ export function usePresence(enabled: boolean) {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const onChange = () => {
       clearTimeout(timer);
-      timer = setTimeout(() => void load(), 300);
+      // Every open page hears of a change at once; a random wait spreads their requests out.
+      timer = setTimeout(() => void load(), 300 + Math.random() * 800);
     };
     window.addEventListener(PRESENCE_EVENT, onChange);
     return () => {

@@ -1,4 +1,4 @@
-import { and, count, eq, gte, inArray, lt } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
 import { featureVisible } from '../../shared/features.js';
@@ -28,6 +28,8 @@ export const kudosRouter = Router();
 
 const MINUTE_MS = 60_000;
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 const startOfToday = (now: Date) => {
   const d = new Date(now);
   d.setHours(0, 0, 0, 0);
@@ -49,9 +51,9 @@ async function visibleOnline(viewer: SessionUser) {
 }
 
 /** When this person may next send to each colleague, for those they sent to in the last few minutes. */
-async function waits(viewerId: string, now: Date) {
+async function waits(viewerId: string, now: Date, tx: Tx | typeof db = db) {
   const since = new Date(now.getTime() - KUDOS_PAIR_MINUTES * MINUTE_MS);
-  const rows = await db
+  const rows = await tx
     .select({ toId: kudos.toId, createdAt: kudos.createdAt })
     .from(kudos)
     .where(and(eq(kudos.fromId, viewerId), gte(kudos.createdAt, since)));
@@ -63,8 +65,8 @@ async function waits(viewerId: string, now: Date) {
   return until;
 }
 
-async function sentToday(viewerId: string, now: Date) {
-  const [row] = await db
+async function sentToday(viewerId: string, now: Date, tx: Tx | typeof db = db) {
+  const [row] = await tx
     .select({ n: count() })
     .from(kudos)
     .where(and(eq(kudos.fromId, viewerId), gte(kudos.createdAt, startOfToday(now))));
@@ -155,22 +157,28 @@ kudosRouter.post(
       throw new HttpError(400, 'این همکار الان آنلاین نیست.');
     }
 
-    const wait = (await waits(viewer.id, now))[target.id];
-    if (wait) {
-      const minutes = Math.max(1, Math.ceil((new Date(wait).getTime() - now.getTime()) / MINUTE_MS));
-      throw new HttpError(429, `به هر همکار هر ${toPersianDigits(KUDOS_PAIR_MINUTES)} دقیقه یک ایموجی می‌شود فرستاد؛ ${toPersianDigits(minutes)} دقیقهٔ دیگر.`);
-    }
-    if ((await sentToday(viewer.id, now)) >= KUDOS_DAILY_LIMIT) {
-      throw new HttpError(429, `امروز ${toPersianDigits(KUDOS_DAILY_LIMIT)} ایموجی فرستاده‌اید؛ فردا دوباره می‌توانید.`);
-    }
-
+    // The limits are checked and the emoji saved under a lock on the sender, so several clicks at once
+    // (a double click, two open pages) cannot get past them together.
     let created: typeof kudos.$inferSelect;
     try {
-      [created] = await db
-        .insert(kudos)
-        .values({ fromId: viewer.id, toId: target.id, emoji: emoji.emoji, label: emoji.label, replyToId: body.replyTo ?? null })
-        .returning();
-    } catch {
+      created = await db.transaction(async (tx) => {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`kudos:${viewer.id}`}))`);
+        const wait = (await waits(viewer.id, now, tx))[target.id];
+        if (wait) {
+          const minutes = Math.max(1, Math.ceil((new Date(wait).getTime() - now.getTime()) / MINUTE_MS));
+          throw new HttpError(429, `به هر همکار هر ${toPersianDigits(KUDOS_PAIR_MINUTES)} دقیقه یک ایموجی می‌شود فرستاد؛ ${toPersianDigits(minutes)} دقیقهٔ دیگر.`);
+        }
+        if ((await sentToday(viewer.id, now, tx)) >= KUDOS_DAILY_LIMIT) {
+          throw new HttpError(429, `امروز ${toPersianDigits(KUDOS_DAILY_LIMIT)} ایموجی فرستاده‌اید؛ فردا دوباره می‌توانید.`);
+        }
+        const [row] = await tx
+          .insert(kudos)
+          .values({ fromId: viewer.id, toId: target.id, emoji: emoji.emoji, label: emoji.label, replyToId: body.replyTo ?? null })
+          .returning();
+        return row;
+      });
+    } catch (err) {
+      if (err instanceof HttpError || body.replyTo === undefined) throw err;
       // Two answers to the same emoji at once (two open pages); only one is kept.
       throw new HttpError(400, 'به این ایموجی دیگر نمی‌شود پاسخ داد.');
     }

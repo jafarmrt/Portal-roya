@@ -134,6 +134,9 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
           <div>
             <label htmlFor="emp-hire" className={labelClass}>تاریخ استخدام</label>
             <JalaliDateInput id="emp-hire" value={form.hireDate} onChange={(v) => set('hireDate', v)} />
+            {!form.isNewColleague && !form.hireDate && (
+              <p className="mt-1 text-[11px] text-[#6E6A60]">اگر نمی‌دانید خالی بماند؛ بعداً هم می‌شود ثبت کرد.</p>
+            )}
           </div>
         </div>
 
@@ -179,7 +182,20 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
 
         <div className="p-4 bg-[#F5F2ED] rounded-2xl space-y-2">
           <label className="flex items-center gap-2 font-bold cursor-pointer">
-            <input type="checkbox" checked={form.isNewColleague} onChange={(e) => set('isNewColleague', e.target.checked)} className="accent-red-700" />
+            <input
+              type="checkbox"
+              checked={form.isNewColleague}
+              onChange={(e) => {
+                const isNew = e.target.checked;
+                // A new colleague starts today; for someone already here, today is never the right default.
+                setForm((f) => ({
+                  ...f,
+                  isNewColleague: isNew,
+                  hireDate: isNew ? f.hireDate || todayJalali() : f.hireDate === todayJalali() ? '' : f.hireDate,
+                }));
+              }}
+              className="accent-red-700"
+            />
             معرفی در داشبورد به عنوان همکار جدید (به همه اعلان داده می‌شود)
           </label>
           {form.isNewColleague && (
