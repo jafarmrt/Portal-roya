@@ -204,6 +204,13 @@
       "when": 1793186133888,
       "tag": "0028_unset_department",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793196317648,
+      "tag": "0029_kudos_banner",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import type { Response } from 'express';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { db, pool } from '../server/db/index';
 import { kudos, notifications } from '../server/db/schema';
@@ -27,11 +27,9 @@ class OpenPage extends EventEmitter {
   close() {
     this.emit('close');
   }
-  /** The emoji pushed to this page. */
-  kudos() {
-    return this.written
-      .filter((w) => w.startsWith('event: kudos'))
-      .map((w) => JSON.parse(w.split('\ndata: ')[1]) as { id: number; message: string; canReply: boolean; from: { id: string } });
+  /** How many times this page was told its emoji banner changed. */
+  kudosSignals() {
+    return this.written.filter((w) => w.startsWith('event: kudos')).length;
   }
 }
 
@@ -88,15 +86,17 @@ describe('«همکاران آنلاین»: who has the portal open, and ready-ma
     expect(onlineIds()).toContain(sara.id);
   });
 
-  it('sends an emoji to an online colleague: a notification, and a message on their open page', async () => {
+  it('sends an emoji to an online colleague: a banner on their pages, not a notification', async () => {
     await maryam.agent.post('/api/kudos').send({ to: reza.id, emoji: 'flower' }).expect(201);
-    const toReza = pages[1].kudos();
-    expect(toReza).toHaveLength(1);
-    expect(toReza[0]).toMatchObject({ canReply: true, from: { id: maryam.id } });
-    expect(toReza[0].message).toContain('🌹');
-    const inbox = await db.select().from(notifications).where(and(eq(notifications.userId, reza.id), eq(notifications.type, 'kudos')));
-    expect(inbox).toHaveLength(1);
-    expect(inbox[0].message).toBe(toReza[0].message);
+    expect(pages[1].kudosSignals()).toBe(1);
+    const banner = (await reza.agent.get('/api/kudos/banner').expect(200)).body;
+    expect(banner).toHaveLength(1);
+    expect(banner[0]).toMatchObject({ canReply: true, emoji: '🌹', from: { id: maryam.id } });
+    expect(banner[0].message).toContain('🌹');
+    const inbox = await db.select().from(notifications).where(eq(notifications.userId, reza.id));
+    expect(inbox.filter((n) => n.type === 'kudos')).toHaveLength(0);
+    // Nobody else sees it.
+    expect((await sara.agent.get('/api/kudos/banner').expect(200)).body).toEqual([]);
 
     // Not again to the same colleague for a few minutes; another colleague is fine.
     const again = await maryam.agent.post('/api/kudos').send({ to: reza.id, emoji: 'thanks' }).expect(429);
@@ -106,9 +106,11 @@ describe('«همکاران آنلاین»: who has the portal open, and ready-ma
   });
 
   it('allows one emoji back, and the exchange ends there', async () => {
-    const [received] = pages[1].kudos();
+    const [received] = (await reza.agent.get('/api/kudos/banner').expect(200)).body;
     await reza.agent.post('/api/kudos').send({ to: maryam.id, emoji: 'smile', replyTo: received.id }).expect(201);
-    const back = pages[0].kudos();
+    // Answering closes the banner of the emoji answered.
+    expect((await reza.agent.get('/api/kudos/banner').expect(200)).body).toEqual([]);
+    const back = (await maryam.agent.get('/api/kudos/banner').expect(200)).body;
     expect(back).toHaveLength(1);
     expect(back[0].canReply).toBe(false);
     expect(back[0].message).toContain('در پاسخ');
@@ -118,6 +120,26 @@ describe('«همکاران آنلاین»: who has the portal open, and ready-ma
     await maryam.agent.post('/api/kudos').send({ to: reza.id, emoji: 'tea', replyTo: back[0].id }).expect(400);
     // Nobody answers an emoji that was not sent to them.
     await sara.agent.post('/api/kudos').send({ to: maryam.id, emoji: 'tea', replyTo: received.id }).expect(400);
+  });
+
+  it('keeps an emoji in the banner until it is closed, also on the other pages', async () => {
+    const before = pages[0].kudosSignals();
+    const [one] = (await maryam.agent.get('/api/kudos/banner').expect(200)).body;
+    // Only one's own emoji can be closed.
+    await reza.agent.post('/api/kudos/banner/dismiss').send({ ids: [one.id] }).expect(204);
+    expect((await maryam.agent.get('/api/kudos/banner').expect(200)).body).toHaveLength(1);
+    await maryam.agent.post('/api/kudos/banner/dismiss').send({ ids: [one.id] }).expect(204);
+    expect((await maryam.agent.get('/api/kudos/banner').expect(200)).body).toEqual([]);
+    expect(pages[0].kudosSignals()).toBe(before + 1);
+
+    // «Close all», and nothing older than a day comes back.
+    await db.insert(kudos).values([
+      { fromId: reza.id, toId: maryam.id, emoji: '🌹', label: 'گل' },
+      { fromId: sara.id, toId: maryam.id, emoji: '🙏', label: 'تشکر', createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000) },
+    ]);
+    expect((await maryam.agent.get('/api/kudos/banner').expect(200)).body).toHaveLength(1);
+    await maryam.agent.post('/api/kudos/banner/dismiss').send({}).expect(204);
+    expect((await maryam.agent.get('/api/kudos/banner').expect(200)).body).toEqual([]);
   });
 
   it('refuses text, unknown emoji, oneself and colleagues who are not online', async () => {
@@ -191,7 +213,7 @@ describe('«همکاران آنلاین»: who has the portal open, and ready-ma
     expect((await sara.agent.get('/api/presence').expect(200)).body.emojis).toEqual(list);
     await sara.agent.post('/api/kudos').send({ to: reza.id, emoji: 'tea' }).expect(400);
     await sara.agent.post('/api/kudos').send({ to: reza.id, emoji: 'cake' }).expect(201);
-    expect(pages[1].kudos().at(-1)?.message).toContain('🎂');
+    expect((await reza.agent.get('/api/kudos/banner').expect(200)).body[0].message).toContain('🎂');
     // Employees cannot, repeated emoji are refused, and an empty list brings the built-in six back.
     await sara.agent.put('/api/settings').send({ kudosEmojis: [] }).expect(403);
     await admin.put('/api/settings').send({ kudosEmojis: [list[0], list[0]] }).expect(400);

@@ -1,8 +1,9 @@
-import { and, count, eq, gte, inArray, lt, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
 import { featureVisible } from '../../shared/features.js';
 import {
+  KUDOS_BANNER_MAX,
   KUDOS_DAILY_LIMIT,
   KUDOS_KEEP_DAYS,
   KUDOS_PAIR_MINUTES,
@@ -17,7 +18,6 @@ import { employees, kudos } from '../db/schema.js';
 import { sendToUser } from '../events.js';
 import { featureConfig } from '../features.js';
 import { HttpError, currentUser, parse, route } from '../http.js';
-import { createNotifications } from '../notify.js';
 import { markActive, onlineIds, presenceChanged } from '../presence.js';
 import { fullName } from '../serializers.js';
 import { ensureSettings } from '../settings.js';
@@ -183,20 +183,67 @@ kudosRouter.post(
       throw new HttpError(400, 'به این ایموجی دیگر نمی‌شود پاسخ داد.');
     }
     markActive(viewer.id);
-    const fromName = fullName(viewer);
-    const isReply = body.replyTo !== undefined;
-    const message = kudosMessage(fromName, emoji, isReply);
-    await createNotifications([target.id], { title: `${emoji.emoji} ${emoji.label}`, message, type: 'kudos', linkTab: 'dashboard' });
-    // The receiver's open pages show it at once, with one-click answers unless it is itself an answer.
-    sendToUser(target.id, 'kudos', {
-      id: created.id,
-      from: { id: viewer.id, firstName: viewer.firstName, lastName: viewer.lastName, avatar: viewer.avatarUrl },
-      emoji: emoji.emoji,
-      label: emoji.label,
-      message,
-      canReply: !isReply && viewer.acceptKudos && target.showOnline,
-    });
+    // Answering closes the banner of the emoji answered.
+    if (body.replyTo !== undefined) {
+      await db.update(kudos).set({ dismissedAt: now }).where(and(eq(kudos.id, body.replyTo), isNull(kudos.dismissedAt)));
+      sendToUser(viewer.id, 'kudos', {});
+    }
+    // No notification: the receiver's open pages show it in a small banner at once (see GET /kudos/banner).
+    sendToUser(target.id, 'kudos', {});
     res.status(201).json({ id: created.id, waitUntil: new Date(now.getTime() + KUDOS_PAIR_MINUTES * MINUTE_MS).toISOString() });
+  }),
+);
+
+/**
+ * The emoji waiting in this person's banner: received in the last day and not closed yet, newest
+ * first. Each can be answered once with one emoji, unless it is itself an answer.
+ */
+kudosRouter.get(
+  '/kudos/banner',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const since = new Date(Date.now() - KUDOS_REPLY_HOURS * 60 * MINUTE_MS);
+    const rows = await db
+      .select({ k: kudos, from: employees })
+      .from(kudos)
+      .innerJoin(employees, eq(employees.id, kudos.fromId))
+      .where(and(eq(kudos.toId, viewer.id), isNull(kudos.dismissedAt), gte(kudos.createdAt, since)))
+      .orderBy(desc(kudos.createdAt))
+      .limit(KUDOS_BANNER_MAX);
+    const ids = rows.map((r) => r.k.id);
+    const answered = new Set(
+      ids.length
+        ? (await db.select({ id: kudos.replyToId }).from(kudos).where(inArray(kudos.replyToId, ids))).map((r) => r.id)
+        : [],
+    );
+    res.json(
+      rows.map(({ k, from }) => ({
+        id: k.id,
+        from: { id: from.id, firstName: from.firstName, lastName: from.lastName, avatar: from.avatarUrl },
+        emoji: k.emoji,
+        label: k.label,
+        message: kudosMessage(fullName(from), k, k.replyToId !== null),
+        createdAt: k.createdAt.toISOString(),
+        canReply: k.replyToId === null && !answered.has(k.id) && from.isActive && from.acceptKudos && viewer.showOnline,
+      })),
+    );
+  }),
+);
+
+/** Closes emoji in this person's banner: the ids given, or all of them. */
+kudosRouter.post(
+  '/kudos/banner/dismiss',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const { ids } = parse(z.object({ ids: z.array(z.number().int().positive()).max(100).optional() }), req.body);
+    const mine = and(eq(kudos.toId, viewer.id), isNull(kudos.dismissedAt));
+    await db
+      .update(kudos)
+      .set({ dismissedAt: new Date() })
+      .where(ids ? and(mine, inArray(kudos.id, ids.length ? ids : [0])) : mine);
+    // The person's other open pages close it too.
+    sendToUser(viewer.id, 'kudos', {});
+    res.status(204).end();
   }),
 );
 

@@ -20,7 +20,6 @@ import type {
   DepartmentPage,
   Guide,
   GuideInput,
-  IncomingKudos,
   MoodState,
   NewColleagueWelcome,
   NewsInput,
@@ -49,7 +48,7 @@ const NEWS_PAGE_SIZE = 30;
 
 /** Fired on window when the list of online colleagues may have changed. */
 export const PRESENCE_EVENT = 'portal:presence';
-/** Fired on window with an IncomingKudos when a colleague sends this person an emoji. */
+/** Fired on window when this person's emoji banner changed (one arrived, or it was closed on another page). */
 export const KUDOS_EVENT = 'portal:kudos';
 /** Pages spread their refetches after a live signal over this long, so they do not all ask at once. */
 const LIVE_SPREAD_MS = 800;
@@ -546,9 +545,13 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
     let connectedBefore = false;
     source.addEventListener('open', () => {
-      if (connectedBefore) refreshAll();
+      if (connectedBefore) {
+        refreshAll();
+        // Emoji may have arrived while the connection was down (see src/components/online).
+        window.dispatchEvent(new Event(KUDOS_EVENT));
+      }
       connectedBefore = true;
-      // «همکاران آنلاین» keeps its own list (see src/components/online).
+      // «همکاران آنلاین» keeps its own list.
       window.dispatchEvent(new Event(PRESENCE_EVENT));
     });
     window.addEventListener('online', refreshAll);
@@ -574,13 +577,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // Ignore malformed events.
       }
     });
-    source.addEventListener('kudos', (e) => {
-      try {
-        window.dispatchEvent(new CustomEvent<IncomingKudos>(KUDOS_EVENT, { detail: JSON.parse((e as MessageEvent).data) }));
-      } catch {
-        // Ignore malformed events.
-      }
-    });
+    source.addEventListener('kudos', () => window.dispatchEvent(new Event(KUDOS_EVENT)));
     return () => {
       source.close();
       window.removeEventListener('online', refreshAll);

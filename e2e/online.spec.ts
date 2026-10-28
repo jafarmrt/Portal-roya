@@ -6,8 +6,9 @@ const asRole = async (browser: Browser, role: 'admin' | 'employee') => {
 };
 
 // «همکاران آنلاین» is on from the start: a small card in the dashboard's side column with everyone
-// who has the portal open. Sara sends the administrator a flower; it pops up in the corner of his
-// page, he answers with one emoji, and that is where the exchange ends. There is nowhere to type.
+// who has the portal open. Sara sends the administrator a flower; it waits in a small banner in the
+// corner of his page (not in the notifications) until he closes it; he answers with one emoji, and that
+// is where the exchange ends. There is nowhere to type.
 test.describe('online colleagues and ready-made emoji', () => {
   test('a colleague sends a flower and gets one emoji back', async ({ browser }) => {
     const admin = await asRole(browser, 'admin');
@@ -31,14 +32,23 @@ test.describe('online colleagues and ready-made emoji', () => {
     await adminPhoto.click();
     await expect(card).toContainText('دقیقهٔ دیگر می‌توانید دوباره بفرستید');
 
-    const toast = admin.page.getByRole('status').filter({ hasText: 'سارا احمدی برایتان 🌹 «تقدیم با گل» فرستاد.' });
-    await expect(toast).toBeVisible();
-    await toast.getByRole('button', { name: 'پاسخ با تشکر' }).click();
+    const banner = admin.page.getByRole('region', { name: 'ایموجی‌های همکاران' });
+    await expect(banner).toContainText('سارا احمدی برایتان 🌹 «تقدیم با گل» فرستاد.');
+    // It stays: still there after a reload.
+    await admin.page.reload();
+    await expect(banner).toContainText('سارا احمدی برایتان 🌹 «تقدیم با گل» فرستاد.');
+    await banner.getByRole('button', { name: 'پاسخ با تشکر به سارا احمدی' }).click();
+    await expect(banner).toBeHidden();
 
-    const reply = sara.page.getByRole('status').filter({ hasText: 'مدیر سیستم در پاسخ برایتان 🙏 «تشکر» فرستاد.' });
-    await expect(reply).toBeVisible();
-    // An answer cannot be answered.
+    const reply = sara.page.getByRole('region', { name: 'ایموجی‌های همکاران' });
+    await expect(reply).toContainText('مدیر سیستم در پاسخ برایتان 🙏 «تشکر» فرستاد.');
+    // An answer cannot be answered; × closes it.
     await expect(reply.getByRole('button', { name: /^پاسخ با/ })).toHaveCount(0);
+    await reply.getByRole('button', { name: 'بستن ایموجی مدیر سیستم' }).click();
+    await expect(reply).toBeHidden();
+    await sara.page.reload();
+    await expect(sara.page.getByRole('heading', { name: 'آخرین اخبار و اطلاعیه‌ها' })).toBeVisible();
+    await expect(reply).toBeHidden();
 
     await admin.context.close();
     await sara.context.close();

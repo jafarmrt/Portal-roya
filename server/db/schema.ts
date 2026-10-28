@@ -777,7 +777,9 @@ export const kudos = pgTable(
     label: text('label').notNull(),
     // The emoji this one answers; an answer cannot itself be answered.
     replyToId: integer('reply_to_id'),
+    // The receiver closed its banner (or answered it); until then it waits on their pages for a day.
+    dismissedAt: timestamp('dismissed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('kudos_from_idx').on(t.fromId, t.createdAt), uniqueIndex('kudos_reply_idx').on(t.replyToId)],
+  (t) => [index('kudos_to_idx').on(t.toId, t.createdAt), index('kudos_from_idx').on(t.fromId, t.createdAt), uniqueIndex('kudos_reply_idx').on(t.replyToId)],
 );
