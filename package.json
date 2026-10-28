@@ -1,7 +1,7 @@
 {
   "name": "roya-portal",
   "private": true,
-  "version": "2.31.2",
+  "version": "2.32.0",
   "type": "module",
   "scripts": {
     "dev": "tsx watch --clear-screen=false --ignore 'src/**' server/index.ts",

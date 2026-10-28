@@ -11,6 +11,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import type { AuditAction, AuditEntity } from '../../shared/audit.js';
+import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
 import type { MonthlySummary } from '../../shared/reports.js';
 
 export type { AuditAction, AuditEntity };
@@ -115,6 +116,8 @@ export const employees = pgTable('employees', {
   lockedUntil: timestamp('locked_until', { withTimezone: true }),
   /** The last time the colleague used the portal (signing in or any page), kept to within a few minutes. */
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+  /** Newly introduced parts of the portal the colleague has opened or whose introduction they closed. */
+  seenFeatures: text('seen_features').array().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -642,6 +645,14 @@ export const settings = pgTable('settings', {
   foundingDate: text('founding_date').notNull().default(''),
   // The founding-day message ('' = the built-in one).
   foundingMessage: text('founding_message').notNull().default(''),
+  // Parts of the portal switched off or in preview until they are introduced, e.g. { suggestions: 'preview' }.
+  // Missing keys use the part's default (see shared/features.ts).
+  features: jsonb('features').$type<Partial<Record<string, FeatureState>>>().notNull().default({}),
+  // How each part was introduced when it was last switched on for everyone.
+  featureLaunches: jsonb('feature_launches').$type<Partial<Record<string, FeatureLaunch>>>().notNull().default({}),
+  // Who sees parts in preview besides the administrator: whole roles and named colleagues.
+  pilotRoles: text('pilot_roles').array().notNull().default([]),
+  pilotUserIds: text('pilot_user_ids').array().notNull().default([]),
 });
 
 /** Who created, changed or deleted what in the portal's content, accounts and settings, for the admin. */

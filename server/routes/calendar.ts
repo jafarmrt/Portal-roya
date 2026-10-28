@@ -11,6 +11,7 @@ import { config } from '../config.js';
 import { db } from '../db/index.js';
 import { calendarEvents, calendarRsvps, customHolidays, employees } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
+import { hiddenFeatures } from '../features.js';
 import { HttpError, currentUser, newId, parse, route, viewerOf } from '../http.js';
 import { eventToIcs } from '../ics.js';
 import { audienceIdsFor, createNotifications } from '../notify.js';
@@ -90,7 +91,9 @@ calendarRouter.get(
   route(async (req, res) => {
     const viewer = viewerOf(req);
     const rows = await db.select().from(calendarEvents).where(visibleTo(viewer)).orderBy(calendarEvents.date);
-    res.json(await serializeEvents(rows, viewer));
+    // A course's sessions stay off the calendar while the training part is hidden from this person.
+    const trainingHidden = (await hiddenFeatures(viewer)).has('training');
+    res.json(await serializeEvents(trainingHidden ? rows.filter((e) => !e.trainingId) : rows, viewer));
   }),
 );
 

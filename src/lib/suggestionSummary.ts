@@ -18,9 +18,9 @@ export const suggestionsChanged = () => window.dispatchEvent(new Event(CHANGED))
  * as a notification, so the count follows the notifications list.
  */
 export function useSuggestionSummary(): SuggestionSummary | null {
-  const { currentUser, can, notifications } = usePortal();
+  const { currentUser, can, notifications, featureOn } = usePortal();
   const [summary, setSummary] = useState<SuggestionSummary | null>(null);
-  const reader = Boolean(currentUser) && SUGGESTION_BOXES.some((b) => can(b.permission));
+  const reader = Boolean(currentUser) && featureOn('suggestions') && SUGGESTION_BOXES.some((b) => can(b.permission));
   const latest = notifications.find((n) => n.type === 'suggestion')?.id;
   useEffect(() => {
     if (!reader) {

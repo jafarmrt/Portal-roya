@@ -2,6 +2,8 @@ import { and, desc, eq } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { notifications } from '../db/schema.js';
+import { featureOfTab } from '../../shared/features.js';
+import { hiddenFeatures, hiddenNotification } from '../features.js';
 import { currentUser, route } from '../http.js';
 
 export const notificationsRouter = Router();
@@ -16,8 +18,14 @@ notificationsRouter.get(
       .where(eq(notifications.userId, viewer.id))
       .orderBy(desc(notifications.createdAt))
       .limit(100);
+    // Notifications of a part that is hidden from this person wait until it is introduced.
+    const hidden = await hiddenFeatures(viewer);
+    const shown = rows.filter((n) => {
+      const tabFeature = n.linkTab ? featureOfTab(n.linkTab) : undefined;
+      return !hiddenNotification(hidden, n.type) && !(tabFeature && hidden.has(tabFeature));
+    });
     res.json(
-      rows.map((n) => ({
+      shown.map((n) => ({
         id: String(n.id),
         title: n.title,
         message: n.message,

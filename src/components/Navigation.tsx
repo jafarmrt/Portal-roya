@@ -28,6 +28,7 @@ import {
   MessageSquareText
 } from 'lucide-react';
 import { unreadTotal, useSuggestionSummary } from '../lib/suggestionSummary';
+import { tabLabelBadge, tabOn } from '../lib/features';
 
 interface NavigationProps {
   isMobileNavOpen: boolean;
@@ -185,6 +186,19 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
           { id: 'departments', label: 'واحدها', icon: <Building2 className="w-4 h-4" /> },
         ];
 
+  // Parts an administrator keeps hidden until they are introduced are left out; newly introduced or
+  // preview ones say so next to their name.
+  const shown = (items: NavItem[]): NavItem[] =>
+    items
+      .filter((item) => tabOn(appSettings, item.id))
+      .map((item) => {
+        const mark = tabLabelBadge(appSettings, item.id);
+        if (!mark || item.badge) return item;
+        return mark === 'new'
+          ? { ...item, badge: 'جدید', badgeColor: 'bg-emerald-300 text-emerald-950' }
+          : { ...item, badge: 'پیش‌نمایش', badgeColor: 'bg-white/25 text-white' };
+      });
+
   const adminItems: NavItem[] = [];
   if (can('users.manage')) adminItems.push({ id: 'people', label: 'مدیریت کارکنان', icon: <UserCog className="w-4 h-4" /> });
   if (can('reports.view')) adminItems.push({ id: 'reports', label: 'گزارش‌ها', icon: <BarChart2 className="w-4 h-4" /> });
@@ -198,18 +212,18 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
   const desktopEntries: NavEntry[] = [
     { kind: 'item', item: dashboard },
     { kind: 'item', item: newsItem },
-    { kind: 'item', item: pollsItem },
-    ...groupOrItem('library', 'اسناد و راهنماها', <Library className="w-4 h-4" />, [documents, guides]),
-    ...groupOrItem('colleagues', 'همکاران', <Contact className="w-4 h-4" />, colleagueItems),
-    { kind: 'item', item: training },
+    ...shown([pollsItem]).map((item): NavEntry => ({ kind: 'item', item })),
+    ...groupOrItem('library', 'اسناد و راهنماها', <Library className="w-4 h-4" />, shown([documents, guides])),
+    ...groupOrItem('colleagues', 'همکاران', <Contact className="w-4 h-4" />, shown(colleagueItems)),
+    ...shown([training]).map((item): NavEntry => ({ kind: 'item', item })),
     { kind: 'item', item: calendar },
-    ...suggestions.map((item): NavEntry => ({ kind: 'item', item })),
+    ...shown(suggestions).map((item): NavEntry => ({ kind: 'item', item })),
     ...groupOrItem('admin', 'مدیریت', <ShieldCheck className="w-4 h-4" />, adminItems),
   ];
 
   // The phone drawer has room for everything, with management pages under their own heading.
   const mobileSections: { title?: string; items: NavItem[] }[] = [
-    { items: [dashboard, systems, newsItem, pollsItem, documents, guides, ...colleagueItems, training, calendar, ...suggestions] },
+    { items: shown([dashboard, systems, newsItem, pollsItem, documents, guides, ...colleagueItems, training, calendar, ...suggestions]) },
     ...(adminItems.length > 0 ? [{ title: 'مدیریت', items: adminItems }] : []),
   ];
 

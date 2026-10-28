@@ -3,6 +3,8 @@ import toast from 'react-hot-toast';
 import { ApiError, api, errorMessage, setUnauthorizedHandler } from '../lib/api';
 import { buildSearchResults } from '../lib/search';
 import { systemLink } from '../../shared/systemLinks';
+import { type FeatureKey, featureOfTab } from '../../shared/features';
+import { featureOn as isFeatureOn } from '../lib/features';
 import type {
   ExternalSystem,
   ActiveTab,
@@ -175,6 +177,11 @@ interface PortalContextType {
   departmentPages: DepartmentPage[];
   userMoods: UserMood[];
   todayMoodSubmitted: boolean;
+
+  /** Whether this person sees a part an administrator can keep hidden until it is introduced. */
+  featureOn: (key: FeatureKey) => boolean;
+  /** «جدید» goes away once the person opens the part or closes its introduction. */
+  markFeatureSeen: (key: FeatureKey) => void;
 
   // Actions
   updateSettings: (settings: Partial<AppSettings>) => Promise<boolean>;
@@ -525,6 +532,20 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // --- Actions ---
+
+  const featureOn = useCallback((key: FeatureKey) => isFeatureOn(appSettings, key), [appSettings]);
+
+  const markFeatureSeen = useCallback((key: FeatureKey) => {
+    setAppSettings((s) => (s ? { ...s, featureNews: s.featureNews.filter((n) => n.key !== key) } : s));
+    api.post<AppSettings>(`/api/settings/features/${key}/seen`).then(setAppSettings).catch(() => undefined);
+  }, []);
+
+  // Opening a newly introduced page counts as having seen it.
+  const unseenTabFeature = featureOfTab(activeTab);
+  const tabIsNew = Boolean(currentUser && unseenTabFeature && appSettings?.featureNews.some((n) => n.key === unseenTabFeature));
+  useEffect(() => {
+    if (tabIsNew && unseenTabFeature) markFeatureSeen(unseenTabFeature);
+  }, [tabIsNew, unseenTabFeature, markFeatureSeen]);
 
   const updateSettings = async (settings: Partial<AppSettings>) => {
     const updated = await attempt(() => api.put<AppSettings>('/api/settings', settings), 'تنظیمات ذخیره شد.');
@@ -978,6 +999,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         departmentPages,
         userMoods,
         todayMoodSubmitted,
+        featureOn,
+        markFeatureSeen,
         updateSettings,
         setBanner,
         clearBanner,

@@ -2,6 +2,7 @@ import React from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { BirthdayCard } from './BirthdayCard';
 import { MyCelebrationCard } from './MyCelebrationCard';
+import { FeatureIntroCard } from './FeatureIntroCard';
 import { FoundingDayBanner } from './FoundingDayBanner';
 import { QuickSystemsWidget } from './QuickSystemsWidget';
 import { MoodTrackerWidget } from './MoodTrackerWidget';
@@ -36,6 +37,7 @@ export const DashboardModule: React.FC = () => {
     setActiveTab,
     appSettings,
     customHolidays,
+    featureOn,
   } = usePortal();
   const on = (id: Parameters<typeof isCardOn>[1]) => isCardOn(appSettings, id);
 
@@ -83,16 +85,18 @@ export const DashboardModule: React.FC = () => {
 
           {/* Quick Stat Pill Cards */}
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setActiveTab('polls')}
-              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl backdrop-blur-xs border border-white/10 text-right transition-all"
-            >
-              <div className="text-[10px] text-[#E6E0D5]">نظرسنجی‌ها</div>
-              <div className="text-base font-black text-white flex items-center gap-1.5">
-                <Vote className="w-4 h-4 text-[#9BB088]" />
-                <span>{toPersianDigits(openPollsCount)} {isGuest ? 'در حال رأی‌گیری' : 'در انتظار رأی شما'}</span>
-              </div>
-            </button>
+            {featureOn('polls') && (
+              <button
+                onClick={() => setActiveTab('polls')}
+                className="px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl backdrop-blur-xs border border-white/10 text-right transition-all"
+              >
+                <div className="text-[10px] text-[#E6E0D5]">نظرسنجی‌ها</div>
+                <div className="text-base font-black text-white flex items-center gap-1.5">
+                  <Vote className="w-4 h-4 text-[#9BB088]" />
+                  <span>{toPersianDigits(openPollsCount)} {isGuest ? 'در حال رأی‌گیری' : 'در انتظار رأی شما'}</span>
+                </div>
+              </button>
+            )}
 
             <button
               onClick={() => setActiveTab('news')}
@@ -111,6 +115,11 @@ export const DashboardModule: React.FC = () => {
       {/* Once a year, on the company's founding day */}
       <div className="order-1 lg:order-none">
         <FoundingDayBanner />
+      </div>
+
+      {/* Parts of the portal introduced in the last two weeks */}
+      <div className="order-1 lg:order-none">
+        <FeatureIntroCard />
       </div>
 
       {/* What this person still has to do; when the card is switched off, circulars are still listed */}
