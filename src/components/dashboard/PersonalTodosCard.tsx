@@ -1,42 +1,18 @@
 import React, { useState } from 'react';
-import moment from 'moment-jalaali';
-import { CalendarClock, CheckCircle2, ChevronDown, Circle, ExternalLink, ListChecks, Lock, NotebookPen, Plus, Repeat, Star, X } from 'lucide-react';
+import { CalendarClock, CheckCircle2, ChevronDown, Circle, ExternalLink, ListChecks, Lock, Maximize2, NotebookPen, Plus, Repeat, Star, X } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { inputClass } from '../common/Modal';
 import { TodoFormModal } from '../todos/TodoFormModal';
 import { DueDateField, QuickDueDates } from '../todos/DueDateField';
 import { useTickTodo } from '../todos/useTickTodo';
 import { featureInPreview } from '../../lib/features';
-import { isValidJalaliDate, JALALI_MONTH_NAMES, toPersianDigits, todayJalali } from '../../lib/jalali';
+import { isValidJalaliDate, toPersianDigits, todayJalali } from '../../lib/jalali';
+import { byImportanceAndDue, GROUP_STYLE, shortDue } from '../todos/todoText';
 import type { ActiveTab, PersonalTodo } from '../../types';
 import { TODO_GROUPS, TODO_TITLE_MAX, todoGroup, todoSource, type TodoGroup } from '../../../shared/todos';
 
 /** Open notes shown before «نمایش همه»; the card sits in the narrow side column. */
 const SHOWN = 5;
-
-const GROUP_STYLE: Record<TodoGroup, string> = {
-  overdue: 'text-red-700',
-  today: 'text-amber-800',
-  week: 'text-sky-800',
-  later: 'text-[#6E6A60]',
-  none: 'text-[#6E6A60]',
-};
-
-/** Starred first, then by due date, then oldest first. */
-const byImportanceAndDue = (a: PersonalTodo, b: PersonalTodo) =>
-  Number(b.important) - Number(a.important) ||
-  (a.dueDate ?? '9').localeCompare(b.dueDate ?? '9') ||
-  a.createdAt.localeCompare(b.createdAt);
-
-/** "امروز", "فردا", "۳ روز گذشته" or "۱۲ آبان", short enough for one line. */
-function shortDue(due: string, today: string) {
-  const days = moment(due, 'jYYYY/jMM/jDD').diff(moment(today, 'jYYYY/jMM/jDD'), 'days');
-  if (days === 0) return 'امروز';
-  if (days === 1) return 'فردا';
-  if (days < 0) return `${toPersianDigits(-days)} روز گذشته`;
-  const m = moment(due, 'jYYYY/jMM/jDD');
-  return toPersianDigits(`${m.jDate()} ${JALALI_MONTH_NAMES[m.jMonth()]}`);
-}
 
 /**
  * «یادداشت کارهای من»: the person's own notes, grouped into overdue, today, this week and later.
@@ -101,11 +77,20 @@ export const PersonalTodosCard: React.FC = () => {
         )}
         <button
           type="button"
+          onClick={() => setActiveTab('todos')}
+          aria-label="صفحهٔ یادداشت‌های من"
+          title="صفحهٔ یادداشت‌های من: همهٔ یادداشت‌ها، جستجو و سوابق"
+          className="ms-auto p-1.5 rounded-xl text-sky-800 hover:bg-sky-50"
+        >
+          <Maximize2 className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
           aria-expanded={formOpen}
           aria-label={formOpen ? 'بستن فرم کار تازه' : 'کار تازه'}
           title={formOpen ? 'بستن' : 'کار تازه'}
           onClick={() => setFormOpen((o) => !o)}
-          className="ms-auto p-1.5 rounded-xl bg-sky-700 hover:bg-sky-800 text-white"
+          className="p-1.5 rounded-xl bg-sky-700 hover:bg-sky-800 text-white"
         >
           {formOpen ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
         </button>

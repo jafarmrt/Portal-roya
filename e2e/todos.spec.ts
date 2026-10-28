@@ -1,4 +1,5 @@
 import { expect, test, type Browser } from '@playwright/test';
+import moment from 'moment-jalaali';
 
 const asRole = async (browser: Browser, role: 'admin' | 'employee') => {
   const context = await browser.newContext({ storageState: `e2e/.auth/${role}.json` });
@@ -76,6 +77,45 @@ test.describe('personal to-do notes', () => {
     await context.close();
   });
 
+  test('the «یادداشت‌های من» page shows every note as a card, with search, steps and the history', async ({ browser }) => {
+    const { context, page } = await asRole(browser, 'employee');
+    const dueDate = moment().format('jYYYY/jMM/jDD');
+    await page.goto('/#dashboard');
+    for (let i = 1; i <= 7; i++) {
+      const res = await page.request.post('/api/todos', {
+        data: { title: `کار شمارهٔ ${i}`, dueDate, ...(i === 1 ? { steps: [{ text: 'گام اول' }, { text: 'گام دوم' }] } : {}) },
+      });
+      expect(res.ok()).toBe(true);
+    }
+    await page.reload();
+    // The dashboard card stays short and opens the page.
+    const card = page.getByRole('region', { name: 'یادداشت کارهای من' });
+    await expect(card.getByRole('button', { name: /نمایش همه/ })).toBeVisible();
+    await card.getByRole('button', { name: 'صفحهٔ یادداشت‌های من' }).click();
+    await expect(page).toHaveURL(/#todos/);
+    await expect(page.getByRole('heading', { name: 'یادداشت‌های من' })).toBeVisible();
+    for (let i = 1; i <= 7; i++) await expect(page.getByRole('listitem', { name: `کار شمارهٔ ${i}` })).toBeVisible();
+
+    // Steps are ticked on the card itself.
+    const first = page.getByRole('listitem', { name: 'کار شمارهٔ 1', exact: true });
+    await first.getByRole('checkbox', { name: 'گام اول' }).click();
+    await expect(first.getByRole('checkbox', { name: 'گام اول' })).toBeChecked();
+    await expect(first).toContainText('۱ از ۲ گام');
+
+    await page.getByRole('searchbox', { name: 'جستجو در یادداشت‌ها' }).fill('گام دوم');
+    await expect(page.getByRole('listitem', { name: /کار شمارهٔ/ })).toHaveCount(1);
+    await page.getByRole('searchbox', { name: 'جستجو در یادداشت‌ها' }).fill('');
+
+    // Done notes move to the history and can be brought back.
+    await page.getByRole('listitem', { name: 'کار شمارهٔ 7' }).getByRole('checkbox', { name: 'انجام شد: کار شمارهٔ 7' }).click();
+    await page.getByRole('button', { name: /انجام‌شده‌ها/ }).click();
+    const history = page.getByRole('region', { name: 'سوابق انجام‌شده‌ها' });
+    await expect(history.getByRole('listitem', { name: 'کار شمارهٔ 7' })).toContainText('انجام شد');
+    await history.getByRole('button', { name: 'برگرداندن کار شمارهٔ 7' }).click();
+    await expect(history.getByRole('listitem', { name: 'کار شمارهٔ 7' })).toHaveCount(0);
+    await context.close();
+  });
+
   test('is gone everywhere once the administrator switches it off', async ({ browser }) => {
     const admin = await asRole(browser, 'admin');
     expect((await admin.page.request.put('/api/settings/features/todos', { data: { state: 'off' } })).ok()).toBe(true);
@@ -83,6 +123,9 @@ test.describe('personal to-do notes', () => {
     await page.goto('/#dashboard');
     await expect(page.getByRole('region', { name: 'کارهای من', exact: true })).toBeVisible();
     await expect(page.getByRole('region', { name: 'یادداشت کارهای من' })).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'منوی اصلی' }).getByRole('button', { name: 'یادداشت‌های من' })).toHaveCount(0);
+    await page.goto('/#todos');
+    await expect(page.getByRole('heading', { name: 'یادداشت‌های من' })).toHaveCount(0);
     await context.close();
     expect((await admin.page.request.put('/api/settings/features/todos', { data: { state: 'on' } })).ok()).toBe(true);
     await admin.context.close();
