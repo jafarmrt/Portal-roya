@@ -312,16 +312,15 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                       <div className="hidden sm:block text-right">
                         <div className="text-xs font-bold text-[#1E1E1E] flex items-center gap-1.5">
                           <span>{currentUser.firstName} {currentUser.lastName}</span>
-                          <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
-                            currentUser.role !== 'employee'
-                              ? 'bg-[#FEF2F2] text-[#991b1b] border border-[#FCA5A5]' 
-                              : 'bg-[#F5F2ED] text-[#605C54]'
-                          }`}>
-                            {roleName(currentUser.role)}
-                          </span>
+                          {/* Only the portal admin sees a chip; everyone else is described by position and unit. */}
+                          {currentUser.role === 'admin' && (
+                            <span className="text-[9px] px-1.5 rounded-full font-bold bg-[#FEF2F2] text-[#991b1b] border border-[#FCA5A5]">
+                              {roleName(currentUser.role)}
+                            </span>
+                          )}
                         </div>
-                        <div className="text-[10px] text-[#7A756D] truncate max-w-[130px]">
-                          {currentUser.position}
+                        <div className="text-[10px] text-[#7A756D] truncate max-w-[150px]">
+                          {[currentUser.position, currentUser.department].filter(Boolean).join(' · ')}
                         </div>
                       </div>
                       <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-[#7A756D]" />
@@ -337,6 +336,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                           <div className="text-[10px] text-[#7A756D] mt-0.5">
                             {currentUser.extension ? `داخلی: ${currentUser.extension} | ` : ''}{currentUser.department}
                           </div>
+                          <div className="text-[10px] text-[#7A756D] mt-0.5">سطح دسترسی در پرتال: {roleName(currentUser.role)}</div>
                         </div>
 
                         <div className="p-1.5 space-y-0.5">

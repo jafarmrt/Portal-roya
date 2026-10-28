@@ -33,3 +33,10 @@ export const RoleSelect: React.FC<RoleSelectProps> = ({ id, value, onChange, dis
     </select>
   );
 };
+
+/** One line under the picker on what the chosen access level allows (its description in settings). */
+export const RoleHint: React.FC<{ roleId: string }> = ({ roleId }) => {
+  const { roles } = usePortal();
+  const description = roles.find((r) => r.id === roleId)?.description;
+  return description ? <p className="mt-1 text-[11px] text-[#6E6A60] leading-relaxed">{description}</p> : null;
+};

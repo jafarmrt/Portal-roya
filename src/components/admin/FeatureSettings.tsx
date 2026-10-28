@@ -139,7 +139,7 @@ const PilotGroupEditor: React.FC<{ data: FeatureSettingsData; onSaved: (data: Fe
       <p className="text-[11px] text-[#6E6A60] leading-relaxed">بخش‌های «پیش‌نمایش» را ادمین و این افراد می‌بینند. ادمین همیشه در این گروه است.</p>
       {choosableRoles.length > 0 && (
         <div className="space-y-1.5">
-          <span className="text-[11px] font-bold text-[#6E6A60]">همهٔ همکارانِ این نقش‌ها</span>
+          <span className="text-[11px] font-bold text-[#6E6A60]">همهٔ همکارانِ این سطح‌های دسترسی</span>
           <div className="flex flex-wrap gap-1.5">
             {choosableRoles.map((r) => {
               const active = pilotRoles.includes(r.id);
@@ -266,7 +266,7 @@ const SuggestionBoxSettings: React.FC<{ rows: FeatureRow[]; busyKey: FeatureKey 
       </div>
       <p className="text-[11px] text-[#6E6A60] leading-relaxed">
         هر صندوق جدا روشن و خاموش می‌شود. اگر فقط یک صندوق روشن باشد، فرم ارسال انتخاب صندوق را نشان نمی‌دهد؛ اگر هر دو خاموش باشند، بخش «انتقادات و پیشنهادات» از منو برداشته می‌شود.
-        صندوقی که خاموش شود پیام تازه نمی‌گیرد، ولی پیام‌های قبلی پاک نمی‌شوند و خوانندگانش (تا وقتی صندوق دیگر روشن است) آن‌ها را می‌بینند و پاسخ می‌دهند. خوانندگان را در تب «نقش‌ها و دسترسی» تعیین کنید.
+        صندوقی که خاموش شود پیام تازه نمی‌گیرد، ولی پیام‌های قبلی پاک نمی‌شوند و خوانندگانش (تا وقتی صندوق دیگر روشن است) آن‌ها را می‌بینند و پاسخ می‌دهند. خوانندگان را در تب «سطح‌های دسترسی» تعیین کنید.
       </p>
       <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {SUGGESTION_BOXES.map((b) => {

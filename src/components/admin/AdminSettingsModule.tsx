@@ -609,7 +609,7 @@ type SettingsTab = 'general' | 'access' | 'features' | 'lists' | 'server';
 /** The settings page's tabs; each opens at its own address, e.g. #admin/lists. */
 const TABS: { id: SettingsTab; label: string; hint: string; icon: React.ReactNode }[] = [
   { id: 'general', label: 'عمومی', hint: 'لوگوی شرکت و سالگرد تأسیس', icon: <Building2 className="w-4 h-4" /> },
-  { id: 'access', label: 'نقش‌ها و دسترسی', hint: 'نقش‌ها و مجوزها، دسترسی مهمان', icon: <ShieldCheck className="w-4 h-4" /> },
+  { id: 'access', label: 'سطح‌های دسترسی', hint: 'سطح‌های دسترسی و مجوزها، دسترسی مهمان', icon: <ShieldCheck className="w-4 h-4" /> },
   { id: 'features', label: 'امکانات و داشبورد', hint: 'روشن و خاموش بخش‌ها، صندوق‌ها، کارت‌های داشبورد', icon: <ToggleRight className="w-4 h-4" /> },
   { id: 'lists', label: 'فهرست‌ها', hint: 'واحدها، محل‌های استقرار و دسته‌بندی‌ها', icon: <ListOrdered className="w-4 h-4" /> },
   { id: 'server', label: 'سرور', hint: 'وضعیت سرور، فضای دیسک و پشتیبان‌ها', icon: <HardDrive className="w-4 h-4" /> },
@@ -621,7 +621,7 @@ const isSettingsTab = (value: string | null): value is SettingsTab => TABS.some(
 const SEARCH_INDEX: { id: string; tab: SettingsTab; title: string; keywords: string }[] = [
   { id: 'logo', tab: 'general', title: 'لوگوی شرکت', keywords: 'لوگو آرم هدر سربرگ تصویر' },
   { id: 'founding', tab: 'general', title: 'سالگرد تأسیس شرکت', keywords: 'تاسیس سالگرد تبریک تولد شرکت' },
-  { id: 'roles', tab: 'access', title: 'نقش‌ها و مجوزها', keywords: 'نقش دسترسی مجوز ادمین خواننده صندوق ناشر' },
+  { id: 'roles', tab: 'access', title: 'سطح‌های دسترسی و مجوزها', keywords: 'سطح دسترسی نقش مجوز ادمین خواننده صندوق ناشر محتوا همکار' },
   { id: 'guest', tab: 'access', title: 'دسترسی مهمان', keywords: 'مهمان بدون ورود عمومی دفتر تلفن' },
   { id: 'features', tab: 'features', title: 'امکانات پرتال', keywords: 'روشن خاموش پیش نمایش امکانات بخش نظرسنجی آموزش یادداشت چیدمان' },
   { id: 'occasions', tab: 'features', title: 'افکت مناسبت‌ها و فصل‌ها', keywords: 'مناسبت فصل نوروز یلدا افکت جلوه بنر' },

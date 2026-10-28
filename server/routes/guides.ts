@@ -89,7 +89,7 @@ function reviewAtFrom(reviewDate: string | undefined, previous: Date | null = nu
 async function checkedOwner(ownerId: string | null) {
   if (!ownerId) return null;
   const [owner] = await db.select().from(employees).where(eq(employees.id, ownerId));
-  if (!owner?.isActive || !owner.hasAccount) throw new HttpError(400, 'مسئول راهنما باید همکار فعال با حساب پورتال باشد.');
+  if (!owner?.isActive || !owner.hasAccount) throw new HttpError(400, 'مسئول راهنما باید همکار فعال با حساب پرتال باشد.');
   return owner.id;
 }
 

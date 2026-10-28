@@ -38,7 +38,7 @@ const RoleCard: React.FC<{ role: RoleInfo }> = ({ role }) => {
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0 space-y-2">
           <div>
-            <label htmlFor={`role-name-${role.id}`} className={labelClass}>نام نقش</label>
+            <label htmlFor={`role-name-${role.id}`} className={labelClass}>نام سطح دسترسی</label>
             <input id={`role-name-${role.id}`} value={name} maxLength={60} onChange={(e) => setName(e.target.value)} className={inputClass} />
           </div>
           <div>
@@ -54,7 +54,7 @@ const RoleCard: React.FC<{ role: RoleInfo }> = ({ role }) => {
       {role.isAdmin ? (
         <p className="flex items-center gap-2 p-3 bg-[#FEF2F2] text-[#991b1b] rounded-xl text-[11px] font-bold">
           <Lock className="w-4 h-4 shrink-0" />
-          ادمین برنامه همیشه همهٔ دسترسی‌ها را دارد و تنها نقشی است که می‌تواند نقش‌ها را تنظیم کند.
+          ادمین پرتال همیشه همهٔ دسترسی‌ها را دارد و تنها سطحی است که می‌تواند سطح‌های دسترسی را تنظیم کند.
         </p>
       ) : (
         <fieldset className="space-y-1.5">
@@ -76,19 +76,19 @@ const RoleCard: React.FC<{ role: RoleInfo }> = ({ role }) => {
           <button
             type="button"
             disabled={busy || role.memberCount > 0}
-            title={role.memberCount > 0 ? 'ابتدا نقش همکاران این گروه را تغییر دهید' : undefined}
+            title={role.memberCount > 0 ? 'ابتدا سطح دسترسی همکاران این گروه را تغییر دهید' : undefined}
             onClick={async () => {
-              if (!window.confirm(`نقش «${role.name}» حذف شود؟`)) return;
+              if (!window.confirm(`سطح دسترسی «${role.name}» حذف شود؟`)) return;
               setBusy(true);
               await deleteRole(role.id);
               setBusy(false);
             }}
             className="flex items-center gap-1 text-xs font-bold text-red-700 disabled:opacity-40"
           >
-            <Trash2 className="w-3.5 h-3.5" /> حذف نقش
+            <Trash2 className="w-3.5 h-3.5" /> حذف
           </button>
         ) : (
-          <span className="text-[10px] text-[#8C867A]">نقش پایه</span>
+          <span className="text-[10px] text-[#8C867A]">سطح پایه</span>
         )}
         {dirty && (
           <button type="button" disabled={busy || !name.trim()} onClick={save} className={primaryButtonClass}>
@@ -115,9 +115,9 @@ const NewRoleForm: React.FC = () => {
       }}
       className="flex gap-2"
     >
-      <input aria-label="نام نقش جدید" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="نام نقش جدید، مثلاً «سرپرست واحد»" className={inputClass} />
+      <input aria-label="نام سطح دسترسی جدید" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="نام سطح دسترسی جدید، مثلاً «خوانندهٔ صندوق منابع انسانی»" className={inputClass} />
       <button type="submit" disabled={busy || !name.trim()} className={`${secondaryButtonClass} whitespace-nowrap`}>
-        <Plus className="w-4 h-4" /> افزودن نقش
+        <Plus className="w-4 h-4" /> افزودن سطح دسترسی
       </button>
     </form>
   );
@@ -130,9 +130,9 @@ export const RolesEditor: React.FC = () => {
       <div className="flex items-start gap-3">
         <ShieldCheck className="w-5 h-5 text-[#991b1b] mt-0.5 shrink-0" />
         <div>
-          <h3 className="text-base font-black text-[#2D2D2D]">نقش‌ها و دسترسی‌ها</h3>
+          <h3 className="text-base font-black text-[#2D2D2D]">سطح‌های دسترسی</h3>
           <p className="text-[11px] text-[#6E6A60]">
-            هر همکار یک نقش دارد و نقش همکاران از دفتر تلفن (ویرایش پروفایل) تعیین می‌شود. تغییر دسترسی‌ها بلافاصله برای همهٔ اعضای نقش اعمال می‌شود.
+            سطح دسترسی یعنی کارهایی که هر همکار در پرتال اجازه دارد، نه جایگاه سازمانی او (آن «سمت» و «واحد» است). هر همکار با حساب پرتال یک سطح دسترسی دارد که در مدیریت کارکنان (ویرایش همکار) تعیین می‌شود. تغییر دسترسی‌های یک سطح بلافاصله برای همهٔ همکاران آن سطح اعمال می‌شود.
           </p>
         </div>
       </div>

@@ -197,7 +197,7 @@ export function requirePermission(permission: Permission) {
 
 export function requireAdmin(req: AuthedRequest, res: Response, next: NextFunction) {
   if (!isAdmin(req.user)) {
-    res.status(403).json({ error: 'این عملیات فقط برای ادمین برنامه مجاز است.' });
+    res.status(403).json({ error: 'این کار فقط با ادمین پرتال است.' });
     return;
   }
   next();

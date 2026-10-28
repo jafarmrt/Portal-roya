@@ -57,7 +57,7 @@ const EditPageModal: React.FC<{ department: string; page?: DepartmentPage; onClo
           <label htmlFor="department-head" className={labelClass}>مسئول واحد</label>
           <OwnerSelect id="department-head" value={headId} onChange={setHeadId} emptyLabel="تعیین نشده" disabled={!isAdmin} />
           <p className="text-[11px] text-[#6E6A60] mt-1">
-            {isAdmin ? 'مسئول واحد می‌تواند متن این صفحه را خودش به‌روز کند.' : 'مسئول واحد را مدیر پرتال تعیین می‌کند.'}
+            {isAdmin ? 'مسئول واحد می‌تواند متن این صفحه را خودش به‌روز کند.' : 'مسئول واحد را ادمین پرتال تعیین می‌کند.'}
           </p>
         </div>
         <div>

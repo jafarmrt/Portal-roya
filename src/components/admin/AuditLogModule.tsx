@@ -95,7 +95,7 @@ export const AuditLogModule: React.FC = () => {
         </div>
         <div>
           <h2 className="text-xl font-black text-[#2d2d2d]">تاریخچهٔ تغییرات</h2>
-          <p className="text-sm text-[#6e6a60] mt-1">چه کسی، چه زمانی، اطلاعیه، سند، نقش، حساب کاربری یا تنظیمات را ساخت، تغییر داد یا حذف کرد</p>
+          <p className="text-sm text-[#6e6a60] mt-1">چه کسی، چه زمانی، اطلاعیه، سند، سطح دسترسی، حساب پرتال یا تنظیمات را ساخت، تغییر داد یا حذف کرد</p>
         </div>
       </div>
 

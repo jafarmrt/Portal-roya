@@ -219,7 +219,7 @@ describe('reports, the monthly summary and the change history', () => {
     // A role given to a colleague, and a role's permissions.
     await admin.patch(`/api/employees/${sales2.id}`).send({ role: 'manager' }).expect(200);
     const [promotion] = (await auditOf(admin, '?entity=employee&action=update')).items;
-    expect(promotion).toMatchObject({ entityId: sales2.id, title: 'همکار rep.sales2', detail: 'نقش: کارشناس ← مدیر' });
+    expect(promotion).toMatchObject({ entityId: sales2.id, title: 'همکار rep.sales2', detail: 'سطح دسترسی: همکار ← ناشر محتوا' });
     const role = (await admin.post('/api/roles').send({ name: 'ناشر آزمایشی', permissions: ['news.manage'] }).expect(201)).body.id as string;
     await admin.patch(`/api/roles/${role}`).send({ permissions: ['reports.view'] }).expect(200);
     const roleEntries = (await auditOf(admin, `?entity=role`)).items;

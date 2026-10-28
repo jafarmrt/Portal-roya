@@ -165,7 +165,7 @@ function checkFuture(reviewAt: Date | null) {
 async function checkedOwner(ownerId: string | null) {
   if (!ownerId) return null;
   const [owner] = await db.select().from(employees).where(eq(employees.id, ownerId));
-  if (!owner?.isActive || !owner.hasAccount) throw new HttpError(400, 'مسئول سند باید همکار فعال با حساب پورتال باشد.');
+  if (!owner?.isActive || !owner.hasAccount) throw new HttpError(400, 'مسئول سند باید همکار فعال با حساب پرتال باشد.');
   return owner.id;
 }
 

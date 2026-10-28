@@ -19,7 +19,7 @@ const COLUMNS = {
   username: ['نام کاربری', 'یوزرنیم', 'username', 'user name', 'login'],
   position: ['سمت', 'عنوان شغلی', 'position', 'title', 'job title'],
   department: ['واحد', 'دپارتمان', 'بخش', 'department'],
-  role: ['نقش', 'دسترسی', 'role'],
+  role: ['سطح دسترسی پرتال', 'سطح دسترسی', 'نقش', 'دسترسی', 'role', 'access level'],
   email: ['ایمیل', 'پست الکترونیک', 'email', 'e-mail'],
   mobile: ['موبایل', 'تلفن همراه', 'شماره موبایل', 'mobile', 'phone'],
   extension: ['داخلی', 'شماره داخلی', 'تلفن داخلی', 'extension', 'ext'],
@@ -39,7 +39,7 @@ export const FIELD_LABELS: Record<Field, string> = {
   username: 'نام کاربری',
   position: 'سمت',
   department: 'واحد',
-  role: 'نقش',
+  role: 'سطح دسترسی پرتال',
   email: 'ایمیل',
   mobile: 'موبایل',
   extension: 'داخلی',
@@ -173,12 +173,17 @@ function departmentResolver(list: string[], choices: Record<string, string> | 'a
 }
 
 // Common spellings of the built-in roles, besides their ids and current names.
+// The old names of the built-in levels («ادمین برنامه», «مدیر», «کارشناس») still work in older files.
 const ROLE_ALIASES: Record<string, string> = {
   ادمین: ADMIN_ROLE_ID,
   'ادمین برنامه': ADMIN_ROLE_ID,
+  'ادمین پرتال': ADMIN_ROLE_ID,
   مدیر: 'manager',
+  ناشر: 'manager',
+  'ناشر محتوا': 'manager',
   کارشناس: DEFAULT_ROLE_ID,
   کارمند: DEFAULT_ROLE_ID,
+  همکار: DEFAULT_ROLE_ID,
 };
 
 /** Maps a role cell (id or Persian name) to role ids; an empty cell means the default role. */
@@ -239,7 +244,7 @@ function checkUpdate(
   signIn: ImportSignIn,
 ): CheckedRow {
   const base = { row, data: text, warnings: [] as string[], target: `${target.firstName} ${target.lastName}`.trim() };
-  if (target.role === ADMIN_ROLE_ID && !rules.isAdmin) return { ...base, errors: ['فقط ادمین برنامه می‌تواند مشخصات ادمین‌ها را تغییر دهد'] };
+  if (target.role === ADMIN_ROLE_ID && !rules.isAdmin) return { ...base, errors: ['فقط ادمین پرتال می‌تواند مشخصات ادمین‌ها را تغییر دهد'] };
 
   const cells: Record<string, string> = {};
   for (const f of UPDATE_FIELDS) if (text[f]) cells[f] = f === 'mobile' ? cleanMobile(text[f]) : f === 'extension' ? toLatinDigits(text[f]) : text[f];
@@ -264,27 +269,27 @@ function checkUpdate(
     else if (!username.safeParse(loginCell).success) errors.push(`نام کاربری: «${loginCell}» معتبر نیست (حروف انگلیسی، عدد و . _ -)`);
     else {
       login = loginCell;
-      changes.push(`دسترسی پورتال با نام کاربری ${loginCell} (${howSignIn})`);
+      changes.push(`حساب پرتال با نام کاربری ${loginCell} (${howSignIn})`);
     }
   } else if (loginCell && !target.hasAccount) {
     // The kept username of someone whose access was removed: giving it again restores access.
     login = loginCell;
-    changes.push(`دسترسی دوباره به پورتال با نام کاربری ${loginCell} (${howSignIn})`);
+    changes.push(`حساب پرتال دوباره، با نام کاربری ${loginCell} (${howSignIn})`);
   }
 
   if (text.role) {
     const role = resolveRole(text.role);
-    if (!role) errors.push(`نقش: «${text.role}» در فهرست نقش‌های پرتال نیست`);
-    else if (!target.hasAccount && !login) base.warnings.push('بدون حساب پورتال نقش معنا ندارد؛ ستون نقش نادیده گرفته شد.');
+    if (!role) errors.push(`سطح دسترسی: «${text.role}» در فهرست سطح‌های دسترسی پرتال نیست`);
+    else if (!target.hasAccount && !login) base.warnings.push('بدون حساب پرتال سطح دسترسی معنا ندارد؛ ستون سطح دسترسی نادیده گرفته شد.');
     else if (role !== target.role) {
-      if (target.role === ADMIN_ROLE_ID) errors.push('نقش ادمین را از ویرایش پروفایل تغییر دهید، نه از اکسل.');
-      else if (role === ADMIN_ROLE_ID && !rules.isAdmin) errors.push('نقش: فقط ادمین برنامه می‌تواند نقش ادمین بدهد');
-      else if (target.id === rules.selfId && !rules.isAdmin) errors.push('نقش: نقش خودتان را نمی‌توانید تغییر دهید');
-      else if (!rules.covers(target.role)) errors.push('نقش: این همکار دسترسی‌هایی دارد که شما ندارید؛ نقشش را ادمین برنامه تغییر می‌دهد');
-      else if (!rules.covers(role)) errors.push(`نقش: «${roleName(role)}» دسترسی‌هایی دارد که خودتان ندارید`);
+      if (target.role === ADMIN_ROLE_ID) errors.push('سطح دسترسی ادمین را از ویرایش پروفایل تغییر دهید، نه از اکسل.');
+      else if (role === ADMIN_ROLE_ID && !rules.isAdmin) errors.push('سطح دسترسی: فقط ادمین پرتال می‌تواند سطح ادمین بدهد');
+      else if (target.id === rules.selfId && !rules.isAdmin) errors.push('سطح دسترسی: سطح دسترسی خودتان را نمی‌توانید تغییر دهید');
+      else if (!rules.covers(target.role)) errors.push('سطح دسترسی: این همکار دسترسی‌هایی دارد که شما ندارید؛ سطح دسترسی او را ادمین پرتال تغییر می‌دهد');
+      else if (!rules.covers(role)) errors.push(`سطح دسترسی: «${roleName(role)}» دسترسی‌هایی دارد که خودتان ندارید`);
       else {
         set.role = role;
-        changes.push(`نقش: ${roleName(target.role)} ← ${roleName(role)}`);
+        changes.push(`سطح دسترسی: ${roleName(target.role)} ← ${roleName(role)}`);
       }
     }
   }
@@ -367,9 +372,9 @@ export async function checkRows(
 
     // Without a username there is no account, so the role cell does not apply.
     const role = login ? resolveRole(text.role ?? '') : DEFAULT_ROLE_ID;
-    if (!role) return { row, data: text, errors: [`نقش: «${text.role}» در فهرست نقش‌های پرتال نیست`], warnings: [] };
-    if (role === ADMIN_ROLE_ID && !rules.isAdmin) return { row, data: text, errors: ['نقش: فقط ادمین برنامه می‌تواند نقش ادمین بدهد'], warnings: [] };
-    if (!rules.covers(role)) return { row, data: text, errors: [`نقش: «${roleName(role)}» دسترسی‌هایی دارد که خودتان ندارید`], warnings: [] };
+    if (!role) return { row, data: text, errors: [`سطح دسترسی: «${text.role}» در فهرست سطح‌های دسترسی پرتال نیست`], warnings: [] };
+    if (role === ADMIN_ROLE_ID && !rules.isAdmin) return { row, data: text, errors: ['سطح دسترسی: فقط ادمین پرتال می‌تواند سطح ادمین بدهد'], warnings: [] };
+    if (!rules.covers(role)) return { row, data: text, errors: [`سطح دسترسی: «${roleName(role)}» دسترسی‌هایی دارد که خودتان ندارید`], warnings: [] };
     const candidate = {
       // Missing required cells become '' so the error reads "required" rather than a type error.
       ...Object.fromEntries(REQUIRED.map((f) => [f, ''])),
@@ -380,7 +385,7 @@ export async function checkRows(
       extension: toLatinDigits(text.extension ?? ''),
     };
     const parsed = rowSchema.safeParse(candidate);
-    const warnings = !login && text.role ? ['بدون نام کاربری حساب پورتال ساخته نمی‌شود؛ ستون نقش نادیده گرفته شد.'] : [];
+    const warnings = !login && text.role ? ['بدون نام کاربری حساب پرتال ساخته نمی‌شود؛ ستون سطح دسترسی نادیده گرفته شد.'] : [];
     return parsed.success
       ? withDepartment({ row, data: text, errors: [], warnings, action: 'create', value: parsed.data })
       : { row, data: text, errors: firstIssue(parsed.error), warnings };

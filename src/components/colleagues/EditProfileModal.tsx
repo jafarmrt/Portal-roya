@@ -7,7 +7,7 @@ import { JalaliDateInput } from '../common/JalaliDateInput';
 import { Avatar } from '../common/Avatar';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { AccountAccessModal, TemporaryPasswordNotice } from './AccountAccessModal';
-import { RoleSelect, useCoversRole } from './RoleSelect';
+import { RoleHint, RoleSelect, useCoversRole } from './RoleSelect';
 import { LocationSelect } from './LocationSelect';
 import { OnlineChoices } from '../online/OnlineChoices';
 import { usePresence } from '../online/usePresence';
@@ -23,6 +23,10 @@ const OnlineProfileChoices: React.FC = () => {
     </fieldset>
   );
 };
+
+/** The three parts of a colleague: personal details, place in the organisation and portal account. */
+export const sectionClass = 'p-4 rounded-2xl border border-[#E6E0D5] space-y-4';
+export const legendClass = 'text-xs font-black px-1 text-[#2D2D2D]';
 
 interface EditProfileModalProps {
   user: UserProfile;
@@ -118,133 +122,139 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
     >
       <form id="edit-profile" onSubmit={handleSubmit} className="space-y-4">
         {!isAdmin && (
-          <p className="p-3 bg-[#F5F2ED] rounded-xl text-[11px] text-[#6E6A60]">سمت، واحد و نقش را فقط مدیر کاربران می‌تواند تغییر دهد{user.role === 'admin' ? ' (حساب ادمین را فقط ادمین برنامه)' : ''}.</p>
+          <p className="p-3 bg-[#F5F2ED] rounded-xl text-[11px] text-[#6E6A60]">سمت، واحد و سطح دسترسی را کسی تغییر می‌دهد که «مدیریت کارکنان» دارد{user.role === 'admin' ? ' (حساب ادمین را فقط ادمین پرتال)' : ''}.</p>
         )}
-        <div className="flex items-center gap-3">
-          <Avatar src={form.avatar} firstName={form.firstName} lastName={form.lastName} className="w-14 h-14 rounded-2xl text-base" />
-          <FileUpload accept={IMAGE_ACCEPT} label={form.avatar ? 'تغییر عکس' : 'بارگذاری عکس'} onUploaded={(f) => set('avatar', f.url)} />
-          {form.avatar && <button type="button" onClick={() => set('avatar', '')} className="text-red-700 font-bold">حذف عکس</button>}
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {adminField('edit-first', 'نام *', 'firstName')}
-          {adminField('edit-last', 'نام خانوادگی *', 'lastName')}
-          {adminField('edit-position', 'سمت *', 'position')}
-          <div>
-            <label htmlFor="edit-department" className={labelClass}>واحد *</label>
-            <select id="edit-department" value={form.department} onChange={(e) => set('department', e.target.value)} disabled={!isAdmin} className={inputClass}>
-              {[...new Set([form.department, ...(appSettings?.departments ?? [])])].map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
+        <fieldset className={sectionClass}>
+          <legend className={legendClass}>مشخصات فردی</legend>
+          <div className="flex items-center gap-3">
+            <Avatar src={form.avatar} firstName={form.firstName} lastName={form.lastName} className="w-14 h-14 rounded-2xl text-base" />
+            <FileUpload accept={IMAGE_ACCEPT} label={form.avatar ? 'تغییر عکس' : 'بارگذاری عکس'} onUploaded={(f) => set('avatar', f.url)} />
+            {form.avatar && <button type="button" onClick={() => set('avatar', '')} className="text-red-700 font-bold">حذف عکس</button>}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {adminField('edit-first', 'نام *', 'firstName')}
+            {adminField('edit-last', 'نام خانوادگی *', 'lastName')}
+            <div>
+              <label htmlFor="edit-ext" className={labelClass}>تلفن داخلی</label>
+              <input id="edit-ext" dir="ltr" value={form.extension} onChange={(e) => set('extension', e.target.value)} className={`${inputClass} text-left`} />
+            </div>
+            <div>
+              <label htmlFor="edit-mobile" className={labelClass}>شماره همراه</label>
+              <input id="edit-mobile" dir="ltr" type="tel" value={form.mobile} onChange={(e) => set('mobile', e.target.value)} className={`${inputClass} text-left`} />
+            </div>
+            <div>
+              <label htmlFor="edit-email" className={labelClass}>ایمیل</label>
+              <input id="edit-email" dir="ltr" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} className={`${inputClass} text-left`} />
+            </div>
+            <div>
+              <label htmlFor="edit-birth" className={labelClass}>تاریخ تولد</label>
+              <JalaliDateInput id="edit-birth" value={form.birthDate} onChange={(v) => set('birthDate', v)} defaultYear={1370} />
+              <label className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[#6E6A60] cursor-pointer">
+                <input type="checkbox" checked={form.hideBirthday} onChange={(e) => set('hideBirthday', e.target.checked)} className="accent-red-700" />
+                {isSelf ? 'تولدم به همکاران نمایش داده نشود' : 'تولد این همکار به دیگران نمایش داده نشود'}
+              </label>
+              <label className="mt-1 flex items-center gap-1.5 text-[11px] text-[#6E6A60] cursor-pointer">
+                <input type="checkbox" checked={form.hideAnniversary} onChange={(e) => set('hideAnniversary', e.target.checked)} className="accent-red-700" />
+                {isSelf ? 'سالگرد همکاری‌ام به همکاران اعلام نشود' : 'سالگرد همکاری این همکار به دیگران اعلام نشود'}
+              </label>
+              <p className="mt-1 text-[10px] text-[#8C867A]">سال تولد به همکاران نشان داده نمی‌شود؛ فقط روز و ماه.</p>
+            </div>
           </div>
           <div>
-            <label htmlFor="edit-ext" className={labelClass}>تلفن داخلی</label>
-            <input id="edit-ext" dir="ltr" value={form.extension} onChange={(e) => set('extension', e.target.value)} className={`${inputClass} text-left`} />
+            <label htmlFor="edit-bio" className={labelClass}>معرفی کوتاه</label>
+            <textarea id="edit-bio" rows={3} value={form.bio} onChange={(e) => set('bio', e.target.value)} className={inputClass} />
           </div>
-          <div>
-            <label htmlFor="edit-mobile" className={labelClass}>شماره همراه</label>
-            <input id="edit-mobile" dir="ltr" type="tel" value={form.mobile} onChange={(e) => set('mobile', e.target.value)} className={`${inputClass} text-left`} />
-          </div>
-          <div>
-            <label htmlFor="edit-email" className={labelClass}>ایمیل</label>
-            <input id="edit-email" dir="ltr" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} className={`${inputClass} text-left`} />
-          </div>
-          <div>
-            <label htmlFor="edit-birth" className={labelClass}>تاریخ تولد</label>
-            <JalaliDateInput id="edit-birth" value={form.birthDate} onChange={(v) => set('birthDate', v)} defaultYear={1370} />
-            <label className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[#6E6A60] cursor-pointer">
-              <input type="checkbox" checked={form.hideBirthday} onChange={(e) => set('hideBirthday', e.target.checked)} className="accent-red-700" />
-              {isSelf ? 'تولدم به همکاران نمایش داده نشود' : 'تولد این همکار به دیگران نمایش داده نشود'}
-            </label>
-            <label className="mt-1 flex items-center gap-1.5 text-[11px] text-[#6E6A60] cursor-pointer">
-              <input type="checkbox" checked={form.hideAnniversary} onChange={(e) => set('hideAnniversary', e.target.checked)} className="accent-red-700" />
-              {isSelf ? 'سالگرد همکاری‌ام به همکاران اعلام نشود' : 'سالگرد همکاری این همکار به دیگران اعلام نشود'}
-            </label>
-            <p className="mt-1 text-[10px] text-[#8C867A]">سال تولد به همکاران نشان داده نمی‌شود؛ فقط روز و ماه.</p>
-          </div>
-          <div>
-            <label htmlFor="edit-location" className={labelClass}>محل استقرار</label>
-            <LocationSelect id="edit-location" value={form.location} onChange={(v) => set('location', v)} />
-          </div>
-        </div>
-
-        <div>
-          <label htmlFor="edit-bio" className={labelClass}>معرفی کوتاه</label>
-          <textarea id="edit-bio" rows={3} value={form.bio} onChange={(e) => set('bio', e.target.value)} className={inputClass} />
-        </div>
+        </fieldset>
 
         {isSelf && featureOn('onlineColleagues') && <OnlineProfileChoices />}
 
-        {isAdmin && (
-          <fieldset className="p-4 bg-[#F5F2ED] rounded-2xl space-y-4">
-            <legend className="text-xs font-black px-1">تنظیمات مدیر</legend>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {live.hasAccount ? (
+        <fieldset className={sectionClass}>
+          <legend className={legendClass}>جایگاه سازمانی</legend>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {adminField('edit-position', 'سمت *', 'position')}
+            <div>
+              <label htmlFor="edit-department" className={labelClass}>واحد *</label>
+              <select id="edit-department" value={form.department} onChange={(e) => set('department', e.target.value)} disabled={!isAdmin} className={inputClass}>
+                {[...new Set([form.department, ...(appSettings?.departments ?? [])])].map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="edit-location" className={labelClass}>محل استقرار</label>
+              <LocationSelect id="edit-location" value={form.location} onChange={(v) => set('location', v)} />
+            </div>
+            {isAdmin && (
+              <>
                 <div>
-                  <label htmlFor="edit-role" className={labelClass}>نقش</label>
+                  <label htmlFor="edit-manager" className={labelClass}>مدیر مستقیم</label>
+                  <select id="edit-manager" value={form.directManagerId ?? ''} onChange={(e) => set('directManagerId', e.target.value || null)} className={inputClass}>
+                    <option value="">—</option>
+                    {employees.filter((e) => e.id !== user.id && e.isActive).map((m) => (
+                      <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="edit-hire" className={labelClass}>تاریخ استخدام</label>
+                  <JalaliDateInput id="edit-hire" value={form.hireDate} onChange={(v) => set('hireDate', v)} />
+                </div>
+              </>
+            )}
+          </div>
+        </fieldset>
+
+        {isAdmin && (
+          <fieldset className={sectionClass}>
+            <legend className={legendClass}>حساب پرتال</legend>
+            {live.hasAccount ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="edit-role" className={labelClass}>سطح دسترسی</label>
                   <RoleSelect id="edit-role" value={form.role} onChange={(role) => set('role', role)} disabled={!mayChangeAccount} />
-                  {!mayChangeAccount && (
+                  {mayChangeAccount ? (
+                    <RoleHint roleId={form.role} />
+                  ) : (
                     <p className="mt-1 text-[11px] text-[#6E6A60] leading-relaxed">
-                      {isSelf ? 'نقش خودتان را ادمین برنامه تغییر می‌دهد.' : 'این همکار دسترسی‌هایی دارد که شما ندارید؛ نقش، رمز و دسترسی او را ادمین برنامه تغییر می‌دهد.'}
+                      {isSelf ? 'سطح دسترسی خودتان را ادمین پرتال تغییر می‌دهد.' : 'این همکار دسترسی‌هایی دارد که شما ندارید؛ سطح دسترسی، رمز و حساب او را ادمین پرتال تغییر می‌دهد.'}
                     </p>
                   )}
                 </div>
-              ) : (
-                <div>
-                  <span className={labelClass}>نقش</span>
-                  <p className="text-[11px] text-[#6E6A60] leading-relaxed">بدون دسترسی پورتال نقشی ندارد.</p>
+                <div className="text-[11px] text-[#4B4740] leading-relaxed sm:pt-6">
+                  نام کاربری <code dir="ltr">{live.username}</code>
+                  {' · '}
+                  {live.authSource === 'ldap' ? 'ورود با حساب ویندوز (اکتیو دایرکتوری)' : 'ورود با رمز پرتال'}
                 </div>
-              )}
-              <div>
-                <label htmlFor="edit-manager" className={labelClass}>مدیر مستقیم</label>
-                <select id="edit-manager" value={form.directManagerId ?? ''} onChange={(e) => set('directManagerId', e.target.value || null)} className={inputClass}>
-                  <option value="">—</option>
-                  {employees.filter((e) => e.id !== user.id && e.isActive).map((m) => (
-                    <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>
-                  ))}
-                </select>
               </div>
-              <div>
-                <label htmlFor="edit-hire" className={labelClass}>تاریخ استخدام</label>
-                <JalaliDateInput id="edit-hire" value={form.hireDate} onChange={(v) => set('hireDate', v)} />
-              </div>
-            </div>
+            ) : (
+              <p className="text-[11px] text-[#6E6A60] leading-relaxed">حساب پرتال ندارد؛ فقط در دفتر تلفن، چارت سازمانی و کارت‌ها دیده می‌شود و سطح دسترسی ندارد.</p>
+            )}
             {!isSelf && mayChangeAccount && (
-              <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-white rounded-xl border border-[#E6E0D5]">
-                <span className="text-[11px] text-[#4B4740]">
-                  {live.hasAccount
-                    ? <>دسترسی پورتال: دارد (<code dir="ltr">{live.username}</code>{live.authSource === 'ldap' ? '، ورود با اکتیو دایرکتوری' : ''})</>
-                    : 'دسترسی پورتال: ندارد؛ فقط در دفتر تلفن و کارت‌ها دیده می‌شود.'}
-                </span>
+              <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={() => setAccessOpen(true)} className={secondaryButtonClass}>
                   {live.hasAccount ? <ShieldOff className="w-4 h-4" /> : <KeyRound className="w-4 h-4" />}
-                  {live.hasAccount ? 'برداشتن دسترسی' : 'دادن دسترسی پورتال'}
+                  {live.hasAccount ? 'برداشتن حساب' : 'ساختن حساب پرتال'}
                 </button>
+                {live.hasAccount && (live.authSource !== 'ldap' || !directoryLogin) && (
+                  <button type="button" onClick={async () => setTempPassword(await resetEmployeePassword(user.id))} className={secondaryButtonClass}>
+                    <KeyRound className="w-4 h-4" /> ساخت رمز موقت جدید
+                  </button>
+                )}
               </div>
             )}
-            {!isSelf && mayChangeAccount && (
-              <label className="flex items-center gap-2 font-bold cursor-pointer">
-                <input type="checkbox" checked={!form.isActive} onChange={(e) => set('isActive', !e.target.checked)} className="accent-red-700" />
-                غیرفعال کردن (برای کسی که از شرکت رفته است: نمی‌تواند وارد شود و از دفتر تلفن و همه‌جا پنهان می‌شود)
-              </label>
-            )}
+            {tempPassword && <TemporaryPasswordNotice username={live.username} password={tempPassword} />}
             {!isSelf && live.hasAccount && live.authSource === 'ldap' && directoryLogin && (
               <p className="text-[11px] text-[#6E6A60] leading-relaxed">
                 این همکار با حساب اکتیو دایرکتوری وارد می‌شود؛ رمز عبورش در ویندوز تغییر می‌کند، نه در پرتال.
               </p>
             )}
-            {!isSelf && mayChangeAccount && live.hasAccount && (live.authSource !== 'ldap' || !directoryLogin) && (
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={async () => setTempPassword(await resetEmployeePassword(user.id))}
-                  className={secondaryButtonClass}
-                >
-                  <KeyRound className="w-4 h-4" /> ساخت رمز موقت جدید
-                </button>
-                {tempPassword && <TemporaryPasswordNotice username={live.username} password={tempPassword} />}
-              </div>
-            )}
           </fieldset>
+        )}
+
+        {isAdmin && !isSelf && mayChangeAccount && (
+          <label className="flex items-center gap-2 font-bold cursor-pointer">
+            <input type="checkbox" checked={!form.isActive} onChange={(e) => set('isActive', !e.target.checked)} className="accent-red-700" />
+            غیرفعال کردن (برای کسی که از شرکت رفته است: نمی‌تواند وارد شود و از دفتر تلفن و همه‌جا پنهان می‌شود)
+          </label>
         )}
       </form>
       {/* Outside the form, so its own form cannot submit this one (React events bubble through portals). */}

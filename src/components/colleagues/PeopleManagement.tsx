@@ -17,7 +17,7 @@ type View = 'active' | 'account' | 'noAccount' | 'inactive' | 'all' | 'hireDate'
 
 const VIEWS: { id: View; label: string; test: (e: UserProfile) => boolean }[] = [
   { id: 'active', label: 'همه کارکنان فعال', test: (e) => e.isActive },
-  { id: 'account', label: 'با دسترسی پورتال', test: (e) => e.isActive && e.hasAccount },
+  { id: 'account', label: 'با حساب پرتال', test: (e) => e.isActive && e.hasAccount },
   { id: 'noAccount', label: 'فقط دفتر تلفن', test: (e) => e.isActive && !e.hasAccount },
   { id: 'inactive', label: 'غیرفعال', test: (e) => !e.isActive },
   { id: 'all', label: 'همه', test: () => true },
@@ -74,7 +74,7 @@ export const PeopleManagement: React.FC = () => {
             </div>
             <h1 className="text-xl sm:text-3xl font-black">مدیریت کارکنان</h1>
             <p className="text-[#E6E0D5] text-xs sm:text-sm max-w-2xl leading-relaxed">
-              همه کارکنان اینجا ثبت می‌شوند و در دفتر تلفن، چارت سازمانی و کارت‌های تولد دیده می‌شوند. دسترسی به پورتال برای هر نفر اختیاری است.
+              همه کارکنان اینجا ثبت می‌شوند و در دفتر تلفن، چارت سازمانی و کارت‌های تولد دیده می‌شوند. حساب پرتال برای هر نفر اختیاری است.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -168,11 +168,12 @@ export const PeopleManagement: React.FC = () => {
                   {e.hasAccount ? (
                     <>
                       <span className={`${badge} bg-emerald-50 text-emerald-800`} dir="ltr">{e.username}</span>
-                      <span className={`${badge} bg-[#F5F2ED] text-[#4B4740]`}>{e.authSource === 'ldap' ? 'ورود با AD' : 'رمز پرتال'}</span>
-                      <span className={`${badge} bg-red-50 text-red-800`}>{roleName(e.role)}</span>
+                      <span className={`${badge} bg-[#F5F2ED] text-[#4B4740]`} title="روش ورود و سطح دسترسی در پرتال">
+                        {e.authSource === 'ldap' ? 'ورود با ویندوز' : 'رمز پرتال'} · {roleName(e.role)}
+                      </span>
                     </>
                   ) : (
-                    <span className={`${badge} bg-amber-50 text-amber-900`}>بدون دسترسی پورتال</span>
+                    <span className={`${badge} bg-amber-50 text-amber-900`}>بدون حساب پرتال</span>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -185,7 +186,7 @@ export const PeopleManagement: React.FC = () => {
                   {mayChangeAccess && e.isActive && (
                     <button onClick={() => setAccess(e)} className={actionClass}>
                       {e.hasAccount ? <ShieldOff className="w-3.5 h-3.5" /> : <KeyRound className="w-3.5 h-3.5 text-red-700" />}
-                      {e.hasAccount ? 'برداشتن دسترسی' : 'دادن دسترسی'}
+                      {e.hasAccount ? 'برداشتن حساب' : 'ساختن حساب پرتال'}
                     </button>
                   )}
                 </div>

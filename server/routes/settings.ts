@@ -469,7 +469,7 @@ settingsRouter.put(
       action: 'update',
       entity: 'settings',
       title: 'گروه آزمایشی',
-      detail: `${toPersianDigits(roles.length)} نقش و ${toPersianDigits(userIds.length)} همکار`,
+      detail: `${toPersianDigits(roles.length)} سطح دسترسی و ${toPersianDigits(userIds.length)} همکار`,
     });
     broadcastFeatures(FEATURES.map((f) => f.key));
     res.json(await featureSettings());

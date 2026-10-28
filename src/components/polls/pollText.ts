@@ -36,7 +36,7 @@ export const anonymityNote = (anonymous: boolean) =>
 /** "همهٔ سازمان", or the chosen departments and locations, and how many people were added by name (polls, calendar events). */
 export function audienceLabel(poll: Pick<Poll, 'targetDepartments' | 'targetLocations' | 'targetRoles' | 'targetUserCount'>) {
   const groups = [...poll.targetDepartments, ...poll.targetLocations];
-  const parts = groups.length > 0 ? [groups.join('، ')] : poll.targetRoles.length > 0 ? ['نقش‌های مشخص'] : [];
+  const parts = groups.length > 0 ? [groups.join('، ')] : poll.targetRoles.length > 0 ? ['سطح‌های دسترسی مشخص'] : [];
   if (poll.targetUserCount > 0) parts.push(`${toPersianDigits(poll.targetUserCount)} همکار`);
   return parts.length > 0 ? parts.join(' + ') : 'همهٔ سازمان';
 }

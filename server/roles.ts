@@ -3,16 +3,17 @@ import { ADMIN_ROLE_ID, coversRole, DEFAULT_ROLE_ID, effectivePermissions, MANAG
 import { db } from './db/index.js';
 import { employees, roles } from './db/schema.js';
 
+// The built-in access levels (drizzle/0027 renamed them from «ادمین برنامه», «مدیر» and «کارشناس»).
 export const BUILT_IN_ROLES = [
-  { id: ADMIN_ROLE_ID, name: 'ادمین برنامه', description: 'دسترسی کامل به همهٔ بخش‌ها، کاربران و تنظیم نقش‌ها', permissions: [] as string[], isSystem: true },
+  { id: ADMIN_ROLE_ID, name: 'ادمین پرتال', description: 'همهٔ بخش‌ها و تنظیمات پرتال، حساب‌های همکاران و سطح‌های دسترسی', permissions: [] as string[], isSystem: true },
   {
     id: MANAGER_ROLE_ID,
-    name: 'مدیر',
-    description: 'انتشار محتوا و مشاهدهٔ گزارش‌ها',
+    name: 'ناشر محتوا',
+    description: 'انتشار خبر، نظرسنجی، دوره، رویداد و سند، و دیدن گزارش‌ها',
     permissions: ['news.manage', 'polls.manage', 'trainings.manage', 'calendar.manage', 'documents.manage', 'comments.moderate', 'reports.view'],
     isSystem: true,
   },
-  { id: DEFAULT_ROLE_ID, name: 'کارشناس', description: 'مشاهدهٔ محتوا و مشارکت در نظرسنجی‌ها', permissions: [] as string[], isSystem: true },
+  { id: DEFAULT_ROLE_ID, name: 'همکار', description: 'دیدن محتوا، شرکت در نظرسنجی‌ها و فرستادن پیام؛ بدون دسترسی مدیریتی', permissions: [] as string[], isSystem: true },
 ];
 
 /** Recreates any missing built-in role (the migration seeds them; this covers emptied tables). */

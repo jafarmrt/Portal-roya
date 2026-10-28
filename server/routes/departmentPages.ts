@@ -53,14 +53,14 @@ departmentPagesRouter.put(
     const body = parse(pageSchema, req.body);
     const [existing] = await db.select().from(departmentPages).where(eq(departmentPages.department, department));
     const isAdmin = can(viewer, 'settings.manage');
-    if (!isAdmin && existing?.headId !== viewer.id) throw new HttpError(403, 'فقط مسئول واحد یا مدیر پرتال می‌تواند صفحهٔ واحد را ویرایش کند.');
+    if (!isAdmin && existing?.headId !== viewer.id) throw new HttpError(403, 'فقط مسئول واحد یا ادمین پرتال می‌تواند صفحهٔ واحد را ویرایش کند.');
 
     let headId = existing?.headId ?? null;
     if (isAdmin && body.headId !== undefined) {
       headId = body.headId;
       if (headId) {
         const [head] = await db.select().from(employees).where(eq(employees.id, headId));
-        if (!head?.isActive || !head.hasAccount) throw new HttpError(400, 'مسئول واحد باید همکار فعال با حساب پورتال باشد.');
+        if (!head?.isActive || !head.hasAccount) throw new HttpError(400, 'مسئول واحد باید همکار فعال با حساب پرتال باشد.');
       }
     }
     const values = { headId, about: sanitizeRichText(body.about), updatedById: viewer.id, updatedAt: new Date() };

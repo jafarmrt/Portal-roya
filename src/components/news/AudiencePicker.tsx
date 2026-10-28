@@ -62,7 +62,7 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
   const narrowing = [
     value.departments.length > 0 && 'واحدشان',
     value.locations.length > 0 && 'محل استقرارشان',
-    value.roles.length > 0 && 'نقش‌شان',
+    value.roles.length > 0 && 'سطح دسترسی‌شان',
   ].filter(Boolean) as string[];
 
   return (
@@ -101,7 +101,7 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
             selected={value.locations}
             onChange={(next) => set('locations', next)}
           />
-          <ChipGroup title="نقش" options={roles.map((r) => ({ value: r.id, label: r.name }))} selected={value.roles} onChange={(next) => set('roles', next)} />
+          <ChipGroup title="سطح دسترسی" options={roles.map((r) => ({ value: r.id, label: r.name }))} selected={value.roles} onChange={(next) => set('roles', next)} />
           {narrowing.length > 1 && (
             <p className="text-[11px] text-[#6E6A60] leading-relaxed">فقط کسانی می‌بینند که {narrowing.join(' و ')} جزو انتخاب‌ها باشد.</p>
           )}

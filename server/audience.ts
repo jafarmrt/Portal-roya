@@ -49,12 +49,12 @@ export async function checkAudience(input: { targetDepartments: string[]; target
   const roleIds = [...new Set(input.targetRoles)];
   if (roleIds.length > 0) {
     const found = await db.select({ id: roles.id }).from(roles).where(inArray(roles.id, roleIds));
-    if (found.length !== roleIds.length) throw new HttpError(400, 'یکی از نقش‌های انتخاب‌شده در پرتال نیست.');
+    if (found.length !== roleIds.length) throw new HttpError(400, 'یکی از سطح‌های دسترسی انتخاب‌شده در پرتال نیست.');
   }
   const userIds = [...new Set(input.targetUserIds)];
   if (userIds.length > 0) {
     const found = await db.select({ id: employees.id }).from(employees).where(and(inArray(employees.id, userIds), eq(employees.hasAccount, true)));
-    if (found.length !== userIds.length) throw new HttpError(400, 'یکی از همکاران انتخاب‌شده پیدا نشد یا حساب پورتال ندارد.');
+    if (found.length !== userIds.length) throw new HttpError(400, 'یکی از همکاران انتخاب‌شده پیدا نشد یا حساب پرتال ندارد.');
   }
   return { departments, locations, roles: roleIds, userIds };
 }
