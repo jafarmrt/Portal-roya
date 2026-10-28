@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 export const ColleaguesDirectory: React.FC = () => {
-  const { employees, can, roleName, appSettings, focusId, setActiveTab } = usePortal();
+  const { employees, can, appSettings, departmentPages, focusId, setActiveTab } = usePortal();
   const isManager = can('users.manage');
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,6 +35,9 @@ export const ColleaguesDirectory: React.FC = () => {
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<UserProfile | null>(null);
   const [copiedExtension, setCopiedExtension] = useState<string | null>(null);
   const [printOpen, setPrintOpen] = useState(false);
+
+  // The phone book describes people by their place in the organisation, not by what they may do in the portal.
+  const unitHeads = new Set(departmentPages.map((p) => p.headId).filter(Boolean));
 
   // The tabs follow the department list in settings; departments nobody is in are left out.
   const active = employees.filter(emp => emp.isActive);
@@ -206,7 +209,7 @@ export const ColleaguesDirectory: React.FC = () => {
                     <span className="inline-block mt-1.5 px-2 py-0.5 text-[10px] font-medium bg-[#F5F2ED] text-[#991b1b] rounded-md">
                       {emp.department}
                     </span>
-                    {emp.role !== 'employee' && <span className="inline-block mt-1.5 mr-1 px-2 py-0.5 text-[10px] font-bold bg-red-50 text-red-800 rounded-md">{roleName(emp.role)}</span>}
+                    {unitHeads.has(emp.id) && <span className="inline-block mt-1.5 mr-1 px-2 py-0.5 text-[10px] font-bold bg-red-50 text-red-800 rounded-md">مسئول واحد</span>}
                     {emp.location && (
                       <span className="flex items-center gap-1 mt-1.5 text-[10px] text-[#6E6A60] truncate">
                         <MapPin className="w-3 h-3 text-[#8C867A] shrink-0" />

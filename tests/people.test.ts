@@ -127,7 +127,7 @@ describe('people without a portal account', () => {
     const preview = await manager.post('/api/employees/import/preview').attach('file', Buffer.from(csv), 'staff.csv').expect(200);
     expect(preview.body.rows.map((r: { errors: string[] }) => r.errors)).toEqual([[], [], [], []]);
     expect(preview.body.rows[0].warnings.join(' ')).toContain('از قبل در دفتر تلفن');
-    expect(preview.body.rows[1].warnings.join(' ')).toContain('نقش');
+    expect(preview.body.rows[1].warnings.join(' ')).toContain('سطح دسترسی');
     expect(preview.body.rows[2].warnings.join(' ')).toContain('ردیف 3');
 
     const res = await manager.post('/api/employees/import').send({ rows: rows.slice(1) }).expect(201);

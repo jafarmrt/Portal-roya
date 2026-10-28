@@ -752,7 +752,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const grantAccess = async (id: string, account: AccountInput) => {
     const result = await attempt(
       () => api.post<{ employee: UserProfile; temporaryPassword: string | null }>(`/api/employees/${id}/account`, account),
-      'دسترسی پورتال داده شد.',
+      'حساب پرتال ساخته شد.',
     );
     if (!result) return undefined;
     replaceEmployee(result.employee);
@@ -760,7 +760,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const revokeAccess = async (id: string) => {
-    const updated = await attempt(() => api.delete<UserProfile>(`/api/employees/${id}/account`), 'دسترسی پورتال برداشته شد.');
+    const updated = await attempt(() => api.delete<UserProfile>(`/api/employees/${id}/account`), 'حساب پرتال برداشته شد.');
     if (updated) replaceEmployee(updated);
     return Boolean(updated);
   };
@@ -923,14 +923,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const saveRole: PortalContextType['saveRole'] = async ({ id, ...role }) => {
     const ok = await attempt(
       () => (id ? api.patch(`/api/roles/${id}`, role) : api.post('/api/roles', role)),
-      id ? 'نقش ذخیره شد.' : 'نقش جدید ساخته شد.',
+      id ? 'سطح دسترسی ذخیره شد.' : 'سطح دسترسی تازه ساخته شد.',
     );
     if (ok) await Promise.all([refresh('roles'), refresh('me')]);
     return Boolean(ok);
   };
 
   const deleteRole = async (roleId: string) => {
-    const ok = await attempt(() => api.delete(`/api/roles/${roleId}`), 'نقش حذف شد.');
+    const ok = await attempt(() => api.delete(`/api/roles/${roleId}`), 'سطح دسترسی حذف شد.');
     if (ok !== undefined) await refresh('roles');
     return ok !== undefined;
   };

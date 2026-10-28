@@ -3,7 +3,7 @@ import { Check, CheckCircle2, Copy, KeyRound, ShieldOff } from 'lucide-react';
 import { usePortal, type AccountInput, type SignInMethod } from '../../context/PortalContext';
 import type { UserProfile } from '../../types';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
-import { RoleSelect } from './RoleSelect';
+import { RoleHint, RoleSelect } from './RoleSelect';
 
 /** Shows a one-time password so the manager can hand it to the colleague. */
 export const TemporaryPasswordNotice: React.FC<{ username?: string; password: string }> = ({ username, password }) => {
@@ -61,8 +61,9 @@ export const AccountFields: React.FC<{ idPrefix: string; value: AccountInput; on
           />
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-role`} className={labelClass}>نقش</label>
+          <label htmlFor={`${idPrefix}-role`} className={labelClass}>سطح دسترسی</label>
           <RoleSelect id={`${idPrefix}-role`} value={value.role} onChange={(role) => set('role', role)} />
+          <RoleHint roleId={value.role} />
         </div>
       </div>
       {directoryLogin ? (
@@ -109,7 +110,7 @@ export const AccountAccessModal: React.FC<{ user: UserProfile; onClose: () => vo
 
   if (done) {
     return (
-      <Modal title="دسترسی پورتال داده شد" subtitle={name} icon={<CheckCircle2 className="w-5 h-5" />} onClose={onClose} size="md" footer={<button onClick={onClose} className={primaryButtonClass}>بستن</button>}>
+      <Modal title="حساب پرتال ساخته شد" subtitle={name} icon={<CheckCircle2 className="w-5 h-5" />} onClose={onClose} size="md" footer={<button onClick={onClose} className={primaryButtonClass}>بستن</button>}>
         <AccountCreatedNotice username={account.username.trim().toLowerCase()} temporaryPassword={done.temporaryPassword} />
       </Modal>
     );
@@ -124,7 +125,7 @@ export const AccountAccessModal: React.FC<{ user: UserProfile; onClose: () => vo
     };
     return (
       <Modal
-        title="برداشتن دسترسی پورتال"
+        title="برداشتن حساب پرتال"
         subtitle={name}
         icon={<ShieldOff className="w-5 h-5" />}
         onClose={onClose}
@@ -133,14 +134,14 @@ export const AccountAccessModal: React.FC<{ user: UserProfile; onClose: () => vo
           <>
             <button type="button" onClick={onClose} className={secondaryButtonClass}>انصراف</button>
             <button type="button" onClick={revoke} disabled={busy} className={primaryButtonClass}>
-              <ShieldOff className="w-4 h-4" /> {busy ? 'در حال انجام...' : 'برداشتن دسترسی'}
+              <ShieldOff className="w-4 h-4" /> {busy ? 'در حال انجام...' : 'برداشتن حساب'}
             </button>
           </>
         }
       >
         <div className="space-y-2 text-xs leading-relaxed text-[#4B4740]">
           <p>{name} دیگر نمی‌تواند وارد پرتال شود و اعلانی دریافت نمی‌کند، ولی در دفتر تلفن، چارت سازمانی و کارت‌های تولد باقی می‌ماند.</p>
-          <p>نقش او به «کارشناس» برمی‌گردد. نام کاربری <code dir="ltr">{user.username}</code> نگه داشته می‌شود تا اگر بعداً دوباره دسترسی دادید همان باشد.</p>
+          <p>سطح دسترسی او به «همکار» برمی‌گردد. نام کاربری <code dir="ltr">{user.username}</code> نگه داشته می‌شود تا اگر بعداً دوباره حساب ساختید همان باشد.</p>
           <p className="text-[#6E6A60]">اگر همکار از شرکت رفته است، به جای این کار او را در ویرایش پروفایل غیرفعال کنید تا همه‌جا پنهان شود.</p>
         </div>
       </Modal>
@@ -159,7 +160,7 @@ export const AccountAccessModal: React.FC<{ user: UserProfile; onClose: () => vo
 
   return (
     <Modal
-      title="دادن دسترسی پورتال"
+      title="ساختن حساب پرتال"
       subtitle={name}
       icon={<KeyRound className="w-5 h-5" />}
       onClose={onClose}
@@ -168,7 +169,7 @@ export const AccountAccessModal: React.FC<{ user: UserProfile; onClose: () => vo
         <>
           <button type="button" onClick={onClose} className={secondaryButtonClass}>انصراف</button>
           <button type="submit" form="grant-access" disabled={busy} className={primaryButtonClass}>
-            <KeyRound className="w-4 h-4" /> {busy ? 'در حال ثبت...' : 'دادن دسترسی'}
+            <KeyRound className="w-4 h-4" /> {busy ? 'در حال ثبت...' : 'ساختن حساب'}
           </button>
         </>
       }

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { pool } from '../server/db/index';
 import { ALL_PERMISSIONS } from '../shared/permissions';
@@ -150,8 +151,8 @@ describe('roles and permissions', () => {
       .expect(201);
     expect(imported.body.created.map((c: { username: string }) => c.username)).toEqual(['imp.plain']);
     expect(imported.body.skipped.map((r: { errors: string[] }) => r.errors[0])).toEqual([
-      'نقش: «خوانندهٔ صندوق» دسترسی‌هایی دارد که خودتان ندارید',
-      'نقش: این همکار دسترسی‌هایی دارد که شما ندارید؛ نقشش را ادمین برنامه تغییر می‌دهد',
+      'سطح دسترسی: «خوانندهٔ صندوق» دسترسی‌هایی دارد که خودتان ندارید',
+      'سطح دسترسی: این همکار دسترسی‌هایی دارد که شما ندارید؛ سطح دسترسی او را ادمین پرتال تغییر می‌دهد',
     ]);
 
     // The admin is not limited.
@@ -172,5 +173,25 @@ describe('roles and permissions', () => {
     const byManager = await manager.agent.post('/api/employees/import').send({ rows: [row('imp.four', 'ادمین برنامه')] }).expect(201);
     expect(byManager.body.created).toEqual([]);
     expect(byManager.body.skipped[0].errors[0]).toContain('ادمین');
+  });
+
+  it('renames the built-in levels on upgrade, unless an admin already named them', async () => {
+    const names = async () =>
+      Object.fromEntries((await pool.query<{ id: string; name: string }>('SELECT id, name FROM roles')).rows.map((r) => [r.id, r.name]));
+    const before = await names();
+    // As on a server before 2.43: old names, except one an admin had changed, and a custom level already called «همکار».
+    await pool.query(`UPDATE roles SET name = 'ادمین برنامه' WHERE id = 'admin'`);
+    await pool.query(`UPDATE roles SET name = 'مدیران محتوا' WHERE id = 'manager'`);
+    await pool.query(`UPDATE roles SET name = 'کارشناس' WHERE id = 'employee'`);
+    await pool.query(`INSERT INTO roles (id, name, description, permissions, is_system) VALUES ('same-name', 'همکار', '', '{}', false)`);
+
+    for (const statement of readFileSync('drizzle/0027_access_level_names.sql', 'utf8').split('--> statement-breakpoint')) {
+      await pool.query(statement);
+    }
+    const after = await names();
+    expect([after.admin, after.manager, after.employee]).toEqual(['ادمین پرتال', 'مدیران محتوا', 'کارشناس']);
+
+    await pool.query(`DELETE FROM roles WHERE id = 'same-name'`);
+    for (const id of ['admin', 'manager', 'employee']) await pool.query('UPDATE roles SET name = $1 WHERE id = $2', [before[id], id]);
   });
 });

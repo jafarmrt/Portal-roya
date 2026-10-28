@@ -36,13 +36,13 @@ async function memberCounts() {
 
 async function loadRole(id: string) {
   const [role] = await db.select().from(roles).where(eq(roles.id, id)).limit(1);
-  if (!role) throw new HttpError(404, 'نقش یافت نشد.');
+  if (!role) throw new HttpError(404, 'سطح دسترسی پیدا نشد.');
   return role;
 }
 
 async function assertNameFree(name: string, exceptId?: string) {
   const [existing] = await db.select({ id: roles.id }).from(roles).where(eq(roles.name, name)).limit(1);
-  if (existing && existing.id !== exceptId) throw new HttpError(409, `نقشی با نام «${name}» وجود دارد.`);
+  if (existing && existing.id !== exceptId) throw new HttpError(409, `سطح دسترسی دیگری با نام «${name}» هست.`);
 }
 
 // Every signed-in user may read roles: names are shown on profiles and in the phone book.
@@ -97,7 +97,7 @@ rolesRouter.patch(
     const role = await loadRole(req.params.id);
     const body = parse(updateSchema, req.body);
     if (body.permissions !== undefined && role.id === ADMIN_ROLE_ID) {
-      throw new HttpError(400, 'ادمین برنامه همیشه همهٔ دسترسی‌ها را دارد.');
+      throw new HttpError(400, 'ادمین پرتال همیشه همهٔ دسترسی‌ها را دارد.');
     }
     if (body.name !== undefined) await assertNameFree(body.name, role.id);
     const [updated] = await db.update(roles).set(body).where(eq(roles.id, role.id)).returning();
@@ -121,10 +121,10 @@ rolesRouter.delete(
   requireAdmin,
   route(async (req, res) => {
     const role = await loadRole(req.params.id);
-    if (role.isSystem) throw new HttpError(400, 'نقش‌های پایهٔ پرتال حذف نمی‌شوند.');
+    if (role.isSystem) throw new HttpError(400, 'سطح‌های پایهٔ پرتال حذف نمی‌شوند.');
     const members = (await memberCounts()).get(role.id) ?? 0;
     if (members > 0) {
-      throw new HttpError(409, `${members} همکار این نقش را دارند. ابتدا نقش آن‌ها را تغییر دهید.`);
+      throw new HttpError(409, `${members} همکار این سطح دسترسی را دارند. ابتدا سطح دسترسی آن‌ها را تغییر دهید.`);
     }
     await db.delete(roles).where(eq(roles.id, role.id));
     await audit(currentUser(req), { action: 'delete', entity: 'role', id: role.id, title: role.name });

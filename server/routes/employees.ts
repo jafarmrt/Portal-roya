@@ -54,7 +54,7 @@ async function recordChanges(before: Employee, after: Employee) {
   pair('سمت', before.position, after.position);
   pair('واحد', before.department, after.department);
   pair('محل کار', before.location, after.location);
-  if (before.role !== after.role) parts.push(`نقش: ${fromTo(await roleName(before.role), await roleName(after.role))}`);
+  if (before.role !== after.role) parts.push(`سطح دسترسی: ${fromTo(await roleName(before.role), await roleName(after.role))}`);
   if (before.isActive !== after.isActive) parts.push(after.isActive ? 'دوباره فعال شد' : 'غیرفعال شد');
   if (before.directManagerId !== after.directManagerId) {
     parts.push(`مدیر مستقیم: ${fromTo(await personName(before.directManagerId), await personName(after.directManagerId))}`);
@@ -73,7 +73,7 @@ async function loadEmployee(id: string) {
 
 function assertSelfOrUserManager(viewer: SessionUser, targetId: string) {
   if (viewer.id !== targetId && !can(viewer, 'users.manage')) {
-    throw new HttpError(403, 'فقط خود همکار یا مدیر کاربران می‌تواند این تغییر را انجام دهد.');
+    throw new HttpError(403, 'این تغییر را فقط خود همکار یا کسی که «مدیریت کارکنان» دارد انجام می‌دهد.');
   }
 }
 
@@ -90,19 +90,19 @@ async function assertMayManageAccount(
 ) {
   const touchesAdmin = target?.role === ADMIN_ROLE_ID || role === ADMIN_ROLE_ID;
   if (touchesAdmin && !isAdmin(viewer)) {
-    throw new HttpError(403, 'فقط ادمین برنامه می‌تواند حساب ادمین‌ها را تغییر دهد یا نقش ادمین بدهد.');
+    throw new HttpError(403, 'فقط ادمین پرتال می‌تواند حساب ادمین‌ها را تغییر دهد یا سطح ادمین بدهد.');
   }
   if (isAdmin(viewer)) return;
   const rules = await accountRules(viewer);
   const changesRole = role !== undefined && role !== target?.role;
   if (changesRole && target?.id === viewer.id) {
-    throw new HttpError(403, 'نقش خودتان را نمی‌توانید تغییر دهید؛ این کار با ادمین برنامه است.');
+    throw new HttpError(403, 'سطح دسترسی خودتان را نمی‌توانید تغییر دهید؛ این کار با ادمین پرتال است.');
   }
   if ((access || changesRole) && target && target.id !== viewer.id && !rules.covers(target.role)) {
-    throw new HttpError(403, 'این همکار دسترسی‌هایی دارد که شما ندارید؛ تغییر نقش، رمز یا دسترسی او با ادمین برنامه است.');
+    throw new HttpError(403, 'این همکار دسترسی‌هایی دارد که شما ندارید؛ تغییر سطح دسترسی، رمز یا حساب او با ادمین پرتال است.');
   }
   if (changesRole && !rules.covers(role)) {
-    throw new HttpError(403, `نقش «${await roleName(role)}» دسترسی‌هایی دارد که خودتان ندارید؛ فقط ادمین برنامه می‌تواند آن را بدهد.`);
+    throw new HttpError(403, `سطح دسترسی «${await roleName(role)}» دسترسی‌هایی دارد که خودتان ندارید؛ فقط ادمین پرتال می‌تواند آن را بدهد.`);
   }
 }
 
@@ -129,7 +129,7 @@ async function introduceColleague(emp: Employee, message: string, joinDate: stri
 }
 
 async function assertRoleExists(roleId: string) {
-  if (!(await roleExists(roleId))) throw new HttpError(400, 'نقش انتخاب‌شده وجود ندارد.');
+  if (!(await roleExists(roleId))) throw new HttpError(400, 'سطح دسترسی انتخاب‌شده وجود ندارد.');
 }
 
 /** Account columns of someone listed only in the phone book. */
@@ -276,7 +276,7 @@ employeesRouter.post(
       entity: 'employee',
       id: emp.id,
       title: fullName(emp),
-      detail: `${emp.position}، ${emp.department}؛ ${emp.hasAccount ? `با دسترسی پرتال و نقش ${await roleName(emp.role)}` : 'فقط در دفتر تلفن'}`,
+      detail: `${emp.position}، ${emp.department}؛ ${emp.hasAccount ? `با حساب پرتال و سطح دسترسی ${await roleName(emp.role)}` : 'فقط در دفتر تلفن'}`,
     });
     if (body.isNewColleague) {
       await introduceColleague(emp, body.newColleagueMessage, emp.hireDate);
@@ -305,7 +305,7 @@ employeesRouter.post(
   route(async (req, res) => {
     const body = parse(accountSchema, req.body);
     const target = await loadEmployee(req.params.id);
-    if (target.hasAccount) throw new HttpError(409, 'این همکار از قبل دسترسی پورتال دارد.');
+    if (target.hasAccount) throw new HttpError(409, 'این همکار از قبل حساب پرتال دارد.');
     if (!target.isActive) throw new HttpError(400, 'ابتدا این همکار را فعال کنید.');
     const account = await prepareAccount(currentUser(req), target, body);
     const [updated] = await db
@@ -318,7 +318,7 @@ employeesRouter.post(
       entity: 'employee',
       id: updated.id,
       title: fullName(updated),
-      detail: `دسترسی پرتال داده شد، نقش ${await roleName(updated.role)}`,
+      detail: `حساب پرتال ساخته شد، سطح دسترسی ${await roleName(updated.role)}`,
     });
     broadcastChange('employees');
     res.json({ employee: serializeEmployee(updated, currentUser(req)), temporaryPassword: account.temporaryPassword });
@@ -332,8 +332,8 @@ employeesRouter.delete(
   route(async (req, res) => {
     const viewer = currentUser(req);
     const target = await loadEmployee(req.params.id);
-    if (target.id === viewer.id) throw new HttpError(400, 'نمی‌توانید دسترسی پورتال خودتان را بردارید.');
-    if (!target.hasAccount) throw new HttpError(409, 'این همکار دسترسی پورتال ندارد.');
+    if (target.id === viewer.id) throw new HttpError(400, 'نمی‌توانید حساب پرتال خودتان را بردارید.');
+    if (!target.hasAccount) throw new HttpError(409, 'این همکار حساب پرتال ندارد.');
     await assertMayManageAccount(viewer, target, { access: true });
     if (target.role === ADMIN_ROLE_ID && (await activeAdminCount(target.id)) === 0) {
       throw new HttpError(400, 'پرتال باید حداقل یک ادمین فعال داشته باشد.');
@@ -386,10 +386,10 @@ employeesRouter.patch(
     const changesAccount = Object.keys(managerOnlyFields).some((key) => key in body);
     if (changesAccount) {
       if (!can(viewer, 'users.manage')) {
-        throw new HttpError(403, 'تغییر سمت، واحد و نقش فقط توسط مدیر کاربران ممکن است.');
+        throw new HttpError(403, 'سمت، واحد و سطح دسترسی را فقط کسی که «مدیریت کارکنان» دارد تغییر می‌دهد.');
       }
       if (body.role !== undefined && body.role !== target.role) {
-        if (!target.hasAccount) throw new HttpError(400, 'نقش فقط برای همکارانی که دسترسی پورتال دارند معنا دارد.');
+        if (!target.hasAccount) throw new HttpError(400, 'سطح دسترسی فقط برای همکارانی که حساب پرتال دارند معنا دارد.');
         await assertRoleExists(body.role);
       }
       const changesActive = body.isActive !== undefined && body.isActive !== target.isActive;
@@ -428,7 +428,7 @@ employeesRouter.post(
   requirePermission('users.manage'),
   route(async (req, res) => {
     const target = await loadEmployee(req.params.id);
-    if (!target.hasAccount) throw new HttpError(400, 'این همکار دسترسی پورتال ندارد؛ ابتدا به او دسترسی بدهید.');
+    if (!target.hasAccount) throw new HttpError(400, 'این همکار حساب پرتال ندارد؛ ابتدا برایش حساب بسازید.');
     if (target.authSource === 'ldap' && isDirectoryEnabled()) throw new HttpError(400, DIRECTORY_PASSWORD_MESSAGE);
     await assertMayManageAccount(currentUser(req), target, { access: true });
     const temp = temporaryPassword();

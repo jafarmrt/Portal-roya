@@ -39,7 +39,7 @@ export const AUDIT_ENTITY_LABELS: Record<AuditEntity, string> = {
   training: 'دورهٔ آموزشی',
   calendar_event: 'رویداد تقویم',
   holiday: 'تعطیلی سازمانی',
-  role: 'نقش',
+  role: 'سطح دسترسی',
   employee: 'همکار و حساب کاربری',
   settings: 'تنظیمات',
   message: 'پیام همکاران',

@@ -57,7 +57,7 @@ interface DirectoryReport {
 
 type SignInMethod = 'local' | 'ldap';
 
-export const TEMPLATE_HEADER = ['نام', 'نام خانوادگی', 'نام کاربری', 'سمت', 'واحد', 'نقش', 'ایمیل', 'موبایل', 'داخلی', 'محل استقرار', 'تاریخ تولد', 'تاریخ استخدام'];
+export const TEMPLATE_HEADER = ['نام', 'نام خانوادگی', 'نام کاربری', 'سمت', 'واحد', 'سطح دسترسی پرتال', 'ایمیل', 'موبایل', 'داخلی', 'محل استقرار', 'تاریخ تولد', 'تاریخ استخدام'];
 const TEMPLATE_SAMPLES = [
   ['علی', 'رضایی', 'ali.rezaei', 'کارشناس فروش', 'فروش و امور مشتریان', 'کارشناس', 'ali.rezaei@roya.local', '09121234567', '215', 'دفتر تهران طبقه اول', '1370/05/12', '1400/01/15'],
   // No username: listed in the phone book without a portal account.
@@ -205,7 +205,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
         <PrintSheet accounts={accounts} />
         <div className="space-y-4">
           <p className="font-bold">
-            {toPersianDigits(result.created.length)} نفر اضافه شد ({toPersianDigits(result.created.filter((a) => a.hasAccount).length)} نفر با حساب پورتال) و {toPersianDigits(result.updated.length)} نفر به‌روز شد.
+            {toPersianDigits(result.created.length)} نفر اضافه شد ({toPersianDigits(result.created.filter((a) => a.hasAccount).length)} نفر با حساب پرتال) و {toPersianDigits(result.updated.length)} نفر به‌روز شد.
           </p>
           {accounts.length > 0 && (
             <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl text-amber-900 leading-relaxed">
@@ -232,7 +232,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                         </td>
                       </>
                     ) : (
-                      <td className="p-2 text-[#6E6A60]" colSpan={2}>فقط دفتر تلفن (بدون دسترسی پورتال)</td>
+                      <td className="p-2 text-[#6E6A60]" colSpan={2}>فقط دفتر تلفن (بدون حساب پرتال)</td>
                     )}
                     <td className="p-2">{a.department}</td>
                   </tr>
@@ -313,8 +313,8 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
               <Download className="w-3.5 h-3.5" /> دانلود فایل نمونه
             </button>
           </li>
-          <li><strong>نام کاربری</strong> را همان نام ورود ویندوز همکار بنویسید (مثلاً <code dir="ltr">ali.rezaei</code>) تا بعداً با ورود اکتیو دایرکتوری یکی شود. برای همکارانی که به پورتال دسترسی ندارند (مثلاً همکاران کارگاه) نام کاربری را <strong>خالی بگذارید</strong>؛ فقط در دفتر تلفن و کارت‌های تولد دیده می‌شوند.</li>
-          <li>در ستون نقش نام یکی از نقش‌های پرتال را بنویسید، مثلاً «مدیر» یا «کارشناس» (خالی یعنی کارشناس). تاریخ‌ها به شکل ۱۴۰۰/۰۱/۱۵.</li>
+          <li><strong>نام کاربری</strong> را همان نام ورود ویندوز همکار بنویسید (مثلاً <code dir="ltr">ali.rezaei</code>) تا بعداً با ورود اکتیو دایرکتوری یکی شود. برای همکارانی که حساب پرتال ندارند (مثلاً همکاران کارگاه) نام کاربری را <strong>خالی بگذارید</strong>؛ فقط در دفتر تلفن و کارت‌های تولد دیده می‌شوند.</li>
+          <li>در ستون «سطح دسترسی پرتال» نام یکی از سطح‌های دسترسی را بنویسید، مثلاً «ناشر محتوا» یا «همکار» (خالی یعنی همکار). این ستون جایگاه سازمانی نیست؛ سمت را در ستون «سمت» بنویسید. فایل‌های قدیمی با ستون «نقش» هم پذیرفته می‌شوند. تاریخ‌ها به شکل ۱۴۰۰/۰۱/۱۵.</li>
           <li>
             <strong>برای تغییر مشخصات افراد موجود</strong> (مثلاً موبایل یا دادن نام کاربری به همکاری که حساب ندارد) از «مدیریت کارکنان» دکمهٔ «خروجی اکسل» را بزنید، فایل را ویرایش کنید و همین‌جا بارگذاری کنید. ستون شناسه را تغییر ندهید؛ ردیف‌ها با آن پیدا می‌شوند. فقط خانه‌های پر شده تغییر می‌کنند.
           </li>
