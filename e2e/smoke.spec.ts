@@ -7,7 +7,7 @@ const COMMON_TABS = [
   'dashboard', 'news', 'polls', 'colleagues', 'orgchart', 'departments', 'departments/فروش', 'search', 'documents', 'guides', 'training', 'calendar', 'systems',
 ];
 const TABS: Record<Role, string[]> = {
-  admin: [...COMMON_TABS, 'notifications', 'todos', 'suggestions', 'suggestions/management', 'suggestions/hr', 'reports', 'people', 'admin', 'audit'],
+  admin: [...COMMON_TABS, 'notifications', 'todos', 'suggestions', 'suggestions/management', 'suggestions/hr', 'reports', 'people', 'admin', 'admin/general', 'admin/access', 'admin/features', 'admin/lists', 'admin/server', 'audit'],
   employee: [...COMMON_TABS, 'notifications', 'todos', 'suggestions', 'suggestions/mine', 'suggestions/track'],
   guest: [...COMMON_TABS, 'notifications'],
 };

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Sparkles, X } from 'lucide-react';
-import { featureInfo } from '../../../shared/features';
+import { featureInfo, featureTab } from '../../../shared/features';
 import { usePortal } from '../../context/PortalContext';
 import type { ActiveTab } from '../../types';
 
@@ -14,7 +14,7 @@ export const FeatureIntroCard: React.FC = () => {
     <div className="space-y-3">
       {fresh.map(({ key }) => {
         const info = featureInfo(key);
-        const tab = info.tabs[0] as ActiveTab | undefined;
+        const tab = featureTab(key) as ActiveTab | undefined;
         return (
           <section key={key} className="bg-emerald-50 border border-emerald-200 rounded-3xl p-4 sm:p-5 flex items-start gap-3" aria-label={`تازه در پرتال: ${info.label}`}>
             <div className="p-2 bg-emerald-600 text-white rounded-xl shrink-0">

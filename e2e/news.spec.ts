@@ -78,7 +78,7 @@ test.describe('locations', () => {
   test.use({ storageState: 'e2e/.auth/admin.json' });
 
   test('settings list the company’s locations', async ({ page }) => {
-    await page.goto('/#admin');
+    await page.goto('/#admin/lists');
     const section = page.locator('section[aria-labelledby="locations-title"]');
     await expect(section.getByText('شعبه شیراز', { exact: true })).toBeVisible();
     await expect(section.getByLabel('محل استقرار جدید')).toBeVisible();
