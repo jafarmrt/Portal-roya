@@ -737,6 +737,8 @@ export interface AppSettings {
   featureNews: { key: FeatureKey; badge: boolean; card: boolean }[];
   /** This person wants the once-a-day effect of the occasions and seasons (always true for guests). */
   occasionEffects: boolean;
+  /** This person's own order of the dashboard cards ([] = the default order; see shared/dashboard.ts). */
+  dashboardOrder: string[];
 }
 
 export interface SiteBanner {

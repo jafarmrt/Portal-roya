@@ -188,6 +188,8 @@ interface PortalContextType {
   markFeatureSeen: (key: FeatureKey) => void;
   /** Switches the once-a-day effect of the occasions and seasons on or off for this person. */
   setOccasionEffects: (on: boolean) => Promise<boolean>;
+  /** Saves this person's order of the dashboard cards; an empty list puts the default order back. */
+  setDashboardOrder: (order: string[]) => Promise<boolean>;
 
   // Actions
   updateSettings: (settings: Partial<AppSettings>) => Promise<boolean>;
@@ -565,6 +567,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const updated = await attempt(
       () => api.put<AppSettings>('/api/settings/occasion-effects', { on }),
       on ? 'افکت مناسبت‌ها برای شما روشن شد.' : 'افکت مناسبت‌ها برای شما خاموش شد.',
+    );
+    if (updated) setAppSettings(updated);
+    return Boolean(updated);
+  };
+
+  const setDashboardOrder = async (order: string[]) => {
+    const updated = await attempt(
+      () => api.put<AppSettings>('/api/settings/dashboard-order', { order }),
+      order.length === 0 ? 'چیدمان پیش‌فرض داشبورد برگشت.' : 'چیدمان داشبورد ذخیره شد.',
     );
     if (updated) setAppSettings(updated);
     return Boolean(updated);
@@ -1050,6 +1061,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         featureOn,
         markFeatureSeen,
         setOccasionEffects,
+        setDashboardOrder,
         updateSettings,
         setBanner,
         clearBanner,

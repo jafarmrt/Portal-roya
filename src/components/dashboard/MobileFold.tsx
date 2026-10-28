@@ -16,13 +16,14 @@ function readOpen(): string[] {
  * On phones a less-used dashboard card shows as one line that opens on tap (remembered on this
  * device); on wider screens the card is always shown as is.
  */
-export const MobileFold: React.FC<{ id: string; title: string; icon: React.ReactNode; className?: string; children: React.ReactNode }> = ({
-  id,
-  title,
-  icon,
-  className = '',
-  children,
-}) => {
+export const MobileFold: React.FC<{
+  id: string;
+  title: string;
+  icon: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+  children: React.ReactNode;
+}> = ({ id, title, icon, className = '', style, children }) => {
   const [open, setOpen] = useState(() => readOpen().includes(id));
   const toggle = () => {
     const next = !open;
@@ -36,7 +37,7 @@ export const MobileFold: React.FC<{ id: string; title: string; icon: React.React
   };
 
   return (
-    <div className={className}>
+    <div className={className} style={style}>
       <button
         type="button"
         onClick={toggle}

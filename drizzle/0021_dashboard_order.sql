@@ -1,0 +1,1 @@
+ALTER TABLE "employees" ADD COLUMN "dashboard_order" text[] DEFAULT '{}' NOT NULL;
