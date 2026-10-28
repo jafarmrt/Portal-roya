@@ -834,12 +834,13 @@ export interface PresenceInfo {
   dailyLimit: number;
 }
 
-/** An emoji a colleague just sent, as the server pushes it to the receiver's open pages. */
-export interface IncomingKudos {
+/** An emoji a colleague sent, waiting in the receiver's banner until they close it. */
+export interface ReceivedKudos {
   id: number;
   from: { id: string; firstName: string; lastName: string; avatar: string };
   emoji: string;
   label: string;
   message: string;
+  createdAt: string;
   canReply: boolean;
 }

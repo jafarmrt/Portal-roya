@@ -11,8 +11,14 @@ export const KUDOS_PAIR_MINUTES = 10;
 /** How many emoji one person may send in a day. */
 export const KUDOS_DAILY_LIMIT = 30;
 
-/** An emoji received can be answered with one emoji for this long; the exchange ends there. */
+/**
+ * An emoji received waits in a small banner on the receiver's pages until they close it, for this long,
+ * and can be answered with one emoji meanwhile; the exchange ends there. Emoji are not notifications.
+ */
 export const KUDOS_REPLY_HOURS = 24;
+
+/** The banner lists at most this many emoji. */
+export const KUDOS_BANNER_MAX = 20;
 
 /** The administrator's list holds at most this many emoji. */
 export const KUDOS_EMOJI_MAX = 12;
