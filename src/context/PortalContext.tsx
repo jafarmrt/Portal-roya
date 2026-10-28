@@ -108,6 +108,9 @@ export type ProfileUpdate = Partial<
   >
 >;
 
+/** A profile update from staff management, which may also make the colleague the head of their unit. */
+export type ManagedProfileUpdate = ProfileUpdate & { isUnitHead?: boolean };
+
 export interface FirstProfile {
   firstName: string;
   lastName: string;
@@ -232,7 +235,7 @@ interface PortalContextType {
   addEmployee: (data: NewEmployeeInput) => Promise<{ temporaryPassword: string | null } | undefined>;
   grantAccess: (id: string, account: AccountInput) => Promise<{ temporaryPassword: string | null } | undefined>;
   revokeAccess: (id: string) => Promise<boolean>;
-  updateUserProfile: (id: string, update: ProfileUpdate) => Promise<boolean>;
+  updateUserProfile: (id: string, update: ManagedProfileUpdate) => Promise<boolean>;
   resetEmployeePassword: (id: string) => Promise<string | null>;
   addWorkExperience: (userId: string, exp: Omit<WorkExperience, 'id'>) => Promise<void>;
   removeWorkExperience: (userId: string, expId: string) => Promise<void>;
@@ -768,7 +771,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return Boolean(updated);
   };
 
-  const updateUserProfile = async (id: string, update: ProfileUpdate) => {
+  const updateUserProfile = async (id: string, update: ManagedProfileUpdate) => {
     const updated = await attempt(() => api.patch<UserProfile>(`/api/employees/${id}`, update), 'پروفایل ذخیره شد.');
     if (updated) replaceEmployee(updated);
     return Boolean(updated);

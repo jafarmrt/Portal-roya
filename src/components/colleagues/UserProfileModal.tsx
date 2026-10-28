@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { NO_DEPARTMENT, NO_POSITION } from '../../../shared/profile';
+import { managerOf, NO_DEPARTMENT, NO_POSITION, unitHeads } from '../../../shared/profile';
 import type { UserProfile } from '../../types';
 import { Avatar } from '../common/Avatar';
 import { formatBirthDay } from '../../lib/jalali';
@@ -36,7 +36,10 @@ interface UserProfileModalProps {
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onEdit }) => {
-  const { currentUser, can, endorseSkill, addWorkExperience, addSkill, removeWorkExperience, removeSkill, newColleagues, appSettings, setActiveTab } = usePortal();
+  const { currentUser, can, endorseSkill, addWorkExperience, addSkill, removeWorkExperience, removeSkill, newColleagues, appSettings, setActiveTab, departmentPages, employees } = usePortal();
+  // Without a direct manager, the head of the colleague's unit is who they report to.
+  const fallback = user.directManagerId ? null : managerOf(user, unitHeads(departmentPages));
+  const unitHead = fallback ? employees.find((e) => e.id === fallback.id && e.isActive) : undefined;
   const [introducing, setIntroducing] = useState(false);
   const introduction = newColleagues.find((nc) => nc.userId === user.id);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -239,7 +242,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
               <UserCheck className="w-4 h-4 text-[#8C867A]" />
               <div>
                 <span className="text-[#8C867A] text-[10px] block">مدیر مستقیم:</span>
-                <span className="font-bold text-[#2D2D2D]">{user.directManager || '—'}</span>
+                <span className="font-bold text-[#2D2D2D]">
+                  {user.directManager || (unitHead ? `${unitHead.firstName} ${unitHead.lastName}` : '—')}
+                  {!user.directManager && unitHead && <span className="font-normal text-[#8C867A]"> (مسئول واحد)</span>}
+                </span>
               </div>
             </div>
           </div>

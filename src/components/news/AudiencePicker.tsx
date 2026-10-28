@@ -41,7 +41,7 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
   authorId,
   noun = 'خبر',
 }) => {
-  const { appSettings, employees, roles } = usePortal();
+  const { appSettings, employees, roles, departmentPages } = usePortal();
   const [targeted, setTargeted] = useState(!isForEveryone(value));
   const [query, setQuery] = useState('');
   const [showNames, setShowNames] = useState(false);
@@ -51,6 +51,11 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
   const byId = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
 
   const set = <K extends keyof Audience>(key: K, next: Audience[K]) => onChange({ ...value, [key]: next });
+  // Unit heads are added by name: a quick way to write to them all, without a group of its own.
+  const headIds = [...new Set(departmentPages.filter((p) => appSettings?.departments.includes(p.department)).map((p) => p.headId))].filter(
+    (id): id is string => Boolean(id && byId.has(id) && id !== authorId),
+  );
+  const headsToAdd = headIds.filter((id) => !value.userIds.includes(id));
 
   const matches = query.trim()
     ? people
@@ -108,9 +113,16 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
           )}
 
           <div className="space-y-1.5">
-            <label htmlFor="audience-person" className="text-[11px] font-bold text-[#6E6A60]">
-              {hasGroups ? 'به‌اضافهٔ این افراد' : 'افراد مشخص'}
-            </label>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label htmlFor="audience-person" className="text-[11px] font-bold text-[#6E6A60]">
+                {hasGroups ? 'به‌اضافهٔ این افراد' : 'افراد مشخص'}
+              </label>
+              {headsToAdd.length > 0 && (
+                <button type="button" onClick={() => set('userIds', [...value.userIds, ...headsToAdd])} className="text-[11px] font-bold text-red-700 hover:underline">
+                  + همهٔ مسئولان واحدها ({toPersianDigits(headsToAdd.length)} نفر)
+                </button>
+              )}
+            </div>
             {value.userIds.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {value.userIds.map((id) => {

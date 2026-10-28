@@ -3,7 +3,7 @@ import { ChevronDown, ChevronLeft, Network } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { toPersianDigits } from '../../lib/jalali';
 import type { UserProfile } from '../../types';
-import { placeText } from '../../../shared/profile';
+import { managerOf, placeText, unitHeads } from '../../../shared/profile';
 import { Avatar } from '../common/Avatar';
 
 interface OrgNode {
@@ -11,12 +11,16 @@ interface OrgNode {
   reports: OrgNode[];
 }
 
-/** Builds reporting trees from directManagerId; anyone without an active manager is a root. */
-function buildTree(people: UserProfile[]): OrgNode[] {
+/**
+ * Builds reporting trees from the direct manager, or else the head of the person's unit (see managerOf);
+ * anyone without an active manager is a root.
+ */
+function buildTree(people: UserProfile[], heads: ReadonlyMap<string, string>): OrgNode[] {
   const byManager = new Map<string | null, UserProfile[]>();
   const ids = new Set(people.map((p) => p.id));
   for (const p of people) {
-    const key = p.directManagerId && ids.has(p.directManagerId) && p.directManagerId !== p.id ? p.directManagerId : null;
+    const manager = managerOf(p, heads)?.id;
+    const key = manager && ids.has(manager) && manager !== p.id ? manager : null;
     byManager.set(key, [...(byManager.get(key) ?? []), p]);
   }
   const visited = new Set<string>();
@@ -78,13 +82,13 @@ const OrgNodeView: React.FC<{ node: OrgNode; depth: number }> = ({ node, depth }
 };
 
 export const OrgChartModule: React.FC = () => {
-  const { employees, appSettings } = usePortal();
+  const { employees, appSettings, departmentPages } = usePortal();
   const [department, setDepartment] = useState('all');
 
   const active = employees.filter((e) => e.isActive);
   const trees = useMemo(
-    () => buildTree(department === 'all' ? active : active.filter((e) => e.department === department)),
-    [active, department],
+    () => buildTree(department === 'all' ? active : active.filter((e) => e.department === department), unitHeads(departmentPages)),
+    [active, department, departmentPages],
   );
   const departments = [...new Set([...(appSettings?.departments ?? []), ...active.map((e) => e.department)])].filter((d) =>
     d && active.some((e) => e.department === d),
@@ -99,7 +103,7 @@ export const OrgChartModule: React.FC = () => {
           </div>
           <div>
             <h2 className="text-xl font-black text-[#2D2D2D]">چارت سازمانی</h2>
-            <p className="text-sm text-[#6E6A60]">بر اساس «مدیر مستقیم» ثبت‌شده در پروفایل همکاران</p>
+            <p className="text-sm text-[#6E6A60]">بر اساس «مدیر مستقیم» هر همکار؛ اگر ثبت نشده باشد، مسئول واحدش</p>
           </div>
         </div>
         <select
