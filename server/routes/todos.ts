@@ -25,7 +25,7 @@ import { featureConfig } from '../features.js';
 import { HttpError, currentUser, newId, parse, route } from '../http.js';
 import { createNotifications } from '../notify.js';
 
-// «یادداشت کارهای من»: every request reads and changes only the signed-in person's own notes.
+// «یادداشت‌های من»: every request reads and changes only the signed-in person's own notes.
 
 export const todosRouter = Router();
 
@@ -133,10 +133,10 @@ todosRouter.post(
       .from(personalTodos)
       .where(and(eq(personalTodos.userId, viewer.id), isNull(personalTodos.doneAt)));
     if (open.length >= TODO_OPEN_LIMIT) {
-      throw new HttpError(400, `بیش از ${TODO_OPEN_LIMIT} کار باز نمی‌توان داشت؛ کارهای انجام‌شده را تیک بزنید یا پاک کنید.`);
+      throw new HttpError(400, `بیش از ${TODO_OPEN_LIMIT} یادداشت باز نمی‌توان داشت؛ یادداشت‌های انجام‌شده را تیک بزنید یا پاک کنید.`);
     }
     if (input.source && open.some((t) => t.sourceType === input.source!.type && t.sourceId === input.source!.id)) {
-      throw new HttpError(409, 'این مورد از قبل در یادداشت کارهای شماست.');
+      throw new HttpError(409, 'این مورد از قبل در یادداشت‌های شماست.');
     }
     const [row] = await db
       .insert(personalTodos)
@@ -178,7 +178,7 @@ todosRouter.patch(
       Object.assign(changes, remindersFor(input.dueDate));
     }
     if ((changes.repeat ?? existing.repeat) && !(changes.dueDate ?? existing.dueDate)) {
-      throw new HttpError(400, 'کار تکراری تاریخ سررسید می‌خواهد.');
+      throw new HttpError(400, 'یادداشت تکراری تاریخ سررسید می‌خواهد.');
     }
     const ticked = input.done === true && !existing.doneAt;
     const unticked = input.done === false && Boolean(existing.doneAt);
@@ -303,13 +303,13 @@ export async function processTodoReminders(now = new Date()) {
     const count = now.length + next.length;
     const title =
       count === 1
-        ? `یادآوری کار ${now.length ? 'امروز' : 'فردا'}: ${shorten((now[0] ?? next[0]).title)}`
+        ? `یادآوری یادداشت ${now.length ? 'امروز' : 'فردا'}: ${shorten((now[0] ?? next[0]).title)}`
         : now.length && next.length
-          ? `${toPersianDigits(count)} کار امروز و فردا سررسید دارد`
-          : `${toPersianDigits(count)} کار ${now.length ? 'امروز' : 'فردا'} سررسید دارد`;
+          ? `${toPersianDigits(count)} یادداشت امروز و فردا سررسید دارد`
+          : `${toPersianDigits(count)} یادداشت ${now.length ? 'امروز' : 'فردا'} سررسید دارد`;
     const message =
       count === 1
-        ? `سررسید این کار از یادداشت کارهای شما ${now.length ? 'امروز' : 'فردا'} است.`
+        ? `سررسید این یادداشت ${now.length ? 'امروز' : 'فردا'} است.`
         : [now.length ? `امروز: ${titles(now)}` : '', next.length ? `فردا: ${titles(next)}` : ''].filter(Boolean).join(' · ');
     await createNotifications([userId], { title, message, type: 'todo', linkTab: 'dashboard' });
   }

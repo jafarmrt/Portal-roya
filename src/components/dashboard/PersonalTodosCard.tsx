@@ -15,7 +15,7 @@ import { TODO_GROUPS, TODO_TITLE_MAX, todoGroup, todoSource, type TodoGroup } fr
 const SHOWN = 5;
 
 /**
- * «یادداشت کارهای من»: the person's own notes, grouped into overdue, today, this week and later.
+ * «یادداشت‌های من»: the person's own notes, grouped into overdue, today, this week and later.
  * Only they see it; they are reminded on the morning of the due date (and the morning before if they
  * ask). Notes added from a news item, event, course or document link back to it.
  */
@@ -66,7 +66,7 @@ export const PersonalTodosCard: React.FC = () => {
     <section className="bg-white border border-[#E6E0D5] rounded-3xl p-4 space-y-3" aria-labelledby="personal-todos-title">
       <div className="flex items-center gap-2">
         <span className="p-1.5 bg-sky-100 text-sky-800 rounded-xl"><NotebookPen className="w-4 h-4" /></span>
-        <h2 id="personal-todos-title" className="text-sm font-black text-[#2D2D2D]">یادداشت کارهای من</h2>
+        <h2 id="personal-todos-title" className="text-sm font-black text-[#2D2D2D]">یادداشت‌های من</h2>
         {urgent > 0 && (
           <span className="px-2 py-0.5 text-[11px] font-bold bg-amber-100 text-amber-900 rounded-full" title="سررسید امروز یا گذشته">
             {toPersianDigits(urgent)} امروز
@@ -87,8 +87,8 @@ export const PersonalTodosCard: React.FC = () => {
         <button
           type="button"
           aria-expanded={formOpen}
-          aria-label={formOpen ? 'بستن فرم کار تازه' : 'کار تازه'}
-          title={formOpen ? 'بستن' : 'کار تازه'}
+          aria-label={formOpen ? 'بستن فرم یادداشت تازه' : 'یادداشت تازه'}
+          title={formOpen ? 'بستن' : 'یادداشت تازه'}
           onClick={() => setFormOpen((o) => !o)}
           className="p-1.5 rounded-xl bg-sky-700 hover:bg-sky-800 text-white"
         >
@@ -105,8 +105,8 @@ export const PersonalTodosCard: React.FC = () => {
             value={title}
             maxLength={TODO_TITLE_MAX}
             onChange={(e) => setTitle(e.target.value)}
-            aria-label="عنوان کار تازه"
-            placeholder="کار تازه‌ای بنویسید…"
+            aria-label="عنوان یادداشت تازه"
+            placeholder="یادداشت تازه‌ای بنویسید…"
             autoFocus
             className={inputClass}
           />
@@ -129,7 +129,7 @@ export const PersonalTodosCard: React.FC = () => {
 
       {open.length === 0 ? (
         <p className="text-xs text-[#6E6A60] py-1 leading-relaxed">
-          کار بازی ندارید. با «+» کاری بنویسید، یا از هر خبر، رویداد، دوره و سند «افزودن به یادداشت کارهای من» را بزنید.
+          یادداشت بازی ندارید. با «+» یادداشتی بنویسید، یا از هر خبر، رویداد، دوره و سند «افزودن به یادداشت‌های من» را بزنید.
         </p>
       ) : (
         <div className="space-y-2">
@@ -239,7 +239,7 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, today, group, onToggle, onEdit,
           type="button"
           role="checkbox"
           aria-checked={isDone}
-          aria-label={isDone ? `برگرداندن «${todo.title}» به کارهای باز` : `انجام شد: ${todo.title}`}
+          aria-label={isDone ? `برگرداندن «${todo.title}» به یادداشت‌های باز` : `انجام شد: ${todo.title}`}
           onClick={onToggle}
           className="p-1 rounded-lg hover:bg-white shrink-0"
         >

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { UserProfile } from '../../types';
-import { Award, Cake, CalendarDays, Mail } from 'lucide-react';
+import { Award, Cake, ChevronDown, Mail } from 'lucide-react';
 import { type WishOccasion, yearsLabel, yearsSince } from '../../../shared/celebrations';
 import { Avatar } from '../common/Avatar';
 import { GreetingCard } from '../common/GreetingCard';
@@ -11,15 +11,30 @@ import { GreetingCardComposer } from './GreetingCardComposer';
 
 const UPCOMING_DAYS = 14;
 const ANNIVERSARY_DAYS = 7;
-const MAX_SHOWN = 4;
+// Three of each at first, so the card stays about as tall as its neighbours; the rest open in place.
+const MAX_SHOWN = 3;
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+const ShowMore: React.FC<{ expanded: boolean; onToggle: () => void; label: string }> = ({ expanded, onToggle, label }) => (
+  <button
+    type="button"
+    onClick={onToggle}
+    aria-expanded={expanded}
+    className="tap-area w-full text-xs font-bold text-[#D97B5F] hover:underline flex items-center justify-center gap-1"
+  >
+    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+    {expanded ? 'نمایش کمتر' : `بیشتر: ${label}`}
+  </button>
+);
 
 const daysLabel = (days: number) => (days === 0 ? 'امروز 🎉' : days === 1 ? 'فردا' : `${toPersianDigits(days)} روز دیگر`);
 
 export const BirthdayCard: React.FC = () => {
-  const { employees, deleteBirthdayWish, birthdayWishes, currentUser, can, isGuest, setActiveTab } = usePortal();
+  const { employees, deleteBirthdayWish, birthdayWishes, currentUser, can, isGuest } = usePortal();
   const [composing, setComposing] = useState<{ colleague: UserProfile; occasion: WishOccasion; years?: number } | null>(null);
   const [editingOwnProfile, setEditingOwnProfile] = useState(false);
+  const [allBirthdaysShown, setAllBirthdaysShown] = useState(false);
+  const [allAnniversariesShown, setAllAnniversariesShown] = useState(false);
 
   // Every known birthday, soonest first; the card lists today and the next two weeks.
   const allBirthdays = employees
@@ -71,7 +86,7 @@ export const BirthdayCard: React.FC = () => {
       <button
         type="button"
         onClick={() => setComposing({ colleague: emp, occasion, years })}
-        className="w-full px-3.5 py-2 text-xs font-bold rounded-xl bg-[#D97B5F] hover:bg-[#C2684D] text-white shadow-xs flex items-center justify-center gap-1.5"
+        className="w-full px-3.5 py-1.5 text-xs font-bold rounded-xl bg-[#D97B5F] hover:bg-[#C2684D] text-white shadow-xs flex items-center justify-center gap-1.5"
       >
         <Mail className="w-3.5 h-3.5" />
         ارسال کارت تبریک
@@ -121,12 +136,12 @@ export const BirthdayCard: React.FC = () => {
           )}
         </div>
       ) : (
-      <div className="space-y-4">
-        {birthdayColleagues.slice(0, MAX_SHOWN).map(({ emp, days }) => (
-          <div key={emp.id} className="p-4 bg-[#F5F2ED]/70 rounded-2xl border border-[#E6E0D5] space-y-3">
+      <div className="space-y-3">
+        {(allBirthdaysShown ? birthdayColleagues : birthdayColleagues.slice(0, MAX_SHOWN)).map(({ emp, days }) => (
+          <div key={emp.id} className="p-3 bg-[#F5F2ED]/70 rounded-2xl border border-[#E6E0D5] space-y-2.5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <Avatar src={emp.avatar} firstName={emp.firstName} lastName={emp.lastName} className="w-12 h-12 rounded-full border-2 border-[#D97B5F] shadow-xs text-sm" />
+                <Avatar src={emp.avatar} firstName={emp.firstName} lastName={emp.lastName} className="w-10 h-10 rounded-full border-2 border-[#D97B5F] shadow-xs text-xs" />
                 <div>
                   <h4 className="text-sm font-bold text-[#2D2D2D]">
                     {emp.firstName} {emp.lastName}
@@ -148,10 +163,7 @@ export const BirthdayCard: React.FC = () => {
           </div>
         ))}
         {birthdayColleagues.length > MAX_SHOWN && (
-          <button type="button" onClick={() => setActiveTab('calendar')} className="w-full text-xs font-bold text-[#D97B5F] hover:underline flex items-center justify-center gap-1">
-            <CalendarDays className="w-3.5 h-3.5" />
-            {toPersianDigits(birthdayColleagues.length - MAX_SHOWN)} تولد دیگر در تقویم
-          </button>
+          <ShowMore expanded={allBirthdaysShown} onToggle={() => setAllBirthdaysShown((s) => !s)} label={`${toPersianDigits(birthdayColleagues.length - MAX_SHOWN)} تولد دیگر`} />
         )}
       </div>
       )}
@@ -162,7 +174,7 @@ export const BirthdayCard: React.FC = () => {
             <Award className="w-4 h-4 text-[#D97B5F]" />
             سالگرد همکاری
           </h4>
-          {anniversaries.slice(0, MAX_SHOWN).map(({ emp, days, years }) => (
+          {(allAnniversariesShown ? anniversaries : anniversaries.slice(0, MAX_SHOWN)).map(({ emp, days, years }) => (
             <div key={emp.id} className="p-3 bg-[#F5F2ED]/70 rounded-2xl border border-[#E6E0D5] space-y-2.5">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -180,6 +192,9 @@ export const BirthdayCard: React.FC = () => {
               {renderCards(emp, 'anniversary')}
             </div>
           ))}
+          {anniversaries.length > MAX_SHOWN && (
+            <ShowMore expanded={allAnniversariesShown} onToggle={() => setAllAnniversariesShown((s) => !s)} label={`${toPersianDigits(anniversaries.length - MAX_SHOWN)} سالگرد دیگر`} />
+          )}
         </div>
       )}
 

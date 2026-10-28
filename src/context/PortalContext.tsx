@@ -645,7 +645,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const todayMoodSubmitted = userMoods.some((m) => m.date === todayJalali());
 
   const addTodo: PortalContextType['addTodo'] = async (input) => {
-    const created = await attempt(() => api.post<PersonalTodo>('/api/todos', input), 'به یادداشت کارهای شما اضافه شد.');
+    const created = await attempt(() => api.post<PersonalTodo>('/api/todos', input), 'به یادداشت‌های شما اضافه شد.');
     if (created) setTodos((prev) => [...prev.filter((t) => t.id !== created.id), created]);
     return created;
   };

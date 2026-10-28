@@ -10,7 +10,7 @@ export interface SuggestionSummary {
 
 const CHANGED = 'portal:suggestions-changed';
 
-/** Tells the menu badge and «کارهای من» that a reader opened, answered or archived a message. */
+/** Tells the menu badge and «منتظر اقدام شما» that a reader opened, answered or archived a message. */
 export const suggestionsChanged = () => window.dispatchEvent(new Event(CHANGED));
 
 /**

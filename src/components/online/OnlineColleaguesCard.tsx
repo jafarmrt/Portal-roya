@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { ChevronDown, Search, Settings2, Users, X } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
+import { normalizeForSearch } from '../../lib/search';
 import { featureInPreview } from '../../lib/features';
 import { toPersianDigits } from '../../lib/jalali';
 import { Avatar } from '../common/Avatar';
@@ -37,8 +38,9 @@ export const OnlineColleaguesCard: React.FC = () => {
 
   const online = useMemo(() => data?.online ?? [], [data]);
   const shown = useMemo(() => {
-    const q = query.trim();
-    return q ? online.filter((p) => nameOf(p).includes(q) || p.department.includes(q)) : online;
+    // The same matching as every other search box, so «علي» finds «علی» and «ك» finds «ک».
+    const q = normalizeForSearch(query.trim());
+    return q ? online.filter((p) => normalizeForSearch(`${nameOf(p)} ${p.department}`).includes(q)) : online;
   }, [online, query]);
   const picked = online.find((p) => p.id === pickedId) ?? null;
 
@@ -134,7 +136,7 @@ export const OnlineColleaguesCard: React.FC = () => {
                 />
               </div>
             )}
-            <ul className="flex flex-wrap gap-1.5" aria-label="همکاران آنلاین">
+            <ul className="flex flex-wrap gap-2" aria-label="همکاران آنلاین">
               {shown.map((p) => {
                 const name = nameOf(p);
                 const isPicked = p.id === pickedId;
@@ -148,7 +150,7 @@ export const OnlineColleaguesCard: React.FC = () => {
                       title={`${name} · ${p.position}`}
                       className={`block rounded-full ring-2 transition ${isPicked ? 'ring-emerald-600' : 'ring-transparent hover:ring-emerald-300'}`}
                     >
-                      <Avatar src={p.avatar} firstName={p.firstName} lastName={p.lastName} className="w-7 h-7 rounded-full text-[10px]" />
+                      <Avatar src={p.avatar} firstName={p.firstName} lastName={p.lastName} className="w-11 h-11 lg:w-10 lg:h-10 rounded-full text-xs" />
                     </button>
                   </li>
                 );

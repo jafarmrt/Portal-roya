@@ -16,7 +16,7 @@ interface AddToTodosButtonProps {
 }
 
 /**
- * «افزودن به یادداشت کارهای من» on a news item, event, course or document. Once the item is in the
+ * «افزودن به یادداشت‌های من» on a news item, event, course or document. Once the item is in the
  * list (and not done), the button says so and opens that note instead.
  */
 export const AddToTodosButton: React.FC<AddToTodosButtonProps> = ({ type, id, title, dueDate, className = '', iconOnly }) => {
@@ -25,7 +25,7 @@ export const AddToTodosButton: React.FC<AddToTodosButtonProps> = ({ type, id, ti
   if (!currentUser || !featureOn('todos')) return null;
 
   const existing = todos.find((t) => !t.doneAt && t.sourceType === type && t.sourceId === id);
-  const label = existing ? 'در یادداشت کارهای من' : 'افزودن به یادداشت کارهای من';
+  const label = existing ? 'در یادداشت‌های من' : 'افزودن به یادداشت‌های من';
   const Icon = existing ? ListChecks : ListPlus;
 
   return (

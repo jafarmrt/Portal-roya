@@ -662,7 +662,7 @@ export interface SearchResultItem {
 
 export type MoodState = 'عالی' | 'خوب' | 'معمولی' | 'بد' | 'خیلی بد';
 
-/** A note in this person's own «یادداشت کارهای من». */
+/** A note in this person's own «یادداشت‌های من». */
 export interface PersonalTodo {
   id: string;
   title: string;

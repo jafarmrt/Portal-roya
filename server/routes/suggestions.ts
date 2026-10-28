@@ -176,7 +176,7 @@ suggestionsRouter.post(
   }),
 );
 
-/** Unread messages in the boxes this person reads, for the menu badge and «کارهای من». */
+/** Unread messages in the boxes this person reads, for the menu badge and «منتظر اقدام شما». */
 suggestionsRouter.get(
   '/suggestions/summary',
   route(async (req, res) => {
