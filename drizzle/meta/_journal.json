@@ -127,6 +127,13 @@
       "when": 1793125855996,
       "tag": "0017_suggestion_boxes",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793163967013,
+      "tag": "0018_feature_switches",
+      "breakpoints": true
     }
   ]
 }

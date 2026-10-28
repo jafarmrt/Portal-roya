@@ -16,7 +16,9 @@ export type ResourceName =
   | 'guides'
   | 'department_pages'
   | 'settings'
-  | 'roles';
+  | 'roles'
+  | 'notifications'
+  | 'moods';
 
 interface Client {
   userId: string;

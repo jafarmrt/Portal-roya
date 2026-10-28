@@ -1,10 +1,22 @@
 import { eq } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
+import {
+  FEATURE_STATES,
+  FEATURES,
+  type FeatureKey,
+  type FeatureState,
+  featureInfo,
+  featureState,
+  featureVisible,
+  isFeatureKey,
+  LAUNCH_NEWS_DAYS,
+} from '../../shared/features.js';
+import { toPersianDigits } from '../../shared/jalali.js';
 import { audit, fromTo } from '../audit.js';
-import { can, requirePermission } from '../auth.js';
+import { can, requirePermission, type SessionUser } from '../auth.js';
 import { db } from '../db/index.js';
-import { settings } from '../db/schema.js';
+import { employees, news, settings } from '../db/schema.js';
 import {
   checkDepartmentList,
   checkLocationList,
@@ -16,24 +28,42 @@ import {
   requireDepartment,
   renameLocation,
 } from '../departments.js';
-import { broadcastChange } from '../events.js';
-import { currentUser, HttpError, parse, route } from '../http.js';
+import { broadcastChange, type ResourceName } from '../events.js';
+import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
 import { serverStatus } from '../maintenance.js';
 import { ensureSettings } from '../settings.js';
 import { jalaliDateValue, requiredText } from '../validation.js';
 
 export const settingsRouter = Router();
 
-/** The settings everyone (guests included) receives; a banner past its end time is left out. */
-export function publicSettings(row: typeof settings.$inferSelect) {
-  const banner = row.banner && new Date(row.banner.expiresAt) > new Date() ? row.banner : null;
-  return { ...row, banner };
+/**
+ * The settings everyone (guests included) receives; a banner past its end time is left out. The part
+ * switches come as what this viewer sees: the parts shown to them (in preview or for everyone) and the
+ * newly introduced ones they have not opened yet. The pilot group is only for the settings page.
+ */
+export function publicSettings(row: typeof settings.$inferSelect, viewer: SessionUser | null) {
+  const { features: states, featureLaunches, pilotRoles, pilotUserIds, ...rest } = row;
+  const banner = rest.banner && new Date(rest.banner.expiresAt) > new Date() ? rest.banner : null;
+  const config = { states, pilotRoles, pilotUserIds };
+  const features: Partial<Record<FeatureKey, 'preview' | 'on'>> = {};
+  const featureNews: { key: FeatureKey; badge: boolean; card: boolean }[] = [];
+  const since = Date.now() - LAUNCH_NEWS_DAYS * 24 * 60 * 60 * 1000;
+  for (const { key } of FEATURES) {
+    if (!featureVisible(config, key, viewer)) continue;
+    const state = featureState(config, key);
+    features[key] = state === 'on' ? 'on' : 'preview';
+    const launch = featureLaunches[key];
+    if (state === 'on' && viewer && launch && (launch.badge || launch.card) && new Date(launch.at).getTime() > since && !viewer.seenFeatures.includes(key)) {
+      featureNews.push({ key, badge: launch.badge, card: launch.card });
+    }
+  }
+  return { ...rest, banner, features, featureNews };
 }
 
 settingsRouter.get(
   '/settings',
-  route(async (_req, res) => {
-    res.json(publicSettings(await ensureSettings()));
+  route(async (req, res) => {
+    res.json(publicSettings(await ensureSettings(), viewerOf(req)));
   }),
 );
 
@@ -158,7 +188,7 @@ settingsRouter.put(
       await audit(viewer, { action: 'update', entity: 'settings', title: change.label, detail: change.detail });
     }
     broadcastChange('settings');
-    res.json(publicSettings(updated));
+    res.json(publicSettings(updated, viewerOf(req)));
   }),
 );
 
@@ -187,7 +217,7 @@ settingsRouter.put(
     const [updated] = await db.update(settings).set({ banner }).where(eq(settings.id, 'global')).returning();
     await audit(viewer, { action: 'update', entity: 'settings', title: 'پیام سراسری', detail: body.text });
     broadcastChange('settings');
-    res.json(publicSettings(updated));
+    res.json(publicSettings(updated, viewerOf(req)));
   }),
 );
 
@@ -199,7 +229,7 @@ settingsRouter.delete(
     const [updated] = await db.update(settings).set({ banner: null }).where(eq(settings.id, 'global')).returning();
     if (before.banner) await audit(currentUser(req), { action: 'delete', entity: 'settings', title: 'پیام سراسری', detail: before.banner.text });
     broadcastChange('settings');
-    res.json(publicSettings(updated));
+    res.json(publicSettings(updated, viewerOf(req)));
   }),
 );
 
@@ -257,5 +287,139 @@ settingsRouter.post(
     const result = await renameLocation(body.from, body.to);
     await audit(currentUser(req), { action: 'update', entity: 'settings', title: 'محل‌های استقرار', detail: `${fromTo(result.from, result.to)}${result.merged ? ' (ادغام)' : ''}` });
     res.json(result);
+  }),
+);
+
+// --- Parts of the portal switched off, in preview, or on for everyone ---
+
+/** What an open page loads again when a part appears or disappears for someone. */
+const FEATURE_RESOURCES: Record<FeatureKey, ResourceName[]> = {
+  suggestions: ['notifications'],
+  polls: ['polls', 'notifications'],
+  training: ['trainings', 'calendar', 'notifications'],
+  guides: ['guides'],
+  departmentPages: ['department_pages'],
+  mood: ['moods'],
+};
+
+function broadcastFeatures(keys: FeatureKey[]) {
+  for (const resource of new Set(['settings' as const, ...keys.flatMap((k) => FEATURE_RESOURCES[k])])) broadcastChange(resource);
+}
+
+/** Every part with its state and the pilot group, for the settings page. */
+async function featureSettings() {
+  const row = await ensureSettings();
+  return {
+    features: FEATURES.map((f) => ({
+      key: f.key,
+      label: f.label,
+      hint: f.hint,
+      state: featureState({ states: row.features }, f.key),
+      launchedAt: row.featureLaunches[f.key]?.at ?? null,
+    })),
+    pilotRoles: row.pilotRoles,
+    pilotUserIds: row.pilotUserIds,
+  };
+}
+
+settingsRouter.get(
+  '/settings/features',
+  requirePermission('settings.manage'),
+  route(async (_req, res) => {
+    res.json(await featureSettings());
+  }),
+);
+
+const featureUpdateSchema = z.object({
+  state: z.enum(['off', 'preview', 'on']),
+  // How to introduce it when it is switched on for everyone; all optional.
+  announce: z.object({ badge: z.boolean(), card: z.boolean(), draft: z.boolean() }).partial().default({}),
+});
+
+const stateLabel = (state: FeatureState) => FEATURE_STATES.find((s) => s.id === state)?.label ?? state;
+
+settingsRouter.put(
+  '/settings/features/:key',
+  requirePermission('settings.manage'),
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const key = String(req.params.key);
+    if (!isFeatureKey(key)) throw new HttpError(404, 'این بخش در پرتال نیست.');
+    const body = parse(featureUpdateSchema, req.body);
+    const row = await ensureSettings();
+    const before = featureState({ states: row.features }, key);
+    const info = featureInfo(key);
+    const launches = { ...row.featureLaunches };
+    let draftId: string | null = null;
+    if (body.state === 'on' && before !== 'on') {
+      const { badge = false, card = false, draft = false } = body.announce;
+      launches[key] = { at: new Date().toISOString(), badge, card };
+      // A draft only: whoever publishes news edits and publishes it when the day comes.
+      if (draft) {
+        draftId = newId('news');
+        await db.insert(news).values({
+          id: draftId,
+          title: `تازه در پرتال: ${info.label}`,
+          summary: info.hint,
+          content: `${info.intro}\n\nاگر پرسشی داشتید، با واحد فناوری اطلاعات در میان بگذارید.`,
+          contentFormat: 'text',
+          category: row.newsCategories[0] ?? 'اخبار سازمان',
+          authorId: viewer.id,
+          isDraft: true,
+        });
+        broadcastChange('news');
+      }
+    }
+    await db
+      .update(settings)
+      .set({ features: { ...row.features, [key]: body.state }, featureLaunches: launches })
+      .where(eq(settings.id, 'global'));
+    if (before !== body.state) {
+      await audit(viewer, { action: 'update', entity: 'settings', title: `امکانات پرتال: ${info.label}`, detail: fromTo(stateLabel(before), stateLabel(body.state)) });
+    }
+    broadcastFeatures([key]);
+    res.json({ ...(await featureSettings()), draftId });
+  }),
+);
+
+const pilotSchema = z.object({
+  roles: z.array(requiredText(100)).max(50),
+  userIds: z.array(requiredText(100)).max(300),
+});
+
+/** Who tries the parts in preview besides the administrator. */
+settingsRouter.put(
+  '/settings/pilot',
+  requirePermission('settings.manage'),
+  route(async (req, res) => {
+    const body = parse(pilotSchema, req.body);
+    const roles = [...new Set(body.roles)];
+    const userIds = [...new Set(body.userIds)];
+    await ensureSettings();
+    await db.update(settings).set({ pilotRoles: roles, pilotUserIds: userIds }).where(eq(settings.id, 'global'));
+    await audit(currentUser(req), {
+      action: 'update',
+      entity: 'settings',
+      title: 'گروه آزمایشی',
+      detail: `${toPersianDigits(roles.length)} نقش و ${toPersianDigits(userIds.length)} همکار`,
+    });
+    broadcastFeatures(FEATURES.map((f) => f.key));
+    res.json(await featureSettings());
+  }),
+);
+
+/** The colleague opened a newly introduced part or closed its introduction; «جدید» goes away for them. */
+settingsRouter.post(
+  '/settings/features/:key/seen',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const key = String(req.params.key);
+    if (!isFeatureKey(key)) throw new HttpError(404, 'این بخش در پرتال نیست.');
+    let seen = viewer.seenFeatures;
+    if (!seen.includes(key)) {
+      seen = [...seen, key];
+      await db.update(employees).set({ seenFeatures: seen }).where(eq(employees.id, viewer.id));
+    }
+    res.json(publicSettings(await ensureSettings(), { ...viewer, seenFeatures: seen }));
   }),
 );

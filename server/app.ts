@@ -5,6 +5,7 @@ import { attachUser, isReadRequest, requirePasswordChanged, requireUserOrGuest, 
 import { config } from './config.js';
 import { pool } from './db/index.js';
 import { addClient } from './events.js';
+import { requireVisibleFeature } from './features.js';
 import { currentUser, errorHandler, route } from './http.js';
 import { authRouter } from './routes/auth.js';
 import { calendarRouter } from './routes/calendar.js';
@@ -67,6 +68,8 @@ export function createApp() {
   // Everything below requires a signed-in user who has replaced their temporary password,
   // except the read-only endpoints that visitors may open while guest access is enabled.
   api.use(attachUser, requireUserOrGuest(), requirePasswordChanged);
+  // Parts of the portal that are switched off, or in preview for the pilot group, until they are introduced.
+  api.use(requireVisibleFeature);
   api.get('/events', (req, res) => addClient(currentUser(req as AuthedRequest).id, res));
   api.use(employeesRouter);
   api.use(newsRouter);

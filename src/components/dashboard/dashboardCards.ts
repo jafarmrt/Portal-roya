@@ -1,4 +1,5 @@
 import type { AppSettings } from '../../types';
+import { cardFeatureOn } from '../../lib/features';
 
 /** Dashboard cards an administrator can switch off in settings; all are on until switched off. */
 export const DASHBOARD_CARDS = [
@@ -15,4 +16,6 @@ export const DASHBOARD_CARDS = [
 
 export type DashboardCardId = (typeof DASHBOARD_CARDS)[number]['id'];
 
-export const isCardOn = (settings: AppSettings | null, id: DashboardCardId) => settings?.dashboardCards?.[id] !== false;
+/** Off when an admin switched the card off, or its part of the portal is hidden from this person. */
+export const isCardOn = (settings: AppSettings | null, id: DashboardCardId) =>
+  settings?.dashboardCards?.[id] !== false && cardFeatureOn(settings, id);

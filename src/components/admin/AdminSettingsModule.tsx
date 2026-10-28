@@ -12,7 +12,8 @@ import { JalaliDateInput } from '../common/JalaliDateInput';
 import { buildNumber, WhatsNewModal } from '../common/VersionInfo';
 import { inputClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { RoyaLogo } from '../common/RoyaLogo';
-import { DASHBOARD_CARDS, isCardOn } from '../dashboard/dashboardCards';
+import { DASHBOARD_CARDS } from '../dashboard/dashboardCards';
+import { FeatureSettings } from './FeatureSettings';
 import { RolesEditor } from './RolesEditor';
 
 type ListKey = 'newsCategories' | 'trainingCategories' | 'documentCategories';
@@ -441,7 +442,7 @@ const DashboardCardsSettings: React.FC<{ settings: AppSettings }> = ({ settings 
       <p className="text-[11px] text-[#6E6A60]">کارت‌های خاموش برای هیچ‌کس نمایش داده نمی‌شوند. «آخرین اخبار» همیشه روشن است.</p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
         {DASHBOARD_CARDS.map((card) => (
-          <Toggle key={card.id} label={card.label} hint={card.hint} checked={isCardOn(settings, card.id)} disabled={busy} onChange={(value) => set(card.id, value)} />
+          <Toggle key={card.id} label={card.label} hint={card.hint} checked={settings.dashboardCards?.[card.id] !== false} disabled={busy} onChange={(value) => set(card.id, value)} />
         ))}
       </div>
     </section>
@@ -607,7 +608,7 @@ export const AdminSettingsModule: React.FC = () => {
         </div>
         <div>
           <h2 className="text-xl font-black text-[#2D2D2D]">تنظیمات پرتال</h2>
-          <p className="text-sm text-[#6E6A60]">نقش‌ها و دسترسی‌ها، لوگوی شرکت، سالگرد تأسیس، فهرست واحدها و دسته‌بندی‌ها. سامانه‌های سازمانی از صفحهٔ «سامانه‌ها» ویرایش می‌شوند.</p>
+          <p className="text-sm text-[#6E6A60]">نقش‌ها و دسترسی‌ها، امکانات پرتال، لوگوی شرکت، سالگرد تأسیس، فهرست واحدها و دسته‌بندی‌ها. سامانه‌های سازمانی از صفحهٔ «سامانه‌ها» ویرایش می‌شوند.</p>
         </div>
       </div>
       <SectionJump containerRef={containerRef} />
@@ -618,6 +619,7 @@ export const AdminSettingsModule: React.FC = () => {
           <ServerStatusCard />
           <FoundingDaySettings settings={appSettings} />
           <GuestAccessSettings settings={appSettings} />
+          <FeatureSettings />
           <DashboardCardsSettings settings={appSettings} />
           <ManagedListEditor settings={appSettings} config={DEPARTMENTS} />
           <ManagedListEditor settings={appSettings} config={LOCATIONS} />

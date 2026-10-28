@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { Search, Users, ExternalLink, Newspaper, Calendar, GraduationCap, Vote, PhoneCall, ArrowRight, X, FolderOpen, LifeBuoy, Building2 } from 'lucide-react';
 import { matches } from '../../lib/search';
+import { tabOn } from '../../lib/features';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -149,7 +150,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     { id: 'nav-departments', type: 'ناوبری' as const, title: 'واحدهای سازمان', subtitle: 'مسئول هر واحد و کارهایی که انجام می‌دهد', icon: <Building2 className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('departments'); onClose(); } },
     { id: 'nav-orgchart', type: 'ناوبری' as const, title: 'چارت سازمانی', subtitle: 'ساختار واحدها و مدیران', icon: <Users className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('orgchart'); onClose(); } },
     { id: 'nav-polls', type: 'ناوبری' as const, title: 'نظرسنجی‌ها', subtitle: 'مشارکت در تصمیم‌گیری‌ها', icon: <Vote className="w-4 h-4 text-zinc-500" />, action: () => { setActiveTab('polls'); onClose(); } },
-  ].filter(item => cleanQ ? hit(item.title, item.subtitle) : true).slice(0, cleanQ ? 3 : 4);
+  ].filter(item => tabOn(appSettings, item.id.replace(/^nav-/, '')))
+    .filter(item => cleanQ ? hit(item.title, item.subtitle) : true).slice(0, cleanQ ? 3 : 4);
 
   const allResults = [...colleagueResults, ...systemResults, ...newsResults, ...documentResults, ...guideResults, ...navigationResults];
 

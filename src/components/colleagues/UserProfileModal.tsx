@@ -26,6 +26,7 @@ import {
   Trash2,
   UserPlus
 } from 'lucide-react';
+import { featureOn, tabOn } from '../../lib/features';
 
 interface UserProfileModalProps {
   user: UserProfile;
@@ -141,7 +142,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                   <span>{user.position}</span>
                 </p>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[#6E6A60]">
-                  {appSettings?.departments.includes(user.department) ? (
+                  {appSettings?.departments.includes(user.department) && tabOn(appSettings, 'departments') ? (
                     <button
                       type="button"
                       onClick={() => setActiveTab('departments', user.department)}
@@ -254,7 +255,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
           </div>
 
           {/* Courses: for the colleague themself and the people who run trainings. */}
-          {user.hasAccount && (isOwnProfile || can('trainings.manage')) && (
+          {user.hasAccount && (isOwnProfile || can('trainings.manage')) && featureOn(appSettings, 'training') && (
             <PersonTrainingsSection
               userId={user.id}
               own={isOwnProfile}

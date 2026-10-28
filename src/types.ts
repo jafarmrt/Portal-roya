@@ -1,4 +1,5 @@
 import type { WishDesign, WishOccasion } from '../shared/celebrations';
+import type { FeatureKey } from '../shared/features';
 import type { Permission } from '../shared/permissions';
 
 export type { Permission };
@@ -708,6 +709,10 @@ export interface AppSettings {
   foundingDate: string;
   /** The founding-day message ('' = the built-in one). */
   foundingMessage: string;
+  /** The switchable parts this person sees: for everyone ('on') or only the pilot group ('preview'). Hidden ones are missing. */
+  features: Partial<Record<FeatureKey, 'preview' | 'on'>>;
+  /** Parts introduced in the last two weeks that this person has not opened yet. */
+  featureNews: { key: FeatureKey; badge: boolean; card: boolean }[];
 }
 
 export interface SiteBanner {

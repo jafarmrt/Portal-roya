@@ -15,6 +15,7 @@ import { SiteBanner } from './components/common/SiteBanner';
 import { VersionInfo } from './components/common/VersionInfo';
 import { currentJalaliYear, toPersianDigits } from './lib/jalali';
 import { useTabBadge } from './lib/tabBadge';
+import { tabOn } from './lib/features';
 
 // Secondary modules load on demand to keep the first download small.
 const named = <T,>(loader: () => Promise<T>, key: keyof T) =>
@@ -76,6 +77,19 @@ const LoginRequired: React.FC<{ message: string }> = ({ message }) => {
   );
 };
 
+/** In place of a part of the portal that is not switched on yet (e.g. an old link to it). */
+const NotAvailable: React.FC = () => {
+  const { setActiveTab } = usePortal();
+  return (
+    <div className="max-w-md mx-auto my-12 bg-white p-8 rounded-3xl border border-[#E6E0D5] text-center space-y-4">
+      <p className="text-sm text-[#4B4740] leading-relaxed">این بخش فعلاً در پرتال در دسترس نیست.</p>
+      <button onClick={() => setActiveTab('dashboard')} className="w-full py-3 bg-[#991b1b] hover:bg-[#7f1d1d] text-white font-bold rounded-xl transition-colors">
+        رفتن به داشبورد
+      </button>
+    </div>
+  );
+};
+
 /** Reminds guests they are reading in view-only mode. */
 const GuestBanner: React.FC = () => {
   const { requestLogin } = usePortal();
@@ -123,26 +137,32 @@ const MainContent: React.FC = () => {
       <main id="main" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <ErrorBoundary resetKey={activeTab}>
           <Suspense fallback={<div className="py-20 flex justify-center"><Loader2 className="w-8 h-8 text-red-600 animate-spin" /></div>}>
-            {activeTab === 'dashboard' && <DashboardModule />}
-            {activeTab === 'polls' && <PollsModule />}
-            {activeTab === 'colleagues' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <ColleaguesDirectory />)}
-            {activeTab === 'orgchart' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <OrgChartModule />)}
-            {activeTab === 'departments' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <DepartmentsModule />)}
-            {activeTab === 'search' && <GlobalSearchModule />}
-            {activeTab === 'news' && <NewsModule />}
-            {activeTab === 'documents' && <DocumentsModule />}
-            {activeTab === 'guides' && <GuidesModule />}
-            {activeTab === 'training' && <TrainingModule />}
-            {activeTab === 'calendar' && <CalendarModule />}
-            {activeTab === 'notifications' &&
-              (isGuest ? <LoginRequired message="برای دیدن اعلان‌های خود وارد حساب کاربری شوید." /> : <NotificationsInbox />)}
-            {activeTab === 'suggestions' &&
-              (isGuest ? <LoginRequired message="برای فرستادن انتقاد یا پیشنهاد وارد حساب کاربری شوید." /> : <SuggestionsModule />)}
-            {activeTab === 'systems' && <SystemsModule />}
-            {activeTab === 'reports' && can('reports.view') && <ReportsModule />}
-            {activeTab === 'people' && can('users.manage') && <PeopleManagement />}
-            {activeTab === 'admin' && (isAdmin || can('settings.manage')) && <AdminSettingsModule />}
-            {activeTab === 'audit' && isAdmin && <AuditLogModule />}
+            {tabOn(appSettings, activeTab) ? (
+              <>
+                {activeTab === 'dashboard' && <DashboardModule />}
+                {activeTab === 'polls' && <PollsModule />}
+                {activeTab === 'colleagues' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <ColleaguesDirectory />)}
+                {activeTab === 'orgchart' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <OrgChartModule />)}
+                {activeTab === 'departments' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <DepartmentsModule />)}
+                {activeTab === 'search' && <GlobalSearchModule />}
+                {activeTab === 'news' && <NewsModule />}
+                {activeTab === 'documents' && <DocumentsModule />}
+                {activeTab === 'guides' && <GuidesModule />}
+                {activeTab === 'training' && <TrainingModule />}
+                {activeTab === 'calendar' && <CalendarModule />}
+                {activeTab === 'notifications' &&
+                  (isGuest ? <LoginRequired message="برای دیدن اعلان‌های خود وارد حساب کاربری شوید." /> : <NotificationsInbox />)}
+                {activeTab === 'suggestions' &&
+                  (isGuest ? <LoginRequired message="برای فرستادن انتقاد یا پیشنهاد وارد حساب کاربری شوید." /> : <SuggestionsModule />)}
+                {activeTab === 'systems' && <SystemsModule />}
+                {activeTab === 'reports' && can('reports.view') && <ReportsModule />}
+                {activeTab === 'people' && can('users.manage') && <PeopleManagement />}
+                {activeTab === 'admin' && (isAdmin || can('settings.manage')) && <AdminSettingsModule />}
+                {activeTab === 'audit' && isAdmin && <AuditLogModule />}
+              </>
+            ) : (
+              <NotAvailable />
+            )}
           </Suspense>
         </ErrorBoundary>
       </main>

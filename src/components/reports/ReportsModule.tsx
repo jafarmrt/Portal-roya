@@ -11,6 +11,8 @@ import { MoodReport } from './MoodReport';
 import { IdlePeopleCard, NewsReachReport } from './NewsReachReport';
 import { ParticipationReport } from './ParticipationReport';
 import { exportReport } from './reportExport';
+import { usePortal } from '../../context/PortalContext';
+import { featureOn } from '../../lib/features';
 
 const DAY = 'jYYYY/jMM/jDD';
 
@@ -38,7 +40,10 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export const ReportsModule: React.FC = () => {
+  const { appSettings } = usePortal();
   const [tab, setTab] = useState<Tab>('reach');
+  // The mood report belongs to the daily mood card, which may still be hidden.
+  const tabs = TABS.filter((t) => t.id !== 'mood' || featureOn(appSettings, 'mood'));
   const [preset, setPreset] = useState<Preset>('last30');
   const [range, setRange] = useState(PRESETS[0].range);
   const [custom, setCustom] = useState(range);
@@ -96,7 +101,7 @@ export const ReportsModule: React.FC = () => {
       <MonthlySummaries onShowMonth={showMonth} />
 
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar" role="tablist" aria-label="بخش‌های گزارش">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.id}
             role="tab"
