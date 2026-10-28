@@ -260,6 +260,9 @@ fi
 redirect="$(curl -s --noproxy "*" -o /dev/null --max-time 5 -w '%{redirect_url}' "http://127.0.0.1:$OLD_PORT/")"
 [ "$redirect" = "https://$NAME/" ] || log "WARNING: the old address on port $OLD_PORT does not redirect as expected ($redirect)."
 
+# The rewritten site logs everything again; leave the suggestion boxes out as before.
+bash "$(dirname "$0")/quiet-logs.sh" || log "WARNING: could not keep the suggestion boxes out of the nginx log; run deploy/quiet-logs.sh."
+
 log "Done. The portal is at https://$NAME"
 log "Old links (http://...:$OLD_PORT and http://$NAME) now go there too."
 if $PUBLIC; then

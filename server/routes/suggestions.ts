@@ -1,9 +1,11 @@
 import { createHash, randomInt } from 'crypto';
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lt } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
 import { featureVisible } from '../../shared/features.js';
+import { toPersianDigits } from '../../shared/jalali.js';
 import {
+  ANONYMOUS_RELEASE_HOUR,
   boxNames,
   normalizeTrackingCode,
   SUGGESTION_BOX_IDS,
@@ -25,7 +27,10 @@ import { fullName } from '../serializers.js';
 import { requiredText } from '../validation.js';
 
 // صندوق انتقادات و پیشنهادات. Nothing here writes to the audit log or the console: an anonymous
-// message must not be traceable to its sender, not even by the portal's admin.
+// message must not be traceable to its sender, not even by the portal's admin. Its readers see it only
+// at the next daily release, together with the day's other anonymous messages, so neither a live
+// notification nor «همکاران آنلاین» tells them when it was written. nginx does not log the sending
+// either (deploy/quiet-logs.sh).
 
 export const suggestionsRouter = Router();
 
@@ -125,23 +130,25 @@ suggestionsRouter.post(
         isAnonymous: body.anonymous,
         senderId: body.anonymous ? null : viewer.id,
         trackingHash: trackingCode ? hashCode(trackingCode) : null,
+        released: !body.anonymous,
         createdAt: body.anonymous ? tehranDay(now) : now,
       })
       .returning();
 
-    // The readers are told something arrived, never by whom. An anonymous sender who reads the box
-    // themselves is notified too, so leaving them out gives nothing away.
-    const readers = await idsWithPermission(box.permission);
-    await createNotifications(
-      body.anonymous ? readers : readers.filter((id) => id !== viewer.id),
-      {
-        title: `پیام تازه در ${label} 📮`,
-        message: `${suggestionKindLabel(body.kind)}: «${body.subject}»`,
-        type: 'suggestion',
-        linkTab: 'suggestions',
-        linkId: box.id,
-      },
-    );
+    // Readers hear of a named message at once; an anonymous one waits for releaseAnonymousSuggestions.
+    if (!body.anonymous) {
+      const readers = await idsWithPermission(box.permission);
+      await createNotifications(
+        readers.filter((id) => id !== viewer.id),
+        {
+          title: `پیام تازه در ${label} 📮`,
+          message: `${suggestionKindLabel(body.kind)}: «${body.subject}»`,
+          type: 'suggestion',
+          linkTab: 'suggestions',
+          linkId: box.id,
+        },
+      );
+    }
     res.status(201).json({ id: row.id, trackingCode });
   }),
 );
@@ -180,7 +187,9 @@ suggestionsRouter.get(
       const rows = await db
         .select({ box: suggestions.box })
         .from(suggestions)
-        .where(and(inArray(suggestions.box, boxes), isNull(suggestions.readAt), eq(suggestions.isClosed, false)));
+        .where(
+          and(inArray(suggestions.box, boxes), eq(suggestions.released, true), isNull(suggestions.readAt), eq(suggestions.isClosed, false)),
+        );
       for (const r of rows) counts[r.box] = (counts[r.box] ?? 0) + 1;
     }
     res.json({ boxes, unread: counts });
@@ -193,7 +202,11 @@ suggestionsRouter.get(
   route(async (req, res) => {
     const viewer = currentUser(req);
     const box = requireReader(viewer, req.params.box);
-    const rows = await db.select().from(suggestions).where(eq(suggestions.box, box.id)).orderBy(desc(suggestions.createdAt));
+    const rows = await db
+      .select()
+      .from(suggestions)
+      .where(and(eq(suggestions.box, box.id), eq(suggestions.released, true)))
+      .orderBy(desc(suggestions.createdAt));
     const ids = [...new Set(rows.flatMap((r) => [r.senderId, r.repliedById]).filter((id): id is string => Boolean(id)))];
     const people = new Map(
       (ids.length > 0 ? await db.select().from(employees).where(inArray(employees.id, ids)) : []).map((e) => [e.id, e]),
@@ -219,7 +232,7 @@ suggestionsRouter.get(
 );
 
 async function loadForReader(viewer: SessionUser, id: string) {
-  const [row] = await db.select().from(suggestions).where(eq(suggestions.id, id));
+  const [row] = await db.select().from(suggestions).where(and(eq(suggestions.id, id), eq(suggestions.released, true)));
   if (!row) throw new HttpError(404, 'پیام یافت نشد.');
   return { row, box: requireReader(viewer, row.box) };
 }
@@ -281,3 +294,37 @@ suggestionsRouter.delete(
     res.json({ success: true });
   }),
 );
+
+/**
+ * Hands the anonymous messages of earlier days to their readers, once a day from ANONYMOUS_RELEASE_HOUR.
+ * Today's wait for tomorrow, so every message of a day arrives together and none hints at its hour.
+ * Returns how many were released.
+ */
+export async function releaseAnonymousSuggestions(now = new Date()) {
+  if (now.getHours() < ANONYMOUS_RELEASE_HOUR) return 0;
+  // Claiming the rows in one update means a second run, or a second server, releases nothing twice.
+  const released = await db
+    .update(suggestions)
+    .set({ released: true })
+    .where(and(eq(suggestions.released, false), lt(suggestions.createdAt, tehranDay(now))))
+    .returning({ box: suggestions.box, kind: suggestions.kind, subject: suggestions.subject });
+  if (released.length === 0) return 0;
+  const names = (await ensureSettings()).suggestionBoxNames;
+  for (const box of SUGGESTION_BOXES) {
+    const arrived = released.filter((r) => r.box === box.id);
+    if (arrived.length === 0) continue;
+    const { label } = boxNames(names, box.id);
+    const [first] = arrived;
+    await createNotifications(await idsWithPermission(box.permission), {
+      title: arrived.length === 1 ? `پیام ناشناس تازه در ${label} 📮` : `${toPersianDigits(arrived.length)} پیام ناشناس تازه در ${label} 📮`,
+      message:
+        arrived.length === 1
+          ? `${suggestionKindLabel(first.kind)}: «${first.subject}»`
+          : arrived.slice(0, 3).map((r) => `«${r.subject}»`).join('، ') + (arrived.length > 3 ? ' و …' : ''),
+      type: 'suggestion',
+      linkTab: 'suggestions',
+      linkId: box.id,
+    });
+  }
+  return released.length;
+}

@@ -7,7 +7,7 @@ import { JalaliDateInput } from '../common/JalaliDateInput';
 import { Avatar } from '../common/Avatar';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { AccountAccessModal, TemporaryPasswordNotice } from './AccountAccessModal';
-import { RoleSelect } from './RoleSelect';
+import { RoleSelect, useCoversRole } from './RoleSelect';
 import { LocationSelect } from './LocationSelect';
 import { OnlineChoices } from '../online/OnlineChoices';
 import { usePresence } from '../online/usePresence';
@@ -36,6 +36,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
   const isSelf = currentUser?.id === user.id;
   // Follows portal access granted or removed from the nested dialog while this one is open.
   const live = employees.find((e) => e.id === user.id) ?? user;
+  // Someone who holds a permission the viewer lacks keeps their role, password and access as they are;
+  // nobody but an admin changes their own role. The server enforces the same rules.
+  const covers = useCoversRole();
+  const mayChangeAccount = viewerIsAdmin || (!isSelf && covers(live.role));
   const [accessOpen, setAccessOpen] = useState(false);
 
   const [form, setForm] = useState<Required<ProfileUpdate>>({
@@ -177,7 +181,12 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
               {live.hasAccount ? (
                 <div>
                   <label htmlFor="edit-role" className={labelClass}>نقش</label>
-                  <RoleSelect id="edit-role" value={form.role} onChange={(role) => set('role', role)} />
+                  <RoleSelect id="edit-role" value={form.role} onChange={(role) => set('role', role)} disabled={!mayChangeAccount} />
+                  {!mayChangeAccount && (
+                    <p className="mt-1 text-[11px] text-[#6E6A60] leading-relaxed">
+                      {isSelf ? 'نقش خودتان را ادمین برنامه تغییر می‌دهد.' : 'این همکار دسترسی‌هایی دارد که شما ندارید؛ نقش، رمز و دسترسی او را ادمین برنامه تغییر می‌دهد.'}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div>
@@ -199,7 +208,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
                 <JalaliDateInput id="edit-hire" value={form.hireDate} onChange={(v) => set('hireDate', v)} />
               </div>
             </div>
-            {!isSelf && (
+            {!isSelf && mayChangeAccount && (
               <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-white rounded-xl border border-[#E6E0D5]">
                 <span className="text-[11px] text-[#4B4740]">
                   {live.hasAccount
@@ -212,7 +221,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
                 </button>
               </div>
             )}
-            {!isSelf && (
+            {!isSelf && mayChangeAccount && (
               <label className="flex items-center gap-2 font-bold cursor-pointer">
                 <input type="checkbox" checked={!form.isActive} onChange={(e) => set('isActive', !e.target.checked)} className="accent-red-700" />
                 غیرفعال کردن (برای کسی که از شرکت رفته است: نمی‌تواند وارد شود و از دفتر تلفن و همه‌جا پنهان می‌شود)
@@ -223,7 +232,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
                 این همکار با حساب اکتیو دایرکتوری وارد می‌شود؛ رمز عبورش در ویندوز تغییر می‌کند، نه در پرتال.
               </p>
             )}
-            {!isSelf && live.hasAccount && (live.authSource !== 'ldap' || !directoryLogin) && (
+            {!isSelf && mayChangeAccount && live.hasAccount && (live.authSource !== 'ldap' || !directoryLogin) && (
               <div className="space-y-2">
                 <button
                   type="button"

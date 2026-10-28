@@ -209,12 +209,23 @@ describe('Active Directory users list and first sign-in', () => {
 
   it('renews a session that is in use, so colleagues stay signed in', async () => {
     const { id } = await createEmployee(admin, { username: 'long.session' });
-    const dayOld = jwt.sign({ sub: id, iat: Math.floor(Date.now() / 1000) - 2 * 24 * 60 * 60 }, config.sessionSecret, { expiresIn: '30d' });
+    const { rows } = await pool.query<{ sv: number }>('SELECT session_version AS sv FROM employees WHERE id = $1', [id]);
+    const sv = rows[0].sv;
+    const dayOld = jwt.sign({ sub: id, sv, iat: Math.floor(Date.now() / 1000) - 2 * 24 * 60 * 60 }, config.sessionSecret, { expiresIn: '30d' });
     const renewed = await request(app).get('/api/auth/me').set('Cookie', `${SESSION_COOKIE}=${dayOld}`).expect(200);
     expect(String(renewed.headers['set-cookie'])).toContain(`${SESSION_COOKIE}=`);
 
-    const fresh = jwt.sign({ sub: id }, config.sessionSecret, { expiresIn: '30d' });
+    const fresh = jwt.sign({ sub: id, sv }, config.sessionSecret, { expiresIn: '30d' });
     const kept = await request(app).get('/api/auth/me').set('Cookie', `${SESSION_COOKIE}=${fresh}`).expect(200);
     expect(kept.headers['set-cookie']).toBeUndefined();
+  });
+
+  it('keeps sessions from before the upgrade until the password changes', async () => {
+    const { id } = await createEmployee(admin, { username: 'old.session' });
+    await pool.query('UPDATE employees SET session_version = 0 WHERE id = $1', [id]);
+    const before = jwt.sign({ sub: id }, config.sessionSecret, { expiresIn: '30d' });
+    await request(app).get('/api/auth/me').set('Cookie', `${SESSION_COOKIE}=${before}`).expect(200);
+    await pool.query('UPDATE employees SET session_version = 1 WHERE id = $1', [id]);
+    await request(app).get('/api/auth/me').set('Cookie', `${SESSION_COOKIE}=${before}`).expect(401);
   });
 });

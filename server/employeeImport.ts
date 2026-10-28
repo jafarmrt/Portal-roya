@@ -5,6 +5,7 @@ import { db } from './db/index.js';
 import { departmentList, locationList } from './departments.js';
 import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID } from '../shared/permissions.js';
 import { employees, roles } from './db/schema.js';
+import type { AccountRules } from './roles.js';
 import { jalaliDateValue, optionalJalaliDate, optionalText, requiredText, textValue, username } from './validation.js';
 
 export const MAX_IMPORT_ROWS = 300;
@@ -234,11 +235,11 @@ function checkUpdate(
   target: Existing,
   resolveRole: (value: string) => string | undefined,
   roleName: (id: string) => string,
-  allowAdmin: boolean,
+  rules: AccountRules,
   signIn: ImportSignIn,
 ): CheckedRow {
   const base = { row, data: text, warnings: [] as string[], target: `${target.firstName} ${target.lastName}`.trim() };
-  if (target.role === ADMIN_ROLE_ID && !allowAdmin) return { ...base, errors: ['فقط ادمین برنامه می‌تواند مشخصات ادمین‌ها را تغییر دهد'] };
+  if (target.role === ADMIN_ROLE_ID && !rules.isAdmin) return { ...base, errors: ['فقط ادمین برنامه می‌تواند مشخصات ادمین‌ها را تغییر دهد'] };
 
   const cells: Record<string, string> = {};
   for (const f of UPDATE_FIELDS) if (text[f]) cells[f] = f === 'mobile' ? cleanMobile(text[f]) : f === 'extension' ? toLatinDigits(text[f]) : text[f];
@@ -277,7 +278,10 @@ function checkUpdate(
     else if (!target.hasAccount && !login) base.warnings.push('بدون حساب پورتال نقش معنا ندارد؛ ستون نقش نادیده گرفته شد.');
     else if (role !== target.role) {
       if (target.role === ADMIN_ROLE_ID) errors.push('نقش ادمین را از ویرایش پروفایل تغییر دهید، نه از اکسل.');
-      else if (role === ADMIN_ROLE_ID && !allowAdmin) errors.push('نقش: فقط ادمین برنامه می‌تواند نقش ادمین بدهد');
+      else if (role === ADMIN_ROLE_ID && !rules.isAdmin) errors.push('نقش: فقط ادمین برنامه می‌تواند نقش ادمین بدهد');
+      else if (target.id === rules.selfId && !rules.isAdmin) errors.push('نقش: نقش خودتان را نمی‌توانید تغییر دهید');
+      else if (!rules.covers(target.role)) errors.push('نقش: این همکار دسترسی‌هایی دارد که شما ندارید؛ نقشش را ادمین برنامه تغییر می‌دهد');
+      else if (!rules.covers(role)) errors.push(`نقش: «${roleName(role)}» دسترسی‌هایی دارد که خودتان ندارید`);
       else {
         set.role = role;
         changes.push(`نقش: ${roleName(target.role)} ← ${roleName(role)}`);
@@ -297,7 +301,7 @@ function checkUpdate(
  */
 export async function checkRows(
   records: { row: number; data: Record<string, unknown> }[],
-  { allowAdmin, departments = 'ask', signIn = 'local' }: { allowAdmin: boolean; departments?: Record<string, string> | 'ask'; signIn?: ImportSignIn },
+  { rules, departments = 'ask', signIn = 'local' }: { rules: AccountRules; departments?: Record<string, string> | 'ask'; signIn?: ImportSignIn },
 ): Promise<CheckedRow[]> {
   const resolveDepartment = departmentResolver(await departmentList(), departments);
   const locations = await locationList();
@@ -359,12 +363,13 @@ export async function checkRows(
       ? byId.get(text.id)
       : (byUsername.get(login.toLowerCase()) ?? (login ? phoneBookNamesake(text.firstName, text.lastName) : undefined));
     if (text.id && !target) return { row, data: text, errors: [`شناسه «${text.id}» در پرتال پیدا نشد؛ برای افراد جدید ستون شناسه را خالی بگذارید.`], warnings: [] };
-    if (target) return withDepartment(checkUpdate(row, text, target, resolveRole, roleName, allowAdmin, signIn));
+    if (target) return withDepartment(checkUpdate(row, text, target, resolveRole, roleName, rules, signIn));
 
     // Without a username there is no account, so the role cell does not apply.
     const role = login ? resolveRole(text.role ?? '') : DEFAULT_ROLE_ID;
     if (!role) return { row, data: text, errors: [`نقش: «${text.role}» در فهرست نقش‌های پرتال نیست`], warnings: [] };
-    if (role === ADMIN_ROLE_ID && !allowAdmin) return { row, data: text, errors: ['نقش: فقط ادمین برنامه می‌تواند نقش ادمین بدهد'], warnings: [] };
+    if (role === ADMIN_ROLE_ID && !rules.isAdmin) return { row, data: text, errors: ['نقش: فقط ادمین برنامه می‌تواند نقش ادمین بدهد'], warnings: [] };
+    if (!rules.covers(role)) return { row, data: text, errors: [`نقش: «${roleName(role)}» دسترسی‌هایی دارد که خودتان ندارید`], warnings: [] };
     const candidate = {
       // Missing required cells become '' so the error reads "required" rather than a type error.
       ...Object.fromEntries(REQUIRED.map((f) => [f, ''])),

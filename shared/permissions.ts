@@ -34,3 +34,17 @@ export function effectivePermissions(roleId: string, stored: readonly string[]):
   if (roleId === ADMIN_ROLE_ID) return [...ALL_PERMISSIONS];
   return ALL_PERMISSIONS.filter((p) => stored.includes(p));
 }
+
+/**
+ * Whether someone may give a role, or change the account of someone holding it: an admin always,
+ * anyone else only when they hold every permission of the role themselves. So managing staff cannot
+ * be used to gain more access, or to borrow it through someone else's account.
+ */
+export function coversRole(
+  holder: { role: string; permissions: readonly string[] },
+  role: { id: string; permissions: readonly string[] },
+) {
+  if (holder.role === ADMIN_ROLE_ID) return true;
+  if (role.id === ADMIN_ROLE_ID) return false;
+  return effectivePermissions(role.id, role.permissions).every((p) => holder.permissions.includes(p));
+}

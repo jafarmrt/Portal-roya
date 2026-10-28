@@ -53,7 +53,7 @@ export const AddTrainingModal: React.FC<AddTrainingModalProps> = ({ training, on
   const colleagues = employees
     .filter((e) => e.isActive && e.hasAccount)
     .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'fa'));
-  const enrolledCount = training?.enrolledUserIds.length ?? 0;
+  const enrolledCount = training?.enrolledCount ?? 0;
   // Changes are also sent to the people on the waitlist.
   const signedUpCount = enrolledCount + (training?.waitlistCount ?? 0);
   const [notifyEnrolled, setNotifyEnrolled] = useState(true);

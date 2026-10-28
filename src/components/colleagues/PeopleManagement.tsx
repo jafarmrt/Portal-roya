@@ -11,6 +11,7 @@ import { AddEmployeeModal } from './AddEmployeeModal';
 import { EditProfileModal } from './EditProfileModal';
 import { downloadCsv } from '../../lib/download';
 import { ImportEmployeesModal, TEMPLATE_HEADER } from './ImportEmployeesModal';
+import { useCoversRole } from './RoleSelect';
 
 type View = 'active' | 'account' | 'noAccount' | 'inactive' | 'all';
 
@@ -31,7 +32,8 @@ const actionClass =
  * import from Excel, edit, give or remove portal access and deactivate those who left.
  */
 export const PeopleManagement: React.FC = () => {
-  const { employees, appSettings, roleName, currentUser, isAdmin, setActiveTab } = usePortal();
+  const { employees, appSettings, roleName, currentUser, setActiveTab } = usePortal();
+  const covers = useCoversRole();
   const [view, setView] = useState<View>('active');
   const [query, setQuery] = useState('');
   const [department, setDepartment] = useState('');
@@ -141,8 +143,8 @@ export const PeopleManagement: React.FC = () => {
         <ul className="bg-white rounded-2xl border border-[#E6E0D5] divide-y divide-[#E6E0D5]">
           {shown.map((e) => {
             const isSelf = e.id === currentUser?.id;
-            // Only an admin may change an admin's account; the server enforces the same rule.
-            const mayChangeAccess = !isSelf && (isAdmin || e.role !== 'admin');
+            // Only someone holding every permission of the colleague's role changes their access; the server checks the same.
+            const mayChangeAccess = !isSelf && covers(e.role);
             return (
               <li key={e.id} className={`p-3 sm:p-4 flex flex-col md:flex-row md:items-center gap-3 ${e.isActive ? '' : 'bg-stone-50'}`}>
                 <div className="flex items-center gap-3 flex-1 min-w-0">

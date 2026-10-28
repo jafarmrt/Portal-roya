@@ -119,6 +119,45 @@ describe('roles and permissions', () => {
     expect(await wishIds()).toEqual([]);
   });
 
+  it('keeps someone who manages staff within their own permissions', async () => {
+    const hrRole = (await admin.post('/api/roles').send({ name: 'کارگزینی', permissions: ['users.manage'] }).expect(201)).body.id;
+    const readerRole = (await admin.post('/api/roles').send({ name: 'خوانندهٔ صندوق', permissions: ['suggestions.management'] }).expect(201)).body.id;
+    const hr = await createEmployee(admin, { username: 'hr.officer', role: hrRole });
+    const reader = await createEmployee(admin, { username: 'box.reader', role: readerRole });
+    const plain = await createEmployee(admin, { username: 'plain.three' });
+
+    // Not their own role, and no role holding a permission they lack.
+    const self = await hr.agent.patch(`/api/employees/${hr.id}`).send({ role: readerRole }).expect(403);
+    expect(self.body.error).toContain('خودتان');
+    const give = await hr.agent.patch(`/api/employees/${plain.id}`).send({ role: readerRole }).expect(403);
+    expect(give.body.error).toContain('خوانندهٔ صندوق');
+    await hr.agent.post('/api/employees').send(newUser('reader.two', readerRole)).expect(403);
+    await hr.agent.post('/api/employees').send(newUser('hr.two', hrRole)).expect(201);
+    await hr.agent.patch(`/api/employees/${plain.id}`).send({ role: hrRole }).expect(200);
+
+    // Someone holding more than they do keeps role, password and access; the rest of the profile is theirs to keep up.
+    await hr.agent.post(`/api/employees/${reader.id}/reset-password`).expect(403);
+    await hr.agent.patch(`/api/employees/${reader.id}`).send({ role: 'employee' }).expect(403);
+    await hr.agent.patch(`/api/employees/${reader.id}`).send({ isActive: false }).expect(403);
+    await hr.agent.delete(`/api/employees/${reader.id}/account`).expect(403);
+    await hr.agent.patch(`/api/employees/${reader.id}`).send({ position: 'مدیرعامل' }).expect(200);
+
+    // The Excel import keeps to the same rules.
+    const row = (username: string, role: string) => ({ firstName: 'الف', lastName: 'ب', username, position: 'پ', department: 'فروش', role });
+    const imported = await hr.agent
+      .post('/api/employees/import')
+      .send({ rows: [row('imp.reader', 'خوانندهٔ صندوق'), row('box.reader', 'کارشناس'), row('imp.plain', 'کارشناس')] })
+      .expect(201);
+    expect(imported.body.created.map((c: { username: string }) => c.username)).toEqual(['imp.plain']);
+    expect(imported.body.skipped.map((r: { errors: string[] }) => r.errors[0])).toEqual([
+      'نقش: «خوانندهٔ صندوق» دسترسی‌هایی دارد که خودتان ندارید',
+      'نقش: این همکار دسترسی‌هایی دارد که شما ندارید؛ نقشش را ادمین برنامه تغییر می‌دهد',
+    ]);
+
+    // The admin is not limited.
+    await admin.patch(`/api/employees/${plain.id}`).send({ role: readerRole }).expect(200);
+  });
+
   it('resolves imported roles by Persian name and keeps the admin role to admins', async () => {
     await admin.post('/api/roles').send({ name: 'سرپرست' }).expect(201);
     const row = (username: string, role: string) => ({ firstName: 'الف', lastName: 'ب', username, position: 'پ', department: 'فروش', role });

@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { db, pool } from '../server/db/index';
 import { auditLog, notifications, settings, suggestions } from '../server/db/schema';
-import { tehranDay } from '../server/routes/suggestions';
+import { releaseAnonymousSuggestions, tehranDay } from '../server/routes/suggestions';
 import { createEmployee, resetDatabase, setupAdmin } from './helpers';
 
 type Agent = Awaited<ReturnType<typeof setupAdmin>>;
@@ -47,13 +47,24 @@ describe('suggestions & complaints boxes', () => {
     expect(JSON.stringify(row)).not.toContain(res.body.trackingCode);
     expect((await db.select().from(auditLog)).length).toBe(auditBefore);
 
-    // HR reads it without a name; management and the sender's colleagues cannot.
+    // Nobody hears of it on the day it is written, so its hour cannot be guessed from who was online.
+    expect((await hr.agent.get('/api/suggestions/box/hr').expect(200)).body).toHaveLength(0);
+    expect((await hr.agent.get('/api/suggestions/summary').expect(200)).body.unread.hr).toBe(0);
+    expect((await notesOf(hr.id)).filter((n) => n.type === 'suggestion')).toHaveLength(0);
+    await hr.agent.post(`/api/suggestions/${res.body.id}/read`).expect(404);
+    const HOUR = 60 * 60 * 1000;
+    expect(await releaseAnonymousSuggestions(new Date(row.createdAt.getTime() + 6 * HOUR))).toBe(0); // 18:00 the same day
+    expect(await releaseAnonymousSuggestions(new Date(row.createdAt.getTime() + 21 * HOUR))).toBe(0); // 09:00 the next day
+    expect(await releaseAnonymousSuggestions(new Date(row.createdAt.getTime() + 22 * HOUR))).toBe(1); // 10:00 the next day
+    expect(await releaseAnonymousSuggestions(new Date(row.createdAt.getTime() + 23 * HOUR))).toBe(0);
+
+    // Then HR reads it without a name; management and the sender's colleagues cannot.
     const box = (await hr.agent.get('/api/suggestions/box/hr').expect(200)).body;
     expect(box).toHaveLength(1);
     expect(box[0]).toMatchObject({ subject: 'اضافه‌کاری', sender: null, isAnonymous: true });
     await ceo.agent.get('/api/suggestions/box/hr').expect(403);
     await sender.agent.get('/api/suggestions/box/hr').expect(403);
-    expect((await notesOf(hr.id)).map((n) => n.title)).toContain('پیام تازه در صندوق منابع انسانی 📮');
+    expect((await notesOf(hr.id)).map((n) => n.title)).toContain('پیام ناشناس تازه در صندوق منابع انسانی 📮');
     expect((await notesOf(ceo.id)).filter((n) => n.type === 'suggestion')).toHaveLength(0);
     expect(JSON.stringify(await notesOf(hr.id))).not.toContain('box.sender');
 

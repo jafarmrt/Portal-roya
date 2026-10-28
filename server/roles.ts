@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm';
-import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID, effectivePermissions, MANAGER_ROLE_ID, type Permission } from '../shared/permissions.js';
+import { ADMIN_ROLE_ID, coversRole, DEFAULT_ROLE_ID, effectivePermissions, MANAGER_ROLE_ID, type Permission } from '../shared/permissions.js';
 import { db } from './db/index.js';
 import { employees, roles } from './db/schema.js';
 
@@ -24,6 +24,17 @@ export async function rolePermissions(roleId: string): Promise<Permission[]> {
   const [role] = await db.select({ permissions: roles.permissions }).from(roles).where(eq(roles.id, roleId)).limit(1);
   return effectivePermissions(roleId, role?.permissions ?? []);
 }
+
+/** What the viewer may do with portal accounts; see coversRole. */
+export async function accountRules(viewer: { id: string; role: string; permissions: readonly Permission[] }) {
+  const stored = new Map((await db.select({ id: roles.id, permissions: roles.permissions }).from(roles)).map((r) => [r.id, r.permissions]));
+  return {
+    isAdmin: viewer.role === ADMIN_ROLE_ID,
+    selfId: viewer.id,
+    covers: (roleId: string) => coversRole(viewer, { id: roleId, permissions: stored.get(roleId) ?? [] }),
+  };
+}
+export type AccountRules = Awaited<ReturnType<typeof accountRules>>;
 
 export async function roleExists(roleId: string) {
   const [role] = await db.select({ id: roles.id }).from(roles).where(eq(roles.id, roleId)).limit(1);

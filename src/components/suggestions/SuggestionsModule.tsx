@@ -5,8 +5,18 @@ import { usePortal } from '../../context/PortalContext';
 import { api, errorMessage } from '../../lib/api';
 import { formatDate, formatDateTime, toPersianDigits } from '../../lib/jalali';
 import { suggestionsChanged, useSuggestionSummary } from '../../lib/suggestionSummary';
-import { boxNames, SUGGESTION_BOXES, SUGGESTION_KINDS, suggestionKindLabel, type SuggestionBox, type SuggestionKind } from '../../../shared/suggestions';
+import {
+  ANONYMOUS_RELEASE_HOUR,
+  boxNames,
+  SUGGESTION_BOXES,
+  SUGGESTION_KINDS,
+  suggestionKindLabel,
+  type SuggestionBox,
+  type SuggestionKind,
+} from '../../../shared/suggestions';
 import { Avatar } from '../common/Avatar';
+
+const releaseHour = toPersianDigits(ANONYMOUS_RELEASE_HOUR);
 
 interface SentMessage {
   id: string;
@@ -166,8 +176,8 @@ const SendForm: React.FC<{ onSent: (trackingCode: string | null) => void }> = ({
         </label>
         {anonymous ? (
           <ul className="text-xs text-indigo-950 leading-6 list-disc pr-5">
-            <li>نام و حساب کاربری شما همراه پیام ذخیره نمی‌شود. خوانندهٔ صندوق، مدیر پرتال و حتی کسی که به پایگاه داده دسترسی دارد هم نمی‌تواند بفهمد فرستنده کیست.</li>
-            <li>از زمان ارسال فقط روز آن ثبت می‌شود، نه ساعتش.</li>
+            <li>نام و حساب کاربری شما همراه پیام ذخیره نمی‌شود و نه خوانندهٔ صندوق و نه ادمین پرتال نمی‌توانند بفهمند فرستنده کیست.</li>
+            <li>از زمان ارسال فقط روز آن ثبت می‌شود، نه ساعتش. پیام‌های ناشناس هر روز ساعت {releaseHour} صبح با هم به دست خوانندهٔ صندوق می‌رسند؛ پیام امروز شما فردا ساعت {releaseHour} دیده می‌شود.</li>
             <li>پس از ارسال یک کد پیگیری می‌گیرید. پاسخ را فقط با همین کد می‌توانید ببینید، پس آن را یادداشت کنید.</li>
             <li>اگر در متن نام خودتان یا جزئیاتی بنویسید که شما را معرفی کند، پیام دیگر ناشناس نمی‌ماند.</li>
           </ul>
@@ -198,7 +208,7 @@ const TrackingCodeNotice: React.FC<{ code: string; onDone: () => void }> = ({ co
       <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
       <h2 className="text-base font-black text-[#2D2D2D]">پیام ناشناس شما فرستاده شد</h2>
       <p className="text-xs text-[#4B4740] leading-6">
-        کد پیگیری زیر را یادداشت کنید. این کد فقط همین یک بار نمایش داده می‌شود و جایی همراه نام شما ذخیره نشده است. پاسخ را با همین کد در بخش «پیگیری با کد» می‌بینید.
+        کد پیگیری زیر را یادداشت کنید. این کد فقط همین یک بار نمایش داده می‌شود و جایی همراه نام شما ذخیره نشده است. پیام فردا ساعت {releaseHour} صبح، همراه پیام‌های ناشناس دیگر، به دست خوانندهٔ صندوق می‌رسد و پاسخ را با همین کد در بخش «پیگیری با کد» می‌بینید.
       </p>
       <div className="flex items-center justify-center gap-2">
         <code dir="ltr" className="px-4 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-lg font-black tracking-widest text-indigo-900">
@@ -543,7 +553,7 @@ export const SuggestionsModule: React.FC = () => {
 
       <p className="flex items-center gap-1.5 text-[11px] text-[#6E6A60]">
         <ShieldCheck className="w-3.5 h-3.5" />
-        خوانندگان هر صندوق را ادمین پرتال در «تنظیمات ← نقش‌ها و دسترسی» تعیین می‌کند. ادمین پرتال همیشه هر دو صندوق را می‌بیند.
+        خوانندگان هر صندوق را ادمین پرتال در «تنظیمات ← نقش‌ها و دسترسی» تعیین می‌کند. ادمین پرتال همیشه هر دو صندوق را می‌بیند. پیام‌های ناشناس روزی یک بار، ساعت {releaseHour} صبح، با هم می‌رسند تا زمان نوشتنشان معلوم نباشد.
       </p>
     </div>
   );

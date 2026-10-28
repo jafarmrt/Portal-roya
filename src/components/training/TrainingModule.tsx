@@ -128,7 +128,7 @@ export const TrainingModule: React.FC = () => {
           ordered.map((program) => {
             const isEnrolled = program.myStatus === 'enrolled';
             const isWaiting = program.myStatus === 'waitlist';
-            const enrolledCount = program.enrolledUserIds.length;
+            const enrolledCount = program.enrolledCount;
             const percentage = Math.min(100, Math.round((enrolledCount / program.capacity) * 100));
             const isFull = enrolledCount >= program.capacity;
             const isPast = program.date < today;

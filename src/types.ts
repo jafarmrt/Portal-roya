@@ -373,7 +373,9 @@ export interface TrainingProgram {
   duration: string;
   location: string;
   capacity: number;
+  /** Empty for visitors who are not signed in; enrolledCount is for everyone. */
   enrolledUserIds: string[];
+  enrolledCount: number;
   description: string;
   coverImage: string;
   category: string;

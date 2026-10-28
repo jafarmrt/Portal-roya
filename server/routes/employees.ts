@@ -18,7 +18,7 @@ import { audienceIds, createNotifications } from '../notify.js';
 import { fullName, serializeEmployee, serializeForGuest } from '../serializers.js';
 import { guestSettings } from '../settings.js';
 import { readSpreadsheet, SpreadsheetError } from '../spreadsheet.js';
-import { roleExists } from '../roles.js';
+import { accountRules, roleExists } from '../roles.js';
 import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID } from '../../shared/permissions.js';
 import { assetUrl, assetUrlValue, jalaliDateValue, optionalJalaliDate, optionalText, password, requiredText, textValue, username } from '../validation.js';
 
@@ -78,10 +78,31 @@ function assertSelfOrUserManager(viewer: SessionUser, targetId: string) {
 }
 
 /** Only an admin may hand out the admin role or change an admin's account; otherwise users.manage could escalate itself. */
-function assertMayManageAccount(viewer: SessionUser, target: Pick<Employee, 'role'> | null, newRole?: string) {
-  const touchesAdmin = target?.role === ADMIN_ROLE_ID || newRole === ADMIN_ROLE_ID;
+/**
+ * Only an admin touches an admin's account or gives the admin role. Anyone else who manages staff may
+ * not change their own role, may give only roles whose every permission they hold, and, for a change
+ * of role, password or access, may not touch someone who holds a permission they lack (coversRole).
+ */
+async function assertMayManageAccount(
+  viewer: SessionUser,
+  target: Pick<Employee, 'id' | 'role'> | null,
+  { role, access = false }: { role?: string; access?: boolean } = {},
+) {
+  const touchesAdmin = target?.role === ADMIN_ROLE_ID || role === ADMIN_ROLE_ID;
   if (touchesAdmin && !isAdmin(viewer)) {
     throw new HttpError(403, 'فقط ادمین برنامه می‌تواند حساب ادمین‌ها را تغییر دهد یا نقش ادمین بدهد.');
+  }
+  if (isAdmin(viewer)) return;
+  const rules = await accountRules(viewer);
+  const changesRole = role !== undefined && role !== target?.role;
+  if (changesRole && target?.id === viewer.id) {
+    throw new HttpError(403, 'نقش خودتان را نمی‌توانید تغییر دهید؛ این کار با ادمین برنامه است.');
+  }
+  if ((access || changesRole) && target && target.id !== viewer.id && !rules.covers(target.role)) {
+    throw new HttpError(403, 'این همکار دسترسی‌هایی دارد که شما ندارید؛ تغییر نقش، رمز یا دسترسی او با ادمین برنامه است.');
+  }
+  if (changesRole && !rules.covers(role)) {
+    throw new HttpError(403, `نقش «${await roleName(role)}» دسترسی‌هایی دارد که خودتان ندارید؛ فقط ادمین برنامه می‌تواند آن را بدهد.`);
   }
 }
 
@@ -131,8 +152,8 @@ async function prepareAccount(
   target: Employee | null,
   input: { username: string; role: string; signIn: 'local' | 'ldap'; password?: string },
 ) {
-  assertMayManageAccount(viewer, target, input.role);
   await assertRoleExists(input.role);
+  await assertMayManageAccount(viewer, target, { role: input.role });
   const name = input.username.trim().toLowerCase();
   if (!/^[a-z0-9._-]{3,40}$/.test(name)) {
     throw new HttpError(400, 'نام کاربری معتبر وارد کنید (حروف انگلیسی، عدد و . _ -).');
@@ -312,14 +333,14 @@ employeesRouter.delete(
     const target = await loadEmployee(req.params.id);
     if (target.id === viewer.id) throw new HttpError(400, 'نمی‌توانید دسترسی پورتال خودتان را بردارید.');
     if (!target.hasAccount) throw new HttpError(409, 'این همکار دسترسی پورتال ندارد.');
-    assertMayManageAccount(viewer, target);
+    await assertMayManageAccount(viewer, target, { access: true });
     if (target.role === ADMIN_ROLE_ID && (await activeAdminCount(target.id)) === 0) {
       throw new HttpError(400, 'پرتال باید حداقل یک ادمین فعال داشته باشد.');
     }
     const [updated] = await db
       .update(employees)
       // The username stays so access can be given back later under the same name.
-      .set({ ...NO_ACCOUNT, username: target.username, failedLogins: 0, lockedUntil: null })
+      .set({ ...NO_ACCOUNT, username: target.username, failedLogins: 0, lockedUntil: null, sessionVersion: target.sessionVersion + 1 })
       .where(eq(employees.id, target.id))
       .returning();
     await audit(viewer, { action: 'update', entity: 'employee', id: updated.id, title: fullName(updated), detail: 'دسترسی پرتال برداشته شد' });
@@ -366,11 +387,12 @@ employeesRouter.patch(
       if (!can(viewer, 'users.manage')) {
         throw new HttpError(403, 'تغییر سمت، واحد و نقش فقط توسط مدیر کاربران ممکن است.');
       }
-      assertMayManageAccount(viewer, target, body.role);
-    }
-    if (body.role !== undefined && body.role !== target.role) {
-      if (!target.hasAccount) throw new HttpError(400, 'نقش فقط برای همکارانی که دسترسی پورتال دارند معنا دارد.');
-      await assertRoleExists(body.role);
+      if (body.role !== undefined && body.role !== target.role) {
+        if (!target.hasAccount) throw new HttpError(400, 'نقش فقط برای همکارانی که دسترسی پورتال دارند معنا دارد.');
+        await assertRoleExists(body.role);
+      }
+      const changesActive = body.isActive !== undefined && body.isActive !== target.isActive;
+      await assertMayManageAccount(viewer, target, { role: body.role, access: changesActive });
     }
     const losesAdminAccess =
       target.role === ADMIN_ROLE_ID && ((body.role !== undefined && body.role !== ADMIN_ROLE_ID) || body.isActive === false);
@@ -407,12 +429,20 @@ employeesRouter.post(
     const target = await loadEmployee(req.params.id);
     if (!target.hasAccount) throw new HttpError(400, 'این همکار دسترسی پورتال ندارد؛ ابتدا به او دسترسی بدهید.');
     if (target.authSource === 'ldap' && isDirectoryEnabled()) throw new HttpError(400, DIRECTORY_PASSWORD_MESSAGE);
-    assertMayManageAccount(currentUser(req), target);
+    await assertMayManageAccount(currentUser(req), target, { access: true });
     const temp = temporaryPassword();
     await db
       .update(employees)
-      // With AD sign-in switched off, a reset turns an AD account back into a portal account.
-      .set({ passwordHash: await hashPassword(temp), authSource: 'local', mustChangePassword: true, failedLogins: 0, lockedUntil: null })
+      // With AD sign-in switched off, a reset turns an AD account back into a portal account. Wherever
+      // the colleague is still signed in with the old password is signed out.
+      .set({
+        passwordHash: await hashPassword(temp),
+        authSource: 'local',
+        mustChangePassword: true,
+        failedLogins: 0,
+        lockedUntil: null,
+        sessionVersion: target.sessionVersion + 1,
+      })
       .where(eq(employees.id, target.id));
     await audit(currentUser(req), { action: 'update', entity: 'employee', id: target.id, title: fullName(target), detail: 'رمز عبور بازنشانی شد' });
     res.json({ temporaryPassword: temp });
@@ -776,7 +806,7 @@ employeesRouter.post(
     if (records.length > MAX_IMPORT_ROWS) throw new HttpError(400, `هر بار حداکثر ${MAX_IMPORT_ROWS} نفر را می‌توان وارد کرد.`);
     // The preview words new access the way the chosen sign-in method will give it.
     const signIn = req.body?.signIn === 'ldap' && isDirectoryEnabled() ? 'ldap' : 'local';
-    const rows = await checkRows(records, { allowAdmin: isAdmin(currentUser(req)), signIn });
+    const rows = await checkRows(records, { rules: await accountRules(currentUser(req)), signIn });
     res.json({
       rows: rows.map(({ row, data, errors, warnings, action, target, changes }) => ({ row, data, errors, warnings, action, target, changes })),
       newDepartments: newDepartments(rows, await departmentList()),
@@ -792,7 +822,7 @@ employeesRouter.post(
     const viaDirectory = body.signIn === 'ldap';
     if (viaDirectory && !isDirectoryEnabled()) throw new HttpError(400, 'ورود با اکتیو دایرکتوری روی این سرور فعال نیست؛ رمز موقت بسازید.');
     const checked = await checkRows(body.rows.map((data, i) => ({ row: i + 1, data })), {
-      allowAdmin: isAdmin(currentUser(req)),
+      rules: await accountRules(currentUser(req)),
       departments: body.departments,
       signIn: body.signIn,
     });

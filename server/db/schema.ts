@@ -116,6 +116,8 @@ export const employees = pgTable('employees', {
   skills: jsonb('skills').$type<SkillRecord[]>().notNull().default([]),
   workExperiences: jsonb('work_experiences').$type<WorkExperienceRecord[]>().notNull().default([]),
   failedLogins: integer('failed_logins').notNull().default(0),
+  /** Raised to end every open session (password change or reset, «خروج از همهٔ دستگاه‌ها»). */
+  sessionVersion: integer('session_version').notNull().default(0),
   lockedUntil: timestamp('locked_until', { withTimezone: true }),
   /** The last time the colleague used the portal (signing in or any page), kept to within a few minutes. */
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
@@ -720,6 +722,8 @@ export const suggestions = pgTable(
     repliedAt: timestamp('replied_at', { withTimezone: true }),
     readAt: timestamp('read_at', { withTimezone: true }),
     isClosed: boolean('is_closed').notNull().default(false),
+    // Anonymous messages wait here until the daily release, so readers never learn when one was sent.
+    released: boolean('released').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('suggestions_box_idx').on(t.box), index('suggestions_sender_idx').on(t.senderId), uniqueIndex('suggestions_tracking_idx').on(t.trackingHash)],
