@@ -58,6 +58,23 @@ describe('guest (not signed in) access', () => {
     }
   });
 
+  it('shows visitors a course, but not who signed up or its handouts', async () => {
+    const id = (
+      await admin
+        .post('/api/trainings')
+        .send({ title: 'ایمنی کارگاه', instructor: 'مدرس', date: '1405/09/01', capacity: 10, description: 'دوره', category: 'ایمنی' })
+        .expect(201)
+    ).body.id;
+    await admin.put(`/api/trainings/${id}/materials`).send({ materials: [{ name: 'جزوه.pdf', url: '/uploads/a.pdf', size: 10, mimeType: 'application/pdf' }] }).expect(200);
+    await admin.post(`/api/trainings/${id}/enroll`).expect(200);
+
+    const seen = (await request(app).get('/api/trainings').expect(200)).body.find((t: { id: string }) => t.id === id);
+    expect(seen).toMatchObject({ title: 'ایمنی کارگاه', enrolledUserIds: [], enrolledCount: 1, materials: [] });
+    const signedIn = (await admin.get('/api/trainings').expect(200)).body.find((t: { id: string }) => t.id === id);
+    expect(signedIn.enrolledUserIds).toHaveLength(1);
+    expect(signedIn.materials).toHaveLength(1);
+  });
+
   it('keeps the staff directory hidden until a manager opens it', async () => {
     expect((await request(app).get('/api/employees').expect(200)).body).toEqual([]);
     expect((await request(app).get('/api/new_colleagues').expect(200)).body).toEqual([]);

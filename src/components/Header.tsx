@@ -24,7 +24,8 @@ import {
   Settings,
   LayoutGrid,
   UserPen,
-  LogIn
+  LogIn,
+  MonitorSmartphone
 } from 'lucide-react';
 
 // Header drop-downs: full width under the header on phones, anchored to their button from sm up.
@@ -46,6 +47,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
     deleteNotification,
     setActiveTab,
     logout,
+    logoutEverywhere,
     appSettings,
     isGuest,
     requestLogin,
@@ -424,6 +426,17 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                           >
                             <ShieldAlert className="w-4 h-4 text-[#DC2626]" />
                             <span>خروج از حساب</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setIsUserMenuOpen(false);
+                              void logoutEverywhere();
+                            }}
+                            title="برای وقتی که گوشی گم شده یا روی کامپیوتر دیگری وارد مانده‌اید"
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] text-[#7A756D] hover:bg-[#FEF2F2] rounded-xl transition-colors text-right cursor-pointer"
+                          >
+                            <MonitorSmartphone className="w-4 h-4 text-[#7A756D]" />
+                            <span>خروج از همهٔ دستگاه‌ها</span>
                           </button>
                         </div>
                       </div>

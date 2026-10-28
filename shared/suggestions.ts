@@ -43,3 +43,6 @@ export function normalizeTrackingCode(input: string) {
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '');
 }
+
+/** Anonymous messages reach their readers from this hour (Tehran time) of the day after they were sent. */
+export const ANONYMOUS_RELEASE_HOUR = 10;

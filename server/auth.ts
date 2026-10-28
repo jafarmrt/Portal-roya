@@ -51,8 +51,9 @@ export async function burnPasswordCheck(password: string) {
   await bcrypt.compare(password, dummyHash);
 }
 
-export function issueSession(res: Response, userId: string) {
-  const token = jwt.sign({ sub: userId }, config.sessionSecret, {
+/** Signs the colleague in on this browser. The session lasts until their session version is raised. */
+export function issueSession(res: Response, user: Pick<Employee, 'id' | 'sessionVersion'>) {
+  const token = jwt.sign({ sub: user.id, sv: user.sessionVersion }, config.sessionSecret, {
     expiresIn: `${config.sessionDays}d`,
   });
   res.cookie(SESSION_COOKIE, token, {
@@ -90,12 +91,14 @@ async function loadUserFromRequest(req: Request, res: Response): Promise<Session
   const token = req.cookies?.[SESSION_COOKIE];
   if (!token) return null;
   try {
-    const payload = jwt.verify(token, config.sessionSecret) as { sub?: string; iat?: number };
+    const payload = jwt.verify(token, config.sessionSecret) as { sub?: string; sv?: number; iat?: number };
     if (!payload.sub) return null;
     const [user] = await db.select().from(employees).where(eq(employees.id, payload.sub)).limit(1);
     // Taking away portal access ends the colleague's open sessions too.
     if (!user || !user.isActive || !user.hasAccount) return null;
-    if (payload.iat && Date.now() - payload.iat * 1000 > RENEW_AFTER_MS && !res.headersSent) issueSession(res, user.id);
+    // A new password, a reset or «خروج از همهٔ دستگاه‌ها» raised the version: older sessions have ended.
+    if ((payload.sv ?? 0) !== user.sessionVersion) return null;
+    if (payload.iat && Date.now() - payload.iat * 1000 > RENEW_AFTER_MS && !res.headersSent) issueSession(res, user);
     await markSeen(user);
     return await withPermissions(user);
   } catch {

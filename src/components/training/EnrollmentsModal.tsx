@@ -57,7 +57,7 @@ export const EnrollmentsModal: React.FC<{ training: TrainingProgram; onClose: ()
       .catch((err) => setError(errorMessage(err)));
     if (started) api.get<TrainingFeedbackSummary>(`/api/trainings/${training.id}/feedback`).then(setFeedback).catch(() => undefined);
   }, [training.id, started]);
-  useEffect(load, [load, training.enrolledUserIds.length, training.waitlistCount, training.feedbackCount]);
+  useEffect(load, [load, training.enrolledCount, training.waitlistCount, training.feedbackCount]);
 
   const enrolled = rows?.filter((r) => r.status === 'enrolled') ?? [];
   const waitlist = rows?.filter((r) => r.status === 'waitlist') ?? [];

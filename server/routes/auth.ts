@@ -185,7 +185,7 @@ authRouter.post(
     const [admin] = department === created.department
       ? [created]
       : await db.update(employees).set({ department }).where(eq(employees.id, created.id)).returning();
-    issueSession(res, admin.id);
+    issueSession(res, admin);
     res.json({ user: serializeMe(await withPermissions(admin)) });
   }),
 );
@@ -322,7 +322,7 @@ authRouter.post(
       .update(employees)
       .set({ lastSeenAt: new Date(), ...(authed === user ? { failedLogins: 0, lockedUntil: null } : {}) })
       .where(eq(employees.id, authed.id));
-    issueSession(res, authed.id);
+    issueSession(res, authed);
     res.json({ user: serializeMe(await withPermissions(authed)) });
   }),
 );
@@ -331,6 +331,18 @@ authRouter.post('/auth/logout', (_req, res) => {
   clearSession(res);
   res.json({ success: true });
 });
+
+/** Ends the colleague's sessions on every computer and phone, this one included. */
+authRouter.post(
+  '/auth/logout-everywhere',
+  requireAuth,
+  route(async (req, res) => {
+    const user = currentUser(req);
+    await db.update(employees).set({ sessionVersion: sql`${employees.sessionVersion} + 1` }).where(eq(employees.id, user.id));
+    clearSession(res);
+    res.json({ success: true });
+  }),
+);
 
 authRouter.get(
   '/auth/me',
@@ -371,7 +383,7 @@ authRouter.post(
         const person = matches.find((e) => e.id === claim);
         if (!person) throw new HttpError(400, 'این ردیف دفتر تلفن پیدا نشد؛ دوباره تلاش کنید.');
         const joined = await withPermissions(await claimPhoneBookEntry(user, person, profile));
-        issueSession(res, joined.id);
+        issueSession(res, joined);
         await audit(joined, {
           action: 'update',
           entity: 'employee',
@@ -409,11 +421,17 @@ authRouter.post(
     if (body.currentPassword === body.newPassword) {
       throw new HttpError(400, 'رمز عبور جدید باید با رمز فعلی متفاوت باشد.');
     }
+    // Other computers and phones signed in with the old password are signed out; this one stays.
     const [updated] = await db
       .update(employees)
-      .set({ passwordHash: await hashPassword(body.newPassword), mustChangePassword: false })
+      .set({
+        passwordHash: await hashPassword(body.newPassword),
+        mustChangePassword: false,
+        sessionVersion: sql`${employees.sessionVersion} + 1`,
+      })
       .where(eq(employees.id, user.id))
       .returning();
+    issueSession(res, updated);
     res.json({ user: serializeMe(await withPermissions(updated)) });
   }),
 );

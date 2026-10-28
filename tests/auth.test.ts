@@ -78,6 +78,28 @@ describe('authentication', () => {
     await agent.get('/api/news').expect(200);
   });
 
+  it('ends the other sessions when the password changes, is reset, or on «خروج از همهٔ دستگاه‌ها»', async () => {
+    const { agent: phone, id, password } = await createEmployee(admin, { username: 'two.devices' });
+    const computer = request.agent(app);
+    await computer.post('/api/auth/login').send({ username: 'two.devices', password }).expect(200);
+
+    // A new password signs the phone out; the computer that changed it stays signed in.
+    await computer.post('/api/auth/change-password').send({ currentPassword: password, newPassword: 'Second-pass-456' }).expect(200);
+    await phone.get('/api/auth/me').expect(401);
+    await computer.get('/api/auth/me').expect(200);
+
+    // Signing out everywhere ends this session too.
+    await phone.post('/api/auth/login').send({ username: 'two.devices', password: 'Second-pass-456' }).expect(200);
+    await computer.post('/api/auth/logout-everywhere').expect(200);
+    await computer.get('/api/auth/me').expect(401);
+    await phone.get('/api/auth/me').expect(401);
+
+    // A reset by a manager ends the sessions that used the old password.
+    await phone.post('/api/auth/login').send({ username: 'two.devices', password: 'Second-pass-456' }).expect(200);
+    await admin.post(`/api/employees/${id}/reset-password`).expect(200);
+    await phone.get('/api/auth/me').expect(401);
+  });
+
   it('keeps manager-only actions away from employees', async () => {
     const { agent, id } = await createEmployee(admin, { username: 'plain.user' });
     await agent.post('/api/employees').send({ username: 'x.y', firstName: 'a', lastName: 'b', position: 'c', department: 'd' }).expect(403);

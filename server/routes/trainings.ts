@@ -44,10 +44,14 @@ async function listTrainings(viewer: SessionUser | null) {
     const mine = viewer ? own.find((e) => e.userId === viewer.id) : undefined;
     const answers = feedback.filter((f) => f.trainingId === t.id);
     const { remindedAt: _reminded, feedbackRequestedAt: _asked, ...fields } = t;
+    const enrolled = own.filter((e) => e.status === 'enrolled').map((e) => e.userId);
     return {
       ...fields,
+      // Visitors who are not signed in see the course, not who signed up or its handouts.
+      materials: viewer ? t.materials : [],
       createdAt: t.createdAt.toISOString(),
-      enrolledUserIds: own.filter((e) => e.status === 'enrolled').map((e) => e.userId),
+      enrolledUserIds: viewer ? enrolled : [],
+      enrolledCount: enrolled.length,
       waitlistCount: waitlist.length,
       myStatus: mine?.status ?? null,
       myWaitlistPosition: mine?.status === 'waitlist' ? waitlist.indexOf(mine) + 1 : undefined,

@@ -152,6 +152,7 @@ interface PortalContextType {
   roleName: (roleId: string) => string;
   login: (username: string, password: string) => Promise<CurrentUser>;
   logout: () => Promise<void>;
+  logoutEverywhere: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   /** Saves the first-sign-in profile, or returns the phone-book entries that may be this colleague (asked about first). */
   completeProfile: (profile: FirstProfile) => Promise<PhoneBookMatch[] | null>;
@@ -410,6 +411,18 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await api.post('/api/auth/logout').catch(() => undefined);
     setCurrentUser(null);
     toast.success('از حساب کاربری خود خارج شدید');
+  };
+
+  /** Signs out on every computer and phone, for when a device is lost or was left signed in. */
+  const logoutEverywhere = async () => {
+    try {
+      await api.post('/api/auth/logout-everywhere');
+    } catch (err) {
+      toast.error(errorMessage(err));
+      return;
+    }
+    setCurrentUser(null);
+    toast.success('از حساب کاربری خود در همهٔ دستگاه‌ها خارج شدید');
   };
 
   const changePassword = async (currentPassword: string, newPassword: string) => {
@@ -1061,6 +1074,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         roleName,
         login,
         logout,
+        logoutEverywhere,
         changePassword,
         completeProfile,
         isLoading,
