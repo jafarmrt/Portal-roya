@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { db, pool } from '../server/db/index';
-import { auditLog, notifications, suggestions } from '../server/db/schema';
+import { auditLog, notifications, settings, suggestions } from '../server/db/schema';
 import { tehranDay } from '../server/routes/suggestions';
 import { createEmployee, resetDatabase, setupAdmin } from './helpers';
 
@@ -99,6 +99,59 @@ describe('suggestions & complaints boxes', () => {
   it('checks the box and the text', async () => {
     await sender.agent.post('/api/suggestions').send({ box: 'it', subject: 'الف', body: 'ب' }).expect(400);
     await sender.agent.post('/api/suggestions').send({ box: 'hr', subject: ' ', body: 'ب' }).expect(400);
+  });
+
+  it('switches each box on and off on its own, and keeps a closed box\'s messages for its readers', async () => {
+    const msg = { kind: 'suggestion', subject: 'پارکینگ', body: 'جای پارک کم است.', anonymous: false };
+    const sent = (await sender.agent.post('/api/suggestions').send({ ...msg, box: 'hr' }).expect(201)).body.id;
+
+    // A legacy single switch for the whole section counts for both boxes until one is changed.
+    await db.update(settings).set({ features: { suggestions: 'on' } }).where(eq(settings.id, 'global'));
+    await admin.put('/api/settings/features/suggestionsHr').send({ state: 'off' }).expect(200);
+    const [row] = await db.select({ features: settings.features }).from(settings).where(eq(settings.id, 'global'));
+    expect(row.features).toEqual({ suggestionsManagement: 'on', suggestionsHr: 'off' });
+
+    // Only the management box is open: the page stays, HR takes nothing new.
+    const features = (await sender.agent.get('/api/settings').expect(200)).body.features;
+    expect(features).toMatchObject({ suggestions: 'on', suggestionsManagement: 'on' });
+    expect(features).not.toHaveProperty('suggestionsHr');
+    await sender.agent.post('/api/suggestions').send({ ...msg, box: 'hr' }).expect(400);
+    await sender.agent.post('/api/suggestions').send({ ...msg, box: 'management' }).expect(201);
+
+    // HR still reads and answers what arrived before.
+    const box = (await hr.agent.get('/api/suggestions/box/hr').expect(200)).body;
+    expect(box.map((m: { id: string }) => m.id)).toContain(sent);
+    await hr.agent.put(`/api/suggestions/${sent}/reply`).send({ reply: 'بررسی می‌کنیم.' }).expect(200);
+
+    // With both boxes off the whole page is gone, for its readers too; nothing is deleted.
+    await admin.put('/api/settings/features/suggestionsManagement').send({ state: 'off' }).expect(200);
+    expect((await sender.agent.get('/api/settings').expect(200)).body.features).not.toHaveProperty('suggestions');
+    await hr.agent.get('/api/suggestions/box/hr').expect(404);
+    await admin.put('/api/settings/features/suggestionsManagement').send({ state: 'on' }).expect(200);
+    await admin.put('/api/settings/features/suggestionsHr').send({ state: 'on' }).expect(200);
+    expect((await hr.agent.get('/api/suggestions/box/hr').expect(200)).body.map((m: { id: string }) => m.id)).toContain(sent);
+  });
+
+  it('lets the administrator rename a box and who it goes to', async () => {
+    const res = await admin
+      .put('/api/settings')
+      .send({ suggestionBoxNames: { management: { label: 'صندوق مدیرعامل', to: 'مدیرعامل' } } })
+      .expect(200);
+    expect(res.body.suggestionBoxNames).toEqual({ management: { label: 'صندوق مدیرعامل', to: 'مدیرعامل' } });
+    // Renaming one box keeps the other's names.
+    await admin.put('/api/settings').send({ suggestionBoxNames: { hr: { label: '', to: 'کارگزینی' } } }).expect(200);
+    expect((await sender.agent.get('/api/settings').expect(200)).body.suggestionBoxNames).toEqual({
+      management: { label: 'صندوق مدیرعامل', to: 'مدیرعامل' },
+      hr: { label: '', to: 'کارگزینی' },
+    });
+    await sender.agent.put('/api/settings').send({ suggestionBoxNames: { hr: { label: 'x', to: 'y' } } }).expect(403);
+
+    await sender.agent.post('/api/suggestions').send({ box: 'management', subject: 'ناهار', body: 'غذا سرد است.' }).expect(201);
+    expect((await notesOf(ceo.id)).map((n) => n.title)).toContain('پیام تازه در صندوق مدیرعامل 📮');
+    const features = (await admin.get('/api/settings/features').expect(200)).body.features;
+    expect(features.find((f: { key: string }) => f.key === 'suggestionsManagement').label).toBe('صندوق مدیرعامل');
+    const [entry] = await db.select().from(auditLog).where(eq(auditLog.title, 'نام صندوق‌های انتقادات و پیشنهادات'));
+    expect(entry.detail).toContain('صندوق مدیرعامل');
   });
 
   it('keeps an anonymous message on the day it was sent, in Tehran time', () => {

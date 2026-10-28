@@ -26,10 +26,13 @@ export interface FeatureInfo {
   defaultState: FeatureState;
   /** The opening lines of the news draft that introduces it. */
   intro: string;
+  /** The section this part is one switch of (each suggestion box has its own); the section has no switch itself. */
+  group?: string;
 }
 
 export const FEATURES = [
   {
+    // The section itself has no switch of its own: it is shown while either box below is.
     key: 'suggestions',
     label: 'صندوق انتقادات و پیشنهادات',
     hint: 'فرستادن انتقاد و پیشنهاد به مدیریت و منابع انسانی، با امکان ناشناس.',
@@ -39,6 +42,30 @@ export const FEATURES = [
     defaultState: 'on',
     intro:
       'از امروز در منوی پرتال بخش «انتقادات و پیشنهادات» را می‌بینید. در آن می‌توانید انتقاد یا پیشنهاد خود را برای مدیریت یا منابع انسانی بفرستید؛ اگر بخواهید، به‌صورت کاملاً ناشناس و با یک کد پیگیری برای دیدن پاسخ.',
+  },
+  {
+    key: 'suggestionsManagement',
+    label: 'صندوق مدیریت',
+    hint: 'پیام به مدیریت شرکت در بخش «انتقادات و پیشنهادات».',
+    tabs: [],
+    cards: [],
+    notificationTypes: [],
+    defaultState: 'on',
+    group: 'suggestions',
+    intro:
+      'از امروز در بخش «انتقادات و پیشنهادات» می‌توانید انتقاد یا پیشنهاد خود را مستقیم برای مدیریت شرکت بفرستید؛ اگر بخواهید، به‌صورت کاملاً ناشناس و با یک کد پیگیری برای دیدن پاسخ.',
+  },
+  {
+    key: 'suggestionsHr',
+    label: 'صندوق منابع انسانی',
+    hint: 'پیام به واحد منابع انسانی در بخش «انتقادات و پیشنهادات».',
+    tabs: [],
+    cards: [],
+    notificationTypes: [],
+    defaultState: 'on',
+    group: 'suggestions',
+    intro:
+      'از امروز در بخش «انتقادات و پیشنهادات» می‌توانید انتقاد یا پیشنهاد خود را برای واحد منابع انسانی بفرستید؛ اگر بخواهید، به‌صورت کاملاً ناشناس و با یک کد پیگیری برای دیدن پاسخ.',
   },
   {
     key: 'polls',
@@ -131,6 +158,19 @@ export const isFeatureKey = (value: string): value is FeatureKey => FEATURES.som
 
 export const featureInfo = (key: FeatureKey): FeatureInfo => FEATURES.find((f) => f.key === key)!;
 
+/** The switches a section is made of, e.g. the two suggestion boxes; empty for a part with a switch of its own. */
+export const groupMembers = (key: FeatureKey): FeatureKey[] =>
+  FEATURES.filter((f) => (f as FeatureInfo).group === key).map((f) => f.key);
+
+/** Whether an administrator switches the part itself (a section made of boxes is switched box by box). */
+export const switchable = (key: FeatureKey) => groupMembers(key).length === 0;
+
+/** The page a part belongs to: its own, or its section's. */
+export function featureTab(key: FeatureKey): string | undefined {
+  const info = featureInfo(key);
+  return info.tabs[0] ?? (info.group && isFeatureKey(info.group) ? featureInfo(info.group).tabs[0] : undefined);
+}
+
 /** The parts a page (tab), dashboard card or notification type belongs to. */
 export const featureOfTab = (tab: string) => FEATURES.find((f) => (f.tabs as readonly string[]).includes(tab))?.key;
 export const featureOfCard = (card: string) => FEATURES.find((f) => (f.cards as readonly string[]).includes(card))?.key;
@@ -162,8 +202,18 @@ export interface FeatureConfig {
   pilotUserIds: string[];
 }
 
-export const featureState = (config: Pick<FeatureConfig, 'states'>, key: FeatureKey): FeatureState =>
-  config.states[key] ?? featureInfo(key).defaultState;
+const STATE_RANK: Record<FeatureState, number> = { off: 0, preview: 1, on: 2 };
+
+export function featureState(config: Pick<FeatureConfig, 'states'>, key: FeatureKey): FeatureState {
+  // A section is as open as its most open box.
+  const members = groupMembers(key);
+  if (members.length > 0) {
+    return members.map((m) => featureState(config, m)).reduce((a, b) => (STATE_RANK[b] > STATE_RANK[a] ? b : a), 'off');
+  }
+  // Before the boxes had switches of their own, the whole section had one; both boxes start from it.
+  const { group, defaultState } = featureInfo(key);
+  return config.states[key] ?? (group ? config.states[group] : undefined) ?? defaultState;
+}
 
 /** The administrator and the pilot group (by role or by name) see parts that are in preview. */
 export function inPilotGroup(config: FeatureConfig, viewer: { id: string; role: string } | null) {
@@ -171,8 +221,8 @@ export function inPilotGroup(config: FeatureConfig, viewer: { id: string; role: 
   return viewer.role === ADMIN_ROLE_ID || config.pilotRoles.includes(viewer.role) || config.pilotUserIds.includes(viewer.id);
 }
 
-/** Whether this viewer (null for a guest) sees the part at all. */
-export function featureVisible(config: FeatureConfig, key: FeatureKey, viewer: { id: string; role: string } | null) {
+/** Whether this viewer (null for a guest) sees the part at all. A section is seen while any of its boxes is. */
+export function featureVisible(config: FeatureConfig, key: FeatureKey, viewer: { id: string; role: string } | null): boolean {
   const state = featureState(config, key);
   return state === 'on' || (state === 'preview' && inPilotGroup(config, viewer));
 }

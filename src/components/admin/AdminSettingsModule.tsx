@@ -1,5 +1,25 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowDown, ArrowUp, Check, Eye, HardDrive, Image as ImageIcon, LayoutDashboard, PartyPopper, Pencil, Plus, RefreshCw, Settings, X } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  Building2,
+  Check,
+  Eye,
+  HardDrive,
+  Image as ImageIcon,
+  LayoutDashboard,
+  ListOrdered,
+  PartyPopper,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Settings,
+  ShieldCheck,
+  ToggleRight,
+  X,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { departmentKey, findDepartment } from '../../../shared/departments';
 import { usePortal } from '../../context/PortalContext';
@@ -17,6 +37,7 @@ import { DashboardLayoutModal } from '../dashboard/DashboardLayoutModal';
 import { DASHBOARD_LAYOUT } from '../../../shared/dashboard';
 import { FeatureSettings } from './FeatureSettings';
 import { RolesEditor } from './RolesEditor';
+import { confirmDiscard, hasUnsavedChanges, useUnsavedChanges } from './unsavedChanges';
 
 type ListKey = 'newsCategories' | 'trainingCategories' | 'documentCategories';
 
@@ -32,6 +53,7 @@ const ListEditor: React.FC<{ settings: AppSettings; section: (typeof SECTIONS)[n
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const dirty = JSON.stringify(items) !== JSON.stringify(settings[section.key]);
+  useUnsavedChanges(section.key, dirty);
 
   const add = () => {
     const value = draft.trim();
@@ -308,7 +330,7 @@ const GuestAccessSettings: React.FC<{ settings: AppSettings }> = ({ settings }) 
   };
 
   return (
-    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3 lg:col-span-2">
+    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3">
       <div className="flex items-center gap-2">
         <Eye className="w-4 h-4 text-red-700" />
         <h3 className="text-sm font-black text-[#2D2D2D]">دسترسی مهمان (بدون ورود)</h3>
@@ -347,7 +369,7 @@ const LogoSettings: React.FC<{ settings: AppSettings }> = ({ settings }) => {
   };
 
   return (
-    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3 lg:col-span-2" aria-labelledby="logo-title">
+    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3" aria-labelledby="logo-title">
       <div className="flex items-center gap-2">
         <ImageIcon className="w-4 h-4 text-red-700" />
         <h3 id="logo-title" className="text-sm font-black text-[#2D2D2D]">لوگوی شرکت</h3>
@@ -379,6 +401,7 @@ const FoundingDaySettings: React.FC<{ settings: AppSettings }> = ({ settings }) 
   const [foundingMessage, setFoundingMessage] = useState(settings.foundingMessage);
   const [busy, setBusy] = useState(false);
   const changed = foundingDate !== settings.foundingDate || foundingMessage !== settings.foundingMessage;
+  useUnsavedChanges('founding', changed);
   const years = Math.max(1, yearsSince(foundingDate));
 
   const save = async () => {
@@ -388,7 +411,7 @@ const FoundingDaySettings: React.FC<{ settings: AppSettings }> = ({ settings }) 
   };
 
   return (
-    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3 lg:col-span-2" aria-labelledby="founding-title">
+    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3" aria-labelledby="founding-title">
       <div className="flex items-center gap-2">
         <PartyPopper className="w-4 h-4 text-red-700" />
         <h3 id="founding-title" className="text-sm font-black text-[#2D2D2D]">سالگرد تأسیس شرکت</h3>
@@ -437,7 +460,7 @@ const DashboardCardsSettings: React.FC<{ settings: AppSettings }> = ({ settings 
   };
 
   return (
-    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3 lg:col-span-2">
+    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3">
       <div className="flex items-center gap-2">
         <LayoutDashboard className="w-4 h-4 text-red-700" />
         <h3 className="text-sm font-black text-[#2D2D2D]">کارت‌های داشبورد</h3>
@@ -501,7 +524,7 @@ const ServerStatusCard: React.FC = () => {
   const usedPercent = disk && disk.total > 0 ? Math.round(((disk.total - disk.free) / disk.total) * 100) : 0;
 
   return (
-    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3 lg:col-span-2" aria-labelledby="server-status-title">
+    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3" aria-labelledby="server-status-title">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <HardDrive className="w-4 h-4 text-red-700" />
@@ -580,62 +603,258 @@ const ServerStatusCard: React.FC = () => {
   );
 };
 
-/** On a phone the settings are one long column, so a list at the top jumps straight to a section. */
-const SectionJump: React.FC<{ containerRef: React.RefObject<HTMLDivElement | null> }> = ({ containerRef }) => {
-  const [sections, setSections] = useState<{ title: string; el: HTMLElement }[]>([]);
-  useEffect(() => {
-    const found = Array.from(containerRef.current?.querySelectorAll<HTMLElement>('section') ?? [])
-      .map((el) => ({ el, title: el.querySelector('h3')?.textContent?.trim() ?? '' }))
-      .filter((s) => s.title);
-    setSections(found);
-  }, [containerRef]);
-  if (sections.length < 3) return null;
+type SettingsTab = 'general' | 'access' | 'features' | 'lists' | 'server';
+
+/** The settings page's tabs; each opens at its own address, e.g. #admin/lists. */
+const TABS: { id: SettingsTab; label: string; hint: string; icon: React.ReactNode }[] = [
+  { id: 'general', label: 'عمومی', hint: 'لوگوی شرکت و سالگرد تأسیس', icon: <Building2 className="w-4 h-4" /> },
+  { id: 'access', label: 'نقش‌ها و دسترسی', hint: 'نقش‌ها و مجوزها، دسترسی مهمان', icon: <ShieldCheck className="w-4 h-4" /> },
+  { id: 'features', label: 'امکانات و داشبورد', hint: 'روشن و خاموش بخش‌ها، صندوق‌ها، کارت‌های داشبورد', icon: <ToggleRight className="w-4 h-4" /> },
+  { id: 'lists', label: 'فهرست‌ها', hint: 'واحدها، محل‌های استقرار و دسته‌بندی‌ها', icon: <ListOrdered className="w-4 h-4" /> },
+  { id: 'server', label: 'سرور', hint: 'وضعیت سرور، فضای دیسک و پشتیبان‌ها', icon: <HardDrive className="w-4 h-4" /> },
+];
+
+const isSettingsTab = (value: string | null): value is SettingsTab => TABS.some((t) => t.id === value);
+
+/** Every section of the settings, for the search box; `id` is the element it scrolls to (settings-<id>). */
+const SEARCH_INDEX: { id: string; tab: SettingsTab; title: string; keywords: string }[] = [
+  { id: 'logo', tab: 'general', title: 'لوگوی شرکت', keywords: 'لوگو آرم هدر سربرگ تصویر' },
+  { id: 'founding', tab: 'general', title: 'سالگرد تأسیس شرکت', keywords: 'تاسیس سالگرد تبریک تولد شرکت' },
+  { id: 'roles', tab: 'access', title: 'نقش‌ها و مجوزها', keywords: 'نقش دسترسی مجوز ادمین خواننده صندوق ناشر' },
+  { id: 'guest', tab: 'access', title: 'دسترسی مهمان', keywords: 'مهمان بدون ورود عمومی دفتر تلفن' },
+  { id: 'features', tab: 'features', title: 'امکانات پرتال', keywords: 'روشن خاموش پیش نمایش امکانات بخش نظرسنجی آموزش یادداشت چیدمان' },
+  { id: 'occasions', tab: 'features', title: 'افکت مناسبت‌ها و فصل‌ها', keywords: 'مناسبت فصل نوروز یلدا افکت جلوه بنر' },
+  { id: 'suggestion-boxes', tab: 'features', title: 'صندوق‌های انتقادات و پیشنهادات', keywords: 'صندوق انتقاد پیشنهاد مدیریت مدیرعامل منابع انسانی' },
+  { id: 'pilot', tab: 'features', title: 'گروه آزمایشی', keywords: 'آزمایشی پیش نمایش پایلوت' },
+  { id: 'dashboard-cards', tab: 'features', title: 'کارت‌های داشبورد', keywords: 'داشبورد کارت تولد حال و هوا' },
+  { id: 'departments', tab: 'lists', title: 'واحدهای سازمانی', keywords: 'واحد دپارتمان بخش سازمانی' },
+  { id: 'locations', tab: 'lists', title: 'محل‌های استقرار', keywords: 'محل شعبه انبار طبقه دفتر' },
+  { id: 'newsCategories', tab: 'lists', title: 'دسته‌های اخبار و اطلاعیه‌ها', keywords: 'دسته اخبار خبر اطلاعیه' },
+  { id: 'documentCategories', tab: 'lists', title: 'دسته‌های اسناد و فرم‌ها', keywords: 'دسته سند اسناد فرم' },
+  { id: 'trainingCategories', tab: 'lists', title: 'دسته‌های دوره‌های آموزشی', keywords: 'دسته دوره آموزش' },
+  { id: 'server', tab: 'server', title: 'وضعیت سرور و پشتیبان‌ها', keywords: 'سرور دیسک فضا پشتیبان بکاپ نسخه بیلد' },
+];
+
+// Arabic letters and the zero-width non-joiner typed differently should still match.
+const normalize = (text: string) => text.replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[\u200c\s]+/g, ' ').replace(/[أإآ]/g, 'ا').trim();
+
+const LAST_TAB_KEY = 'portal:settings-tab';
+const readLastTab = () => {
+  try {
+    return localStorage.getItem(LAST_TAB_KEY);
+  } catch {
+    return null;
+  }
+};
+const saveLastTab = (tab: SettingsTab) => {
+  try {
+    localStorage.setItem(LAST_TAB_KEY, tab);
+  } catch {
+    // Remembering the tab is only a convenience.
+  }
+};
+
+/** A box above the tabs: typing «لوگو» offers the logo section, and choosing it opens its tab there. */
+const SettingsSearch: React.FC<{ visibleTabs: SettingsTab[]; isAdmin: boolean; manage: boolean; onPick: (tab: SettingsTab, id: string) => void }> = ({
+  visibleTabs,
+  isAdmin,
+  manage,
+  onPick,
+}) => {
+  const [query, setQuery] = useState('');
+  const q = normalize(query);
+  const matches = q
+    ? SEARCH_INDEX.filter((e) => visibleTabs.includes(e.tab) && (e.id !== 'roles' || isAdmin) && (e.id !== 'guest' || manage) && normalize(`${e.title} ${e.keywords}`).includes(q)).slice(0, 6)
+    : [];
+  const pick = (entry: (typeof SEARCH_INDEX)[number]) => {
+    setQuery('');
+    onPick(entry.tab, entry.id);
+  };
+
   return (
-    <label className="lg:hidden block">
-      <span className="sr-only">رفتن به بخش</span>
-      <select
-        className={inputClass}
-        value=""
-        onChange={(e) => sections[Number(e.target.value)]?.el.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-      >
-        <option value="" disabled>رفتن به بخش…</option>
-        {sections.map((s, i) => <option key={i} value={i}>{s.title}</option>)}
-      </select>
-    </label>
+    <div className="relative">
+      <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#8C867A]" />
+      <input
+        type="search"
+        aria-label="جستجو در تنظیمات"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && matches[0]) {
+            e.preventDefault();
+            pick(matches[0]);
+          }
+          if (e.key === 'Escape') setQuery('');
+        }}
+        placeholder="جستجو در تنظیمات، مثلاً «لوگو» یا «صندوق»"
+        className={`${inputClass} pr-9`}
+      />
+      {q && (
+        <ul className="absolute z-20 inset-x-0 mt-1 bg-white border border-[#E6E0D5] rounded-2xl shadow-lg overflow-hidden divide-y divide-[#F0EBE3]">
+          {matches.length === 0 && <li className="px-4 py-3 text-xs text-[#6E6A60]">بخشی با این نام پیدا نشد.</li>}
+          {matches.map((m) => (
+            <li key={m.id}>
+              <button type="button" onClick={() => pick(m)} className="w-full text-right px-4 py-2.5 text-xs hover:bg-[#F5F2ED]">
+                <span className="font-bold text-[#2D2D2D]">{m.title}</span>
+                <span className="text-[#6E6A60]"> · {TABS.find((t) => t.id === m.tab)?.label}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 };
 
+/** One section of a tab, with the element the search scrolls to. */
+const Panel: React.FC<{ id: string; wide?: boolean; children: React.ReactNode }> = ({ id, wide, children }) => (
+  <div id={`settings-${id}`} className={`scroll-mt-24 rounded-3xl ${wide ? 'lg:col-span-2' : ''}`}>
+    {children}
+  </div>
+);
+
 export const AdminSettingsModule: React.FC = () => {
-  const { appSettings, can, isAdmin } = usePortal();
-  const containerRef = useRef<HTMLDivElement>(null);
-  if (!appSettings) return null;
+  const { appSettings, can, isAdmin, focusId, setActiveTab } = usePortal();
+  const [scrollTo, setScrollTo] = useState<string | null>(null);
+  const manage = can('settings.manage');
+  // Someone who may change only part of the settings sees only the tabs for it.
+  const visibleTabs = TABS.filter((t) => (t.id === 'access' ? isAdmin || manage : manage)).map((t) => t.id);
+  const last = readLastTab();
+  const tab: SettingsTab | undefined = isSettingsTab(focusId) && visibleTabs.includes(focusId)
+    ? focusId
+    : isSettingsTab(last) && visibleTabs.includes(last)
+      ? last
+      : visibleTabs[0];
+
+  useEffect(() => {
+    if (tab) saveLastTab(tab);
+  }, [tab]);
+
+  // Closing the browser tab with unsaved edits asks first, like switching settings tabs does.
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges()) e.preventDefault();
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, []);
+
+  // A search result opens its tab first, then scrolls to the section and marks it for a moment. Some
+  // sections appear only once their data has loaded, so it looks again for a couple of seconds.
+  useEffect(() => {
+    if (!scrollTo) return;
+    let tries = 0;
+    let timer = 0;
+    const find = () => {
+      const el = document.getElementById(`settings-${scrollTo}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.classList.add('ring-2', 'ring-red-300');
+        window.setTimeout(() => el.classList.remove('ring-2', 'ring-red-300'), 2000);
+        setScrollTo(null);
+      } else if (++tries < 20) timer = window.setTimeout(find, 100);
+      else setScrollTo(null);
+    };
+    timer = window.setTimeout(find, 0);
+    return () => window.clearTimeout(timer);
+  }, [scrollTo, tab]);
+
+  if (!appSettings || !tab) return null;
+
+  const open = (next: SettingsTab) => {
+    if (next === tab || !confirmDiscard()) return false;
+    setActiveTab('admin', next);
+    return true;
+  };
 
   return (
-    <div className="space-y-6" ref={containerRef}>
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
         <div className="p-3 bg-[#7f1d1d] text-white rounded-2xl shadow-lg">
           <Settings className="w-6 h-6" />
         </div>
         <div>
           <h2 className="text-xl font-black text-[#2D2D2D]">تنظیمات پرتال</h2>
-          <p className="text-sm text-[#6E6A60]">نقش‌ها و دسترسی‌ها، امکانات پرتال، لوگوی شرکت، سالگرد تأسیس، فهرست واحدها و دسته‌بندی‌ها. سامانه‌های سازمانی از صفحهٔ «سامانه‌ها» ویرایش می‌شوند.</p>
+          <p className="text-sm text-[#6E6A60]">تنظیمات در چند بخش آمده است؛ برای پیدا کردن سریع، نام آن را جستجو کنید. سامانه‌های سازمانی از صفحهٔ «سامانه‌ها» ویرایش می‌شوند.</p>
         </div>
       </div>
-      <SectionJump containerRef={containerRef} />
-      {isAdmin && <RolesEditor />}
-      {can('settings.manage') && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <LogoSettings settings={appSettings} />
-          <ServerStatusCard />
-          <FoundingDaySettings settings={appSettings} />
-          <GuestAccessSettings settings={appSettings} />
-          <FeatureSettings />
-          <DashboardCardsSettings settings={appSettings} />
-          <ManagedListEditor settings={appSettings} config={DEPARTMENTS} />
-          <ManagedListEditor settings={appSettings} config={LOCATIONS} />
-          {SECTIONS.map((s) => <ListEditor key={`${s.key}-${appSettings[s.key].join('|')}`} settings={appSettings} section={s} />)}
+
+      <div className="lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-6 space-y-4 lg:space-y-0 lg:items-start">
+        <div className="space-y-3 lg:sticky lg:top-24">
+          <SettingsSearch
+            visibleTabs={visibleTabs}
+            isAdmin={isAdmin}
+            manage={manage}
+            onPick={(next, id) => {
+              if (next === tab || open(next)) setScrollTo(id);
+            }}
+          />
+          {/* A phone has no room for the list of tabs, so it gets a drop-down. */}
+          <label className="lg:hidden block">
+            <span className="sr-only">بخش تنظیمات</span>
+            <select className={inputClass} value={tab} onChange={(e) => open(e.target.value as SettingsTab)}>
+              {TABS.filter((t) => visibleTabs.includes(t.id)).map((t) => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+            </select>
+          </label>
+          <nav aria-label="بخش‌های تنظیمات" className="hidden lg:block">
+            <ul className="space-y-1">
+              {TABS.filter((t) => visibleTabs.includes(t.id)).map((t) => (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    aria-current={tab === t.id ? 'page' : undefined}
+                    onClick={() => open(t.id)}
+                    className={`w-full flex items-start gap-2.5 text-right px-3 py-2.5 rounded-2xl transition-colors ${
+                      tab === t.id ? 'bg-[#7f1d1d] text-white' : 'text-[#2D2D2D] hover:bg-white'
+                    }`}
+                  >
+                    <span className="mt-0.5 shrink-0">{t.icon}</span>
+                    <span>
+                      <span className="block text-xs font-bold">{t.label}</span>
+                      <span className={`block text-[10px] leading-relaxed ${tab === t.id ? 'text-red-100' : 'text-[#8C867A]'}`}>{t.hint}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
         </div>
-      )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
+          {tab === 'general' && (
+            <>
+              <Panel id="logo" wide><LogoSettings settings={appSettings} /></Panel>
+              <Panel id="founding" wide><FoundingDaySettings settings={appSettings} /></Panel>
+            </>
+          )}
+          {tab === 'access' && (
+            <>
+              {isAdmin && <Panel id="roles" wide><RolesEditor /></Panel>}
+              {manage && <Panel id="guest" wide><GuestAccessSettings settings={appSettings} /></Panel>}
+            </>
+          )}
+          {tab === 'features' && (
+            <>
+              <Panel id="features" wide><FeatureSettings /></Panel>
+              <Panel id="dashboard-cards" wide><DashboardCardsSettings settings={appSettings} /></Panel>
+            </>
+          )}
+          {tab === 'lists' && (
+            <>
+              <Panel id="departments"><ManagedListEditor settings={appSettings} config={DEPARTMENTS} /></Panel>
+              <Panel id="locations"><ManagedListEditor settings={appSettings} config={LOCATIONS} /></Panel>
+              {SECTIONS.map((s) => (
+                <Panel key={s.key} id={s.key}>
+                  <ListEditor key={`${s.key}-${appSettings[s.key].join('|')}`} settings={appSettings} section={s} />
+                </Panel>
+              ))}
+            </>
+          )}
+          {tab === 'server' && <Panel id="server" wide><ServerStatusCard /></Panel>}
+        </div>
+      </div>
     </div>
   );
 };

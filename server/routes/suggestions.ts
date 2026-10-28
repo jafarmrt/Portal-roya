@@ -2,7 +2,9 @@ import { createHash, randomInt } from 'crypto';
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
+import { featureVisible } from '../../shared/features.js';
 import {
+  boxNames,
   normalizeTrackingCode,
   SUGGESTION_BOX_IDS,
   SUGGESTION_BOXES,
@@ -14,9 +16,11 @@ import {
 import { can, type SessionUser } from '../auth.js';
 import { db } from '../db/index.js';
 import { employees, suggestions } from '../db/schema.js';
+import { featureConfig } from '../features.js';
 import { currentUser, HttpError, newId, parse, route } from '../http.js';
 import { createNotifications } from '../notify.js';
 import { idsWithPermission } from '../roles.js';
+import { ensureSettings } from '../settings.js';
 import { fullName } from '../serializers.js';
 import { requiredText } from '../validation.js';
 
@@ -103,8 +107,11 @@ suggestionsRouter.post(
       }),
       req.body,
     );
-    checkSendLimit(viewer.id);
     const box = suggestionBox(body.box)!;
+    // A box that is switched off (or in preview for others) takes no new messages; its readers still answer the earlier ones.
+    if (!featureVisible(await featureConfig(), box.feature, viewer)) throw new HttpError(400, 'این صندوق فعلاً پیام تازه نمی‌پذیرد.');
+    checkSendLimit(viewer.id);
+    const { label } = boxNames((await ensureSettings()).suggestionBoxNames, box.id);
     const trackingCode = body.anonymous ? newTrackingCode() : null;
     const now = new Date();
     const [row] = await db
@@ -128,7 +135,7 @@ suggestionsRouter.post(
     await createNotifications(
       body.anonymous ? readers : readers.filter((id) => id !== viewer.id),
       {
-        title: `پیام تازه در ${box.label} 📮`,
+        title: `پیام تازه در ${label} 📮`,
         message: `${suggestionKindLabel(body.kind)}: «${body.subject}»`,
         type: 'suggestion',
         linkTab: 'suggestions',
@@ -241,7 +248,7 @@ suggestionsRouter.put(
       .where(eq(suggestions.id, row.id));
     if (row.senderId && !row.reply) {
       await createNotifications([row.senderId], {
-        title: `پاسخ ${box.label} 💬`,
+        title: `پاسخ ${boxNames((await ensureSettings()).suggestionBoxNames, box.id).label} 💬`,
         message: `به پیام «${row.subject}» پاسخ داده شد.`,
         type: 'suggestion',
         linkTab: 'suggestions',

@@ -1,0 +1,1 @@
+ALTER TABLE "settings" ADD COLUMN "suggestion_box_names" jsonb DEFAULT '{}'::jsonb NOT NULL;

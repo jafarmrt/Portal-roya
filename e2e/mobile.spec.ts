@@ -72,9 +72,10 @@ test.describe('on a phone', () => {
     await expect(bar.getByRole('button', { name: 'داشبورد' })).toHaveAttribute('aria-current', 'page');
   });
 
-  test('settings jump straight to a section @mobile', async ({ page }) => {
-    await page.goto('/#admin');
-    await page.getByLabel('رفتن به بخش').selectOption({ label: 'محل‌های استقرار' });
-    await expect(page.locator('section[aria-labelledby="locations-title"]')).toBeInViewport();
+  test('settings open a tab from the drop-down @mobile', async ({ page }) => {
+    await page.goto('/#admin/general');
+    await page.getByLabel('بخش تنظیمات').selectOption({ label: 'فهرست‌ها' });
+    await expect(page).toHaveURL(/#admin\/lists$/);
+    await expect(page.locator('section[aria-labelledby="locations-title"]')).toBeVisible();
   });
 });

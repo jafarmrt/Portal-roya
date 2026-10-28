@@ -5,7 +5,7 @@ import { usePortal } from '../../context/PortalContext';
 import { api, errorMessage } from '../../lib/api';
 import { formatDate, formatDateTime, toPersianDigits } from '../../lib/jalali';
 import { suggestionsChanged, useSuggestionSummary } from '../../lib/suggestionSummary';
-import { SUGGESTION_BOXES, SUGGESTION_KINDS, suggestionBox, suggestionKindLabel, type SuggestionBox, type SuggestionKind } from '../../../shared/suggestions';
+import { boxNames, SUGGESTION_BOXES, SUGGESTION_KINDS, suggestionKindLabel, type SuggestionBox, type SuggestionKind } from '../../../shared/suggestions';
 import { Avatar } from '../common/Avatar';
 
 interface SentMessage {
@@ -35,6 +35,12 @@ const cardClass = 'bg-white border border-[#E6E0D5] rounded-3xl p-4 sm:p-6';
 const inputClass = 'w-full px-3 py-2.5 rounded-xl border border-[#E6E0D5] bg-[#FDFBF7] text-sm focus:outline-none focus:border-[#dc2626]';
 const primaryButton = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#991b1b] hover:bg-[#7f1d1d] text-white text-xs font-bold disabled:opacity-50';
 
+/** A box's name and who it goes to, as the administrator named them. */
+const useBoxNames = () => {
+  const { appSettings } = usePortal();
+  return (id: string) => boxNames(appSettings?.suggestionBoxNames, id);
+};
+
 /** An anonymous message is stored with its day only, so its time is never shown. */
 const sentAt = (m: SentMessage) => (m.isAnonymous ? formatDate(m.createdAt) : formatDateTime(m.createdAt));
 
@@ -48,11 +54,12 @@ const KindBadge: React.FC<{ kind: string }> = ({ kind }) => (
   </span>
 );
 
-const ReplyBlock: React.FC<{ message: SentMessage; by?: string | null }> = ({ message, by }) =>
-  message.reply ? (
+const ReplyBlock: React.FC<{ message: SentMessage; by?: string | null }> = ({ message, by }) => {
+  const names = useBoxNames();
+  return message.reply ? (
     <div className="mt-3 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-950 space-y-1">
       <div className="text-[11px] font-bold text-emerald-800">
-        پاسخ {suggestionBox(message.box)?.to}
+        پاسخ {names(message.box).to}
         {by ? ` (${by})` : ''}، {formatDateTime(message.repliedAt)}
       </div>
       <p className="whitespace-pre-line leading-7">{message.reply}</p>
@@ -60,9 +67,19 @@ const ReplyBlock: React.FC<{ message: SentMessage; by?: string | null }> = ({ me
   ) : (
     <div className="mt-3 text-[11px] text-[#6E6A60]">{message.isRead ? 'خوانده شده، هنوز پاسخی داده نشده است.' : 'هنوز خوانده نشده است.'}</div>
   );
+};
+
+/** The boxes this person can write to now; a box that is switched off takes no new messages. */
+const useOpenBoxes = () => {
+  const { featureOn } = usePortal();
+  return SUGGESTION_BOXES.filter((b) => featureOn(b.feature)).map((b) => b.id);
+};
 
 const SendForm: React.FC<{ onSent: (trackingCode: string | null) => void }> = ({ onSent }) => {
-  const [box, setBox] = useState<SuggestionBox>('management');
+  const names = useBoxNames();
+  const openBoxes = useOpenBoxes();
+  const [chosen, setBox] = useState<SuggestionBox>('management');
+  const box = openBoxes.includes(chosen) ? chosen : openBoxes[0];
   const [kind, setKind] = useState<SuggestionKind>('suggestion');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -84,27 +101,36 @@ const SendForm: React.FC<{ onSent: (trackingCode: string | null) => void }> = ({
     }
   };
 
+  if (!box) return <div className={`${cardClass} text-center text-sm text-[#6E6A60]`}>فعلاً هیچ صندوقی پیام تازه نمی‌پذیرد.</div>;
+
   return (
     <form onSubmit={submit} className={`${cardClass} space-y-5`}>
-      <fieldset className="space-y-2">
-        <legend className="text-xs font-bold text-[#2D2D2D] mb-2">پیام برای چه کسی است؟</legend>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {SUGGESTION_BOXES.map((b) => (
-            <label
-              key={b.id}
-              className={`flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-colors ${
-                box === b.id ? 'border-[#dc2626] bg-[#fef2f2]' : 'border-[#E6E0D5] hover:border-[#dc2626]/50'
-              }`}
-            >
-              <input type="radio" name="box" value={b.id} checked={box === b.id} onChange={() => setBox(b.id)} className="accent-[#991b1b]" />
-              <span>
-                <span className="block text-sm font-bold text-[#2D2D2D]">{b.label}</span>
-                <span className="block text-[11px] text-[#6E6A60]">خواننده: {b.to}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      {openBoxes.length > 1 ? (
+        <fieldset className="space-y-2">
+          <legend className="text-xs font-bold text-[#2D2D2D] mb-2">پیام برای چه کسی است؟</legend>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {openBoxes.map((id) => (
+              <label
+                key={id}
+                className={`flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-colors ${
+                  box === id ? 'border-[#dc2626] bg-[#fef2f2]' : 'border-[#E6E0D5] hover:border-[#dc2626]/50'
+                }`}
+              >
+                <input type="radio" name="box" value={id} checked={box === id} onChange={() => setBox(id)} className="accent-[#991b1b]" />
+                <span>
+                  <span className="block text-sm font-bold text-[#2D2D2D]">{names(id).label}</span>
+                  <span className="block text-[11px] text-[#6E6A60]">خواننده: {names(id).to}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ) : (
+        // Only one box is open, so there is nothing to choose.
+        <p className="text-sm font-bold text-[#2D2D2D]">
+          پیام شما به {names(box).to} می‌رسد <span className="text-[11px] font-normal text-[#6E6A60]">({names(box).label})</span>
+        </p>
+      )}
 
       <fieldset>
         <legend className="text-xs font-bold text-[#2D2D2D] mb-2">نوع پیام</legend>
@@ -190,6 +216,7 @@ const TrackingCodeNotice: React.FC<{ code: string; onDone: () => void }> = ({ co
 };
 
 const MyMessages: React.FC = () => {
+  const names = useBoxNames();
   const [items, setItems] = useState<SentMessage[] | null>(null);
   useEffect(() => {
     api.get<SentMessage[]>('/api/suggestions/mine').then(setItems).catch(() => setItems([]));
@@ -208,7 +235,7 @@ const MyMessages: React.FC = () => {
         <li key={m.id} className={cardClass}>
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#6E6A60]">
             <KindBadge kind={m.kind} />
-            <span className="font-bold text-[#4B4740]">{suggestionBox(m.box)?.label}</span>
+            <span className="font-bold text-[#4B4740]">{names(m.box).label}</span>
             <span>{sentAt(m)}</span>
           </div>
           <h3 className="mt-2 text-sm font-black text-[#2D2D2D]">{m.subject}</h3>
@@ -221,6 +248,7 @@ const MyMessages: React.FC = () => {
 };
 
 const TrackByCode: React.FC = () => {
+  const names = useBoxNames();
   const [code, setCode] = useState('');
   const [found, setFound] = useState<SentMessage | null>(null);
   const [loading, setLoading] = useState(false);
@@ -260,7 +288,7 @@ const TrackByCode: React.FC = () => {
         <div className={cardClass}>
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#6E6A60]">
             <KindBadge kind={found.kind} />
-            <span className="font-bold text-[#4B4740]">{suggestionBox(found.box)?.label}</span>
+            <span className="font-bold text-[#4B4740]">{names(found.box).label}</span>
             <span>{sentAt(found)}</span>
           </div>
           <h3 className="mt-2 text-sm font-black text-[#2D2D2D]">{found.subject}</h3>
@@ -382,6 +410,8 @@ const BoxMessageCard: React.FC<{ message: BoxMessage; onChanged: () => void }> =
 };
 
 const BoxInbox: React.FC<{ box: SuggestionBox }> = ({ box }) => {
+  const names = useBoxNames();
+  const isOpen = useOpenBoxes().includes(box);
   const [items, setItems] = useState<BoxMessage[] | null>(null);
   const [showClosed, setShowClosed] = useState(false);
   const { notifications } = usePortal();
@@ -399,9 +429,14 @@ const BoxInbox: React.FC<{ box: SuggestionBox }> = ({ box }) => {
   const closedCount = items.filter((m) => m.isClosed).length;
   return (
     <div className="space-y-3">
+      {!isOpen && (
+        <p role="status" className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 leading-6">
+          این صندوق خاموش است و پیام تازه نمی‌پذیرد. پیام‌های قبلی را همچنان می‌بینید و می‌توانید به آن‌ها پاسخ دهید.
+        </p>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-[#6E6A60]">
-          پیام‌های {suggestionBox(box)?.label}. نام فرستندهٔ پیام‌های ناشناس جایی ثبت نشده است.
+          پیام‌های {names(box).label}. نام فرستندهٔ پیام‌های ناشناس جایی ثبت نشده است.
         </p>
         <button type="button" onClick={() => setShowClosed((s) => !s)} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#991b1b]">
           <Archive className="w-4 h-4" />
@@ -424,6 +459,8 @@ const BoxInbox: React.FC<{ box: SuggestionBox }> = ({ box }) => {
 /** صندوق انتقادات و پیشنهادات: every colleague writes to management or HR, named or anonymous; each box's readers answer. */
 export const SuggestionsModule: React.FC = () => {
   const { focusId, setActiveTab } = usePortal();
+  const names = useBoxNames();
+  const openBoxes = useOpenBoxes();
   const summary = useSuggestionSummary();
   const readable = summary?.boxes ?? [];
   const [view, setView] = useState<View>('send');
@@ -444,7 +481,12 @@ export const SuggestionsModule: React.FC = () => {
     { id: 'send', label: 'ارسال پیام', icon: <Send className="w-4 h-4" /> },
     { id: 'mine', label: 'پیام‌های من', icon: <Mail className="w-4 h-4" /> },
     { id: 'track', label: 'پیگیری با کد', icon: <Search className="w-4 h-4" /> },
-    ...readable.map((b) => ({ id: b as View, label: suggestionBox(b)!.label, icon: <Inbox className="w-4 h-4" />, badge: summary?.unread[b] })),
+    ...readable.map((b) => ({
+      id: b as View,
+      label: openBoxes.includes(b) ? names(b).label : `${names(b).label} (خاموش)`,
+      icon: <Inbox className="w-4 h-4" />,
+      badge: summary?.unread[b],
+    })),
   ];
 
   return (
@@ -457,7 +499,7 @@ export const SuggestionsModule: React.FC = () => {
           </div>
           <h1 className="text-xl sm:text-3xl font-black">صندوق انتقادات و پیشنهادات</h1>
           <p className="text-[#E6E0D5] text-xs sm:text-sm max-w-2xl leading-relaxed">
-            انتقاد یا پیشنهادتان را برای مدیریت یا واحد منابع انسانی بفرستید. اگر بخواهید، پیام کاملاً ناشناس فرستاده می‌شود.
+            انتقاد یا پیشنهادتان را برای {openBoxes.map((b) => names(b).to).join(' یا ') || 'همکاران مسئول'} بفرستید. اگر بخواهید، پیام کاملاً ناشناس فرستاده می‌شود.
           </p>
         </div>
       </div>
@@ -501,7 +543,7 @@ export const SuggestionsModule: React.FC = () => {
 
       <p className="flex items-center gap-1.5 text-[11px] text-[#6E6A60]">
         <ShieldCheck className="w-3.5 h-3.5" />
-        خوانندگان هر صندوق را ادمین پرتال در «تنظیمات ← نقش‌ها و دسترسی‌ها» تعیین می‌کند. ادمین پرتال همیشه هر دو صندوق را می‌بیند.
+        خوانندگان هر صندوق را ادمین پرتال در «تنظیمات ← نقش‌ها و دسترسی» تعیین می‌کند. ادمین پرتال همیشه هر دو صندوق را می‌بیند.
       </p>
     </div>
   );
