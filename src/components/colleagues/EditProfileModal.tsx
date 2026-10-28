@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CheckCircle2, KeyRound, ShieldOff, User } from 'lucide-react';
-import { usePortal, type ProfileUpdate } from '../../context/PortalContext';
-import { NO_DEPARTMENT } from '../../../shared/profile';
+import { type ManagedProfileUpdate, usePortal, type ProfileUpdate } from '../../context/PortalContext';
+import { NO_DEPARTMENT, unitHeads } from '../../../shared/profile';
 import type { UserProfile } from '../../types';
 import { FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
 import { JalaliDateInput } from '../common/JalaliDateInput';
@@ -35,7 +35,7 @@ interface EditProfileModalProps {
 }
 
 export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClose }) => {
-  const { updateUserProfile, resetEmployeePassword, directoryLogin, can, isAdmin: viewerIsAdmin, appSettings, employees, currentUser, featureOn } = usePortal();
+  const { updateUserProfile, resetEmployeePassword, directoryLogin, can, isAdmin: viewerIsAdmin, appSettings, employees, currentUser, featureOn, departmentPages } = usePortal();
   // Admin accounts can only be changed by an admin; the server enforces the same rule.
   const isAdmin = can('users.manage') && (viewerIsAdmin || user.role !== 'admin');
   const isSelf = currentUser?.id === user.id;
@@ -68,6 +68,12 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
   });
   const [busy, setBusy] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
+  // Head of the unit chosen above (its page's «مسئول واحد»); a unit has one head.
+  const heads = unitHeads(departmentPages);
+  const [unitHead, setUnitHead] = useState(Boolean(user.department) && heads.get(user.department) === user.id);
+  const otherHeadId = form.department ? heads.get(form.department) : undefined;
+  const otherHead = otherHeadId && otherHeadId !== user.id ? employees.find((e) => e.id === otherHeadId) : undefined;
+  const fallbackManager = !form.directManagerId && otherHead && !unitHead ? otherHead : undefined;
 
   const set = <K extends keyof ProfileUpdate>(key: K, value: Required<ProfileUpdate>[K]) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -77,8 +83,13 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
     // Employees may only change their own contact details; the server enforces the same rule.
     // The role is sent only when changed here, so access granted or removed meanwhile keeps its role.
     const { role, ...managed } = form;
-    const update: ProfileUpdate = isAdmin
-      ? { ...managed, ...(live.hasAccount && role !== user.role ? { role } : {}) }
+    const headsChosenUnit = Boolean(form.department) && heads.get(form.department) === user.id;
+    const update: ManagedProfileUpdate = isAdmin
+      ? {
+          ...managed,
+          ...(live.hasAccount && role !== user.role ? { role } : {}),
+          ...(unitHead !== headsChosenUnit ? { isUnitHead: unitHead } : {}),
+        }
       : {
           firstName: form.firstName,
           lastName: form.lastName,
@@ -195,6 +206,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
                       <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>
                     ))}
                   </select>
+                  {fallbackManager && (
+                    <p className="mt-1 text-[11px] text-[#6E6A60]">
+                      خالی یعنی مسئول واحد، {fallbackManager.firstName} {fallbackManager.lastName}، در چارت سازمانی مدیر او حساب می‌شود.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="edit-hire" className={labelClass}>تاریخ استخدام</label>
@@ -203,6 +219,29 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
               </>
             )}
           </div>
+          {isAdmin && (
+            <label className={`flex items-start gap-2 ${live.hasAccount && form.department && form.isActive ? 'cursor-pointer' : 'opacity-60'}`}>
+              <input
+                type="checkbox"
+                checked={unitHead}
+                disabled={!live.hasAccount || !form.department || !form.isActive}
+                onChange={(e) => setUnitHead(e.target.checked)}
+                className="accent-red-700 mt-0.5"
+              />
+              <span>
+                <strong className="text-xs">مسئول این واحد است</strong>
+                <span className="block text-[11px] text-[#6E6A60] leading-relaxed">
+                  {!live.hasAccount
+                    ? 'مسئول واحد باید حساب پرتال داشته باشد.'
+                    : otherHead && unitHead
+                      ? `الان ${otherHead.firstName} ${otherHead.lastName} مسئول ${form.department} است؛ با ذخیره، جای او را می‌گیرد.`
+                      : otherHead
+                        ? `مسئول فعلی ${form.department}: ${otherHead.firstName} ${otherHead.lastName}.`
+                        : 'در دفتر تلفن برچسب «مسئول واحد» می‌گیرد، صفحهٔ واحد را به‌روز نگه می‌دارد و برای همکارانی که مدیر مستقیم ندارند مدیر حساب می‌شود.'}
+                </span>
+              </span>
+            </label>
+          )}
         </fieldset>
 
         {isAdmin && (

@@ -10,7 +10,7 @@ import { can, type Employee, hashPassword, isAdmin, requirePermission, type Sess
 import { db } from '../db/index.js';
 import { addDepartments, departmentList, requireDepartment, requireLocation } from '../departments.js';
 import { checkRows, type ImportRow, importRowsSchema, type ImportUpdate, MAX_IMPORT_ROWS, newDepartments, rowsToRecords } from '../employeeImport.js';
-import { birthdayWishes, colleagueWishes, employees, newColleagues, roles } from '../db/schema.js';
+import { birthdayWishes, colleagueWishes, departmentPages, employees, newColleagues, roles } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
 import { canListDirectory, DIRECTORY_PASSWORD_MESSAGE, DirectoryUnavailableError, isDirectoryEnabled, listDirectoryUsers } from '../ldap.js';
@@ -19,6 +19,7 @@ import { fullName, serializeEmployee, serializeForGuest } from '../serializers.j
 import { guestSettings } from '../settings.js';
 import { readSpreadsheet, SpreadsheetError } from '../spreadsheet.js';
 import { accountRules, roleExists } from '../roles.js';
+import { clearUnitHead, setUnitHead } from '../unitHeads.js';
 import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID } from '../../shared/permissions.js';
 import { assetUrl, assetUrlValue, jalaliDateValue, optionalJalaliDate, optionalText, password, requiredText, textValue, username } from '../validation.js';
 
@@ -344,7 +345,9 @@ employeesRouter.delete(
       .set({ ...NO_ACCOUNT, username: target.username, failedLogins: 0, lockedUntil: null, sessionVersion: target.sessionVersion + 1 })
       .where(eq(employees.id, target.id))
       .returning();
-    await audit(viewer, { action: 'update', entity: 'employee', id: updated.id, title: fullName(updated), detail: 'دسترسی پرتال برداشته شد' });
+    await audit(viewer, { action: 'update', entity: 'employee', id: updated.id, title: fullName(updated), detail: 'حساب پرتال برداشته شد' });
+    // A unit head needs an account (to keep the unit's page current).
+    await clearUnitHead(viewer, target.id);
     broadcastChange('employees');
     res.json(serializeEmployee(updated, viewer));
   }),
@@ -372,6 +375,8 @@ const managerOnlyFields = {
   hireDate: jalaliDateValue,
   directManagerId: z.string().max(100).nullable(),
   isActive: z.boolean(),
+  // Whether they head their unit (its «مسئول واحد»); kept on the unit's page, not on the person.
+  isUnitHead: z.boolean(),
 };
 const updateSchema = z.object({ ...contactUpdateFields, ...managerOnlyFields }).partial();
 
@@ -400,23 +405,35 @@ employeesRouter.patch(
     if (losesAdminAccess && (await activeAdminCount(target.id)) === 0) {
       throw new HttpError(400, 'پرتال باید حداقل یک ادمین فعال داشته باشد.');
     }
-    if (body.department !== undefined && body.department !== target.department) body.department = await requireDepartment(body.department);
+    if (body.department !== undefined && body.department !== target.department) {
+      if (!body.department.trim()) throw new HttpError(400, 'واحد را انتخاب کنید.');
+      body.department = await requireDepartment(body.department);
+    }
     if (body.location !== undefined && body.location !== target.location) body.location = await requireLocation(body.location);
     if (body.directManagerId === target.id) {
       throw new HttpError(400, 'همکار نمی‌تواند مدیر مستقیم خودش باشد.');
     }
 
-    const { avatar, ...rest } = body;
-    const [updated] = await db
-      .update(employees)
-      .set({ ...rest, ...(avatar !== undefined ? { avatarUrl: avatar } : {}) })
-      .where(eq(employees.id, target.id))
-      .returning();
+    const { avatar, isUnitHead, ...rest } = body;
+    const columns = { ...rest, ...(avatar !== undefined ? { avatarUrl: avatar } : {}) };
+    // Only the unit headship may be changing, which lives on the unit's page.
+    const [updated] = Object.keys(columns).length === 0
+      ? [target]
+      : await db.update(employees).set(columns).where(eq(employees.id, target.id)).returning();
     // Colleagues keeping their own contact details current is not a management change; a new name is noted.
     const renamed = updated.firstName !== target.firstName || updated.lastName !== target.lastName;
     if (changesAccount || renamed || viewer.id !== target.id) {
       const detail = await recordChanges(target, updated);
       if (detail) await audit(viewer, { action: 'update', entity: 'employee', id: updated.id, title: fullName(updated), detail });
+    }
+    // A unit's head is one of its people: moving to another unit, leaving or losing the account ends it.
+    if (!updated.isActive || !updated.hasAccount) await clearUnitHead(viewer, updated.id);
+    else if (updated.department !== target.department && target.department) await clearUnitHead(viewer, updated.id, target.department);
+    if (isUnitHead !== undefined && updated.department) {
+      const [page] = await db.select({ headId: departmentPages.headId }).from(departmentPages).where(eq(departmentPages.department, updated.department));
+      const heads = page?.headId === updated.id;
+      if (isUnitHead && !heads) await setUnitHead(viewer, updated.department, updated.id);
+      if (!isUnitHead && heads) await setUnitHead(viewer, updated.department, null);
     }
     broadcastChange('employees');
     res.json(serializeEmployee(updated, viewer));

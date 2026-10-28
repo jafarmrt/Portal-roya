@@ -266,3 +266,54 @@ describe('colleagues without a unit or position yet', () => {
     expect((await admin.get('/api/settings').expect(200)).body.departments).toContain('نامشخص');
   });
 });
+
+describe('unit heads from staff management', () => {
+  let admin: Agent;
+
+  beforeAll(async () => {
+    await resetDatabase();
+    admin = await setupAdmin();
+  });
+
+  const headOf = async (department: string) =>
+    ((await admin.get('/api/department_pages').expect(200)).body as { department: string; headId: string | null }[]).find((p) => p.department === department)
+      ?.headId ?? null;
+
+  it('makes a colleague the head of their unit, replacing the previous head, and records it', async () => {
+    const first = await createEmployee(admin, { username: 'head.one', department: 'فروش' });
+    const second = await createEmployee(admin, { username: 'head.two', department: 'فروش' });
+    await admin.patch(`/api/employees/${first.id}`).send({ isUnitHead: true }).expect(200);
+    expect(await headOf('فروش')).toBe(first.id);
+    await admin.patch(`/api/employees/${second.id}`).send({ isUnitHead: true }).expect(200);
+    expect(await headOf('فروش')).toBe(second.id);
+    await admin.patch(`/api/employees/${second.id}`).send({ isUnitHead: false }).expect(200);
+    expect(await headOf('فروش')).toBeNull();
+
+    const history = JSON.stringify((await admin.get('/api/audit-log').expect(200)).body);
+    expect(history).toContain('مسئول واحد: همکار head.two');
+    expect(history).toContain('مسئول واحد: بدون مسئول');
+    // It is a staff-management change, not something colleagues set on their own profile.
+    await first.agent.patch(`/api/employees/${first.id}`).send({ isUnitHead: true }).expect(403);
+  });
+
+  it('ends the headship when the head moves to another unit, leaves or loses the account', async () => {
+    const head = await createEmployee(admin, { username: 'head.mover', department: 'طراحی' });
+    await admin.patch(`/api/employees/${head.id}`).send({ isUnitHead: true }).expect(200);
+    await admin.patch(`/api/employees/${head.id}`).send({ department: 'تولید' }).expect(200);
+    expect(await headOf('طراحی')).toBeNull();
+
+    // Moving with the box ticked makes them head of the new unit instead.
+    await admin.patch(`/api/employees/${head.id}`).send({ department: 'طراحی', isUnitHead: true }).expect(200);
+    expect(await headOf('طراحی')).toBe(head.id);
+    await admin.delete(`/api/employees/${head.id}/account`).expect(200);
+    expect(await headOf('طراحی')).toBeNull();
+
+    const phoneBookOnly = await admin.post('/api/employees').send({ ...worker, hasAccount: false }).expect(201);
+    await admin.patch(`/api/employees/${phoneBookOnly.body.employee.id}`).send({ isUnitHead: true }).expect(400);
+
+    const leaver = await createEmployee(admin, { username: 'head.leaver', department: 'تولید' });
+    await admin.patch(`/api/employees/${leaver.id}`).send({ isUnitHead: true }).expect(200);
+    await admin.patch(`/api/employees/${leaver.id}`).send({ isActive: false }).expect(200);
+    expect(await headOf('تولید')).toBeNull();
+  });
+});
