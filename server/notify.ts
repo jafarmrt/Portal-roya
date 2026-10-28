@@ -6,7 +6,7 @@ import { notifyUsers } from './events.js';
 import { sendMail } from './mailer.js';
 import { type Audience, EVERYONE, inAudience } from '../shared/audience.js';
 
-export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system' | 'suggestion';
+export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system' | 'suggestion' | 'todo';
 
 export interface NotificationInput {
   title: string;

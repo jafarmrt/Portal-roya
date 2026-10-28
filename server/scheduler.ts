@@ -11,6 +11,7 @@ import { processGuideReviews } from './routes/guides.js';
 import { processPollDeadlines } from './routes/polls.js';
 import { processEventReminders } from './routes/calendar.js';
 import { processTrainingReminders } from './routes/trainings.js';
+import { processTodoReminders } from './routes/todos.js';
 import { indexMissingDocumentTexts } from './textExtract.js';
 import { announceNews, processAckDeadlines } from './routes/news.js';
 import { processMonthlySummary } from './reports.js';
@@ -148,6 +149,7 @@ export function startScheduler() {
     processPollDeadlines().catch((err) => console.error('Poll reminder error:', err));
     processEventReminders().catch((err) => console.error('Event reminder error:', err));
     processTrainingReminders().catch((err) => console.error('Training reminder error:', err));
+    processTodoReminders().catch((err) => console.error('To-do reminder error:', err));
     processMonthlySummary().catch((err) => console.error('Monthly summary error:', err));
     runNightlyMaintenance().catch((err) => console.error('Maintenance error:', err));
   }, INTERVAL_MS);

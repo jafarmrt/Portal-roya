@@ -37,6 +37,7 @@ import { audienceSummary, deadlineState, NewsContent } from './NewsBody';
 import { NewsHistoryModal } from './NewsHistory';
 import { NewsQuestions } from './NewsQuestions';
 import { NoticePrintModal } from './NoticePrintModal';
+import { AddToTodosButton } from '../todos/AddToTodosButton';
 import { ReadReceiptsModal } from '../common/ReceiptsModal';
 
 type Filter = 'all' | 'unread' | 'ack' | string;
@@ -472,6 +473,15 @@ const ArticleModal: React.FC<ArticleModalProps> = ({ article, isManager, onClose
                   <History className="w-4 h-4" /> تاریخچهٔ ویرایش
                 </button>
               </>
+            )}
+            {article.status === 'published' && (
+              <AddToTodosButton
+                type="news"
+                id={article.id}
+                title={article.requiresAck && !article.acknowledgedAt ? `مطالعه و تأیید: ${article.title}` : article.title}
+                dueDate={article.requiresAck && !article.acknowledgedAt ? article.ackDeadline : null}
+                className={secondaryButtonClass}
+              />
             )}
             <button onClick={onClose} className={secondaryButtonClass}>بستن</button>
           </div>

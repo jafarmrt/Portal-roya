@@ -24,6 +24,7 @@ import { inputClass, Modal, primaryButtonClass, secondaryButtonClass } from '../
 import { ReceiptsModal } from '../common/ReceiptsModal';
 import { audienceSummary } from '../news/NewsBody';
 import { DocumentFormModal, NewVersionModal, ReviewModal, VersionsModal } from './DocumentModals';
+import { AddToTodosButton } from '../todos/AddToTodosButton';
 
 const fileIcon = (doc: PortalDocument) =>
   /sheet|excel|csv/.test(doc.mimeType) ? <FileSpreadsheet className="w-5 h-5" /> : <FileText className="w-5 h-5" />;
@@ -83,6 +84,13 @@ const DocumentCard: React.FC<{ doc: PortalDocument; focused: boolean; open: (kin
           <a href={doc.fileUrl} download={doc.fileName} className="p-2 rounded-xl text-[#2D2D2D] hover:bg-[#F5F2ED]" aria-label={`دریافت ${doc.title}`} title="دریافت فایل">
             <Download className="w-4 h-4" />
           </a>
+          <AddToTodosButton
+            type="document"
+            id={doc.id}
+            title={awaitsMyAck(doc) ? `مطالعه و تأیید: ${doc.title}` : doc.title}
+            iconOnly
+            className="p-2 rounded-xl text-[#2D2D2D] hover:bg-[#F5F2ED]"
+          />
           {isManager && (
             <>
               <button onClick={() => open('edit')} className="p-2 rounded-xl text-[#2D2D2D] hover:bg-[#F5F2ED]" aria-label={`ویرایش ${doc.title}`} title="ویرایش مشخصات">

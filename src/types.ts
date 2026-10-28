@@ -1,6 +1,7 @@
 import type { WishDesign, WishOccasion } from '../shared/celebrations';
 import type { FeatureKey } from '../shared/features';
 import type { Permission } from '../shared/permissions';
+import type { TodoSourceType } from '../shared/todos';
 
 export type { Permission };
 
@@ -655,6 +656,27 @@ export interface SearchResultItem {
 }
 
 export type MoodState = 'عالی' | 'خوب' | 'معمولی' | 'بد' | 'خیلی بد';
+
+/** A note in this person's own «یادداشت کارهای من». */
+export interface PersonalTodo {
+  id: string;
+  title: string;
+  note: string;
+  /** Jalali YYYY/MM/DD, or null when it has no due date. */
+  dueDate: string | null;
+  /** The news item, event, course or document it was added from. */
+  sourceType: TodoSourceType | null;
+  sourceId: string | null;
+  doneAt: string | null;
+  createdAt: string;
+}
+
+export interface TodoInput {
+  title: string;
+  note?: string;
+  dueDate?: string | null;
+  source?: { type: TodoSourceType; id: string };
+}
 
 export interface UserMood {
   id: string;

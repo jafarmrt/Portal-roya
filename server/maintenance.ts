@@ -9,6 +9,7 @@ import { config } from './config.js';
 import { db } from './db/index.js';
 import { employees, notifications, roles } from './db/schema.js';
 import { createNotifications } from './notify.js';
+import { pruneDoneTodos } from './routes/todos.js';
 import { buildInfo } from './version.js';
 import { ADMIN_ROLE_ID } from '../shared/permissions.js';
 
@@ -220,6 +221,7 @@ export async function runNightlyMaintenance(now = new Date()) {
   if (state.lastCleanupDay !== dayKey(now)) {
     await cleanOrphanUploads(config.uploadDir, now).catch((err) => console.error('Upload cleanup failed:', err));
     await pruneNotifications(now).catch((err) => console.error('Notification cleanup failed:', err));
+    await pruneDoneTodos(now).catch((err) => console.error('To-do cleanup failed:', err));
   }
   try {
     await backupDatabase(config.backupDir, now);

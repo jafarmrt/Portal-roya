@@ -25,6 +25,7 @@ import { searchRouter } from './routes/search.js';
 import { reportsRouter } from './routes/reports.js';
 import { auditRouter } from './routes/audit.js';
 import { suggestionsRouter } from './routes/suggestions.js';
+import { todosRouter } from './routes/todos.js';
 import { buildInfo, changelog } from './version.js';
 
 /** Builds the API application. The static/Vite front-end is attached in server/index.ts. */
@@ -87,6 +88,7 @@ export function createApp() {
   api.use(reportsRouter);
   api.use(auditRouter);
   api.use(suggestionsRouter);
+  api.use(todosRouter);
   api.use(uploadsRouter);
   api.use((_req, res) => res.status(404).json({ error: 'مسیر یافت نشد.' }));
 
