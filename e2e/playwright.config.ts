@@ -17,6 +17,8 @@ export default defineConfig({
     locale: 'fa-IR',
     timezoneId: 'Asia/Tehran',
     trace: 'retain-on-failure',
+    // The portal's service worker would hide requests from page.route(); e2e/pwa.spec.ts allows it.
+    serviceWorkers: 'block',
     screenshot: 'only-on-failure',
     // GitHub's runners already have Chrome, so CI does not need to download a browser.
     ...(process.env.CI ? { channel: 'chrome' } : {}),

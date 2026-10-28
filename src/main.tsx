@@ -10,6 +10,10 @@ import '@fontsource/vazirmatn/700.css';
 import '@fontsource/vazirmatn/800.css';
 import '@fontsource/vazirmatn/900.css';
 import './index.css';
+import { setUpInstall } from './lib/pwa';
+
+// The service worker belongs to the built portal; in development Vite serves fresh files itself.
+if (import.meta.env.PROD) setUpInstall();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
