@@ -14,6 +14,8 @@ import { startPresenceSweep } from './presence.js';
 // the portal for everyone; request errors already reach the error handler.
 process.on('unhandledRejection', (err) => console.error('Unhandled error:', err));
 
+const NO_CACHE_FILES = new Set(['sw.js', 'manifest.webmanifest', 'offline.html']);
+
 async function main() {
   await runMigrations();
   await ensureRoles();
@@ -37,7 +39,18 @@ async function main() {
 
   if (config.isProduction) {
     const distPath = path.resolve('dist');
-    app.use(express.static(distPath, { index: false, maxAge: '7d', immutable: true }));
+    app.use(
+      express.static(distPath, {
+        index: false,
+        maxAge: '7d',
+        immutable: true,
+        // Files without a hash in their name that installed apps check for changes: the service worker,
+        // the app manifest and the offline page must never come from a week-old copy.
+        setHeaders: (res, filePath) => {
+          if (NO_CACHE_FILES.has(path.basename(filePath))) res.setHeader('Cache-Control', 'no-cache');
+        },
+      }),
+    );
     // A missing file (e.g. a code chunk from the previous release requested by a page opened before
     // an update) must be a real 404: answering with index.html makes the browser fail to run it.
     app.get(/\.[a-z0-9]+$/i, (_req, res) => {
