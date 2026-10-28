@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import type { CalendarEvent, CalendarNote } from '../../types';
+import type { CalendarEvent, CalendarNote, PersonalTodo } from '../../types';
+import { TodoFormModal } from '../todos/TodoFormModal';
 import { Avatar } from '../common/Avatar';
 import { formatDate, todayJalali, toPersianDigits } from '../../lib/jalali';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
@@ -26,7 +27,8 @@ const toggleClass = (active: boolean) =>
   `flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-colors ${active ? 'bg-[#991b1b] text-white' : 'text-[#6E6A60] hover:bg-[#F5F2ED]'}`;
 
 export const CalendarModule: React.FC = () => {
-  const { calendarEvents, can, employees, customHolidays, setCustomHoliday, removeCustomHoliday, focusId } = usePortal();
+  const { calendarEvents, can, employees, customHolidays, setCustomHoliday, removeCustomHoliday, focusId, myDueTodos } = usePortal();
+  const [openTodo, setOpenTodo] = useState<PersonalTodo | null>(null);
   const isManager = can('calendar.manage');
   const [view, setView] = useState<View>(initialView);
   const [form, setForm] = useState<{ event?: CalendarEvent; date?: string } | null>(null);
@@ -214,7 +216,7 @@ export const CalendarModule: React.FC = () => {
             </div>
 
             {view === 'week' ? (
-              <WeekAgenda start={weekStart} onOpenEvent={openEvent} onOpenNote={openNote} />
+              <WeekAgenda start={weekStart} onOpenEvent={openEvent} onOpenNote={openNote} onOpenTodo={setOpenTodo} />
             ) : (
             <div className="overflow-x-auto -mx-1 px-1 pb-1">
             <div className="min-w-[600px]">
@@ -326,6 +328,18 @@ export const CalendarModule: React.FC = () => {
                             </button>
                           );
                         })}
+                        {/* The person's own notes due that day; nobody else sees them */}
+                        {myDueTodos(dayDate).map((t) => (
+                          <button
+                            type="button"
+                            key={t.id}
+                            onClick={() => setOpenTodo(t)}
+                            className="block w-full text-right text-[9px] font-bold px-1 py-0.5 rounded truncate leading-tight bg-sky-50 text-sky-800 border border-dashed border-sky-300"
+                            title={`یادداشت من: ${t.title}`}
+                          >
+                            {t.title}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   );
@@ -430,6 +444,7 @@ export const CalendarModule: React.FC = () => {
       </div>
 
       {form && <EventFormModal event={form.event} date={form.date} onClose={() => setForm(null)} />}
+      {openTodo && <TodoFormModal todo={openTodo} onClose={() => setOpenTodo(null)} />}
 
       {editingPublicDate && (
         <Modal

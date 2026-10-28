@@ -2,8 +2,8 @@ import { and, eq } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { db, pool } from '../server/db/index';
-import { auditLog, employees, news } from '../server/db/schema';
-import { FEATURES } from '../shared/features';
+import { auditLog, employees, news, settings } from '../server/db/schema';
+import { FEATURES, introCardsAllowed } from '../shared/features';
 import { currentJalaliYear } from '../shared/jalali';
 import { app, createEmployee, resetDatabase, setupAdmin } from './helpers';
 
@@ -35,13 +35,13 @@ describe('switching parts of the portal off until they are introduced', () => {
   });
   afterAll(() => pool.end());
 
-  it('shows every existing part to everyone and keeps new parts switched off until an administrator changes it', async () => {
+  it('shows every part, new ones included, to everyone until an administrator switches it off', async () => {
     const settings = (await colleague.agent.get('/api/settings').expect(200)).body;
-    const existing = FEATURES.filter((f) => f.defaultState === 'on').map((f) => f.key);
-    expect(Object.keys(settings.features).sort()).toEqual(existing.sort());
+    expect(FEATURES.every((f) => f.defaultState === 'on')).toBe(true);
+    expect(Object.keys(settings.features).sort()).toEqual(FEATURES.map((f) => f.key).sort());
     expect(Object.values(settings.features).every((s) => s === 'on')).toBe(true);
-    expect(FEATURES.filter((f) => f.defaultState !== 'on').every((f) => f.defaultState === 'off')).toBe(true);
-    expect(settings.features).not.toHaveProperty('occasionThemes');
+    // Parts that were never launched from the settings page carry no «جدید» badge or introduction card.
+    expect(settings.featureNews).toEqual([]);
     // The pilot group and the raw switches are for the settings page only.
     expect(settings).not.toHaveProperty('pilotUserIds');
     expect(settings).not.toHaveProperty('featureLaunches');
@@ -127,7 +127,7 @@ describe('switching parts of the portal off until they are introduced', () => {
     expect((await colleague.agent.get('/api/news').expect(200)).body.items.map((n: { id: string }) => n.id)).not.toContain(draft.id);
 
     const before = (await colleague.agent.get('/api/settings').expect(200)).body;
-    expect(before.featureNews).toEqual([{ key: 'suggestions', badge: true, card: true }]);
+    expect(before.featureNews).toEqual([{ key: 'suggestions', badge: true, card: introCardsAllowed() }]);
     // Guests are not told about it; they cannot open it anyway.
     expect((await request(app).get('/api/settings').expect(200)).body.featureNews).toEqual([]);
 
@@ -138,6 +138,20 @@ describe('switching parts of the portal off until they are introduced', () => {
     expect(row.seen).toEqual(['suggestions']);
     // Others still see it as new.
     expect((await pilot.agent.get('/api/settings').expect(200)).body.featureNews).toHaveLength(1);
+  });
+
+  it('puts no introduction card on the dashboard for a part switched on before the full launch (10 Aban 1405)', async () => {
+    const [row] = await db.select({ launches: settings.featureLaunches }).from(settings);
+    const launchedAt = async (at: string) => {
+      await db.update(settings).set({ featureLaunches: { ...row.launches, suggestions: { at, badge: false, card: true } } });
+      return (await pilot.agent.get('/api/settings').expect(200)).body.featureNews.find((n: { key: string }) => n.key === 'suggestions');
+    };
+    expect(introCardsAllowed('2026-10-31T23:00:00+03:30')).toBe(false);
+    expect(introCardsAllowed('2026-11-01T08:00:00+03:30')).toBe(true);
+    expect(await launchedAt('2026-10-31T12:00:00+03:30')).toBeUndefined();
+    const justNow = new Date(Date.now() - 60_000).toISOString();
+    expect(await launchedAt(justNow)).toEqual(introCardsAllowed(justNow) ? { key: 'suggestions', badge: false, card: true } : undefined);
+    await db.update(settings).set({ featureLaunches: row.launches });
   });
 
   it('introduces nothing when switched on without announcing it, or from preview back to on twice', async () => {

@@ -50,7 +50,7 @@ test.describe('calendar events with an audience and attendance', () => {
     await expect(inbox).toContainText('ساعت ۱۰:۰۰ تا ۱۱:۳۰، اتاق جلسات — شرکت می‌کنید؟');
 
     await page.goto('/#dashboard');
-    const tasks = page.getByRole('region', { name: 'کارهای من' });
+    const tasks = page.getByRole('region', { name: 'کارهای من', exact: true });
     await expect(tasks).toContainText('شرکت می‌کنید؟');
     await tasks.getByRole('button', { name: new RegExp(TITLE) }).click();
     const details = page.getByRole('dialog', { name: TITLE });

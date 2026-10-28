@@ -22,7 +22,7 @@ export interface FeatureInfo {
   cards: string[];
   /** Notification types that belong to it; they are not shown while it is hidden. */
   notificationTypes: string[];
-  /** The state before an administrator changes it. Since v2.36 new parts start switched on; the administrator switches them off if needed. */
+  /** The state before an administrator changes it. New parts ship switched on; the administrator switches them off if needed. */
   defaultState: FeatureState;
   /** The opening lines of the news draft that introduces it. */
   intro: string;
@@ -124,7 +124,7 @@ export const FEATURES = [
     tabs: [],
     cards: ['todos'],
     notificationTypes: ['todo'],
-    defaultState: 'off',
+    defaultState: 'on',
     intro:
       'از امروز روی داشبورد کارت «یادداشت کارهای من» را می‌بینید. کارهای خودتان را با تاریخ سررسید در آن بنویسید تا صبح همان روز یادآوری شود؛ از هر خبر، رویداد، دوره یا سند هم با دکمهٔ «افزودن به یادداشت کارهای من» می‌توانید کاری بسازید. این یادداشت‌ها فقط برای خودتان است و کسی دیگر آن‌ها را نمی‌بیند.',
   },
@@ -135,7 +135,7 @@ export const FEATURES = [
     tabs: [],
     cards: [],
     notificationTypes: [],
-    defaultState: 'off',
+    defaultState: 'on',
     intro:
       'از امروز در نوروز، آغاز هر فصل، شب یلدا، اعیاد رسمی و سالگرد تأسیس، داشبورد پرتال حال‌وهوای همان روز را دارد و روی رایانه، اولین بار در روز، افکتی کوتاه پخش می‌شود. هر کس بخواهد می‌تواند افکت را از روی همان بنر برای خودش خاموش کند.',
   },
@@ -146,7 +146,7 @@ export const FEATURES = [
     tabs: [],
     cards: [],
     notificationTypes: [],
-    defaultState: 'off',
+    defaultState: 'on',
     intro:
       'از امروز می‌توانید ترتیب کارت‌های داشبورد خودتان را عوض کنید: روی دکمهٔ «چیدمان داشبورد» بالای داشبورد بزنید و کارت‌ها را با دکمه‌های بالا و پایین جابه‌جا کنید. این ترتیب فقط برای خودتان است و هر وقت بخواهید با «بازگشت به چیدمان پیش‌فرض» به حالت اول برمی‌گردد.',
   },
@@ -179,6 +179,13 @@ export const featureOfNotification = (type: string) =>
 
 /** How long the «جدید» badge and the introduction card stay after a part is switched on. */
 export const LAUNCH_NEWS_DAYS = 14;
+
+/**
+ * No introduction cards on the dashboard before the portal's full launch (10 Aban 1405); a part
+ * switched on before then never gets one, even if the box was ticked.
+ */
+export const INTRO_CARDS_FROM = '2026-11-01T00:00:00+03:30';
+export const introCardsAllowed = (at: Date | string = new Date()) => new Date(at).getTime() >= new Date(INTRO_CARDS_FROM).getTime();
 
 export interface FeatureLaunch {
   /** When it was switched on for everyone (ISO). */

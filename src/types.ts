@@ -2,7 +2,7 @@ import type { WishDesign, WishOccasion } from '../shared/celebrations';
 import type { FeatureKey } from '../shared/features';
 import type { SuggestionBoxNames } from '../shared/suggestions';
 import type { Permission } from '../shared/permissions';
-import type { TodoSourceType } from '../shared/todos';
+import type { TodoRemind, TodoRepeat, TodoSourceType, TodoStep } from '../shared/todos';
 
 export type { Permission };
 
@@ -663,8 +663,14 @@ export interface PersonalTodo {
   id: string;
   title: string;
   note: string;
-  /** Jalali YYYY/MM/DD, or null when it has no due date. */
+  /** Jalali YYYY/MM/DD; null only on notes written before the due date became required. */
   dueDate: string | null;
+  /** Starred: first in its group. */
+  important: boolean;
+  /** Ticking it off writes the next one. */
+  repeat: TodoRepeat | null;
+  remind: TodoRemind;
+  steps: TodoStep[];
   /** The news item, event, course or document it was added from. */
   sourceType: TodoSourceType | null;
   sourceId: string | null;
@@ -675,7 +681,11 @@ export interface PersonalTodo {
 export interface TodoInput {
   title: string;
   note?: string;
-  dueDate?: string | null;
+  dueDate: string;
+  important?: boolean;
+  repeat?: TodoRepeat | null;
+  remind?: TodoRemind;
+  steps?: Pick<TodoStep, 'text' | 'done'>[];
   source?: { type: TodoSourceType; id: string };
 }
 
@@ -742,6 +752,8 @@ export interface AppSettings {
   dashboardOrder: string[];
   /** The names the administrator gave the suggestion boxes (see boxNames in shared/suggestions.ts). */
   suggestionBoxNames: SuggestionBoxNames;
+  /** The administrator's order of the cards for everyone who has not arranged their own ([] = the built-in order). */
+  dashboardDefaultOrder: string[];
 }
 
 export interface SiteBanner {

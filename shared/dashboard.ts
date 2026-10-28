@@ -10,13 +10,17 @@ export const DASHBOARD_ZONE_LABELS: Record<DashboardZone, string> = {
   side: 'ستون کناری',
 };
 
-/** The default order, which is also the order on a phone for anyone who has not changed it. */
+/**
+ * The built-in order, which is also the order on a phone: the organisation's apps first, then what the
+ * person has to do. On a computer the apps run across the top and «کارهای من» and «یادداشت کارهای من»
+ * open the side column (the left one, as the page reads right to left).
+ */
 export const DASHBOARD_LAYOUT = [
-  { id: 'myTasks', label: 'کارهای من', zone: 'top' },
-  { id: 'todos', label: 'یادداشت کارهای من', zone: 'top' },
+  { id: 'systems', label: 'سامانه‌ها', zone: 'top' },
+  { id: 'myTasks', label: 'کارهای من', zone: 'side' },
+  { id: 'todos', label: 'یادداشت کارهای من', zone: 'side' },
   { id: 'anniversary', label: 'تبریک تولد و سالگرد همکاری', zone: 'top' },
   { id: 'news', label: 'آخرین اخبار و اطلاعیه‌ها', zone: 'main' },
-  { id: 'systems', label: 'سامانه‌ها', zone: 'top' },
   { id: 'calendar', label: 'تقویم', zone: 'side' },
   { id: 'birthdays', label: 'تولد همکاران', zone: 'side' },
   { id: 'welcome', label: 'خوش‌آمد همکاران جدید', zone: 'main' },
@@ -29,9 +33,16 @@ export type DashboardCardKey = (typeof DASHBOARD_LAYOUT)[number]['id'];
 
 const KNOWN = new Set<string>(DASHBOARD_LAYOUT.map((c) => c.id));
 
-/** A saved order cleaned of unknown or repeated cards; cards it does not mention follow in the default order. */
-export function dashboardOrder(saved: readonly string[]): DashboardCardKey[] {
+const clean = (list: readonly string[]) => {
   const seen = new Set<string>();
-  const mine = saved.filter((id) => KNOWN.has(id) && !seen.has(id) && seen.add(id)) as DashboardCardKey[];
-  return [...mine, ...DASHBOARD_LAYOUT.map((c) => c.id).filter((id) => !seen.has(id))];
+  return list.filter((id) => KNOWN.has(id) && !seen.has(id) && seen.add(id)) as DashboardCardKey[];
+};
+
+/**
+ * A saved order cleaned of unknown or repeated cards; cards it does not mention follow in the
+ * fallback order (the administrator's order for everyone, itself completed by the built-in one).
+ */
+export function dashboardOrder(saved: readonly string[], fallback: readonly string[] = []): DashboardCardKey[] {
+  const base = [...clean(fallback), ...DASHBOARD_LAYOUT.map((c) => c.id)];
+  return clean([...saved, ...base]);
 }

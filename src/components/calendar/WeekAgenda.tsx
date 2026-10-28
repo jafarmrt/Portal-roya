@@ -1,11 +1,11 @@
 import React from 'react';
 import moment from 'moment-jalaali';
-import { Cake, MapPin } from 'lucide-react';
+import { Cake, MapPin, NotebookPen } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { JALALI_MONTHS, JALALI_WEEKDAYS } from '../../data/holidays';
 import { todayJalali, toPersianDigits } from '../../lib/jalali';
 import { dayOccasions, formatHijri } from '../../lib/occasions';
-import type { CalendarEvent, CalendarNote } from '../../types';
+import type { CalendarEvent, CalendarNote, PersonalTodo } from '../../types';
 import { byTime, timeRange, TypeIcon, TYPE_LABELS, typeChipClass } from './eventText';
 
 const rowClass = 'w-full flex items-start gap-3 px-3 py-2.5 rounded-xl text-right hover:bg-[#F5F2ED] transition-colors';
@@ -23,14 +23,16 @@ const RsvpState: React.FC<{ event: CalendarEvent; past: boolean }> = ({ event, p
 
 /**
  * The week from Saturday to Friday as a list: each day's occasions, colleagues' birthdays and
- * events in order of time. Easier to read than the month grid, above all on a phone.
+ * events in order of time, and the person's own notes due that day. Easier to read than the month
+ * grid, above all on a phone.
  */
-export const WeekAgenda: React.FC<{ start: moment.Moment; onOpenEvent: (id: string) => void; onOpenNote: (note: CalendarNote) => void }> = ({
-  start,
-  onOpenEvent,
-  onOpenNote,
-}) => {
-  const { calendarEvents, employees, customHolidays } = usePortal();
+export const WeekAgenda: React.FC<{
+  start: moment.Moment;
+  onOpenEvent: (id: string) => void;
+  onOpenNote: (note: CalendarNote) => void;
+  onOpenTodo: (todo: PersonalTodo) => void;
+}> = ({ start, onOpenEvent, onOpenNote, onOpenTodo }) => {
+  const { calendarEvents, employees, customHolidays, myDueTodos } = usePortal();
   const today = todayJalali();
 
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -46,6 +48,7 @@ export const WeekAgenda: React.FC<{ start: moment.Moment; onOpenEvent: (id: stri
       occasions: occasions?.items ?? [],
       birthdays: employees.filter((e) => e.isActive && e.birthDay === key.slice(5)),
       events: calendarEvents.filter((e) => e.date === key).sort(byTime),
+      todos: myDueTodos(key),
     };
   });
 
@@ -54,7 +57,7 @@ export const WeekAgenda: React.FC<{ start: moment.Moment; onOpenEvent: (id: stri
       {days.map((day) => {
         const isToday = day.key === today;
         const past = day.key < today;
-        const empty = day.occasions.length + day.birthdays.length + day.events.length === 0;
+        const empty = day.occasions.length + day.birthdays.length + day.events.length + day.todos.length === 0;
         return (
           <li
             key={day.key}
@@ -121,6 +124,17 @@ export const WeekAgenda: React.FC<{ start: moment.Moment; onOpenEvent: (id: stri
                             </span>
                           )}
                         </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+                {day.todos.map((t) => (
+                  <li key={t.id}>
+                    <button type="button" className={rowClass} onClick={() => onOpenTodo(t)}>
+                      <NotebookPen className="w-4 h-4 mt-0.5 shrink-0 text-sky-700" />
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-bold text-sky-900">{t.title}</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800">یادداشت من</span>
                       </span>
                     </button>
                   </li>
