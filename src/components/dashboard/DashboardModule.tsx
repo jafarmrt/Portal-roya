@@ -17,6 +17,7 @@ import { MyTasksCard } from './MyTasksCard';
 import { PersonalTodosCard } from './PersonalTodosCard';
 import { OnlineColleaguesCard } from '../online/OnlineColleaguesCard';
 import { ProfileNudge } from './ProfileNudge';
+import { FirstWeekCard } from './FirstWeekCard';
 import { NoticeBoard } from '../notices/NoticeBoard';
 import { WelcomeHero } from './WelcomeHero';
 import { EmptyState, SkeletonTiles } from '../common/Placeholder';
@@ -290,6 +291,13 @@ export const DashboardModule: React.FC = () => {
         {/* Side column (on the left): what the person has to do, the online colleagues, birthdays and mood */}
         <div className="contents lg:flex lg:flex-col lg:gap-6 [&>*:empty]:hidden">
           {/* What this person still has to do; when the card is switched off, circulars are still listed */}
+          {/* A new colleague's first-days list, before everything else in this column */}
+          {!isGuest && (
+            <div style={place('myTasks')}>
+              <FirstWeekCard />
+            </div>
+          )}
+
           {on('myTasks') && !isGuest && (
             <div style={place('myTasks')}>
               <MyTasksCard />

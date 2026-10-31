@@ -773,6 +773,10 @@ export interface AppSettings {
   dashboardDefaultOrder: string[];
   /** The emoji of «همکاران آنلاین» ([] = the built-in six). */
   kudosEmojis: KudosEmoji[];
+  /** The administrator's own steps in every new colleague's «هفتهٔ اول من». */
+  firstWeekSteps: string[];
+  /** The steps of «هفتهٔ اول من» this colleague ticked ('closed' once they closed it). */
+  firstWeekDone: string[];
 }
 
 export interface SiteBanner {

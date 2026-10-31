@@ -7,6 +7,7 @@ import {
   Building2,
   Check,
   Eye,
+  Footprints,
   HardDrive,
   Image as ImageIcon,
   LayoutDashboard,
@@ -36,6 +37,7 @@ import { RoyaLogo } from '../common/RoyaLogo';
 import { DASHBOARD_CARDS } from '../dashboard/dashboardCards';
 import { DashboardLayoutModal } from '../dashboard/DashboardLayoutModal';
 import { DASHBOARD_LAYOUT } from '../../../shared/dashboard';
+import { FIRST_WEEK_EXTRA_LENGTH, FIRST_WEEK_EXTRA_MAX } from '../../../shared/firstWeek';
 import { FeatureSettings } from './FeatureSettings';
 import { KudosEmojiSettings } from './KudosEmojiSettings';
 import { RolesEditor } from './RolesEditor';
@@ -450,6 +452,51 @@ const FoundingDaySettings: React.FC<{ settings: AppSettings }> = ({ settings }) 
   );
 };
 
+/** The administrator's own steps in every new colleague's «هفتهٔ اول من», one per line. */
+const FirstWeekSettings: React.FC<{ settings: AppSettings }> = ({ settings }) => {
+  const { updateSettings } = usePortal();
+  const saved = (settings.firstWeekSteps ?? []).join('\n');
+  const [text, setText] = useState(saved);
+  const [busy, setBusy] = useState(false);
+  const steps = text.split('\n').map((line) => line.trim()).filter(Boolean);
+  const changed = steps.join('\n') !== saved;
+  useUnsavedChanges('first-week', changed);
+  const tooMany = steps.length > FIRST_WEEK_EXTRA_MAX;
+  const tooLong = steps.some((line) => line.length > FIRST_WEEK_EXTRA_LENGTH);
+
+  const save = async () => {
+    setBusy(true);
+    await updateSettings({ firstWeekSteps: steps });
+    setBusy(false);
+  };
+
+  return (
+    <section className="bg-white p-5 rounded-3xl border border-line/70 shadow-card space-y-3" aria-labelledby="first-week-settings-title">
+      <div className="flex items-center gap-2">
+        <Footprints className="w-4 h-4 text-red-700" />
+        <h3 id="first-week-settings-title" className="text-sm font-black text-ink">«هفتهٔ اول من» برای همکار تازه</h3>
+      </div>
+      <p className="text-xs text-muted leading-relaxed">
+        همکاری که در ۳۰ روز اخیر به‌عنوان همکار جدید معرفی شده، روی داشبوردش فهرست کوتاهی از کارهای روزهای اول می‌بیند (کامل کردن کارت، خواندن بخشنامه‌ها، آشنایی با مدیر و همکاران واحد، سامانه‌ها و راهنماها). مرحله‌های خودتان را هر کدام در یک خط اینجا بنویسید تا آخر همان فهرست بیایند؛ مثلاً «فرم‌های اداری را از واحد منابع انسانی بگیرید».
+      </p>
+      <label htmlFor="first-week-steps" className="block text-xs font-bold text-ink-soft">مرحله‌های اضافه (هر خط یک مرحله، حداکثر {toPersianDigits(FIRST_WEEK_EXTRA_MAX)})</label>
+      <textarea id="first-week-steps" rows={4} value={text} onChange={(e) => setText(e.target.value)} className={inputClass} placeholder="فرم‌های اداری را از واحد منابع انسانی بگیرید" />
+      {(tooMany || tooLong) && (
+        <p className="text-xs text-red-700">
+          {tooMany ? `حداکثر ${toPersianDigits(FIRST_WEEK_EXTRA_MAX)} مرحله. ` : ''}
+          {tooLong ? `هر مرحله حداکثر ${toPersianDigits(FIRST_WEEK_EXTRA_LENGTH)} حرف.` : ''}
+        </p>
+      )}
+      <div className="flex justify-end">
+        <button type="button" disabled={busy || !changed || tooMany || tooLong} onClick={() => void save()} className={primaryButtonClass}>
+          <Check className="w-3.5 h-3.5" />
+          ذخیره
+        </button>
+      </div>
+    </section>
+  );
+};
+
 /** Which cards everyone sees on the dashboard. */
 const DashboardCardsSettings: React.FC<{ settings: AppSettings }> = ({ settings }) => {
   const { updateSettings } = usePortal();
@@ -630,6 +677,7 @@ const SEARCH_INDEX: { id: string; tab: SettingsTab; title: string; keywords: str
   { id: 'pilot', tab: 'features', title: 'گروه آزمایشی', keywords: 'آزمایشی پیش نمایش پایلوت' },
   { id: 'dashboard-cards', tab: 'features', title: 'کارت‌های داشبورد', keywords: 'داشبورد کارت تولد حال و هوا' },
   { id: 'kudos-emojis', tab: 'features', title: 'ایموجی‌های همکاران آنلاین', keywords: 'ایموجی آنلاین گل تشکر همکاران آنلاین شکلک' },
+  { id: 'first-week', tab: 'features', title: '«هفتهٔ اول من» برای همکار تازه', keywords: 'هفته اول همکار جدید تازه ورود آشنایی مرحله فهرست کار' },
   { id: 'departments', tab: 'lists', title: 'واحدهای سازمانی', keywords: 'واحد دپارتمان بخش سازمانی' },
   { id: 'locations', tab: 'lists', title: 'محل‌های استقرار', keywords: 'محل شعبه انبار طبقه دفتر' },
   { id: 'newsCategories', tab: 'lists', title: 'دسته‌های اخبار و اطلاعیه‌ها', keywords: 'دسته اخبار خبر اطلاعیه' },
@@ -842,6 +890,9 @@ export const AdminSettingsModule: React.FC = () => {
             <>
               <Panel id="features" wide><FeatureSettings /></Panel>
               <Panel id="dashboard-cards" wide><DashboardCardsSettings settings={appSettings} /></Panel>
+              <Panel id="first-week" wide>
+                <FirstWeekSettings key={(appSettings.firstWeekSteps ?? []).join('|')} settings={appSettings} />
+              </Panel>
               <Panel id="kudos-emojis" wide>
                 <KudosEmojiSettings key={JSON.stringify(appSettings.kudosEmojis)} settings={appSettings} />
               </Panel>

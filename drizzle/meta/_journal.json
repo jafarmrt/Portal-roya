@@ -239,6 +239,13 @@
       "when": 1793468980820,
       "tag": "0033_about_me",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793470210553,
+      "tag": "0034_first_week",
+      "breakpoints": true
     }
   ]
 }

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { IdCard, X } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { profileCompleteness } from '../../../shared/aboutMe';
+import { FIRST_WEEK_CLOSED, inFirstWeeks } from '../../../shared/firstWeek';
 import { toPersianDigits } from '../../lib/jalali';
 import { EditProfileModal } from '../colleagues/EditProfileModal';
 
@@ -22,13 +23,16 @@ const hiddenUntil = (id: string) => {
  * device, and it goes away for good once the card is complete.
  */
 export const ProfileNudge: React.FC = () => {
-  const { currentUser } = usePortal();
+  const { currentUser, newColleagues, appSettings, featureOn } = usePortal();
   const [editing, setEditing] = useState(false);
   const [later, setLater] = useState(() => (currentUser ? hiddenUntil(currentUser.id) > Date.now() : true));
   if (!currentUser) return null;
   const { percent, missing } = profileCompleteness(currentUser);
+  // A new colleague's «هفتهٔ اول من» already asks for the same things.
+  const intro = newColleagues.find((nc) => nc.userId === currentUser.id);
+  const firstWeekOpen = featureOn('firstWeek') && inFirstWeeks(intro?.createdAt) && !appSettings?.firstWeekDone?.includes(FIRST_WEEK_CLOSED);
   if (editing) return <EditProfileModal user={currentUser} onClose={() => setEditing(false)} />;
-  if (missing.length === 0 || later) return null;
+  if (missing.length === 0 || later || firstWeekOpen) return null;
 
   const hide = () => {
     try {
