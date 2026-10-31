@@ -7,7 +7,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { inputClass, labelClass } from '../common/Modal';
 
 const chipClass = (active: boolean) =>
-  `px-3 py-1.5 rounded-xl font-bold border transition-colors ${active ? 'bg-red-700 text-white border-red-700' : 'bg-white border-[#D9D4CB] hover:border-red-300'}`;
+  `px-3 py-1.5 rounded-xl font-bold border transition-colors ${active ? 'bg-red-700 text-white border-red-700' : 'bg-white border-line-strong hover:border-red-300'}`;
 
 const toggle = (list: string[], value: string) => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 
@@ -19,7 +19,7 @@ const ChipGroup: React.FC<{ title: string; options: { value: string; label: stri
 }) =>
   options.length === 0 ? null : (
     <div className="space-y-1.5">
-      <span className="text-[11px] font-bold text-[#6E6A60]">{title}</span>
+      <span className="text-xs font-bold text-muted">{title}</span>
       <div className="flex flex-wrap gap-1.5">
         {options.map((o) => (
           <button key={o.value} type="button" aria-pressed={selected.includes(o.value)} onClick={() => onChange(toggle(selected, o.value))} className={chipClass(selected.includes(o.value))}>
@@ -94,7 +94,7 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
       </div>
 
       {targeted && (
-        <div className="p-4 bg-[#F5F2ED] rounded-2xl border border-[#E6E0D5] space-y-3">
+        <div className="p-4 bg-surface rounded-2xl border border-line space-y-3">
           <ChipGroup
             title="واحد"
             options={(appSettings?.departments ?? []).map((d) => ({ value: d, label: d }))}
@@ -109,16 +109,16 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
           />
           <ChipGroup title="سطح دسترسی" options={roles.map((r) => ({ value: r.id, label: r.name }))} selected={value.roles} onChange={(next) => set('roles', next)} />
           {narrowing.length > 1 && (
-            <p className="text-[11px] text-[#6E6A60] leading-relaxed">فقط کسانی می‌بینند که {narrowing.join(' و ')} جزو انتخاب‌ها باشد.</p>
+            <p className="text-xs text-muted leading-relaxed">فقط کسانی می‌بینند که {narrowing.join(' و ')} جزو انتخاب‌ها باشد.</p>
           )}
 
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <label htmlFor="audience-person" className="text-[11px] font-bold text-[#6E6A60]">
+              <label htmlFor="audience-person" className="text-xs font-bold text-muted">
                 {hasGroups ? 'به‌اضافهٔ این افراد' : 'افراد مشخص'}
               </label>
               {headsToAdd.length > 0 && (
-                <button type="button" onClick={() => set('userIds', [...value.userIds, ...headsToAdd])} className="text-[11px] font-bold text-red-700 hover:underline">
+                <button type="button" onClick={() => set('userIds', [...value.userIds, ...headsToAdd])} className="text-xs font-bold text-red-700 hover:underline">
                   + همهٔ مسئولان واحدها ({toPersianDigits(headsToAdd.length)} نفر)
                 </button>
               )}
@@ -128,9 +128,9 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
                 {value.userIds.map((id) => {
                   const p = byId.get(id);
                   return (
-                    <span key={id} className="flex items-center gap-1 pr-3 pl-1 py-1 rounded-xl bg-white border border-[#D9D4CB] font-bold">
+                    <span key={id} className="flex items-center gap-1 pr-3 pl-1 py-1 rounded-xl bg-white border border-line-strong font-bold">
                       {p ? `${p.firstName} ${p.lastName}` : 'همکار غیرفعال'}
-                      <button type="button" aria-label={`حذف ${p ? `${p.firstName} ${p.lastName}` : 'همکار'}`} onClick={() => set('userIds', value.userIds.filter((u) => u !== id))} className="p-0.5 text-[#8C867A] hover:text-red-700">
+                      <button type="button" aria-label={`حذف ${p ? `${p.firstName} ${p.lastName}` : 'همکار'}`} onClick={() => set('userIds', value.userIds.filter((u) => u !== id))} className="p-0.5 text-faint hover:text-red-700">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </span>
@@ -139,7 +139,7 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
               </div>
             )}
             <div className="relative">
-              <Search className="w-4 h-4 text-[#8C867A] absolute right-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-faint absolute right-3 top-1/2 -translate-y-1/2" />
               <input
                 id="audience-person"
                 value={query}
@@ -150,7 +150,7 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
               />
             </div>
             {matches.length > 0 && (
-              <ul className="bg-white border border-[#E6E0D5] rounded-xl divide-y divide-[#F5F2ED] overflow-hidden">
+              <ul className="bg-white border border-line rounded-xl divide-y divide-surface overflow-hidden">
                 {matches.map((p) => (
                   <li key={p.id}>
                     <button
@@ -159,10 +159,10 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
                         set('userIds', [...value.userIds, p.id]);
                         setQuery('');
                       }}
-                      className="w-full text-right px-3 py-2 hover:bg-[#F9F7F4]"
+                      className="w-full text-right px-3 py-2 hover:bg-surface-soft"
                     >
                       <span className="font-bold">{p.firstName} {p.lastName}</span>
-                      <span className="text-[11px] text-[#6E6A60]"> · {placeText(p)}</span>
+                      <span className="text-xs text-muted"> · {placeText(p)}</span>
                     </button>
                   </li>
                 ))}
@@ -173,7 +173,7 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
       )}
 
       <div className="flex flex-wrap items-center gap-2 text-xs" aria-live="polite">
-        <span className={`font-bold ${audience.length === 0 ? 'text-red-700' : 'text-[#2D2D2D]'}`}>
+        <span className={`font-bold ${audience.length === 0 ? 'text-red-700' : 'text-ink'}`}>
           {audience.length === 0 ? `هیچ همکاری این ${noun} را نمی‌بیند؛ مخاطبان را تغییر دهید.` : `${toPersianDigits(audience.length)} نفر این ${noun} را می‌بینند.`}
         </span>
         {targeted && audience.length > 0 && (
@@ -183,7 +183,7 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
         )}
       </div>
       {targeted && showNames && (
-        <p className="text-[11px] text-[#4B4740] leading-relaxed p-3 bg-white border border-[#E6E0D5] rounded-xl max-h-32 overflow-y-auto">
+        <p className="text-xs text-ink-soft leading-relaxed p-3 bg-white border border-line rounded-xl max-h-32 overflow-y-auto">
           {audience.map((p) => `${p.firstName} ${p.lastName}`).join('، ')}
         </p>
       )}

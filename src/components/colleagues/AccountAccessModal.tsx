@@ -75,12 +75,12 @@ export const AccountFields: React.FC<{ idPrefix: string; value: AccountInput; on
           ] as [SignInMethod, string, string][]).map(([method, label, hint]) => (
             <label key={method} className="flex items-start gap-2 cursor-pointer">
               <input type="radio" name={`${idPrefix}-signin`} checked={value.signIn === method} onChange={() => set('signIn', method)} className="accent-red-700 mt-0.5" />
-              <span><strong>{label}</strong><span className="block text-[11px] text-[#6E6A60]">{hint}</span></span>
+              <span><strong>{label}</strong><span className="block text-xs text-muted">{hint}</span></span>
             </label>
           ))}
         </fieldset>
       ) : (
-        <p className="text-[11px] text-[#6E6A60]">یک رمز موقت ساخته می‌شود که همکار در اولین ورود عوض می‌کند.</p>
+        <p className="text-xs text-muted">یک رمز موقت ساخته می‌شود که همکار در اولین ورود عوض می‌کند.</p>
       )}
     </div>
   );
@@ -139,10 +139,10 @@ export const AccountAccessModal: React.FC<{ user: UserProfile; onClose: () => vo
           </>
         }
       >
-        <div className="space-y-2 text-xs leading-relaxed text-[#4B4740]">
+        <div className="space-y-2 text-xs leading-relaxed text-ink-soft">
           <p>{name} دیگر نمی‌تواند وارد پرتال شود و اعلانی دریافت نمی‌کند، ولی در دفتر تلفن، چارت سازمانی و کارت‌های تولد باقی می‌ماند.</p>
           <p>سطح دسترسی او به «همکار» برمی‌گردد. نام کاربری <code dir="ltr">{user.username}</code> نگه داشته می‌شود تا اگر بعداً دوباره حساب ساختید همان باشد.</p>
-          <p className="text-[#6E6A60]">اگر همکار از شرکت رفته است، به جای این کار او را در ویرایش پروفایل غیرفعال کنید تا همه‌جا پنهان شود.</p>
+          <p className="text-muted">اگر همکار از شرکت رفته است، به جای این کار او را در ویرایش پروفایل غیرفعال کنید تا همه‌جا پنهان شود.</p>
         </div>
       </Modal>
     );
@@ -175,7 +175,7 @@ export const AccountAccessModal: React.FC<{ user: UserProfile; onClose: () => vo
       }
     >
       <form id="grant-access" onSubmit={grant} className="space-y-4">
-        <p className="text-xs text-[#6E6A60] leading-relaxed">همه مشخصات فعلی {name} سر جایش می‌ماند؛ فقط امکان ورود به پرتال اضافه می‌شود.</p>
+        <p className="text-xs text-muted leading-relaxed">همه مشخصات فعلی {name} سر جایش می‌ماند؛ فقط امکان ورود به پرتال اضافه می‌شود.</p>
         <AccountFields idPrefix="grant" value={account} onChange={setAccount} />
       </form>
     </Modal>

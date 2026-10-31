@@ -84,8 +84,8 @@ export const SystemsModule: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-[#2D2D2D]">سامانه‌های سازمانی</h2>
-          <p className="text-sm text-[#6E6A60] mt-1">
+          <h2 className="text-2xl font-black text-ink">سامانه‌های سازمانی</h2>
+          <p className="text-sm text-muted mt-1">
             دسترسی سریع به نرم‌افزارها و سامانه‌های یکپارچه رویا طرح داخلی
           </p>
           {!companyNetwork && (
@@ -100,7 +100,7 @@ export const SystemsModule: React.FC = () => {
                   setEditedSystems(currentSystems);
                   setIsEditing(true);
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E6E0D5] text-[#2D2D2D] text-sm font-bold rounded-xl hover:bg-[#F5F2ED] transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-line text-ink text-sm font-bold rounded-xl hover:bg-surface transition-colors"
               >
                 <Edit className="w-4 h-4" />
                 ویرایش سامانه‌ها
@@ -109,14 +109,14 @@ export const SystemsModule: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsEditing(false)}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E6E0D5] text-[#6E6A60] text-sm font-bold rounded-xl hover:bg-[#F5F2ED] transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-line text-muted text-sm font-bold rounded-xl hover:bg-surface transition-colors"
                 >
                   <X className="w-4 h-4" />
                   انصراف
                 </button>
                 <button
                   onClick={handleSave}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#dc2626] text-white text-sm font-bold rounded-xl hover:bg-[#b91c1c] transition-colors shadow-sm shadow-[#dc2626]/20"
+                  className="flex items-center gap-2 px-4 py-2 bg-brand text-white text-sm font-bold rounded-xl hover:bg-brand-hover transition-colors shadow-sm shadow-brand/20"
                 >
                   <Save className="w-4 h-4" />
                   ذخیره تغییرات
@@ -130,8 +130,8 @@ export const SystemsModule: React.FC = () => {
       {isEditing ? (
         <div className="space-y-6">
           {/* So a manager can check, e.g. from a phone on mobile data, how the portal sees this connection. */}
-          <p className="text-xs text-[#6E6A60] bg-[#F5F2ED] rounded-xl px-3 py-2" dir="rtl">
-            پرتال این اتصال را <strong className="text-[#2D2D2D]">{companyNetwork ? 'داخل شرکت' : 'بیرون شرکت'}</strong> می‌بیند
+          <p className="text-xs text-muted bg-surface rounded-xl px-3 py-2" dir="rtl">
+            پرتال این اتصال را <strong className="text-ink">{companyNetwork ? 'داخل شرکت' : 'بیرون شرکت'}</strong> می‌بیند
             {visitorAddress && (
               <>
                 {' '}(آدرس شما از نگاه پرتال: <span dir="ltr" className="font-mono">{visitorAddress}</span>)
@@ -142,12 +142,12 @@ export const SystemsModule: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {editedSystems.map((system, index) => {
               return (
-                <div key={system.id} className="bg-white rounded-3xl p-6 pt-12 border border-[#dc2626]/30 shadow-xs relative">
+                <div key={system.id} className="bg-white rounded-3xl p-6 pt-12 border border-brand/30 shadow-xs relative">
                   <div className="absolute top-3 left-3 flex items-center gap-1">
-                    <button type="button" onClick={() => handleMoveSystem(index, -1)} disabled={index === 0} className="p-2 text-[#6E6A60] hover:bg-[#F5F2ED] rounded-lg disabled:opacity-30" title="جابه‌جایی به جلو" aria-label={`انتقال ${system.name} به جلو`}>
+                    <button type="button" onClick={() => handleMoveSystem(index, -1)} disabled={index === 0} className="p-2 text-muted hover:bg-surface rounded-lg disabled:opacity-30" title="جابه‌جایی به جلو" aria-label={`انتقال ${system.name} به جلو`}>
                       <ChevronUp className="w-4 h-4" />
                     </button>
-                    <button type="button" onClick={() => handleMoveSystem(index, 1)} disabled={index === editedSystems.length - 1} className="p-2 text-[#6E6A60] hover:bg-[#F5F2ED] rounded-lg disabled:opacity-30" title="جابه‌جایی به عقب" aria-label={`انتقال ${system.name} به عقب`}>
+                    <button type="button" onClick={() => handleMoveSystem(index, 1)} disabled={index === editedSystems.length - 1} className="p-2 text-muted hover:bg-surface rounded-lg disabled:opacity-30" title="جابه‌جایی به عقب" aria-label={`انتقال ${system.name} به عقب`}>
                       <ChevronDown className="w-4 h-4" />
                     </button>
                     <button
@@ -160,7 +160,7 @@ export const SystemsModule: React.FC = () => {
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                  <span className="absolute top-4 right-6 text-[11px] font-bold text-[#8C867A]">ترتیب نمایش: {index + 1}</span>
+                  <span className="absolute top-4 right-6 text-xs font-bold text-faint">ترتیب نمایش: {index + 1}</span>
                   <div className="space-y-4">
                     <div className="flex items-start gap-4">
                       <SystemIcon system={system} size="md" />
@@ -169,46 +169,46 @@ export const SystemsModule: React.FC = () => {
                           value={system.name}
                           onChange={(e) => handleUpdateSystem(system.id, 'name', e.target.value)}
                           placeholder="نام سامانه"
-                          className="w-full px-3 py-2 text-sm font-bold text-[#2D2D2D] border border-[#E6E0D5] rounded-lg focus:border-[#dc2626] outline-hidden"
+                          className="w-full px-3 py-2 text-sm font-bold text-ink border border-line rounded-lg focus:border-brand outline-hidden"
                         />
                         <input
                           value={system.description}
                           onChange={(e) => handleUpdateSystem(system.id, 'description', e.target.value)}
                           placeholder="توضیحات کوتاه"
-                          className="w-full px-3 py-2 text-xs text-[#6E6A60] border border-[#E6E0D5] rounded-lg focus:border-[#dc2626] outline-hidden"
+                          className="w-full px-3 py-2 text-xs text-muted border border-line rounded-lg focus:border-brand outline-hidden"
                         />
                         <div>
-                          <label htmlFor={`system-url-${system.id}`} className="block text-[11px] font-bold text-[#6E6A60] mb-1">آدرس داخل شرکت</label>
+                          <label htmlFor={`system-url-${system.id}`} className="block text-xs font-bold text-muted mb-1">آدرس داخل شرکت</label>
                           <input
                             id={`system-url-${system.id}`}
                             value={system.url === '#' ? '' : system.url}
                             onChange={(e) => handleUpdateSystem(system.id, 'url', e.target.value)}
                             placeholder="مثلاً http://192.168.0.30 یا http://crm.roya.local"
-                            className="w-full px-3 py-2 text-xs text-blue-600 border border-[#E6E0D5] rounded-lg focus:border-[#dc2626] outline-hidden text-left"
+                            className="w-full px-3 py-2 text-xs text-blue-600 border border-line rounded-lg focus:border-brand outline-hidden text-left"
                             dir="ltr"
                           />
                         </div>
                         <div>
-                          <label htmlFor={`system-external-${system.id}`} className="block text-[11px] font-bold text-[#6E6A60] mb-1">آدرس بیرون از شرکت (اینترنت)</label>
+                          <label htmlFor={`system-external-${system.id}`} className="block text-xs font-bold text-muted mb-1">آدرس بیرون از شرکت (اینترنت)</label>
                           <input
                             id={`system-external-${system.id}`}
                             value={system.externalUrl ?? ''}
                             onChange={(e) => handleUpdateSystem(system.id, 'externalUrl', e.target.value)}
                             placeholder="مثلاً https://crm.royaco.com"
-                            className="w-full px-3 py-2 text-xs text-blue-600 border border-[#E6E0D5] rounded-lg focus:border-[#dc2626] outline-hidden text-left"
+                            className="w-full px-3 py-2 text-xs text-blue-600 border border-line rounded-lg focus:border-brand outline-hidden text-left"
                             dir="ltr"
                           />
-                          <p className="mt-1 text-[11px] text-[#8C867A] leading-relaxed">{externalHint(system)}</p>
+                          <p className="mt-1 text-xs text-faint leading-relaxed">{externalHint(system)}</p>
                         </div>
                       </div>
                     </div>
-                    <div className="pt-3 border-t border-[#E6E0D5] grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div className="pt-3 border-t border-line grid grid-cols-2 sm:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-[#6E6A60] mb-1">آیکون</label>
+                        <label className="block text-xs font-bold text-muted mb-1">آیکون</label>
                         <SearchableSelect
                           value={system.iconName}
                           onChange={(e) => handleUpdateSystem(system.id, 'iconName', e.target.value)}
-                          className="w-full px-3 py-2 text-xs bg-[#F5F2ED] border border-[#E6E0D5] rounded-lg outline-hidden"
+                          className="w-full px-3 py-2 text-xs bg-surface border border-line rounded-lg outline-hidden"
                         >
                           {Object.keys(iconMap).map(iconName => (
                             <option key={iconName} value={iconName}>{iconLabels[iconName] ?? iconName}</option>
@@ -216,7 +216,7 @@ export const SystemsModule: React.FC = () => {
                         </SearchableSelect>
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-[#6E6A60] mb-1">رنگ‌بندی</label>
+                        <label className="block text-xs font-bold text-muted mb-1">رنگ‌بندی</label>
                         <SearchableSelect
                           value={`${system.bgColor}|${system.textColor}`}
                           onChange={(e) => {
@@ -224,7 +224,7 @@ export const SystemsModule: React.FC = () => {
                             handleUpdateSystem(system.id, 'bgColor', bg);
                             handleUpdateSystem(system.id, 'textColor', text);
                           }}
-                          className="w-full px-3 py-2 text-xs bg-[#F5F2ED] border border-[#E6E0D5] rounded-lg outline-hidden"
+                          className="w-full px-3 py-2 text-xs bg-surface border border-line rounded-lg outline-hidden"
                         >
                           {colorOptions.map(opt => (
                             <option key={opt.bg} value={`${opt.bg}|${opt.text}`}>{opt.label}</option>
@@ -232,12 +232,12 @@ export const SystemsModule: React.FC = () => {
                         </SearchableSelect>
                       </div>
                       <div className="col-span-2 sm:col-span-1">
-                        <label htmlFor={`system-department-${system.id}`} className="block text-xs font-bold text-[#6E6A60] mb-1">واحد مسئول</label>
+                        <label htmlFor={`system-department-${system.id}`} className="block text-xs font-bold text-muted mb-1">واحد مسئول</label>
                         <SearchableSelect
                           id={`system-department-${system.id}`}
                           value={system.department ?? ''}
                           onChange={(e) => handleUpdateSystem(system.id, 'department', e.target.value)}
-                          className="w-full px-3 py-2 text-xs bg-[#F5F2ED] border border-[#E6E0D5] rounded-lg outline-hidden"
+                          className="w-full px-3 py-2 text-xs bg-surface border border-line rounded-lg outline-hidden"
                         >
                           <option value="">بدون واحد</option>
                           {[...new Set([...(appSettings?.departments ?? []), ...(system.department ? [system.department] : [])])].map((d) => (
@@ -247,7 +247,7 @@ export const SystemsModule: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-bold text-[#6E6A60]">تصویر یا لوگو (اختیاری):</span>
+                      <span className="text-xs font-bold text-muted">تصویر یا لوگو (اختیاری):</span>
                       <FileUpload
                         accept={IMAGE_ACCEPT}
                         label={system.imageUrl ? 'تغییر تصویر' : 'بارگذاری تصویر'}
@@ -262,7 +262,7 @@ export const SystemsModule: React.FC = () => {
                           <ImageOff className="w-4 h-4" /> حذف تصویر و استفاده از آیکون
                         </button>
                       )}
-                      <p className="w-full text-[11px] text-[#8C867A]">اگر تصویر بگذارید به‌جای آیکون نمایش داده می‌شود. تصویر مربعی (مثلاً ۲۵۶×۲۵۶) با فرمت PNG، JPG یا WebP بهتر دیده می‌شود.</p>
+                      <p className="w-full text-xs text-faint">اگر تصویر بگذارید به‌جای آیکون نمایش داده می‌شود. تصویر مربعی (مثلاً ۲۵۶×۲۵۶) با فرمت PNG، JPG یا WebP بهتر دیده می‌شود.</p>
                     </div>
                   </div>
                 </div>
@@ -270,7 +270,7 @@ export const SystemsModule: React.FC = () => {
             })}
             <button
               onClick={handleAddSystem}
-              className="flex flex-col items-center justify-center gap-3 bg-[#F5F2ED] rounded-3xl p-6 border-2 border-dashed border-[#E6E0D5] text-[#8C867A] hover:bg-white hover:border-[#dc2626] hover:text-[#dc2626] transition-all min-h-[200px]"
+              className="flex flex-col items-center justify-center gap-3 bg-surface rounded-3xl p-6 border-2 border-dashed border-line text-faint hover:bg-white hover:border-brand hover:text-brand transition-all min-h-[200px]"
             >
               <Plus className="w-8 h-8" />
               <span className="text-sm font-bold">افزودن سامانه جدید</span>
@@ -290,22 +290,22 @@ export const SystemsModule: React.FC = () => {
                 rel="noopener noreferrer"
                 aria-disabled={!ready}
                 onClick={(e) => { if (!ready) e.preventDefault(); }}
-                className={`group block bg-white rounded-3xl p-6 border transition-all ${ready ? 'border-[#E6E0D5] hover:border-[#dc2626]/40 hover:shadow-lg' : 'border-dashed border-[#D9D4CB] opacity-70 cursor-not-allowed'}`}
+                className={`group block bg-white rounded-3xl p-6 border transition-all ${ready ? 'border-line hover:border-brand/40 hover:shadow-lg' : 'border-dashed border-line-strong opacity-70 cursor-not-allowed'}`}
               >
                 <div className="flex items-start gap-4">
                   <SystemIcon system={system} size="lg" className="group-hover:scale-110 transition-transform" />
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-base font-bold text-[#2D2D2D] group-hover:text-[#dc2626] transition-colors">
+                      <h3 className="text-base font-bold text-ink group-hover:text-brand transition-colors">
                         {system.name}
                       </h3>
-                      <ExternalLink className="w-4 h-4 text-[#C5BFC7] group-hover:text-[#dc2626] transition-colors" />
+                      <ExternalLink className="w-4 h-4 text-subtle group-hover:text-brand transition-colors" />
                     </div>
-                    <p className="text-xs text-[#6E6A60] mt-2 leading-relaxed">
+                    <p className="text-xs text-muted mt-2 leading-relaxed">
                       {system.description}
                     </p>
                     {!ready && (
-                      <p className="text-[11px] text-amber-700 font-bold mt-2">
+                      <p className="text-xs text-amber-700 font-bold mt-2">
                         {missingLinkMessage(system)}{isManager ? ' (آدرس‌ها را از «ویرایش سامانه‌ها» وارد کنید)' : ''}.
                       </p>
                     )}

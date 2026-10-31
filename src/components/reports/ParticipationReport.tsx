@@ -49,7 +49,7 @@ export const ParticipationReport: React.FC<{ report: Report }> = ({ report }) =>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-[#8C867A] border-b border-[#E6E0D5]">
+                <tr className="text-faint border-b border-line">
                   <th className={th}>واحد</th>
                   <th className={th}>همکاران</th>
                   <th className={th}>پاسخ به نظرسنجی‌ها</th>
@@ -59,14 +59,14 @@ export const ParticipationReport: React.FC<{ report: Report }> = ({ report }) =>
               </thead>
               <tbody>
                 {report.departments.map((d) => (
-                  <tr key={d.name} className="border-b border-[#F5F2ED] last:border-0">
-                    <td className={`${td} font-bold text-[#2D2D2D] whitespace-nowrap`}>{d.name}</td>
-                    <td className={`${td} text-[#6E6A60]`}>{toPersianDigits(d.staff)}</td>
+                  <tr key={d.name} className="border-b border-surface last:border-0">
+                    <td className={`${td} font-bold text-ink whitespace-nowrap`}>{d.name}</td>
+                    <td className={`${td} text-muted`}>{toPersianDigits(d.staff)}</td>
                     <td className={td}>
-                      {d.pollAudience > 0 ? <ShareBar part={d.pollResponses} total={d.pollAudience} label={`پاسخ به نظرسنجی‌ها در ${d.name}`} /> : <span className="text-[#8C867A]">—</span>}
+                      {d.pollAudience > 0 ? <ShareBar part={d.pollResponses} total={d.pollAudience} label={`پاسخ به نظرسنجی‌ها در ${d.name}`} /> : <span className="text-faint">—</span>}
                     </td>
                     <td className={td}><ShareBar part={d.trainingPeople} total={d.staff} label={`شرکت در دوره‌ها در ${d.name}`} /></td>
-                    <td className={`${td} whitespace-nowrap text-[#6E6A60]`}>
+                    <td className={`${td} whitespace-nowrap text-muted`}>
                       {d.attended + d.absent > 0 ? `${toPersianDigits(d.attended)} از ${toPersianDigits(d.attended + d.absent)}` : '—'}
                     </td>
                   </tr>
@@ -87,12 +87,12 @@ export const ParticipationReport: React.FC<{ report: Report }> = ({ report }) =>
               {report.polls.map((p) => (
                 <li key={p.id} className="text-xs space-y-1">
                   <div className="flex items-center justify-between gap-2">
-                    <button onClick={() => setActiveTab('polls', p.id)} className="font-bold text-[#2D2D2D] hover:text-[#dc2626] text-right">{p.title}</button>
-                    <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${p.open ? 'bg-emerald-50 text-emerald-700' : 'bg-[#F5F2ED] text-[#6E6A60]'}`}>
+                    <button onClick={() => setActiveTab('polls', p.id)} className="font-bold text-ink hover:text-brand text-right">{p.title}</button>
+                    <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${p.open ? 'bg-emerald-50 text-emerald-700' : 'bg-surface text-muted'}`}>
                       {p.open ? 'باز' : 'بسته'}
                     </span>
                   </div>
-                  <p className="text-[10px] text-[#8C867A]">{formatDate(p.createdAt)}</p>
+                  <p className="text-xs text-faint">{formatDate(p.createdAt)}</p>
                   <ShareBar part={p.responses} total={p.audience} label={`پاسخ به ${p.title}`} />
                 </li>
               ))}
@@ -107,13 +107,13 @@ export const ParticipationReport: React.FC<{ report: Report }> = ({ report }) =>
           ) : (
             <ul className="space-y-3">
               {report.trainings.map((t) => (
-                <li key={t.id} className="text-xs p-3 rounded-xl border border-[#E6E0D5] space-y-1.5">
+                <li key={t.id} className="text-xs p-3 rounded-xl border border-line space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
-                    <button onClick={() => setActiveTab('training', t.id)} className="font-bold text-[#2D2D2D] hover:text-[#dc2626] text-right">{t.title}</button>
-                    <span className="shrink-0 text-[10px] text-[#8C867A]">{formatDate(t.date)}</span>
+                    <button onClick={() => setActiveTab('training', t.id)} className="font-bold text-ink hover:text-brand text-right">{t.title}</button>
+                    <span className="shrink-0 text-xs text-faint">{formatDate(t.date)}</span>
                   </div>
                   <ShareBar part={t.enrolled} total={t.capacity} label={`ثبت‌نام در ${t.title}`} />
-                  <p className="text-[11px] text-[#6E6A60]">
+                  <p className="text-xs text-muted">
                     {[
                       t.waitlist > 0 ? `${toPersianDigits(t.waitlist)} نفر در انتظار` : '',
                       t.attended + t.absent > 0 ? `${toPersianDigits(t.attended)} حاضر، ${toPersianDigits(t.absent)} غایب` : 'حضور و غیاب ثبت نشده',
@@ -161,7 +161,7 @@ const SearchMissesCard: React.FC = () => {
         hint="همکاران در سه ماه اخیر این‌ها را جستجو کرده‌اند و چیزی پیدا نکرده‌اند (بدون نام جستجوکننده)"
         action={
           can('documents.manage') && misses && misses.length > 0 ? (
-            <button onClick={() => setActiveTab('guides')} className="px-4 py-2 text-xs font-bold text-[#2D2D2D] bg-white hover:bg-[#F5F2ED] border border-[#D9D4CB] rounded-xl w-fit">
+            <button onClick={() => setActiveTab('guides')} className="px-4 py-2 text-xs font-bold text-ink bg-white hover:bg-surface border border-line-strong rounded-xl w-fit">
               نوشتن راهنما
             </button>
           ) : undefined
@@ -170,15 +170,15 @@ const SearchMissesCard: React.FC = () => {
       {error ? (
         <p role="alert" className="text-xs text-red-700">{error}</p>
       ) : !misses ? (
-        <p className="text-xs text-[#6E6A60]">در حال دریافت...</p>
+        <p className="text-xs text-muted">در حال دریافت...</p>
       ) : misses.length === 0 ? (
         <Empty>جستجوی بی‌نتیجه‌ای ثبت نشده است.</Empty>
       ) : (
         <ul className="flex flex-wrap gap-2">
           {misses.map((m) => (
-            <li key={m.query} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#F5F2ED] text-xs" title={`آخرین بار ${formatDate(m.lastAt)}`}>
-              <span className="font-bold text-[#2D2D2D]">{toPersianDigits(m.query)}</span>
-              <span className="px-1.5 py-0.5 rounded-full bg-white text-[10px] font-bold text-[#991b1b]">{toPersianDigits(m.count)} بار</span>
+            <li key={m.query} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface text-xs" title={`آخرین بار ${formatDate(m.lastAt)}`}>
+              <span className="font-bold text-ink">{toPersianDigits(m.query)}</span>
+              <span className="px-1.5 py-0.5 rounded-full bg-white text-xs font-bold text-brand-strong">{toPersianDigits(m.count)} بار</span>
             </li>
           ))}
         </ul>

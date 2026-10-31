@@ -22,6 +22,8 @@ import {
   Printer,
   Download,
 } from 'lucide-react';
+import { PageHeader } from '../common/PageHeader';
+import { secondaryButtonClass } from '../common/Modal';
 
 export const ColleaguesDirectory: React.FC = () => {
   const { employees, can, appSettings, departmentPages, focusId, setActiveTab } = usePortal();
@@ -82,50 +84,29 @@ export const ColleaguesDirectory: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Banner Header */}
-      <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-5 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#dc2626]/30 text-[#E6E0D5] text-xs font-semibold border border-[#dc2626]/40">
-              <Users className="w-3.5 h-3.5" />
-              <span>دفترچه تلفن و بانک اطلاعاتی همکاران رویا طرح داخلی</span>
-            </div>
-            <h1 className="text-xl sm:text-3xl font-black text-white">معرفی همکاران و سیستم ارتباطات داخلی</h1>
-            <p className="text-[#E6E0D5] text-xs sm:text-sm max-w-2xl leading-relaxed">
-              شماره داخلی، موبایل، ایمیل، واحد، سوابق شغلی و مهارت‌های همکاران. {toPersianDigits(employees.filter(e => e.isActive).length)} همکار فعال.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2 self-start sm:self-auto">
-            <button
-              onClick={() => setPrintOpen(true)}
-              title="فهرست داخلی‌ها برای کنار تلفن‌ها"
-              className="px-4 py-3 text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 rounded-2xl transition-all flex items-center gap-2 whitespace-nowrap"
-            >
-              <Printer className="w-4 h-4" />
-              <span>چاپ دفتر تلفن</span>
-            </button>
-            <button
-              onClick={() => exportPhoneBook(active, appSettings?.departments ?? [])}
-              className="px-4 py-3 text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 rounded-2xl transition-all flex items-center gap-2 whitespace-nowrap"
-            >
-              <Download className="w-4 h-4" />
-              <span>خروجی اکسل</span>
-            </button>
-            {isManager && (
-              <button
-                onClick={() => setActiveTab('people')}
-                className="px-5 py-3 text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 rounded-2xl transition-all flex items-center gap-2 whitespace-nowrap"
-              >
-                <UserCog className="w-4 h-4" />
-                <span>مدیریت کارکنان</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        icon={<Users />}
+        title="همکاران"
+        description={`شماره داخلی، موبایل، ایمیل، واحد و مهارت‌های ${toPersianDigits(employees.filter(e => e.isActive).length)} همکار.`}
+      >
+        <button onClick={() => setPrintOpen(true)} title="فهرست داخلی‌ها برای کنار تلفن‌ها" className={secondaryButtonClass}>
+          <Printer className="w-4 h-4" />
+          <span>چاپ دفتر تلفن</span>
+        </button>
+        <button onClick={() => exportPhoneBook(active, appSettings?.departments ?? [])} className={secondaryButtonClass}>
+          <Download className="w-4 h-4" />
+          <span>خروجی اکسل</span>
+        </button>
+        {isManager && (
+          <button onClick={() => setActiveTab('people')} className={secondaryButtonClass}>
+            <UserCog className="w-4 h-4" />
+            <span>مدیریت کارکنان</span>
+          </button>
+        )}
+      </PageHeader>
 
       {/* Search and Department Filter Toolbar */}
-      <div className="bg-white p-4 rounded-2xl border border-[#E6E0D5] shadow-xs space-y-3">
+      <div className="bg-white p-4 rounded-2xl border border-line shadow-xs space-y-3">
         {/* Search input */}
         <div className="relative">
           <input
@@ -134,9 +115,9 @@ export const ColleaguesDirectory: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="جستجوی سریع بر اساس نام همکار، شماره داخلی، موبایل، ایمیل یا سمت سازمانی..."
             aria-label="جستجوی همکاران"
-            className="w-full pr-10 pl-4 py-3 text-xs sm:text-sm bg-[#F5F2ED] border border-[#E6E0D5] rounded-xl focus:border-[#dc2626] focus:bg-white outline-hidden transition-all text-[#2D2D2D] placeholder-[#8C867A]"
+            className="w-full pr-10 pl-4 py-3 text-xs sm:text-sm bg-surface border border-line rounded-xl focus:border-brand focus:bg-white outline-hidden transition-all text-ink placeholder-faint"
           />
-          <Search className="w-4 h-4 absolute right-3.5 top-3.5 text-[#8C867A]" />
+          <Search className="w-4 h-4 absolute right-3.5 top-3.5 text-faint" />
         </div>
 
         {/* Department Tabs */}
@@ -148,12 +129,12 @@ export const ColleaguesDirectory: React.FC = () => {
               aria-pressed={selectedDept === dept.id}
               className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl whitespace-nowrap transition-all ${
                 selectedDept === dept.id
-                  ? 'bg-[#dc2626] text-white shadow-xs'
-                  : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D]'
+                  ? 'bg-brand text-white shadow-xs'
+                  : 'bg-surface hover:bg-line text-ink'
               }`}
             >
               {dept.label}
-              <span className={`mr-1.5 text-[10px] ${selectedDept === dept.id ? 'text-white/80' : 'text-[#8C867A]'}`}>{toPersianDigits(dept.count)}</span>
+              <span className={`mr-1.5 text-xs ${selectedDept === dept.id ? 'text-white/80' : 'text-faint'}`}>{toPersianDigits(dept.count)}</span>
             </button>
           ))}
         </div>
@@ -161,18 +142,18 @@ export const ColleaguesDirectory: React.FC = () => {
         {/* Location chips, when colleagues work in more than one place */}
         {locations.length > 1 && (
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar" role="group" aria-label="محل استقرار">
-            <MapPin className="w-3.5 h-3.5 text-[#8C867A] shrink-0" />
+            <MapPin className="w-3.5 h-3.5 text-faint shrink-0" />
             {[{ id: 'all', label: 'همه محل‌ها', count: active.length }, ...locations].map((loc) => (
               <button
                 key={loc.id}
                 onClick={() => setSelectedLocation(loc.id)}
                 aria-pressed={selectedLocation === loc.id}
-                className={`px-3 py-1 text-[11px] font-semibold rounded-xl whitespace-nowrap transition-all border ${
-                  selectedLocation === loc.id ? 'bg-[#7f1d1d] text-white border-[#7f1d1d]' : 'bg-white border-[#E6E0D5] hover:bg-[#F5F2ED] text-[#2D2D2D]'
+                className={`px-3 py-1 text-xs font-semibold rounded-xl whitespace-nowrap transition-all border ${
+                  selectedLocation === loc.id ? 'bg-brand-deep text-white border-brand-deep' : 'bg-white border-line hover:bg-surface text-ink'
                 }`}
               >
                 {loc.label}
-                <span className={`mr-1.5 text-[10px] ${selectedLocation === loc.id ? 'text-white/80' : 'text-[#8C867A]'}`}>{toPersianDigits(loc.count)}</span>
+                <span className={`mr-1.5 text-xs ${selectedLocation === loc.id ? 'text-white/80' : 'text-faint'}`}>{toPersianDigits(loc.count)}</span>
               </button>
             ))}
           </div>
@@ -182,9 +163,9 @@ export const ColleaguesDirectory: React.FC = () => {
       {/* Employees Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {filteredEmployees.length === 0 ? (
-          <div className="sm:col-span-2 lg:col-span-3 py-12 text-center bg-white rounded-2xl border border-dashed border-[#E6E0D5]">
-            <Users className="w-10 h-10 text-[#8C867A] mx-auto mb-2" />
-            <p className="text-sm font-bold text-[#6E6A60]">همکاری با این مشخصات یافت نشد.</p>
+          <div className="sm:col-span-2 lg:col-span-3 py-12 text-center bg-white rounded-2xl border border-dashed border-line">
+            <Users className="w-10 h-10 text-faint mx-auto mb-2" />
+            <p className="text-sm font-bold text-muted">همکاری با این مشخصات یافت نشد.</p>
           </div>
         ) : (
           filteredEmployees.map((emp) => (
@@ -194,26 +175,26 @@ export const ColleaguesDirectory: React.FC = () => {
               tabIndex={0}
               onClick={() => setSelectedUserForView(emp)}
               onKeyDown={(e) => { if (e.key === 'Enter') setSelectedUserForView(emp); }}
-              className="bg-white rounded-2xl border border-[#E6E0D5] p-5 hover:border-[#dc2626] hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between group relative overflow-hidden"
+              className="bg-white rounded-2xl border border-line p-5 hover:border-brand hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between group relative overflow-hidden"
             >
               {/* Top Card Content */}
               <div>
                 <div className="flex items-start gap-3 mb-4">
-                  <Avatar src={emp.avatar} firstName={emp.firstName} lastName={emp.lastName} className="w-14 h-14 rounded-2xl border border-[#E6E0D5] text-base" />
+                  <Avatar src={emp.avatar} firstName={emp.firstName} lastName={emp.lastName} className="w-14 h-14 rounded-2xl border border-line text-base" />
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-[#2D2D2D] group-hover:text-[#dc2626] transition-colors truncate">
+                    <h3 className="text-sm font-bold text-ink group-hover:text-brand transition-colors truncate">
                       {emp.firstName} {emp.lastName}
                     </h3>
-                    <p className="text-xs font-semibold text-[#6E6A60] truncate mt-0.5">
+                    <p className="text-xs font-semibold text-muted truncate mt-0.5">
                       {emp.position || NO_POSITION}
                     </p>
-                    <span className={`inline-block mt-1.5 px-2 py-0.5 text-[10px] font-medium rounded-md ${emp.department ? 'bg-[#F5F2ED] text-[#991b1b]' : 'bg-stone-100 text-stone-500'}`}>
+                    <span className={`inline-block mt-1.5 px-2 py-0.5 text-xs font-medium rounded-md ${emp.department ? 'bg-surface text-brand-strong' : 'bg-stone-100 text-stone-500'}`}>
                       {emp.department || NO_DEPARTMENT}
                     </span>
-                    {unitHeads.has(emp.id) && <span className="inline-block mt-1.5 mr-1 px-2 py-0.5 text-[10px] font-bold bg-red-50 text-red-800 rounded-md">مسئول واحد</span>}
+                    {unitHeads.has(emp.id) && <span className="inline-block mt-1.5 mr-1 px-2 py-0.5 text-xs font-bold bg-red-50 text-red-800 rounded-md">مسئول واحد</span>}
                     {emp.location && (
-                      <span className="flex items-center gap-1 mt-1.5 text-[10px] text-[#6E6A60] truncate">
-                        <MapPin className="w-3 h-3 text-[#8C867A] shrink-0" />
+                      <span className="flex items-center gap-1 mt-1.5 text-xs text-muted truncate">
+                        <MapPin className="w-3 h-3 text-faint shrink-0" />
                         {emp.location}
                       </span>
                     )}
@@ -221,43 +202,43 @@ export const ColleaguesDirectory: React.FC = () => {
                 </div>
 
                 {/* Quick Contact Rows */}
-                <div className="space-y-2 py-3 border-y border-[#E6E0D5] text-xs">
+                <div className="space-y-2 py-3 border-y border-line text-xs">
                   {/* Extension Row with Copy Button */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-[#6E6A60]">
-                      <PhoneCall className="w-3.5 h-3.5 text-[#dc2626]" />
+                    <div className="flex items-center gap-1.5 text-muted">
+                      <PhoneCall className="w-3.5 h-3.5 text-brand" />
                       <span>شماره داخلی:</span>
                     </div>
                     {emp.extension ? <button
                       onClick={(e) => handleCopyExtension(emp.extension, e)}
-                      className="px-2.5 py-1 bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D] rounded-lg text-xs font-bold border border-[#E6E0D5] flex items-center gap-1 transition-colors"
+                      className="px-2.5 py-1 bg-surface hover:bg-line text-ink rounded-lg text-xs font-bold border border-line flex items-center gap-1 transition-colors"
                       title="کپی شماره داخلی"
                     >
                       <span>{emp.extension}</span>
                       {copiedExtension === emp.extension ? (
-                        <Check className="w-3 h-3 text-[#991b1b]" />
+                        <Check className="w-3 h-3 text-brand-strong" />
                       ) : (
-                        <Copy className="w-3 h-3 text-[#8C867A]" />
+                        <Copy className="w-3 h-3 text-faint" />
                       )}
-                    </button> : <span className="text-[#A8A295]">—</span>}
+                    </button> : <span className="text-faint">—</span>}
                   </div>
 
                   {/* Mobile Row */}
-                  <div className="flex items-center justify-between text-[#6E6A60]">
+                  <div className="flex items-center justify-between text-muted">
                     <div className="flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-[#8C867A]" />
+                      <Phone className="w-3.5 h-3.5 text-faint" />
                       <span>تلفن همراه:</span>
                     </div>
-                    <span dir="ltr" className="font-semibold text-[#2D2D2D]">{emp.mobile || '—'}</span>
+                    <span dir="ltr" className="font-semibold text-ink">{emp.mobile || '—'}</span>
                   </div>
 
                   {/* Email Row */}
-                  <div className="flex items-center justify-between text-[#6E6A60] truncate">
+                  <div className="flex items-center justify-between text-muted truncate">
                     <div className="flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5 text-[#8C867A]" />
+                      <Mail className="w-3.5 h-3.5 text-faint" />
                       <span>ایمیل:</span>
                     </div>
-                    <span dir="ltr" className="font-medium text-[#2D2D2D] truncate max-w-[140px] text-[11px]">{emp.email || '—'}</span>
+                    <span dir="ltr" className="font-medium text-ink truncate max-w-[140px] text-xs">{emp.email || '—'}</span>
                   </div>
 
                 </div>
@@ -266,12 +247,12 @@ export const ColleaguesDirectory: React.FC = () => {
                 {emp.skills && emp.skills.length > 0 && (
                   <div className="pt-3 flex flex-wrap gap-1">
                     {emp.skills.slice(0, 3).map((s) => (
-                      <span key={s.id} className="text-[10px] px-2 py-0.5 bg-[#F5F2ED] text-[#991b1b] rounded-md">
+                      <span key={s.id} className="text-xs px-2 py-0.5 bg-surface text-brand-strong rounded-md">
                         {s.name}
                       </span>
                     ))}
                     {emp.skills.length > 3 && (
-                      <span className="text-[10px] px-1.5 py-0.5 text-[#8C867A]">
+                      <span className="text-xs px-1.5 py-0.5 text-faint">
                         +{emp.skills.length - 3}
                       </span>
                     )}
@@ -280,7 +261,7 @@ export const ColleaguesDirectory: React.FC = () => {
               </div>
 
               {/* Bottom Footer Action */}
-              <div className="mt-4 pt-3 border-t border-[#E6E0D5] flex items-center justify-between text-xs font-bold text-[#dc2626] group-hover:translate-x-1 transition-transform">
+              <div className="mt-4 pt-3 border-t border-line flex items-center justify-between text-xs font-bold text-brand group-hover:translate-x-1 transition-transform">
                 <span>مشاهده پروفایل کامل و سوابق</span>
                 <ChevronLeft className="w-4 h-4" />
               </div>

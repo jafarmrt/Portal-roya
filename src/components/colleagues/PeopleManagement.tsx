@@ -7,13 +7,14 @@ import { matches } from '../../lib/search';
 import { placeText } from '../../../shared/profile';
 import type { UserProfile } from '../../types';
 import { Avatar } from '../common/Avatar';
-import { inputClass } from '../common/Modal';
+import { inputClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { AccountAccessModal } from './AccountAccessModal';
 import { AddEmployeeModal } from './AddEmployeeModal';
 import { EditProfileModal } from './EditProfileModal';
 import { downloadCsv } from '../../lib/download';
 import { ImportEmployeesModal, TEMPLATE_HEADER } from './ImportEmployeesModal';
 import { useCoversRole } from './RoleSelect';
+import { PageHeader } from '../common/PageHeader';
 
 type View = 'active' | 'account' | 'noAccount' | 'inactive' | 'all' | 'incomplete' | 'hireDate';
 
@@ -30,9 +31,9 @@ const VIEWS: { id: View; label: string; test: (e: UserProfile) => boolean; whenA
   { id: 'hireDate', label: 'بررسی تاریخ استخدام', test: (e) => e.isActive && Boolean(e.hireDateIsEntryDay), whenAny: true },
 ];
 
-const badge = 'inline-block px-2 py-0.5 text-[10px] font-bold rounded-md whitespace-nowrap';
+const badge = 'inline-block px-2 py-0.5 text-xs font-bold rounded-md whitespace-nowrap';
 const actionClass =
-  'px-2.5 py-1.5 text-[11px] font-bold rounded-lg border border-[#E6E0D5] bg-white hover:bg-[#F5F2ED] text-[#2D2D2D] flex items-center gap-1 whitespace-nowrap';
+  'px-2.5 py-1.5 text-xs font-bold rounded-lg border border-line bg-white hover:bg-surface text-ink flex items-center gap-1 whitespace-nowrap';
 
 /**
  * One place for managers to keep the staff list: add people (with or without a portal account),
@@ -70,44 +71,28 @@ export const PeopleManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-5 sm:p-8 text-white shadow-xl">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#dc2626]/30 text-[#E6E0D5] text-xs font-semibold border border-[#dc2626]/40">
-              <UserCog className="w-3.5 h-3.5" />
-              <span>مدیریت</span>
-            </div>
-            <h1 className="text-xl sm:text-3xl font-black">مدیریت کارکنان</h1>
-            <p className="text-[#E6E0D5] text-xs sm:text-sm max-w-2xl leading-relaxed">
-              همه کارکنان اینجا ثبت می‌شوند و در دفتر تلفن، چارت سازمانی و کارت‌های تولد دیده می‌شوند. حساب پرتال برای هر نفر اختیاری است.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setAdding(true)}
-              className="px-5 py-3 text-xs font-bold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-2xl shadow-lg flex items-center gap-2 whitespace-nowrap"
-            >
-              <UserPlus className="w-4 h-4" /> افزودن همکار
-            </button>
-            <button
-              onClick={() => setImporting(true)}
-              className="px-5 py-3 text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 rounded-2xl flex items-center gap-2 whitespace-nowrap"
-            >
-              <FileSpreadsheet className="w-4 h-4" /> ورود یا به‌روزرسانی از اکسل
-            </button>
-            <button
-              onClick={exportShown}
-              disabled={shown.length === 0}
-              title="فهرست همین نمای فعلی؛ پس از ویرایش، از «ورود یا به‌روزرسانی از اکسل» بارگذاری کنید"
-              className="px-5 py-3 text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/30 rounded-2xl flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
-            >
-              <Download className="w-4 h-4" /> خروجی اکسل
-            </button>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        icon={<UserCog />}
+        title="مدیریت کارکنان"
+        description="همه کارکنان اینجا ثبت می‌شوند و در دفتر تلفن، چارت سازمانی و کارت‌های تولد دیده می‌شوند. حساب پرتال برای هر نفر اختیاری است."
+      >
+        <button onClick={() => setAdding(true)} className={primaryButtonClass}>
+          <UserPlus className="w-4 h-4" /> افزودن همکار
+        </button>
+        <button onClick={() => setImporting(true)} className={secondaryButtonClass}>
+          <FileSpreadsheet className="w-4 h-4" /> ورود یا به‌روزرسانی از اکسل
+        </button>
+        <button
+          onClick={exportShown}
+          disabled={shown.length === 0}
+          title="فهرست همین نمای فعلی؛ پس از ویرایش، از «ورود یا به‌روزرسانی از اکسل» بارگذاری کنید"
+          className={`${secondaryButtonClass} disabled:opacity-50`}
+        >
+          <Download className="w-4 h-4" /> خروجی اکسل
+        </button>
+      </PageHeader>
 
-      <div className="bg-white p-4 rounded-2xl border border-[#E6E0D5] space-y-3">
+      <div className="bg-white p-4 rounded-2xl border border-line space-y-3">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar" role="tablist" aria-label="دسته‌بندی کارکنان">
           {VIEWS.filter((v) => !v.whenAny || view === v.id || employees.some(v.test)).map((v) => (
             <button
@@ -116,7 +101,7 @@ export const PeopleManagement: React.FC = () => {
               aria-selected={view === v.id}
               onClick={() => setView(v.id)}
               className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl whitespace-nowrap transition-all ${
-                view === v.id ? 'bg-[#dc2626] text-white' : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D]'
+                view === v.id ? 'bg-brand text-white' : 'bg-surface hover:bg-line text-ink'
               }`}
             >
               {v.label} <span className="opacity-75">({toPersianDigits(employees.filter(v.test).length)})</span>
@@ -132,7 +117,7 @@ export const PeopleManagement: React.FC = () => {
               aria-label="جستجوی کارکنان"
               className={`${inputClass} pr-9`}
             />
-            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#8C867A]" />
+            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-faint" />
           </div>
           <SearchableSelect value={department} onChange={(e) => setDepartment(e.target.value)} aria-label="واحد" className={inputClass}>
             <option value="">همه واحدها</option>
@@ -156,12 +141,12 @@ export const PeopleManagement: React.FC = () => {
       </div>
 
       {shown.length === 0 ? (
-        <div className="py-12 text-center bg-white rounded-2xl border border-dashed border-[#E6E0D5]">
-          <Users className="w-10 h-10 text-[#8C867A] mx-auto mb-2" />
-          <p className="text-sm font-bold text-[#6E6A60]">کسی با این مشخصات پیدا نشد.</p>
+        <div className="py-12 text-center bg-white rounded-2xl border border-dashed border-line">
+          <Users className="w-10 h-10 text-faint mx-auto mb-2" />
+          <p className="text-sm font-bold text-muted">کسی با این مشخصات پیدا نشد.</p>
         </div>
       ) : (
-        <ul className="bg-white rounded-2xl border border-[#E6E0D5] divide-y divide-[#E6E0D5]">
+        <ul className="bg-white rounded-2xl border border-line divide-y divide-line">
           {shown.map((e) => {
             const isSelf = e.id === currentUser?.id;
             // Only someone holding every permission of the colleague's role changes their access; the server checks the same.
@@ -171,8 +156,8 @@ export const PeopleManagement: React.FC = () => {
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <Avatar src={e.avatar} firstName={e.firstName} lastName={e.lastName} className={`w-11 h-11 rounded-xl text-sm shrink-0 ${e.isActive ? '' : 'opacity-60'}`} />
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-[#2D2D2D] truncate">{e.firstName} {e.lastName}</p>
-                    <p className="text-[11px] text-[#6E6A60] truncate">{placeText(e)}{e.extension ? ` · داخلی ${e.extension}` : ''}</p>
+                    <p className="text-sm font-bold text-ink truncate">{e.firstName} {e.lastName}</p>
+                    <p className="text-xs text-muted truncate">{placeText(e)}{e.extension ? ` · داخلی ${e.extension}` : ''}</p>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 md:w-64">
@@ -181,7 +166,7 @@ export const PeopleManagement: React.FC = () => {
                   {e.hasAccount ? (
                     <>
                       <span className={`${badge} bg-emerald-50 text-emerald-800`} dir="ltr">{e.username}</span>
-                      <span className={`${badge} bg-[#F5F2ED] text-[#4B4740]`} title="روش ورود و سطح دسترسی در پرتال">
+                      <span className={`${badge} bg-surface text-ink-soft`} title="روش ورود و سطح دسترسی در پرتال">
                         {e.authSource === 'ldap' ? 'ورود با ویندوز' : 'رمز پرتال'} · {roleName(e.role)}
                       </span>
                     </>

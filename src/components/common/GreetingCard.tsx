@@ -64,8 +64,8 @@ export const GreetingCard: React.FC<GreetingCardProps> = ({
 
       <div className="relative space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <span className={`font-black ${compact ? 'text-[11px]' : 'text-xs'}`} style={{ color: look.soft }}>{OCCASION_TITLES[occasion]}</span>
-          <span className={`flex items-center gap-1.5 text-[10px] ${compact ? 'pl-5' : 'pl-7'}`} style={{ color: look.soft }}>
+          <span className={`font-black ${compact ? 'text-xs' : 'text-xs'}`} style={{ color: look.soft }}>{OCCASION_TITLES[occasion]}</span>
+          <span className={`flex items-center gap-1.5 text-xs ${compact ? 'pl-5' : 'pl-7'}`} style={{ color: look.soft }}>
             {isPrivate && (
               <span className="inline-flex items-center gap-0.5" title="فقط شما دو نفر این کارت را می‌بینید">
                 <Lock className="w-3 h-3" /> خصوصی
@@ -85,7 +85,7 @@ export const GreetingCard: React.FC<GreetingCardProps> = ({
         <figcaption className="flex items-center justify-between gap-2 pt-1">
           <span className="flex items-center gap-1.5 min-w-0">
             <Avatar src={senderAvatar} firstName={first} lastName={rest.join(' ')} className="w-6 h-6 rounded-full text-[9px] border border-white/60" />
-            <span className="text-[11px] font-bold truncate">{senderName}</span>
+            <span className="text-xs font-bold truncate">{senderName}</span>
           </span>
           {!onReact && reaction && (
             <span className="text-sm bg-white/70 rounded-full px-2 py-0.5 leading-none" title="واکنش صاحب کارت">{reaction}</span>
@@ -101,7 +101,7 @@ export const GreetingCard: React.FC<GreetingCardProps> = ({
                 onClick={() => onReact(reaction === r ? '' : r)}
                 aria-pressed={reaction === r}
                 className={`w-8 h-8 rounded-full text-base leading-none transition-all ${
-                  reaction === r ? 'bg-white shadow-sm scale-110 ring-2 ring-[#D97B5F]' : 'bg-white/50 hover:bg-white/80'
+                  reaction === r ? 'bg-white shadow-sm scale-110 ring-2 ring-warm' : 'bg-white/50 hover:bg-white/80'
                 }`}
               >
                 {r}

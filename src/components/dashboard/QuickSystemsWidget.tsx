@@ -29,16 +29,16 @@ export const SystemTile: React.FC<{ system: ExternalSystem; href?: string; compa
       }}
       className={`group flex items-center gap-2.5 rounded-2xl border transition-all min-w-0 ${compact ? 'p-2.5' : 'p-3'} ${
         ready
-          ? 'bg-white border-[#E6E0D5] hover:border-[#dc2626] hover:shadow-md focus-visible:border-[#dc2626]'
-          : 'bg-[#F5F2ED]/60 border-dashed border-[#D9D4CB] opacity-70 cursor-not-allowed'
+          ? 'bg-white border-line hover:border-brand hover:shadow-md focus-visible:border-brand'
+          : 'bg-surface/60 border-dashed border-line-strong opacity-70 cursor-not-allowed'
       }`}
     >
       <SystemIcon system={system} size="sm" />
       <span className="min-w-0 flex-1">
-        <span className="block text-xs sm:text-sm font-bold text-[#2D2D2D] group-hover:text-[#dc2626] transition-colors line-clamp-2 leading-snug">{system.name}</span>
-        {!compact && system.description && <span className="block text-[11px] text-[#6E6A60] truncate">{system.description}</span>}
+        <span className="block text-xs sm:text-sm font-bold text-ink group-hover:text-brand transition-colors line-clamp-2 leading-snug">{system.name}</span>
+        {!compact && system.description && <span className="block text-xs text-muted truncate">{system.description}</span>}
       </span>
-      {ready && <ExternalLink className="w-3.5 h-3.5 text-[#A8A295] group-hover:text-[#dc2626] shrink-0 hidden sm:block" />}
+      {ready && <ExternalLink className="w-3.5 h-3.5 text-faint group-hover:text-brand shrink-0 hidden sm:block" />}
     </a>
   );
 };
@@ -50,13 +50,13 @@ export const QuickSystemsWidget: React.FC = () => {
   if (systems.length === 0) return null;
 
   return (
-    <section aria-labelledby="quick-systems-title" className="bg-white rounded-3xl p-4 sm:p-5 border border-[#E6E0D5] shadow-xs space-y-3">
+    <section aria-labelledby="quick-systems-title" className="bg-white rounded-3xl p-4 sm:p-5 border border-line/70 shadow-card space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <h2 id="quick-systems-title" className="flex items-center gap-2 text-sm font-black text-[#2D2D2D]">
-          <span className="p-1.5 bg-[#7f1d1d] text-white rounded-lg"><LayoutGrid className="w-4 h-4" /></span>
+        <h2 id="quick-systems-title" className="flex items-center gap-2 text-sm font-black text-ink">
+          <span className="p-1.5 bg-brand-deep text-white rounded-lg"><LayoutGrid className="w-4 h-4" /></span>
           سامانه‌های سازمان
         </h2>
-        <button onClick={() => setActiveTab('systems')} className="tap-area text-xs font-bold text-[#dc2626] hover:underline flex items-center gap-1">
+        <button onClick={() => setActiveTab('systems')} className="tap-area text-xs font-bold text-brand hover:underline flex items-center gap-1">
           {can('systems.manage') && <Settings2 className="w-3.5 h-3.5" />}
           {can('systems.manage') ? 'مدیریت سامانه‌ها' : 'همه سامانه‌ها'}
         </button>

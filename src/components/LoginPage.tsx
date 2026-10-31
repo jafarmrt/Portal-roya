@@ -39,7 +39,7 @@ const LoginForm: React.FC = () => {
       )}
 
       <div>
-        <label htmlFor={`${id}-username`} className="block text-xs font-bold text-[#4B4740] mb-1">نام کاربری</label>
+        <label htmlFor={`${id}-username`} className="block text-xs font-bold text-ink-soft mb-1">نام کاربری</label>
         <div className="relative">
           <input
             id={`${id}-username`}
@@ -51,14 +51,14 @@ const LoginForm: React.FC = () => {
             placeholder={directoryLogin ? 'مثلاً ali.rezaei' : undefined}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full pl-3 pr-10 py-3 rounded-xl border border-[#D9D4CB] text-sm focus:border-red-700 focus:ring-2 focus:ring-red-700/20 outline-hidden text-left"
+            className="w-full pl-3 pr-10 py-3 rounded-xl border border-line-strong text-sm focus:border-red-700 focus:ring-2 focus:ring-red-700/20 outline-hidden text-left"
           />
-          <User className="w-4 h-4 text-[#8C867A] absolute right-3 top-3.5" />
+          <User className="w-4 h-4 text-faint absolute right-3 top-3.5" />
         </div>
       </div>
 
       <div>
-        <label htmlFor={`${id}-password`} className="block text-xs font-bold text-[#4B4740] mb-1">رمز عبور</label>
+        <label htmlFor={`${id}-password`} className="block text-xs font-bold text-ink-soft mb-1">رمز عبور</label>
         <div className="relative">
           <input
             id={`${id}-password`}
@@ -68,22 +68,22 @@ const LoginForm: React.FC = () => {
             dir="ltr"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full pl-3 pr-10 py-3 rounded-xl border border-[#D9D4CB] text-sm focus:border-red-700 focus:ring-2 focus:ring-red-700/20 outline-hidden text-left"
+            className="w-full pl-3 pr-10 py-3 rounded-xl border border-line-strong text-sm focus:border-red-700 focus:ring-2 focus:ring-red-700/20 outline-hidden text-left"
           />
-          <Lock className="w-4 h-4 text-[#8C867A] absolute right-3 top-3.5" />
+          <Lock className="w-4 h-4 text-faint absolute right-3 top-3.5" />
         </div>
       </div>
 
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full py-3 bg-[#991b1b] hover:bg-[#7f1d1d] text-white rounded-xl text-sm font-black shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+        className="w-full py-3 bg-brand-strong hover:bg-brand-deep text-white rounded-xl text-sm font-black shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-60"
       >
         <LogIn className="w-4 h-4" />
         <span>{isSubmitting ? 'در حال بررسی...' : 'ورود'}</span>
       </button>
 
-      <p className="text-[11px] text-[#7A756D] text-center leading-relaxed">
+      <p className="text-xs text-muted text-center leading-relaxed">
         {directoryLogin
           ? 'با همان نام کاربری و رمز ورود به ویندوز (حساب سازمانی) وارد شوید. برای فراموشی رمز با واحد فناوری اطلاعات تماس بگیرید.'
           : 'حساب پرتال را ادمین پرتال یا کارگزینی می‌سازد. اگر رمز خود را فراموش کرده‌اید، از مدیر بخواهید آن را بازنشانی کند.'}
@@ -104,12 +104,12 @@ const SignedOutApps: React.FC = () => {
   if (apps.length === 0) return null;
 
   return (
-    <section aria-labelledby="signed-out-apps" className="w-full max-w-md bg-white rounded-3xl border border-[#E6E0D5] p-5 space-y-3">
+    <section aria-labelledby="signed-out-apps" className="w-full max-w-md bg-white rounded-3xl border border-line p-5 space-y-3">
       <div>
-        <h2 id="signed-out-apps" className="flex items-center gap-2 text-sm font-black text-[#2D2D2D]">
-          <LayoutGrid className="w-4 h-4 text-[#991b1b]" /> سامانه‌های سازمان
+        <h2 id="signed-out-apps" className="flex items-center gap-2 text-sm font-black text-ink">
+          <LayoutGrid className="w-4 h-4 text-brand-strong" /> سامانه‌های سازمان
         </h2>
-        <p className="text-[11px] text-[#7A756D] mt-1">بدون ورود به پرتال هم می‌توانید این سامانه‌ها را باز کنید.</p>
+        <p className="text-xs text-muted mt-1">بدون ورود به پرتال هم می‌توانید این سامانه‌ها را باز کنید.</p>
       </div>
       <div className="grid grid-cols-2 gap-2">
         {apps.map((app) => <SystemTile key={app.id} system={app} href={app.url} compact />)}
@@ -119,12 +119,12 @@ const SignedOutApps: React.FC = () => {
 };
 
 export const LoginPage: React.FC = () => (
-  <main className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center gap-4 p-4" dir="rtl">
-    <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-[#E6E0D5] overflow-hidden">
-      <div className="px-8 pt-8 pb-5 border-b border-[#E6E0D5]">
+  <main className="min-h-screen bg-page flex flex-col items-center justify-center gap-4 p-4" dir="rtl">
+    <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-line overflow-hidden">
+      <div className="px-8 pt-8 pb-5 border-b border-line">
         <RoyaLogo size="md" />
-        <h1 className="text-xl font-black mt-5 text-[#2D2D2D]">ورود به پرتال</h1>
-        <p className="text-xs text-[#6E6A60] mt-1">برای مشاهدهٔ اخبار، اطلاعیه‌ها و همکاران وارد شوید.</p>
+        <h1 className="text-xl font-black mt-5 text-ink">ورود به پرتال</h1>
+        <p className="text-xs text-muted mt-1">برای مشاهدهٔ اخبار، اطلاعیه‌ها و همکاران وارد شوید.</p>
       </div>
       <LoginForm />
     </div>
@@ -140,10 +140,10 @@ export const LoginModal: React.FC = () => {
 
   return (
     <ModalShell onClose={closeLoginPrompt} size="sm" labelledBy={titleId}>
-      <div className="px-6 pt-6 pb-4 border-b border-[#E6E0D5] flex items-start justify-between gap-3 shrink-0">
+      <div className="px-6 pt-6 pb-4 border-b border-line flex items-start justify-between gap-3 shrink-0">
         <div>
-          <h2 id={titleId} className="text-lg font-black text-[#2D2D2D]">ورود به پرتال</h2>
-          <p className="text-xs text-[#6E6A60] mt-1 leading-relaxed">{loginPrompt}</p>
+          <h2 id={titleId} className="text-lg font-black text-ink">ورود به پرتال</h2>
+          <p className="text-xs text-muted mt-1 leading-relaxed">{loginPrompt}</p>
         </div>
         <ModalCloseButton onClose={closeLoginPrompt} />
       </div>

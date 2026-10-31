@@ -64,12 +64,12 @@ const GAP_PX = 4; // gap-1 between the desktop buttons
 
 const desktopButtonClass = (isActive: boolean) =>
   `flex items-center gap-2 px-3 xl:px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-    isActive ? 'bg-[#dc2626] text-white shadow-md shadow-[#dc2626]/30' : 'text-[#C5BFC7] hover:text-white hover:bg-white/10'
+    isActive ? 'bg-brand text-white shadow-md shadow-brand/30' : 'text-on-brand-muted hover:text-white hover:bg-white/10'
   }`;
 
 const Badge: React.FC<{ item: NavItem; className: string }> = ({ item, className }) =>
   item.badge === undefined ? null : (
-    <span className={`${className} rounded-full font-bold ${item.badgeColor || 'bg-[#7f1d1d] text-[#E6E0D5]'}`}>{item.badge}</span>
+    <span className={`${className} rounded-full font-bold ${item.badgeColor || 'bg-brand-deep text-line'}`}>{item.badge}</span>
   );
 
 const groupItems = (entry: NavGroupEntry) => entry.sections.flatMap((section) => section.items);
@@ -82,7 +82,7 @@ const EntryFace: React.FC<{ entry: NavEntry; activeTab: ActiveTab; open?: boolea
       <>
         {item.icon}
         <span className={item.compact ? 'hidden xl:inline' : undefined}>{item.label}</span>
-        <Badge item={item} className="text-[10px] px-1.5 py-0.2" />
+        <Badge item={item} className="text-xs px-1.5 py-0.2" />
       </>
     );
   }
@@ -97,7 +97,7 @@ const EntryFace: React.FC<{ entry: NavEntry; activeTab: ActiveTab; open?: boolea
       {entry.more ? (
         <span className={`w-2 h-2 rounded-full ${groupBadge ? 'bg-amber-400' : 'bg-transparent'}`} aria-hidden="true" />
       ) : (
-        groupBadge && <Badge item={groupBadge} className="text-[10px] px-1.5 py-0.2" />
+        groupBadge && <Badge item={groupBadge} className="text-xs px-1.5 py-0.2" />
       )}
       <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
     </>
@@ -146,11 +146,11 @@ const NavGroup: React.FC<{ entry: NavGroupEntry; activeTab: ActiveTab; onSelect:
         <div
           id={menuId}
           role="menu"
-          className={`absolute top-full ${alignEnd ? 'left-0' : 'right-0'} mt-1.5 min-w-48 max-h-[70vh] overflow-y-auto bg-white rounded-2xl shadow-xl border border-[#EAE6DF] p-1.5 z-50 text-right`}
+          className={`absolute top-full ${alignEnd ? 'left-0' : 'right-0'} mt-1.5 min-w-48 max-h-[70vh] overflow-y-auto bg-white rounded-2xl shadow-xl border border-line p-1.5 z-50 text-right`}
         >
           {entry.sections.map((section, index) => (
-            <div key={section.title ?? index} role="group" aria-label={section.title} className={index > 0 ? 'mt-1 pt-1 border-t border-[#EAE6DF]' : ''}>
-              {section.title && <div className="px-3 pt-1.5 pb-1 text-[11px] font-bold text-[#8A8580]">{section.title}</div>}
+            <div key={section.title ?? index} role="group" aria-label={section.title} className={index > 0 ? 'mt-1 pt-1 border-t border-line' : ''}>
+              {section.title && <div className="px-3 pt-1.5 pb-1 text-xs font-bold text-faint">{section.title}</div>}
               {section.items.map((item) => (
                 <button
                   key={item.id}
@@ -162,12 +162,12 @@ const NavGroup: React.FC<{ entry: NavGroupEntry; activeTab: ActiveTab; onSelect:
                   }}
                   aria-current={item.id === activeTab ? 'page' : undefined}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors ${
-                    item.id === activeTab ? 'bg-[#fef2f2] text-[#991b1b]' : 'text-[#2D2D2D] hover:bg-[#F5F2ED]'
+                    item.id === activeTab ? 'bg-brand-soft text-brand-strong' : 'text-ink hover:bg-surface'
                   }`}
                 >
                   {item.icon}
                   <span className="flex-1 text-right">{item.label}</span>
-                  <Badge item={item} className="text-[10px] px-1.5 py-0.5" />
+                  <Badge item={item} className="text-xs px-1.5 py-0.5" />
                 </button>
               ))}
             </div>
@@ -247,7 +247,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
     label: 'نظرسنجی‌ها',
     icon: <Vote className="w-4 h-4" />,
     badge: activePollsCount > 0 ? `${toPersianDigits(activePollsCount)} جدید` : undefined,
-    badgeColor: 'bg-[#991b1b]/30 text-[#E6E0D5]'
+    badgeColor: 'bg-brand-strong/30 text-line'
   };
   const newsItem: NavItem = {
     id: 'news',
@@ -256,7 +256,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
     badge: pendingAckCount > 0
       ? `${toPersianDigits(pendingAckCount)} بخشنامه`
       : unreadNewsCount > 0 ? `${toPersianDigits(unreadNewsCount)} نخوانده` : undefined,
-    badgeColor: pendingAckCount > 0 ? 'bg-amber-400 text-amber-950' : 'bg-[#991b1b]/30 text-[#E6E0D5]'
+    badgeColor: pendingAckCount > 0 ? 'bg-amber-400 text-amber-950' : 'bg-brand-strong/30 text-line'
   };
   const documents: NavItem = {
     id: 'documents',
@@ -361,7 +361,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
   return (
     <>
       {/* Desktop Navigation Top Bar / Sub-header */}
-      <nav className="hidden lg:block bg-[#7f1d1d] text-[#E6E0D5] border-b border-[#7f1d1d] shadow-inner relative z-30" aria-label="منوی اصلی">
+      <nav className="hidden lg:block bg-brand-deep text-line border-b border-brand-deep shadow-inner relative z-30" aria-label="منوی اصلی">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div ref={rowRef} className="relative flex items-center gap-1 py-1.5">
             {desktopEntries.slice(0, fitting).map((entry) => {
@@ -417,21 +417,21 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
       {isMobileNavOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div
-            className="fixed inset-0 bg-[#7f1d1d]/70 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-brand-deep/70 backdrop-blur-xs transition-opacity"
             onClick={onCloseMobileNav}
           />
 
-          <div className="relative flex-1 max-w-xs w-full h-full overflow-y-auto overscroll-contain bg-[#7f1d1d] text-[#E6E0D5] p-5 flex flex-col justify-between gap-4 shadow-2xl z-10 text-right" role="dialog" aria-modal="true" aria-label="منوی پرتال">
+          <div className="relative flex-1 max-w-xs w-full h-full overflow-y-auto overscroll-contain bg-brand-deep text-line p-5 flex flex-col justify-between gap-4 shadow-2xl z-10 text-right" role="dialog" aria-modal="true" aria-label="منوی پرتال">
             <div>
               <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/10">
                 <div className="flex flex-col">
                   <span className="text-sm font-black text-white">پرتال رویا طرح داخلی</span>
-                  <span className="text-[11px] text-[#E6E0D5]/80">ROYA Surface Center</span>
+                  <span className="text-xs text-line/80">ROYA Surface Center</span>
                 </div>
                 <button
                   onClick={onCloseMobileNav}
                   aria-label="بستن منو"
-                  className="p-2 rounded-lg text-[#E6E0D5] hover:text-white hover:bg-white/10"
+                  className="p-2 rounded-lg text-line hover:text-white hover:bg-white/10"
                 >
                   ✕
                 </button>
@@ -443,7 +443,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
                     onCloseMobileNav();
                     requestLogin();
                   }}
-                  className="w-full flex items-center justify-center gap-2 p-3 mb-4 rounded-xl bg-white text-[#7f1d1d] text-xs font-black"
+                  className="w-full flex items-center justify-center gap-2 p-3 mb-4 rounded-xl bg-white text-brand-deep text-xs font-black"
                 >
                   <LogIn className="w-4 h-4" /> ورود به پرتال
                 </button>
@@ -456,13 +456,13 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
                     src={currentUser.avatar}
                     firstName={currentUser.firstName}
                     lastName={currentUser.lastName}
-                    className="w-10 h-10 rounded-full border-2 border-[#dc2626] text-xs"
+                    className="w-10 h-10 rounded-full border-2 border-brand text-xs"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-bold text-white truncate">
                       {currentUser.firstName} {currentUser.lastName}
                     </div>
-                    <div className="text-[10px] text-[#E6E0D5]/80 truncate">
+                    <div className="text-xs text-line/80 truncate">
                       {currentUser.position}
                     </div>
                   </div>
@@ -472,7 +472,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
               {/* Navigation Items */}
               {mobileSections.map((section, index) => (
                 <div key={section.title ?? index} className={index > 0 ? 'mt-4 pt-4 border-t border-white/10' : ''}>
-                  {section.title && <div className="px-3.5 pb-2 text-[11px] font-bold text-[#E6E0D5]/70">{section.title}</div>}
+                  {section.title && <div className="px-3.5 pb-2 text-xs font-bold text-line/70">{section.title}</div>}
                   <div className="space-y-1">
                     {section.items.map((item) => {
                       const isActive = activeTab === item.id;
@@ -486,15 +486,15 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
                           aria-current={isActive ? 'page' : undefined}
                           className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all ${
                             isActive
-                              ? 'bg-[#dc2626] text-white shadow-md'
-                              : 'text-[#C5BFC7] hover:text-white hover:bg-white/10'
+                              ? 'bg-brand text-white shadow-md'
+                              : 'text-on-brand-muted hover:text-white hover:bg-white/10'
                           }`}
                         >
                           <div className="flex items-center gap-3">
                             {item.icon}
                             <span>{item.label}</span>
                           </div>
-                          <Badge item={item} className="text-[10px] px-2 py-0.5" />
+                          <Badge item={item} className="text-xs px-2 py-0.5" />
                         </button>
                       );
                     })}
@@ -503,7 +503,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
               ))}
             </div>
 
-            <div className="pt-4 border-t border-white/10 text-[11px] text-[#E6E0D5]/80 text-center">
+            <div className="pt-4 border-t border-white/10 text-xs text-line/80 text-center">
               شرکت رویا طرح داخلی © {toPersianDigits(currentJalaliYear())}
             </div>
           </div>

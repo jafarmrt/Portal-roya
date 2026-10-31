@@ -43,22 +43,22 @@ export const NoticeBoard: React.FC = () => {
   if (live.length === 0 && !canPublish) return null;
 
   return (
-    <section className="bg-white border border-[#E6E0D5] rounded-3xl p-4 sm:p-5 space-y-3" aria-labelledby="notice-board-title">
+    <section className="bg-white border border-line/70 shadow-card rounded-3xl p-4 sm:p-5 space-y-3" aria-labelledby="notice-board-title">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="p-1.5 bg-emerald-100 text-emerald-800 rounded-xl"><Megaphone className="w-4 h-4" /></span>
-        <h2 id="notice-board-title" className="text-sm font-black text-[#2D2D2D]">تابلوی اعلانات</h2>
+        <h2 id="notice-board-title" className="text-sm font-black text-ink">تابلوی اعلانات</h2>
         {open.length > 0 && currentUser && (
-          <span className="px-2 py-0.5 text-[11px] font-bold bg-emerald-100 text-emerald-900 rounded-full">{toPersianDigits(open.length)} تازه</span>
+          <span className="px-2 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-900 rounded-full">{toPersianDigits(open.length)} تازه</span>
         )}
         {featureInPreview(appSettings, 'noticeBoard') && (
-          <span className="px-2 py-0.5 text-[10px] font-bold bg-violet-100 text-violet-800 rounded-full">پیش‌نمایش</span>
+          <span className="px-2 py-0.5 text-xs font-bold bg-violet-100 text-violet-800 rounded-full">پیش‌نمایش</span>
         )}
         {canPublish && (
           <div className="ms-auto flex items-center gap-1">
             <button
               type="button"
               onClick={() => setAdding(true)}
-              className="tap-area px-2.5 py-1.5 text-[11px] font-bold text-emerald-800 hover:bg-emerald-50 rounded-xl flex items-center gap-1"
+              className="tap-area px-2.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-50 rounded-xl flex items-center gap-1"
             >
               <Plus className="w-3.5 h-3.5" /> اطلاعیهٔ جدید
             </button>
@@ -67,7 +67,7 @@ export const NoticeBoard: React.FC = () => {
               onClick={() => setManaging(true)}
               aria-label="مدیریت اطلاعیه‌ها"
               title="مدیریت اطلاعیه‌ها (زمان‌بندی‌شده، پایان‌یافته و آمار دیده‌شدن)"
-              className="tap-area p-1.5 text-[#6E6A60] hover:bg-[#F5F2ED] rounded-xl"
+              className="tap-area p-1.5 text-muted hover:bg-surface rounded-xl"
             >
               <Settings2 className="w-4 h-4" />
             </button>
@@ -75,7 +75,7 @@ export const NoticeBoard: React.FC = () => {
         )}
       </div>
 
-      {live.length === 0 && <p className="text-xs text-[#6E6A60]">اطلاعیه‌ای روی تابلو نیست. پیام‌های کوتاهی که خبر نیستند را این‌جا بگذارید.</p>}
+      {live.length === 0 && <p className="text-xs text-muted">اطلاعیه‌ای روی تابلو نیست. پیام‌های کوتاهی که خبر نیستند را این‌جا بگذارید.</p>}
 
       {shown.length > 0 && (
         <ul className="space-y-2.5">
@@ -87,7 +87,7 @@ export const NoticeBoard: React.FC = () => {
         </ul>
       )}
       {open.length > SHOWN && (
-        <button type="button" onClick={() => setShowAll((v) => !v)} className="tap-area text-[11px] font-bold text-emerald-800 hover:underline">
+        <button type="button" onClick={() => setShowAll((v) => !v)} className="tap-area text-xs font-bold text-emerald-800 hover:underline">
           {showAll ? 'نمایش کمتر' : `${toPersianDigits(open.length - SHOWN)} اطلاعیهٔ دیگر`}
         </button>
       )}
@@ -98,7 +98,7 @@ export const NoticeBoard: React.FC = () => {
             type="button"
             onClick={() => setShowSeen((v) => !v)}
             aria-expanded={showSeen}
-            className="tap-area text-[11px] font-bold text-[#6E6A60] hover:text-[#2D2D2D] flex items-center gap-1"
+            className="tap-area text-xs font-bold text-muted hover:text-ink flex items-center gap-1"
           >
             <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showSeen ? 'rotate-180' : ''}`} />
             {open.length === 0 ? `همه را دیده‌اید (${toPersianDigits(seen.length)} اطلاعیه)` : `${toPersianDigits(seen.length)} اطلاعیهٔ دیده‌شده`}
@@ -123,14 +123,14 @@ export const NoticeBoard: React.FC = () => {
 
 const NoticeItem: React.FC<{ notice: Notice; muted?: boolean; onSeen?: () => void; onReopen?: () => void }> = ({ notice, muted, onSeen, onReopen }) => {
   const tone = muted
-    ? 'bg-[#F5F2ED]/60 border-[#E6E0D5] text-[#4B4740]'
+    ? 'bg-surface/60 border-line text-ink-soft'
     : notice.important
-      ? 'bg-amber-50 border-amber-300 text-[#2D2D2D]'
-      : 'bg-emerald-50/60 border-emerald-200 text-[#2D2D2D]';
+      ? 'bg-amber-50 border-amber-300 text-ink'
+      : 'bg-emerald-50/60 border-emerald-200 text-ink';
   return (
     <article className={`rounded-2xl border p-3 sm:p-4 space-y-2 ${tone}`}>
       {notice.important && !muted && (
-        <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-800">
+        <span className="inline-flex items-center gap-1 text-xs font-black text-amber-800">
           <Star className="w-3 h-3 fill-amber-500 text-amber-500" /> مهم
         </span>
       )}
@@ -146,21 +146,21 @@ const NoticeItem: React.FC<{ notice: Notice; muted?: boolean; onSeen?: () => voi
           ))}
         </div>
       )}
-      <div className="flex items-center gap-2 flex-wrap text-[11px] text-[#6E6A60]">
-        {notice.sender && <span className="font-bold text-[#4B4740]">{notice.sender}</span>}
+      <div className="flex items-center gap-2 flex-wrap text-xs text-muted">
+        {notice.sender && <span className="font-bold text-ink-soft">{notice.sender}</span>}
         {notice.sender && <span aria-hidden>·</span>}
         <span>تا {formatDate(notice.endsAt)}</span>
         {onSeen && (
           <button
             type="button"
             onClick={onSeen}
-            className="tap-area ms-auto px-3 py-1 text-[11px] font-bold text-emerald-900 bg-white border border-emerald-300 hover:bg-emerald-100 rounded-xl flex items-center gap-1"
+            className="tap-area ms-auto px-3 py-1 text-xs font-bold text-emerald-900 bg-white border border-emerald-300 hover:bg-emerald-100 rounded-xl flex items-center gap-1"
           >
             <Check className="w-3.5 h-3.5" /> دیدم
           </button>
         )}
         {onReopen && (
-          <button type="button" onClick={onReopen} className="tap-area ms-auto text-[11px] font-bold text-emerald-800 hover:underline">
+          <button type="button" onClick={onReopen} className="tap-area ms-auto text-xs font-bold text-emerald-800 hover:underline">
             باز کردن دوباره
           </button>
         )}

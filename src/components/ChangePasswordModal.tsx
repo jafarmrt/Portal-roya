@@ -66,16 +66,16 @@ export const ChangePasswordModal: React.FC<{ onClose: () => void }> = ({ onClose
 export const ForcePasswordChangePage: React.FC = () => {
   const { currentUser, logout } = usePortal();
   return (
-    <main className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4" dir="rtl">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-[#E6E0D5] p-8 space-y-5">
+    <main className="min-h-screen bg-page flex items-center justify-center p-4" dir="rtl">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-line p-8 space-y-5">
         <div>
-          <h1 className="text-lg font-black text-[#2D2D2D]">{currentUser?.firstName} عزیز، خوش آمدید</h1>
-          <p className="text-xs text-[#6E6A60] mt-2 leading-relaxed">
+          <h1 className="text-lg font-black text-ink">{currentUser?.firstName} عزیز، خوش آمدید</h1>
+          <p className="text-xs text-muted mt-2 leading-relaxed">
             رمزی که با آن وارد شدید موقت است. لطفاً قبل از ادامه یک رمز عبور شخصی انتخاب کنید.
           </p>
         </div>
         <ChangePasswordForm />
-        <button type="button" onClick={() => void logout()} className="text-xs text-[#7A756D] hover:text-red-700 underline">
+        <button type="button" onClick={() => void logout()} className="text-xs text-muted hover:text-red-700 underline">
           خروج
         </button>
       </div>

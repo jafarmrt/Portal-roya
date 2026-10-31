@@ -12,7 +12,7 @@ const stateOf = (c: Course, today: string): { label: string; className: string }
   if (c.attended === true) return { label: 'گذرانده', className: 'bg-emerald-100 text-emerald-800' };
   if (c.attended === false) return { label: 'غایب', className: 'bg-red-100 text-red-800' };
   if (c.date >= today) return { label: 'ثبت‌نام شده', className: 'bg-sky-100 text-sky-800' };
-  return { label: 'برگزار شد', className: 'bg-[#F5F2ED] text-[#6E6A60]' };
+  return { label: 'برگزار شد', className: 'bg-surface text-muted' };
 };
 
 /**
@@ -61,7 +61,7 @@ export const PersonTrainingsSection: React.FC<{ userId: string; own: boolean; on
                 >
                   <span className="flex-1 min-w-0">
                     <span className="block text-xs font-bold text-slate-800 truncate">{c.title}</span>
-                    <span className="block text-[11px] text-slate-500">
+                    <span className="block text-xs text-slate-500">
                       {formatDate(c.date)}، {c.instructor}
                       {c.materialsCount > 0 && (
                         <span className="inline-flex items-center gap-0.5 mr-2">
@@ -70,7 +70,7 @@ export const PersonTrainingsSection: React.FC<{ userId: string; own: boolean; on
                       )}
                     </span>
                   </span>
-                  <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${state.className}`}>{state.label}</span>
+                  <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-bold ${state.className}`}>{state.label}</span>
                 </button>
               </li>
             );
@@ -85,9 +85,9 @@ export const PersonTrainingsSection: React.FC<{ userId: string; own: boolean; on
                 <Presentation className="w-4 h-4 text-slate-500 shrink-0" />
                 <span className="flex-1 min-w-0">
                   <span className="block text-xs font-bold text-slate-800 truncate">{t.title}</span>
-                  <span className="block text-[11px] text-slate-500">{formatDate(t.date)}</span>
+                  <span className="block text-xs text-slate-500">{formatDate(t.date)}</span>
                 </span>
-                <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">مدرس</span>
+                <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800">مدرس</span>
               </button>
             </li>
           ))}

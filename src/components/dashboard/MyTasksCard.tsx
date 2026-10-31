@@ -146,7 +146,7 @@ export const MyTasksCard: React.FC = () => {
     if (t.myStatus === 'enrolled' && t.myAttended !== false && !t.myFeedback && t.date < today && t.date >= twoWeeksAgo) {
       tasks.push({
         key: `training-${t.id}`,
-        icon: <MessageSquareHeart className="w-4 h-4 text-[#991b1b]" />,
+        icon: <MessageSquareHeart className="w-4 h-4 text-brand-strong" />,
         kind: 'نظر دربارهٔ دوره',
         title: t.title,
         when: formatDate(t.date),
@@ -158,7 +158,7 @@ export const MyTasksCard: React.FC = () => {
     if (!t.myStatus || !inWeek(t.date)) continue;
     tasks.push({
       key: `training-${t.id}`,
-      icon: <GraduationCap className="w-4 h-4 text-[#991b1b]" />,
+      icon: <GraduationCap className="w-4 h-4 text-brand-strong" />,
       kind: t.myStatus === 'waitlist' ? `لیست انتظار دوره (نفر ${toPersianDigits(t.myWaitlistPosition ?? 1)})` : 'دورهٔ من',
       title: t.title,
       when: `${dayLabel(t.date)}${t.time ? `، ساعت ${toPersianDigits(t.time)}` : ''}`,
@@ -197,7 +197,7 @@ export const MyTasksCard: React.FC = () => {
 
   if (tasks.length === 0) {
     return (
-      <section className="bg-white border border-[#E6E0D5] rounded-2xl px-4 py-3 flex items-center gap-2 text-xs text-[#4B4740] leading-relaxed" aria-label="منتظر اقدام شما">
+      <section className="bg-white border border-line rounded-2xl px-4 py-3 flex items-center gap-2 text-xs text-ink-soft leading-relaxed" aria-label="منتظر اقدام شما">
         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
         <span><strong>منتظر اقدام شما:</strong> فعلاً چیزی نیست؛ بخشنامه، سند یا نظرسنجی بی‌پاسخ و برنامه‌ای برای این هفته ندارید.</span>
       </section>
@@ -209,8 +209,8 @@ export const MyTasksCard: React.FC = () => {
     <section className="bg-white border border-amber-300 rounded-3xl p-4 space-y-2.5" aria-labelledby="my-tasks-title">
       <div className="flex items-center gap-2">
         <span className="p-1.5 bg-amber-100 text-amber-800 rounded-xl"><ListTodo className="w-4 h-4" /></span>
-        <h2 id="my-tasks-title" className="text-sm font-black text-[#2D2D2D]">منتظر اقدام شما</h2>
-        <span className="px-2 py-0.5 text-[11px] font-bold bg-amber-100 text-amber-900 rounded-full">{toPersianDigits(tasks.length)} مورد</span>
+        <h2 id="my-tasks-title" className="text-sm font-black text-ink">منتظر اقدام شما</h2>
+        <span className="px-2 py-0.5 text-xs font-bold bg-amber-100 text-amber-900 rounded-full">{toPersianDigits(tasks.length)} مورد</span>
       </div>
       <ul className="space-y-1">
         {shown.map((t) => (
@@ -219,16 +219,16 @@ export const MyTasksCard: React.FC = () => {
               onClick={t.open}
               title={`${t.kind}: ${t.title} (${t.when})`}
               className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-xl border text-right transition-colors ${
-                t.urgent ? 'bg-red-50 border-red-200 hover:border-red-500' : 'bg-[#F9F7F4] border-[#E6E0D5] hover:border-[#dc2626]'
+                t.urgent ? 'bg-red-50 border-red-200 hover:border-red-500' : 'bg-surface-soft border-line hover:border-brand'
               }`}
             >
               <span className="shrink-0" aria-hidden="true">{t.icon}</span>
-              <span className="flex-1 min-w-0 truncate text-xs font-bold text-[#2D2D2D]">
+              <span className="flex-1 min-w-0 truncate text-xs font-bold text-ink">
                 <span className="sr-only">{t.kind}: </span>
                 {t.title}
               </span>
-              <span className={`text-[10px] whitespace-nowrap ${t.urgent ? 'text-red-700 font-bold' : 'text-[#6E6A60]'}`}>{t.when}</span>
-              <ChevronLeft className="w-3.5 h-3.5 text-[#A8A295] shrink-0" />
+              <span className={`text-xs whitespace-nowrap ${t.urgent ? 'text-red-700 font-bold' : 'text-muted'}`}>{t.when}</span>
+              <ChevronLeft className="w-3.5 h-3.5 text-faint shrink-0" />
             </button>
           </li>
         ))}

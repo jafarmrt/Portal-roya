@@ -73,12 +73,12 @@ export const GreetingCardComposer: React.FC<Props> = ({ colleague, occasion, yea
                 onClick={() => setDesign(d)}
                 aria-pressed={design === d}
                 className={`h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 text-lg transition-all ${
-                  design === d ? 'border-[#D97B5F] scale-105 shadow-sm' : 'border-transparent hover:border-[#E6E0D5]'
+                  design === d ? 'border-warm scale-105 shadow-sm' : 'border-transparent hover:border-line'
                 }`}
                 style={{ background: CARD_DESIGNS[d].background }}
               >
                 <span aria-hidden>{CARD_DESIGNS[d].motifs[0]}</span>
-                <span className="text-[9px] font-bold" style={{ color: CARD_DESIGNS[d].ink }}>{CARD_DESIGNS[d].label}</span>
+                <span className="text-xs font-bold" style={{ color: CARD_DESIGNS[d].ink }}>{CARD_DESIGNS[d].label}</span>
               </button>
             ))}
           </div>
@@ -101,7 +101,7 @@ export const GreetingCardComposer: React.FC<Props> = ({ colleague, occasion, yea
                 key={s}
                 type="button"
                 onClick={() => setMessage(s)}
-                className="px-2.5 py-1 text-[10px] bg-[#F5F2ED] hover:bg-[#FBF0EC] border border-[#E6E0D5] rounded-full text-[#4B4740] text-right"
+                className="px-2.5 py-1 text-xs bg-surface hover:bg-warm-soft border border-line rounded-full text-ink-soft text-right"
               >
                 {s}
               </button>
@@ -115,14 +115,14 @@ export const GreetingCardComposer: React.FC<Props> = ({ colleague, occasion, yea
             <input type="radio" name="card-visibility" checked={isPrivate} onChange={() => setIsPrivate(true)} className="mt-0.5 accent-red-700" />
             <span>
               <strong>فقط {colleague.firstName}</strong>
-              <span className="block text-[10px] text-[#8C867A]">کارت در داشبورد خودش نشان داده می‌شود و دیگران آن را نمی‌بینند.</span>
+              <span className="block text-xs text-faint">کارت در داشبورد خودش نشان داده می‌شود و دیگران آن را نمی‌بینند.</span>
             </span>
           </label>
           <label className="flex items-start gap-2 cursor-pointer">
             <input type="radio" name="card-visibility" checked={!isPrivate} onChange={() => setIsPrivate(false)} className="mt-0.5 accent-red-700" />
             <span>
               <strong>همهٔ همکاران</strong>
-              <span className="block text-[10px] text-[#8C867A]">کارت زیر نام او در کارت تولدهای داشبورد هم دیده می‌شود.</span>
+              <span className="block text-xs text-faint">کارت زیر نام او در کارت تولدهای داشبورد هم دیده می‌شود.</span>
             </span>
           </label>
         </fieldset>

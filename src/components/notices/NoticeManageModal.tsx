@@ -13,7 +13,7 @@ import { NoticeFormModal } from './NoticeFormModal';
 const STATUS_STYLE: Record<NoticeStatus, string> = {
   live: 'bg-emerald-100 text-emerald-900',
   scheduled: 'bg-sky-100 text-sky-900',
-  ended: 'bg-[#E6E0D5] text-[#4B4740]',
+  ended: 'bg-line text-ink-soft',
 };
 const STATUS_ORDER: NoticeStatus[] = ['live', 'scheduled', 'ended'];
 
@@ -68,32 +68,32 @@ export const NoticeManageModal: React.FC<{ onClose: () => void }> = ({ onClose }
         }
       >
         {items === null ? (
-          <p className="text-[#6E6A60]">در حال بارگذاری…</p>
+          <p className="text-muted">در حال بارگذاری…</p>
         ) : groups.length === 0 ? (
-          <p className="text-[#6E6A60]">هنوز اطلاعیه‌ای گذاشته نشده است.</p>
+          <p className="text-muted">هنوز اطلاعیه‌ای گذاشته نشده است.</p>
         ) : (
           <div className="space-y-5">
             {groups.map((g) => (
               <section key={g.status} className="space-y-2">
-                <h4 className="text-xs font-black text-[#4B4740]">
+                <h4 className="text-xs font-black text-ink-soft">
                   {NOTICE_STATUS_LABELS[g.status]} ({toPersianDigits(g.list.length)})
                 </h4>
                 <ul className="space-y-2">
                   {g.list.map((n) => (
-                    <li key={n.id} className="border border-[#E6E0D5] rounded-2xl p-3 space-y-2 bg-white">
+                    <li key={n.id} className="border border-line rounded-2xl p-3 space-y-2 bg-white">
                       <div className="flex items-start gap-2">
                         <p className="flex-1 text-xs leading-6 whitespace-pre-line line-clamp-3 break-words" dir="auto">
                           {n.important && <Star className="inline w-3 h-3 ms-1 fill-amber-500 text-amber-500" aria-label="مهم" />}
                           {n.text}
                         </p>
-                        <button type="button" onClick={() => setEditing(n)} aria-label="ویرایش" title="ویرایش" className="tap-area p-1.5 hover:bg-[#F5F2ED] rounded-lg text-[#4B4740]">
+                        <button type="button" onClick={() => setEditing(n)} aria-label="ویرایش" title="ویرایش" className="tap-area p-1.5 hover:bg-surface rounded-lg text-ink-soft">
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button type="button" onClick={() => void remove(n)} aria-label="حذف" title="حذف" className="tap-area p-1.5 hover:bg-red-50 rounded-lg text-red-700">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#6E6A60]">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                         <span className={`px-2 py-0.5 rounded-full font-bold ${STATUS_STYLE[g.status]}`}>{NOTICE_STATUS_LABELS[g.status]}</span>
                         <span>{formatDate(n.startsAt)} تا {formatDate(n.endsAt)}</span>
                         {n.sender && <span>از طرف {n.sender}</span>}

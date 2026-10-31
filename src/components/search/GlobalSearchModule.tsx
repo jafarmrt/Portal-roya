@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   FileSearch
 } from 'lucide-react';
+import { PageHeader } from '../common/PageHeader';
 
 interface FileHit {
   id: string;
@@ -104,30 +105,23 @@ export const GlobalSearchModule: React.FC = () => {
     <div className="space-y-6">
       
       {/* Search Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-red-950 rounded-3xl p-5 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="relative z-10 space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/20 text-red-300 text-xs font-semibold border border-red-500/30">
-            <Search className="w-3.5 h-3.5" />
-            <span>سامانه جستجوی سراسری هوشمند پرتال رویا طرح داخلی</span>
-          </div>
-          <h1 className="text-xl sm:text-3xl font-black text-white">جستجوی جامع در تمامی محتواهای سازمان</h1>
-          <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
-            جستجوی هم‌زمان در نام و تلفن داخلی همکاران، اخبار و اطلاعیه‌ها، راهنماها، صفحهٔ واحدها، دوره‌های آموزشی، نظرسنجی‌ها و تقویم سازمان؛ و در متن فایل اسناد (PDF، Word، Excel و PowerPoint).
-          </p>
-
-          {/* Big Search Input */}
-          <div className="relative max-w-2xl pt-2">
-            <input
-              type="text"
-              value={globalSearchQuery}
-              onChange={(e) => setGlobalSearchQuery(e.target.value)}
-              placeholder="نام همکار، شمارهٔ داخلی، عنوان خبر یا فرم..."
-              aria-label="جستجو در پرتال"
-              autoFocus
-              className="w-full pr-12 pl-4 py-3.5 text-sm bg-white text-slate-900 rounded-2xl shadow-lg border border-transparent focus:border-red-500 outline-hidden font-medium placeholder-slate-400"
-            />
-            <Search className="w-5 h-5 absolute right-4 top-6 text-slate-400" />
-          </div>
+      <div className="space-y-4">
+        <PageHeader
+          icon={<Search />}
+          title="جستجو"
+          description="همکاران و داخلی‌ها، اخبار، راهنماها، صفحهٔ واحدها، دوره‌ها، نظرسنجی‌ها، تقویم، و متن فایل اسناد (PDF، Word، Excel و PowerPoint)."
+        />
+        <div className="relative max-w-2xl">
+          <input
+            type="text"
+            value={globalSearchQuery}
+            onChange={(e) => setGlobalSearchQuery(e.target.value)}
+            placeholder="نام همکار، شمارهٔ داخلی، عنوان خبر یا فرم..."
+            aria-label="جستجو در پرتال"
+            autoFocus
+            className="w-full pr-12 pl-4 py-3.5 text-sm bg-white text-ink rounded-2xl shadow-card border border-line focus:border-brand outline-hidden font-medium placeholder:text-faint"
+          />
+          <Search className="w-5 h-5 absolute right-4 top-1/2 -translate-y-1/2 text-faint" />
         </div>
       </div>
 
@@ -176,7 +170,7 @@ export const GlobalSearchModule: React.FC = () => {
             <h3 className="text-sm font-bold text-slate-700">هیچ نتیجه مرتبطی برای "{globalSearchQuery}" یافت نشد.</h3>
             <p className="text-xs text-slate-400">لطفاً کلمات کلیدی دیگری را امتحان کنید.</p>
             {nothingFound && currentUser && (
-              <p className="text-[11px] text-slate-400">جستجوهای بی‌نتیجه (بدون نام جستجوکننده) ثبت می‌شوند تا برایشان راهنما نوشته شود.</p>
+              <p className="text-xs text-slate-400">جستجوهای بی‌نتیجه (بدون نام جستجوکننده) ثبت می‌شوند تا برایشان راهنما نوشته شود.</p>
             )}
           </div>
         ) : (
@@ -194,7 +188,7 @@ export const GlobalSearchModule: React.FC = () => {
               >
                 <div className="space-y-1.5 flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full border ${item.badgeColor}`}>
+                    <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full border ${item.badgeColor}`}>
                       {item.type}
                     </span>
                     <h3 className="text-sm font-bold text-slate-800 group-hover:text-red-600 transition-colors truncate">

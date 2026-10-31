@@ -83,12 +83,12 @@ export const ReportsModule: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#fdfbf7] text-[#991b1b] rounded-2xl border border-[#f5f2ed]">
+          <div className="p-3 bg-page text-brand-strong rounded-2xl border border-surface">
             <BarChart2 className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-[#2d2d2d]">گزارش‌ها</h2>
-            <p className="text-sm text-[#6e6a60] mt-1">اثر اطلاع‌رسانی، مشارکت همکاران و حال‌وهوای سازمان</p>
+            <h2 className="text-xl font-black text-ink">گزارش‌ها</h2>
+            <p className="text-sm text-muted mt-1">اثر اطلاع‌رسانی، مشارکت همکاران و حال‌وهوای سازمان</p>
           </div>
         </div>
         {tab !== 'mood' && (
@@ -108,7 +108,7 @@ export const ReportsModule: React.FC = () => {
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
             className={`px-4 py-2 text-sm font-bold rounded-xl whitespace-nowrap transition-all ${
-              tab === t.id ? 'bg-[#dc2626] text-white' : 'bg-white border border-[#E6E0D5] hover:bg-[#F5F2ED] text-[#2D2D2D]'
+              tab === t.id ? 'bg-brand text-white' : 'bg-white border border-line hover:bg-surface text-ink'
             }`}
           >
             {t.label}
@@ -120,7 +120,7 @@ export const ReportsModule: React.FC = () => {
         <MoodReport />
       ) : (
         <>
-          <section aria-label="بازهٔ زمانی گزارش" className="bg-white rounded-2xl p-4 border border-[#e5e5e5] space-y-3">
+          <section aria-label="بازهٔ زمانی گزارش" className="bg-white rounded-2xl p-4 border border-line space-y-3">
             <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="بازهٔ زمانی">
               {PRESETS.map((p) => (
                 <button
@@ -128,7 +128,7 @@ export const ReportsModule: React.FC = () => {
                   onClick={() => choose(p.id)}
                   aria-pressed={preset === p.id}
                   className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-colors ${
-                    preset === p.id ? 'bg-[#2D2D2D] text-white' : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D]'
+                    preset === p.id ? 'bg-ink text-white' : 'bg-surface hover:bg-line text-ink'
                   }`}
                 >
                   {p.label}
@@ -138,12 +138,12 @@ export const ReportsModule: React.FC = () => {
                 onClick={() => setPreset('custom')}
                 aria-pressed={preset === 'custom'}
                 className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-colors ${
-                  preset === 'custom' ? 'bg-[#2D2D2D] text-white' : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D]'
+                  preset === 'custom' ? 'bg-ink text-white' : 'bg-surface hover:bg-line text-ink'
                 }`}
               >
                 بازهٔ دلخواه
               </button>
-              <span className="text-[11px] text-[#6E6A60] mr-auto flex items-center gap-1.5">
+              <span className="text-xs text-muted mr-auto flex items-center gap-1.5">
                 {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 از {formatDate(range.from)} تا {formatDate(range.to)}
               </span>

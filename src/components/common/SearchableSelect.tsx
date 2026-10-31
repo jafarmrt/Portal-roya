@@ -226,8 +226,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         }}
         className={`${className} flex items-center justify-between gap-2 text-right cursor-pointer disabled:cursor-default`}
       >
-        <span className={`truncate ${selected ? '' : 'text-[#8C867A]'}`}>{selected?.label || placeholder}</span>
-        <ChevronDown className={`w-4 h-4 shrink-0 text-[#8C867A] transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+        <span className={`truncate ${selected ? '' : 'text-faint'}`}>{selected?.label || placeholder}</span>
+        <ChevronDown className={`w-4 h-4 shrink-0 text-faint transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
       {/* Lets the form refuse to send while a required list is empty, as a native <select> would. */}
       {required && (
@@ -249,12 +249,12 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
             dir="rtl"
             style={place}
             onKeyDown={onListKey}
-            className="z-[80] flex flex-col bg-white border border-[#D9D4CB] rounded-xl shadow-xl overflow-hidden text-sm text-[#2D2D2D] outline-none"
+            className="z-[80] flex flex-col bg-white border border-line-strong rounded-xl shadow-xl overflow-hidden text-sm text-ink outline-none"
           >
             {searchable && (
-              <div className="p-2 border-b border-[#E6E0D5] shrink-0">
+              <div className="p-2 border-b border-line shrink-0">
                 <div className="relative">
-                  <Search className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8C867A]" aria-hidden="true" />
+                  <Search className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-faint" aria-hidden="true" />
                   <input
                     ref={searchRef}
                     type="search"
@@ -266,20 +266,20 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                     placeholder="جستجو..."
                     aria-label="جستجو در فهرست"
                     aria-controls={listId}
-                    className="w-full pr-8 pl-2 py-2 text-sm bg-[#F9F7F4] border border-[#E6E0D5] rounded-lg outline-hidden focus:border-red-600"
+                    className="w-full pr-8 pl-2 py-2 text-sm bg-surface-soft border border-line rounded-lg outline-hidden focus:border-red-600"
                   />
                 </div>
               </div>
             )}
             <ul ref={listRef} id={listId} role="listbox" aria-label={ariaLabel} className="relative overflow-y-auto overscroll-contain py-1 flex-1 min-h-0">
-              {shown.length === 0 && <li className="px-3 py-3 text-xs text-[#8C867A] text-center">موردی پیدا نشد.</li>}
+              {shown.length === 0 && <li className="px-3 py-3 text-xs text-faint text-center">موردی پیدا نشد.</li>}
               {shown.map((c, i) => {
                 const heading = c.group && c.group !== lastGroup ? c.group : null;
                 lastGroup = c.group;
                 return (
                   <React.Fragment key={`${c.group ?? ''}|${c.value}|${i}`}>
                     {heading && (
-                      <li role="presentation" className="px-3 pt-2 pb-1 text-[11px] font-black text-[#8C867A]">
+                      <li role="presentation" className="px-3 pt-2 pb-1 text-xs font-black text-faint">
                         {heading}
                       </li>
                     )}
@@ -291,7 +291,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                       onMouseEnter={() => !c.disabled && setActive(i)}
                       onClick={() => pick(c)}
                       className={`flex items-center justify-between gap-2 px-3 py-2 ${c.group ? 'pr-5' : ''} ${
-                        c.disabled ? 'text-[#B5AFA3] cursor-default' : 'cursor-pointer'
+                        c.disabled ? 'text-subtle cursor-default' : 'cursor-pointer'
                       } ${i === active && !c.disabled ? 'bg-red-50 text-red-900' : ''}`}
                     >
                       <span className="min-w-0 break-words">{c.label || '—'}</span>

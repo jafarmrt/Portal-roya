@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
-import { timeAgo } from '../../lib/jalali';
+import { timeAgo, toPersianDigits } from '../../lib/jalali';
 import {
   Bell,
   MessageSquareText,
@@ -16,6 +16,8 @@ import {
   ServerCog,
   Heart
 } from 'lucide-react';
+import { PageHeader } from '../common/PageHeader';
+import { secondaryButtonClass } from '../common/Modal';
 
 export const NotificationsInbox: React.FC = () => {
   const {
@@ -64,59 +66,43 @@ export const NotificationsInbox: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-5 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#dc2626]/30 text-[#E6E0D5] text-xs font-semibold border border-[#dc2626]/40">
-              <Bell className="w-3.5 h-3.5" />
-              <span>مرکز مدیریت اعلان‌های شخصی‌سازی شده</span>
-            </div>
-            <h1 className="text-xl sm:text-3xl font-black text-white">صندوق ورودی پیام‌ها و اعلان‌های شما</h1>
-            <p className="text-[#E6E0D5] text-xs sm:text-sm max-w-2xl leading-relaxed">
-              اطلاع‌رسانی‌های هوشمند درباره تولد همکاران، نظرسنجی‌های دپارتمان، دوره‌های آموزشی ثبت‌نامی و اخبار سازمان.
-            </p>
-          </div>
-
-          <button
-            onClick={markAllNotificationsRead}
-            className="px-4 py-2.5 text-xs font-bold text-[#2D2D2D] bg-white hover:bg-[#E6E0D5] rounded-xl shadow-md transition-all flex items-center gap-1.5 self-start sm:self-auto"
-          >
-            <CheckCircle2 className="w-4 h-4 text-[#991b1b]" />
-            <span>علامت‌گذاری همه به عنوان خوانده شده</span>
-          </button>
-        </div>
-      </div>
+      <PageHeader icon={<Bell />} title="اعلان‌های من" description="تولد همکاران، نظرسنجی‌ها، دوره‌ها، رویدادها و اخباری که به شما مربوط است.">
+        <button onClick={markAllNotificationsRead} className={secondaryButtonClass}>
+          <CheckCircle2 className="w-4 h-4 text-brand-strong" />
+          <span>خواندن همه</span>
+        </button>
+      </PageHeader>
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-[#E6E0D5] shadow-xs flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+      <div className="bg-white p-4 rounded-2xl border border-line shadow-xs flex items-center gap-1.5 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setTypeFilter('all')}
           className={`px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${
             typeFilter === 'all'
-              ? 'bg-[#7f1d1d] text-white shadow-xs'
-              : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D]'
+              ? 'bg-brand-deep text-white shadow-xs'
+              : 'bg-surface hover:bg-line text-ink'
           }`}
         >
-          همه اعلان‌ها ({userNotifs.length})
+          همه اعلان‌ها ({toPersianDigits(userNotifs.length)})
         </button>
 
         <button
           onClick={() => setTypeFilter('unread')}
           className={`px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${
             typeFilter === 'unread'
-              ? 'bg-[#dc2626] text-white shadow-xs'
-              : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D]'
+              ? 'bg-brand text-white shadow-xs'
+              : 'bg-surface hover:bg-line text-ink'
           }`}
         >
-          خوانده نشده ({userNotifs.filter(n => !n.isRead).length})
+          خوانده نشده ({toPersianDigits(userNotifs.filter(n => !n.isRead).length)})
         </button>
 
         <button
           onClick={() => setTypeFilter('poll')}
           className={`px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${
             typeFilter === 'poll'
-              ? 'bg-[#991b1b] text-white shadow-xs'
-              : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D]'
+              ? 'bg-brand-strong text-white shadow-xs'
+              : 'bg-surface hover:bg-line text-ink'
           }`}
         >
           نظرسنجی‌ها
@@ -126,8 +112,8 @@ export const NotificationsInbox: React.FC = () => {
           onClick={() => setTypeFilter('training')}
           className={`px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${
             typeFilter === 'training'
-              ? 'bg-[#991b1b] text-white shadow-xs'
-              : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D]'
+              ? 'bg-brand-strong text-white shadow-xs'
+              : 'bg-surface hover:bg-line text-ink'
           }`}
         >
           آموزش
@@ -137,8 +123,8 @@ export const NotificationsInbox: React.FC = () => {
           onClick={() => setTypeFilter('calendar')}
           className={`px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${
             typeFilter === 'calendar'
-              ? 'bg-[#991b1b] text-white shadow-xs'
-              : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D]'
+              ? 'bg-brand-strong text-white shadow-xs'
+              : 'bg-surface hover:bg-line text-ink'
           }`}
         >
           تقویم
@@ -148,8 +134,8 @@ export const NotificationsInbox: React.FC = () => {
           onClick={() => setTypeFilter('birthday')}
           className={`px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${
             typeFilter === 'birthday'
-              ? 'bg-[#dc2626] text-white shadow-xs'
-              : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D]'
+              ? 'bg-brand text-white shadow-xs'
+              : 'bg-surface hover:bg-line text-ink'
           }`}
         >
           تولد
@@ -159,9 +145,9 @@ export const NotificationsInbox: React.FC = () => {
       {/* Notifications List */}
       <div className="space-y-3">
         {filteredNotifs.length === 0 ? (
-          <div className="py-12 text-center bg-white rounded-2xl border border-dashed border-[#E6E0D5] space-y-2">
-            <Bell className="w-10 h-10 text-[#8C867A] mx-auto" />
-            <p className="text-sm font-bold text-[#6E6A60]">اعلانی در این بخش یافت نشد.</p>
+          <div className="py-12 text-center bg-white rounded-2xl border border-dashed border-line space-y-2">
+            <Bell className="w-10 h-10 text-faint mx-auto" />
+            <p className="text-sm font-bold text-muted">اعلانی در این بخش یافت نشد.</p>
           </div>
         ) : (
           filteredNotifs.map((notif) => (
@@ -169,25 +155,25 @@ export const NotificationsInbox: React.FC = () => {
               key={notif.id}
               className={`p-5 rounded-2xl border transition-all flex items-start justify-between gap-4 ${
                 !notif.isRead
-                  ? 'bg-[#F5F2ED] border-[#dc2626] shadow-xs'
-                  : 'bg-white border-[#E6E0D5] opacity-80'
+                  ? 'bg-surface border-brand shadow-xs'
+                  : 'bg-white border-line opacity-80'
               }`}
             >
               <div className="flex items-start gap-3.5 flex-1 min-w-0">
-                <div className="p-3 bg-white rounded-2xl shadow-2xs border border-[#E6E0D5]">
+                <div className="p-3 bg-white rounded-2xl shadow-2xs border border-line">
                   {getNotifIcon(notif.type)}
                 </div>
 
                 <div className="space-y-1 flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     {!notif.isRead && (
-                      <span className="w-2 h-2 rounded-full bg-[#dc2626] inline-block animate-pulse"></span>
+                      <span className="w-2 h-2 rounded-full bg-brand inline-block"></span>
                     )}
-                    <h3 className="text-sm font-bold text-[#2D2D2D]">{notif.title}</h3>
-                    <span className="text-[10px] text-[#8C867A] mr-auto">{timeAgo(notif.date)}</span>
+                    <h3 className="text-sm font-bold text-ink">{notif.title}</h3>
+                    <span className="text-xs text-faint mr-auto">{timeAgo(notif.date)}</span>
                   </div>
 
-                  <p className="text-xs text-[#6E6A60] leading-relaxed">{notif.message}</p>
+                  <p className="text-xs text-muted leading-relaxed">{notif.message}</p>
 
                   {notif.linkTab && (
                     <button
@@ -195,7 +181,7 @@ export const NotificationsInbox: React.FC = () => {
                         markNotificationRead(notif.id);
                         setActiveTab(notif.linkTab!, notif.linkId);
                       }}
-                      className="tap-area text-xs font-bold text-[#dc2626] hover:underline pt-1 inline-block"
+                      className="tap-area text-xs font-bold text-brand hover:underline pt-1 inline-block"
                     >
                       مشاهده در بخش مربوطه »
                     </button>
@@ -207,7 +193,7 @@ export const NotificationsInbox: React.FC = () => {
                 {!notif.isRead && (
                   <button
                     onClick={() => markNotificationRead(notif.id)}
-                    className="p-1.5 text-[#991b1b] hover:bg-[#EBF2E8] rounded-lg text-xs"
+                    className="p-1.5 text-brand-strong hover:bg-sage-soft rounded-lg text-xs"
                     title="علامت‌گذاری به عنوان خوانده شده"
                   >
                     <CheckCircle2 className="w-4 h-4" />
@@ -216,7 +202,7 @@ export const NotificationsInbox: React.FC = () => {
 
                 <button
                   onClick={() => deleteNotification(notif.id)}
-                  className="p-1.5 text-[#8C867A] hover:text-[#D97B5F] hover:bg-[#FBF0EC] rounded-lg"
+                  className="p-1.5 text-faint hover:text-warm hover:bg-warm-soft rounded-lg"
                   title="حذف"
                 >
                   <Trash2 className="w-4 h-4" />

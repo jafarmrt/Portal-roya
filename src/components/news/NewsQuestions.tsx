@@ -12,7 +12,7 @@ interface QuestionsData {
   items: NewsQuestion[];
 }
 
-const answerBox = 'p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-xs leading-relaxed whitespace-pre-line text-[#2D2D2D]';
+const answerBox = 'p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-xs leading-relaxed whitespace-pre-line text-ink';
 
 /**
  * Questions to the publisher under an item. Colleagues ask privately and see their own questions;
@@ -58,12 +58,12 @@ export const NewsQuestions: React.FC<{ article: NewsItem }> = ({ article }) => {
   if (data.canAnswer) {
     const sorted = [...data.items].sort((a, b) => Number(Boolean(a.answer)) - Number(Boolean(b.answer)));
     return (
-      <section aria-labelledby={`questions-${article.id}`} className="pt-4 border-t border-[#E6E0D5] space-y-3">
-        <h4 id={`questions-${article.id}`} className="text-xs font-bold text-[#2D2D2D] flex items-center gap-1.5">
+      <section aria-labelledby={`questions-${article.id}`} className="pt-4 border-t border-line space-y-3">
+        <h4 id={`questions-${article.id}`} className="text-xs font-bold text-ink flex items-center gap-1.5">
           <MessageCircleQuestion className="w-4 h-4 text-red-700" /> پرسش‌های همکاران ({toPersianDigits(data.items.length)})
         </h4>
         {sorted.length === 0 ? (
-          <p className="text-xs text-[#8C867A]">هنوز کسی پرسشی نفرستاده است. همکاران زیر هر خبر می‌توانند خصوصی از شما بپرسند.</p>
+          <p className="text-xs text-faint">هنوز کسی پرسشی نفرستاده است. همکاران زیر هر خبر می‌توانند خصوصی از شما بپرسند.</p>
         ) : (
           <ul className="space-y-2">
             {sorted.map((q) => <QuestionToAnswer key={q.id} question={q} onChange={load} />)}
@@ -78,15 +78,15 @@ export const NewsQuestions: React.FC<{ article: NewsItem }> = ({ article }) => {
   if (!canAsk && shared.length === 0) return null;
 
   return (
-    <section aria-labelledby={`questions-${article.id}`} className="pt-4 border-t border-[#E6E0D5] space-y-4">
-      <h4 id={`questions-${article.id}`} className="text-xs font-bold text-[#2D2D2D] flex items-center gap-1.5">
+    <section aria-labelledby={`questions-${article.id}`} className="pt-4 border-t border-line space-y-4">
+      <h4 id={`questions-${article.id}`} className="text-xs font-bold text-ink flex items-center gap-1.5">
         <MessageCircleQuestion className="w-4 h-4 text-red-700" /> پرسش و پاسخ
       </h4>
       {shared.length > 0 && (
         <ul className="space-y-2" aria-label="پرسش‌ها و پاسخ‌های ناشر">
           {shared.map((q) => (
             <li key={q.id} className="space-y-1.5">
-              <p className="text-xs font-bold text-[#2D2D2D] whitespace-pre-line">پرسش: {q.question}</p>
+              <p className="text-xs font-bold text-ink whitespace-pre-line">پرسش: {q.question}</p>
               <div className={answerBox}>{q.answer}</div>
             </li>
           ))}
@@ -95,8 +95,8 @@ export const NewsQuestions: React.FC<{ article: NewsItem }> = ({ article }) => {
       {mine.length > 0 && (
         <ul className="space-y-2" aria-label="پرسش‌های شما">
           {mine.map((q) => (
-            <li key={q.id} className="p-3 rounded-xl border border-[#E6E0D5] space-y-2">
-              <div className="flex items-center justify-between gap-2 text-[11px] text-[#6E6A60]">
+            <li key={q.id} className="p-3 rounded-xl border border-line space-y-2">
+              <div className="flex items-center justify-between gap-2 text-xs text-muted">
                 <span>پرسش شما، {formatDateTime(q.createdAt)}</span>
                 {q.answer ? (
                   <span className="font-bold text-emerald-700">{q.isPublic ? 'پاسخ داده شد و برای همه هم آمد' : 'پاسخ داده شد'}</span>
@@ -104,7 +104,7 @@ export const NewsQuestions: React.FC<{ article: NewsItem }> = ({ article }) => {
                   <span className="font-bold text-amber-700">منتظر پاسخ</span>
                 )}
               </div>
-              <p className="text-xs whitespace-pre-line text-[#2D2D2D]">{q.question}</p>
+              <p className="text-xs whitespace-pre-line text-ink">{q.question}</p>
               {q.answer ? (
                 <div className={answerBox}>{q.answer}</div>
               ) : (
@@ -119,7 +119,7 @@ export const NewsQuestions: React.FC<{ article: NewsItem }> = ({ article }) => {
           <label htmlFor={`ask-${article.id}`} className={labelClass}>پرسشی دربارهٔ این خبر دارید؟ از {article.author} بپرسید</label>
           <textarea id={`ask-${article.id}`} rows={2} maxLength={1000} value={text} onChange={(e) => setText(e.target.value)} className={inputClass} />
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <p className="text-[11px] text-[#6E6A60]">پرسش فقط برای ناشر فرستاده می‌شود. اگر پاسخش به کار بقیه هم بیاید، ممکن است بدون نام شما اینجا بیاید.</p>
+            <p className="text-xs text-muted">پرسش فقط برای ناشر فرستاده می‌شود. اگر پاسخش به کار بقیه هم بیاید، ممکن است بدون نام شما اینجا بیاید.</p>
             <button type="button" onClick={ask} disabled={busy || !text.trim()} className={primaryButtonClass}>
               <Send className="w-4 h-4" /> ارسال پرسش
             </button>
@@ -142,7 +142,7 @@ const WithdrawButton: React.FC<{ questionId: string; onDone: () => Promise<void>
         toast.error(errorMessage(err));
       }
     }}
-    className="text-[11px] font-bold text-red-700 hover:underline"
+    className="text-xs font-bold text-red-700 hover:underline"
   >
     پس گرفتن پرسش
   </button>
@@ -183,9 +183,9 @@ const QuestionToAnswer: React.FC<{ question: NewsQuestion; onChange: () => Promi
   };
 
   return (
-    <li aria-label={`پرسش ${asker}`} className={`p-3 rounded-xl border space-y-2 ${q.answer ? 'border-[#E6E0D5]' : 'border-amber-300 bg-amber-50/50'}`}>
-      <div className="flex items-center justify-between gap-2 text-[11px] text-[#6E6A60]">
-        <span className="font-bold text-[#2D2D2D]">{asker}</span>
+    <li aria-label={`پرسش ${asker}`} className={`p-3 rounded-xl border space-y-2 ${q.answer ? 'border-line' : 'border-amber-300 bg-amber-50/50'}`}>
+      <div className="flex items-center justify-between gap-2 text-xs text-muted">
+        <span className="font-bold text-ink">{asker}</span>
         <span className="flex items-center gap-2">
           {formatDateTime(q.createdAt)}
           {confirmDelete ? (
@@ -197,11 +197,11 @@ const QuestionToAnswer: React.FC<{ question: NewsQuestion; onChange: () => Promi
           )}
         </span>
       </div>
-      <p className="text-xs whitespace-pre-line text-[#2D2D2D]">{q.question}</p>
+      <p className="text-xs whitespace-pre-line text-ink">{q.question}</p>
       {!editing && q.answer && (
         <div className="space-y-1">
           <div className={answerBox}>{q.answer}</div>
-          <div className="flex items-center justify-between gap-2 text-[11px] text-[#6E6A60]">
+          <div className="flex items-center justify-between gap-2 text-xs text-muted">
             <span>{q.isPublic ? 'در «پرسش و پاسخ» این خبر برای همه نمایش داده می‌شود' : 'فقط پرسنده پاسخ را می‌بیند'}</span>
             <button type="button" onClick={() => setEditing(true)} className="font-bold text-red-700 hover:underline">ویرایش پاسخ</button>
           </div>

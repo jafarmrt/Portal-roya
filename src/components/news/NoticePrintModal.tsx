@@ -91,14 +91,14 @@ export const NoticePrintModal: React.FC<{ item: NewsItem; onClose: () => void }>
               role="radio"
               aria-checked={fullText === o.value}
               onClick={() => setFullText(o.value)}
-              className={`px-3 py-1.5 rounded-xl font-bold border ${fullText === o.value ? 'bg-red-700 text-white border-red-700' : 'bg-white border-[#D9D4CB]'}`}
+              className={`px-3 py-1.5 rounded-xl font-bold border ${fullText === o.value ? 'bg-red-700 text-white border-red-700' : 'bg-white border-line-strong'}`}
             >
               {o.label}
             </button>
           ))}
         </div>
-        <p className="text-[11px] text-[#6E6A60] leading-relaxed flex items-start gap-1.5">
-          <Info className="w-4 h-4 shrink-0 text-[#8C867A]" />
+        <p className="text-xs text-muted leading-relaxed flex items-start gap-1.5">
+          <Info className="w-4 h-4 shrink-0 text-faint" />
           {forGuests
             ? 'کد QR اطلاعیه را در پرتال باز می‌کند؛ همکاران بدون حساب هم اگر به شبکهٔ شرکت وصل باشند آن را می‌بینند.'
             : targeted

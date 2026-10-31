@@ -116,12 +116,12 @@ export const EventFormModal: React.FC<{ event?: CalendarEvent; date?: string; on
 
         <AudiencePicker value={audience} onChange={setAudience} authorId={currentUser?.id ?? ''} noun="رویداد" />
 
-        <div className="space-y-2 rounded-2xl bg-[#FDFBF7] border border-[#E6E0D5] p-3">
+        <div className="space-y-2 rounded-2xl bg-page border border-line p-3">
           <label className="flex items-start gap-2 cursor-pointer">
             <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="accent-red-700 mt-0.5" />
             <span>
               <span className="block text-xs font-bold">به مخاطبان اعلان بده و یک روز قبل یادآوری کن</span>
-              <span className="block text-[11px] text-[#6E6A60] leading-relaxed">
+              <span className="block text-xs text-muted leading-relaxed">
                 مخاطبان وقتی رویداد ثبت، جابه‌جا یا لغو شود خبردار می‌شوند و روز قبل از آن، ساعت ۸ صبح، یادآوری می‌گیرند.
               </span>
             </span>
@@ -131,7 +131,7 @@ export const EventFormModal: React.FC<{ event?: CalendarEvent; date?: string; on
               <input type="checkbox" checked={rsvp} onChange={(e) => setRsvp(e.target.checked)} className="accent-red-700 mt-0.5" />
               <span>
                 <span className="block text-xs font-bold">از مخاطبان بپرس «شرکت می‌کنم / نمی‌کنم»</span>
-                <span className="block text-[11px] text-[#6E6A60] leading-relaxed">
+                <span className="block text-xs text-muted leading-relaxed">
                   تعداد شرکت‌کننده‌ها را همه می‌بینند و فهرست نام‌ها را مدیران تقویم. به کسانی که گفته‌اند نمی‌آیند یادآوری فرستاده نمی‌شود.
                 </span>
               </span>

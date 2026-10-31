@@ -40,20 +40,20 @@ export const DashboardCalendar: React.FC = () => {
 
   return (
     <>
-      <div className="bg-white rounded-3xl p-6 border border-[#E6E0D5] shadow-xs space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
+      <div className="bg-white rounded-3xl p-6 border border-line/70 shadow-card space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-line">
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-[#7f1d1d] text-white rounded-xl">
+            <div className="p-2 bg-brand-deep text-white rounded-xl">
               <CalendarIcon className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-[#2D2D2D]">تقویم سازمانی</h3>
-              <p className="text-xs text-[#6E6A60]">{JALALI_MONTHS[currentMonth]} {toPersianDigits(currentYear)}</p>
+              <h3 className="text-base font-black text-ink">تقویم سازمانی</h3>
+              <p className="text-xs text-muted">{JALALI_MONTHS[currentMonth]} {toPersianDigits(currentYear)}</p>
             </div>
           </div>
           <button
             onClick={() => setActiveTab('calendar')}
-            className="text-xs font-bold text-[#dc2626] hover:underline flex items-center gap-1 whitespace-nowrap shrink-0"
+            className="text-xs font-bold text-brand hover:underline flex items-center gap-1 whitespace-nowrap shrink-0"
           >
             <span>جزئیات رویدادها</span>
             <ChevronLeft className="w-4 h-4" />
@@ -61,13 +61,13 @@ export const DashboardCalendar: React.FC = () => {
         </div>
         <div className="pt-2">
           <div className="flex items-center justify-between mb-4 px-2">
-            <button onClick={prevMonth} className="p-1 text-[#8C867A] hover:text-[#2D2D2D]" aria-label="ماه قبل"><ChevronRight className="w-4 h-4" /></button>
-            <span className="text-sm font-bold text-[#2D2D2D]">{JALALI_MONTHS[currentMonth]} {toPersianDigits(currentYear)}</span>
-            <button onClick={nextMonth} className="p-1 text-[#8C867A] hover:text-[#2D2D2D]" aria-label="ماه بعد"><ChevronLeft className="w-4 h-4" /></button>
+            <button onClick={prevMonth} className="p-1 text-faint hover:text-ink" aria-label="ماه قبل"><ChevronRight className="w-4 h-4" /></button>
+            <span className="text-sm font-bold text-ink">{JALALI_MONTHS[currentMonth]} {toPersianDigits(currentYear)}</span>
+            <button onClick={nextMonth} className="p-1 text-faint hover:text-ink" aria-label="ماه بعد"><ChevronLeft className="w-4 h-4" /></button>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center mb-2">
             {weekDays.map(day => (
-              <div key={day} className="text-[10px] font-bold text-[#8C867A]">{day}</div>
+              <div key={day} className="text-xs font-bold text-faint">{day}</div>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-1 text-center">
@@ -96,18 +96,18 @@ export const DashboardCalendar: React.FC = () => {
                   className={`aspect-square lg:aspect-auto lg:h-11 flex flex-col items-center justify-center rounded-lg text-xs font-medium relative transition-all ${
                     open ? 'cursor-pointer' : 'cursor-default'
                   } ${
-                    isToday ? 'bg-[#dc2626] text-white shadow-sm' : 
-                    isHoliday ? 'text-[#f87171] bg-[#F5F2ED]/50' :
-                    'text-[#2D2D2D] hover:bg-[#F5F2ED]'
+                    isToday ? 'bg-brand text-white shadow-sm' : 
+                    isHoliday ? 'text-red-400 bg-surface/50' :
+                    'text-ink hover:bg-surface'
                   }`}
                   title={holiday || (evt ? evt.title : '')}
                 >
                   <span>{toPersianDigits(day)}</span>
                   {!evt && holidayObj && !holidayObj.isHoliday && !isToday && (
-                    <span className="absolute bottom-1 w-1 h-1 rounded-full bg-[#fdba74]"></span>
+                    <span className="absolute bottom-1 w-1 h-1 rounded-full bg-orange-300"></span>
                   )}
                   {evt && !isToday && (
-                    <span className={`absolute bottom-1 w-1 h-1 rounded-full ${evt.type === 'holiday' ? 'bg-[#f87171]' : evt.type === 'birthday' ? 'bg-[#dc2626]' : 'bg-[#7f1d1d]'}`}></span>
+                    <span className={`absolute bottom-1 w-1 h-1 rounded-full ${evt.type === 'holiday' ? 'bg-red-400' : evt.type === 'birthday' ? 'bg-brand' : 'bg-brand-deep'}`}></span>
                   )}
                 </div>
               );
@@ -135,7 +135,7 @@ export const DashboardCalendar: React.FC = () => {
             </button>
           }
         >
-          <p className="text-sm text-[#6E6A60] leading-relaxed">{selectedNote.description}</p>
+          <p className="text-sm text-muted leading-relaxed">{selectedNote.description}</p>
         </Modal>
       )}
     </>

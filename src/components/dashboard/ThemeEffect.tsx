@@ -209,7 +209,7 @@ export const ThemeEffect: React.FC<{ effect: Effect; onDone: () => void; duratio
       <button
         type="button"
         onClick={() => doneRef.current()}
-        className="fixed bottom-5 left-5 z-[56] flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/90 border border-[#E6E0D5] shadow-md text-[11px] font-bold text-[#4B4740] hover:bg-white"
+        className="fixed bottom-5 left-5 z-[56] flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/90 border border-line shadow-md text-xs font-bold text-ink-soft hover:bg-white"
       >
         <X className="w-3.5 h-3.5" />
         توقف افکت

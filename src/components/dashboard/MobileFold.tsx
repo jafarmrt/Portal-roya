@@ -42,11 +42,11 @@ export const MobileFold: React.FC<{
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        className="lg:hidden w-full flex items-center gap-2 px-4 py-3 bg-white rounded-2xl border border-[#E6E0D5] text-right text-sm font-bold text-[#2D2D2D]"
+        className="lg:hidden w-full flex items-center gap-2 px-4 py-3 bg-white rounded-2xl border border-line text-right text-sm font-bold text-ink"
       >
-        <span className="text-[#991b1b]">{icon}</span>
+        <span className="text-brand-strong">{icon}</span>
         <span className="flex-1">{title}</span>
-        <ChevronDown className={`w-4 h-4 text-[#8C867A] transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       <div className={open ? 'mt-3 lg:mt-0' : 'hidden lg:block'}>{children}</div>
     </div>

@@ -60,20 +60,20 @@ export const CompleteProfilePage: React.FC = () => {
 
   if (matches) {
     return (
-      <main className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4" dir="rtl">
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-[#E6E0D5] p-8 space-y-5">
+      <main className="min-h-screen bg-page flex items-center justify-center p-4" dir="rtl">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-line p-8 space-y-5">
           <div>
-            <h1 className="text-lg font-black text-[#2D2D2D]">این شما هستید؟</h1>
-            <p className="text-xs text-[#6E6A60] mt-2 leading-relaxed">
+            <h1 className="text-lg font-black text-ink">این شما هستید؟</h1>
+            <p className="text-xs text-muted mt-2 leading-relaxed">
               نام «{firstName} {lastName}» از قبل در دفتر تلفن پرتال هست. اگر خودتان هستید انتخابش کنید تا حساب شما به همان ردیف وصل شود و ردیف تکراری ساخته نشود.
             </p>
           </div>
           {error && <div role="alert" className="p-3 bg-red-50 text-red-800 text-xs font-bold rounded-xl border border-red-200">{error}</div>}
           <div className="space-y-2">
             {matches.map((m) => (
-              <button key={m.id} type="button" disabled={busy} onClick={() => void save(m.id)} className="w-full text-right p-3 rounded-2xl border border-[#E6E0D5] hover:border-red-700 hover:bg-red-50/40 disabled:opacity-60">
-                <span className="block text-sm font-bold text-[#2D2D2D]">بله، من {m.name} هستم</span>
-                <span className="block text-[11px] text-[#6E6A60] mt-0.5">{placeText(m, '، ')}</span>
+              <button key={m.id} type="button" disabled={busy} onClick={() => void save(m.id)} className="w-full text-right p-3 rounded-2xl border border-line hover:border-red-700 hover:bg-red-50/40 disabled:opacity-60">
+                <span className="block text-sm font-bold text-ink">بله، من {m.name} هستم</span>
+                <span className="block text-xs text-muted mt-0.5">{placeText(m, '، ')}</span>
               </button>
             ))}
           </div>
@@ -81,7 +81,7 @@ export const CompleteProfilePage: React.FC = () => {
             <button type="button" disabled={busy} onClick={() => void save(null)} className={secondaryButtonClass}>
               {matches.length > 1 ? 'هیچ‌کدام من نیستم' : 'نه، من نیستم'}
             </button>
-            <button type="button" disabled={busy} onClick={() => setMatches(null)} className="text-xs text-[#7A756D] hover:text-red-700 underline">
+            <button type="button" disabled={busy} onClick={() => setMatches(null)} className="text-xs text-muted hover:text-red-700 underline">
               بازگشت
             </button>
           </div>
@@ -91,11 +91,11 @@ export const CompleteProfilePage: React.FC = () => {
   }
 
   return (
-    <main className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4" dir="rtl">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-[#E6E0D5] p-8 space-y-5">
+    <main className="min-h-screen bg-page flex items-center justify-center p-4" dir="rtl">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-line p-8 space-y-5">
         <div>
-          <h1 className="text-lg font-black text-[#2D2D2D]">به پرتال سازمانی خوش آمدید</h1>
-          <p className="text-xs text-[#6E6A60] mt-2 leading-relaxed">
+          <h1 className="text-lg font-black text-ink">به پرتال سازمانی خوش آمدید</h1>
+          <p className="text-xs text-muted mt-2 leading-relaxed">
             {gaps.names
               ? 'قبل از ادامه، نام و نام خانوادگی خود را به فارسی و تاریخ تولدتان را وارد کنید. همکاران شما را با همین نام در دفتر تلفن می‌بینند. بعداً هم از «ویرایش پروفایل» می‌توانید آن‌ها را تغییر دهید.'
               : 'قبل از ادامه، بگویید در کدام واحد و با چه سمتی کار می‌کنید تا همکاران شما را در دفتر تلفن پیدا کنند و خبرهای واحدتان به شما برسد.'}
@@ -116,17 +116,17 @@ export const CompleteProfilePage: React.FC = () => {
               <div>
                 <label htmlFor="profile-birth" className={labelClass}>تاریخ تولد</label>
                 <JalaliDateInput id="profile-birth" value={birthDate} onChange={setBirthDate} required defaultYear={1370} />
-                <label className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[#6E6A60] cursor-pointer">
+                <label className="mt-1.5 flex items-center gap-1.5 text-xs text-muted cursor-pointer">
                   <input type="checkbox" checked={hideBirthday} onChange={(e) => setHideBirthday(e.target.checked)} className="accent-red-700" />
                   تولدم به همکاران نمایش داده نشود
                 </label>
-                <p className="mt-1 text-[10px] text-[#8C867A]">سال تولد به همکاران نشان داده نمی‌شود؛ فقط روز و ماه.</p>
+                <p className="mt-1 text-xs text-faint">سال تولد به همکاران نشان داده نمی‌شود؛ فقط روز و ماه.</p>
               </div>
             </>
           )}
           {(gaps.department || gaps.position) && (
-            <fieldset className="p-4 rounded-2xl border border-[#E6E0D5] space-y-3">
-              <legend className="text-xs font-black px-1 text-[#2D2D2D]">جایگاه سازمانی</legend>
+            <fieldset className="p-4 rounded-2xl border border-line space-y-3">
+              <legend className="text-xs font-black px-1 text-ink">جایگاه سازمانی</legend>
               {gaps.department && (
                 <div>
                   <label htmlFor="profile-department" className={labelClass}>واحد</label>
@@ -142,7 +142,7 @@ export const CompleteProfilePage: React.FC = () => {
                   <input id="profile-position" required maxLength={100} placeholder="مثلاً کارشناس فروش" value={position} onChange={(e) => setPosition(e.target.value)} className={inputClass} />
                 </div>
               )}
-              <p className="text-[10px] text-[#8C867A] leading-relaxed">
+              <p className="text-xs text-faint leading-relaxed">
                 واحد و سمت شما برای کسی که کارکنان را مدیریت می‌کند فرستاده می‌شود تا اگر لازم بود اصلاح کند. بعد از این، تغییرشان با او است.
               </p>
             </fieldset>
@@ -154,7 +154,7 @@ export const CompleteProfilePage: React.FC = () => {
             </button>
           </div>
         </form>
-        <button type="button" onClick={() => void logout()} className="text-xs text-[#7A756D] hover:text-red-700 underline">
+        <button type="button" onClick={() => void logout()} className="text-xs text-muted hover:text-red-700 underline">
           خروج
         </button>
       </div>

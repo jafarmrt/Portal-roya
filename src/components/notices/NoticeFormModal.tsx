@@ -19,7 +19,7 @@ import {
 } from '../../../shared/notices';
 
 const chipClass = (active: boolean) =>
-  `px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-colors ${active ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white border-[#D9D4CB] hover:border-emerald-400'}`;
+  `px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors ${active ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white border-line-strong hover:border-emerald-400'}`;
 
 /** Writes a notice for «تابلوی اعلانات», or edits one: the text, who it is from, its days and its audience. */
 export const NoticeFormModal: React.FC<{ notice?: ManagedNotice; onClose: () => void; onSaved?: () => void }> = ({ notice, onClose, onSaved }) => {
@@ -109,7 +109,7 @@ export const NoticeFormModal: React.FC<{ notice?: ManagedNotice; onClose: () => 
             placeholder="مثلاً: سلام به همهٔ همکاران عزیز 🌿 با شروع روزهای سرد… ایموجی و خط جدید همان‌طور که می‌نویسید نمایش داده می‌شود."
             className={`${inputClass} leading-7`}
           />
-          <p className={`text-[11px] mt-1 ${text.length > NOTICE_TEXT_MAX - 50 ? 'text-amber-700' : 'text-[#6E6A60]'}`}>
+          <p className={`text-xs mt-1 ${text.length > NOTICE_TEXT_MAX - 50 ? 'text-amber-700' : 'text-muted'}`}>
             {toPersianDigits(text.length)} از {toPersianDigits(NOTICE_TEXT_MAX)} حرف
           </p>
         </div>
@@ -130,11 +130,11 @@ export const NoticeFormModal: React.FC<{ notice?: ManagedNotice; onClose: () => 
           <legend className={labelClass}>چه روزهایی روی تابلو باشد</legend>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label htmlFor="notice-first" className="block text-[11px] text-[#6E6A60] mb-1">از روز</label>
+              <label htmlFor="notice-first" className="block text-xs text-muted mb-1">از روز</label>
               <JalaliDateInput id="notice-first" required value={firstDay} onChange={changeFirstDay} />
             </div>
             <div>
-              <label htmlFor="notice-last" className="block text-[11px] text-[#6E6A60] mb-1">تا پایان روز</label>
+              <label htmlFor="notice-last" className="block text-xs text-muted mb-1">تا پایان روز</label>
               <JalaliDateInput id="notice-last" required value={lastDay} onChange={setLastDay} />
             </div>
           </div>
@@ -145,7 +145,7 @@ export const NoticeFormModal: React.FC<{ notice?: ManagedNotice; onClose: () => 
               </button>
             ))}
           </div>
-          <p className={`text-[11px] ${datesOk && !lengthOk ? 'text-red-700 font-bold' : 'text-[#6E6A60]'}`}>
+          <p className={`text-xs ${datesOk && !lengthOk ? 'text-red-700 font-bold' : 'text-muted'}`}>
             {!datesOk
               ? 'روز شروع و پایان را انتخاب کنید.'
               : days < 1
@@ -163,14 +163,14 @@ export const NoticeFormModal: React.FC<{ notice?: ManagedNotice; onClose: () => 
             <input type="checkbox" checked={important} onChange={(e) => setImportant(e.target.checked)} className="mt-0.5 accent-amber-600" />
             <span>
               <strong>مهم</strong>
-              <span className="block text-[11px] text-[#6E6A60]">بالاتر از بقیه و با رنگ کهربایی نمایش داده می‌شود.</span>
+              <span className="block text-xs text-muted">بالاتر از بقیه و با رنگ کهربایی نمایش داده می‌شود.</span>
             </span>
           </label>
           <label className="flex items-start gap-2 cursor-pointer">
             <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="mt-0.5 accent-emerald-700" />
             <span>
               <strong>اعلان زنگوله هم برود</strong>
-              <span className="block text-[11px] text-[#6E6A60]">
+              <span className="block text-xs text-muted">
                 {notice?.notify ? 'اعلان یک بار، در روز شروع، فرستاده شده یا فرستاده می‌شود.' : 'یک بار، در روز شروع، برای مخاطبان. بدون آن اطلاعیه فقط روی داشبورد دیده می‌شود.'}
               </span>
             </span>

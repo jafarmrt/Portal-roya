@@ -213,27 +213,27 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
               قبل از بستن این پنجره برگهٔ رمزها را چاپ یا فایل آن را دانلود کنید. هر همکار در اولین ورود رمز شخصی خودش را انتخاب می‌کند. اگر کسی رمزش را گم کرد، از پروفایل او «ساخت رمز موقت جدید» را بزنید.
             </div>
           )}
-          <div className="overflow-x-auto border border-[#E6E0D5] rounded-2xl">
+          <div className="overflow-x-auto border border-line rounded-2xl">
             <table className="w-full text-xs">
-              <thead className="bg-[#F5F2ED] text-[#4B4740]">
+              <thead className="bg-surface text-ink-soft">
                 <tr><th className="p-2 text-right">نام</th><th className="p-2 text-right">نام کاربری</th><th className="p-2 text-right">رمز موقت</th><th className="p-2 text-right">واحد</th></tr>
               </thead>
               <tbody>
                 {[...result.created.map((a) => ({ ...a, changes: [] as string[] })), ...result.updated].map((a) => (
-                  <tr key={a.id} className="border-t border-[#E6E0D5]">
+                  <tr key={a.id} className="border-t border-line">
                     <td className="p-2">
                       {a.firstName} {a.lastName}
-                      {a.changes.length > 0 && <span className="block text-[11px] text-[#6E6A60]">به‌روز شد: {a.changes.join('، ')}</span>}
+                      {a.changes.length > 0 && <span className="block text-xs text-muted">به‌روز شد: {a.changes.join('، ')}</span>}
                     </td>
                     {a.hasAccount ? (
                       <>
                         <td className="p-2"><code dir="ltr">{a.username}</code></td>
                         <td className="p-2">
-                          {a.temporaryPassword ? <code dir="ltr" className="font-bold select-all">{a.temporaryPassword}</code> : a.authSource === 'ldap' ? <span className="text-[#6E6A60]">رمز ویندوز</span> : <span className="text-[#8C867A]">—</span>}
+                          {a.temporaryPassword ? <code dir="ltr" className="font-bold select-all">{a.temporaryPassword}</code> : a.authSource === 'ldap' ? <span className="text-muted">رمز ویندوز</span> : <span className="text-faint">—</span>}
                         </td>
                       </>
                     ) : (
-                      <td className="p-2 text-[#6E6A60]" colSpan={2}>فقط دفتر تلفن (بدون حساب پرتال)</td>
+                      <td className="p-2 text-muted" colSpan={2}>فقط دفتر تلفن (بدون حساب پرتال)</td>
                     )}
                     <td className="p-2">{a.department}</td>
                   </tr>
@@ -273,16 +273,16 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
     >
       <div className="space-y-4">
         {directoryLogin && (
-          <section aria-label="کاربران اکتیو دایرکتوری" className="p-3 bg-[#F5F2ED] rounded-2xl space-y-2 leading-relaxed">
+          <section aria-label="کاربران اکتیو دایرکتوری" className="p-3 bg-surface rounded-2xl space-y-2 leading-relaxed">
             <p className="font-bold flex items-center gap-1.5"><Network className="w-4 h-4" /> کاربران اکتیو دایرکتوری</p>
-            <p className="text-[#4B4740]">
+            <p className="text-ink-soft">
               فایل کاربران فعال اکتیو دایرکتوری را که هنوز در پرتال نیستند بگیرید. نام‌ها در اکتیو دایرکتوری معمولاً انگلیسی‌اند؛ در اکسل آن‌ها را فارسی کنید، سمت و واحد را درست کنید و ردیف کسانی را که نمی‌خواهید حذف کنید. بعد همین فایل را پایین‌تر بارگذاری کنید.
             </p>
             <button type="button" onClick={downloadDirectoryUsers} disabled={loadingDirectory} className={secondaryButtonClass}>
               {loadingDirectory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} دانلود فایل کاربران فعال اکتیو دایرکتوری
             </button>
             {directory && (
-              <div className="space-y-1 text-[#4B4740]">
+              <div className="space-y-1 text-ink-soft">
                 <p>
                   {directory.newUsers.length > 0
                     ? `${toPersianDigits(directory.newUsers.length)} کاربر فعال در فایل آمد.`
@@ -307,7 +307,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
             )}
           </section>
         )}
-        <ol className="list-decimal pr-5 space-y-1.5 text-[#4B4740] leading-relaxed">
+        <ol className="list-decimal pr-5 space-y-1.5 text-ink-soft leading-relaxed">
           <li>
             فایل نمونه را دانلود کنید و در اکسل برای هر همکار یک ردیف پر کنید. ستون‌های نام، نام خانوادگی، سمت و واحد الزامی‌اند.
             <button type="button" onClick={() => downloadCsv('roya-portal-staff-template.csv', [TEMPLATE_HEADER, ...TEMPLATE_SAMPLES])} className="mr-2 text-red-700 font-bold hover:underline inline-flex items-center gap-1">
@@ -327,7 +327,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
           type="button"
           disabled={busy}
           onClick={() => inputRef.current?.click()}
-          className="w-full p-5 border-2 border-dashed border-[#D9D4CB] hover:border-red-600 hover:text-red-700 rounded-2xl flex items-center justify-center gap-2 font-bold disabled:opacity-60"
+          className="w-full p-5 border-2 border-dashed border-line-strong hover:border-red-600 hover:text-red-700 rounded-2xl flex items-center justify-center gap-2 font-bold disabled:opacity-60"
         >
           {busy && !preview ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
           {fileName ? `فایل «${fileName}» — انتخاب فایل دیگر` : 'انتخاب فایل اکسل یا CSV'}
@@ -342,15 +342,15 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
               {phoneOnlyCount > 0 && <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-900">{toPersianDigits(phoneOnlyCount)} نفر جدید فقط دفتر تلفن (بدون نام کاربری)</span>}
               {invalidCount > 0 && <span className="px-3 py-1 rounded-full bg-red-50 text-red-700">{toPersianDigits(invalidCount)} ردیف با خطا (ثبت نمی‌شود)</span>}
             </div>
-            {newRows.length > 0 && <label className="flex items-start gap-2 p-3 bg-[#F5F2ED] rounded-xl cursor-pointer leading-relaxed">
+            {newRows.length > 0 && <label className="flex items-start gap-2 p-3 bg-surface rounded-xl cursor-pointer leading-relaxed">
               <input type="checkbox" checked={introduce} onChange={(e) => setIntroduce(e.target.checked)} className="accent-red-700 mt-0.5" />
               <span>
                 <strong>این افراد همکار جدید هستند؛ در داشبورد معرفی شوند.</strong>
-                <span className="block text-[#6E6A60]">فقط برای افراد جدید این فایل. برای ورود اولیهٔ همهٔ کارکنان فعلی این گزینه را خاموش بگذارید. به همه یک اعلان جمعی داده می‌شود.</span>
+                <span className="block text-muted">فقط برای افراد جدید این فایل. برای ورود اولیهٔ همهٔ کارکنان فعلی این گزینه را خاموش بگذارید. به همه یک اعلان جمعی داده می‌شود.</span>
               </span>
             </label>}
             {directoryLogin && makesAccounts && (
-              <fieldset className="p-3 bg-[#F5F2ED] rounded-xl space-y-1.5">
+              <fieldset className="p-3 bg-surface rounded-xl space-y-1.5">
                 <legend className="sr-only">روش ورود حساب‌های این فایل</legend>
                 <p className="font-bold">حساب‌هایی که این فایل می‌سازد چطور وارد شوند؟</p>
                 {([
@@ -359,7 +359,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                 ] as [SignInMethod, string, string][]).map(([method, label, hint]) => (
                   <label key={method} className="flex items-start gap-2 cursor-pointer">
                     <input type="radio" name="import-signin" checked={signIn === method} disabled={busy} onChange={() => changeSignIn(method)} className="accent-red-700 mt-0.5" />
-                    <span><strong>{label}</strong><span className="block text-[11px] text-[#6E6A60]">{hint}</span></span>
+                    <span><strong>{label}</strong><span className="block text-xs text-muted">{hint}</span></span>
                   </label>
                 ))}
               </fieldset>
@@ -374,7 +374,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                   <div key={d.name} className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <span className="sm:w-1/2">
                       <strong>«{d.name}»</strong>
-                      <span className="text-[#6E6A60]"> — ردیف {d.rows.map((r) => toPersianDigits(r)).join('، ')}</span>
+                      <span className="text-muted"> — ردیف {d.rows.map((r) => toPersianDigits(r)).join('، ')}</span>
                     </span>
                     <SearchableSelect
                       aria-label={`واحد برای «${d.name}»`}
@@ -391,9 +391,9 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                 ))}
               </section>
             )}
-            <div className="overflow-x-auto border border-[#E6E0D5] rounded-2xl max-h-[45dvh]">
+            <div className="overflow-x-auto border border-line rounded-2xl max-h-[45dvh]">
               <table className="w-full text-xs">
-                <thead className="bg-[#F5F2ED] text-[#4B4740] sticky top-0">
+                <thead className="bg-surface text-ink-soft sticky top-0">
                   <tr>
                     <th className="p-2 text-right">ردیف</th><th className="p-2 text-right">نام</th><th className="p-2 text-right">نام کاربری</th>
                     <th className="p-2 text-right">سمت</th><th className="p-2 text-right">واحد</th><th className="p-2 text-right">وضعیت</th>
@@ -401,15 +401,15 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                 </thead>
                 <tbody>
                   {preview.map((r) => (
-                    <tr key={r.row} className={`border-t border-[#E6E0D5] ${r.errors.length ? 'bg-red-50/60' : ''}`}>
+                    <tr key={r.row} className={`border-t border-line ${r.errors.length ? 'bg-red-50/60' : ''}`}>
                       <td className="p-2">{toPersianDigits(r.row)}</td>
                       <td className="p-2">{r.target ?? `${r.data.firstName ?? ''} ${r.data.lastName ?? ''}`}</td>
-                      <td className="p-2">{r.data.username ? <code dir="ltr">{r.data.username}</code> : <span className="text-[#8C867A]">بدون حساب</span>}</td>
+                      <td className="p-2">{r.data.username ? <code dir="ltr">{r.data.username}</code> : <span className="text-faint">بدون حساب</span>}</td>
                       <td className="p-2">{r.data.position}</td>
                       <td className="p-2">
                         {r.data.department}
                         {departmentChoices[r.data.department] && departmentChoices[r.data.department] !== r.data.department && (
-                          <span className="block text-[#6E6A60]">← {departmentChoices[r.data.department]}</span>
+                          <span className="block text-muted">← {departmentChoices[r.data.department]}</span>
                         )}
                       </td>
                       <td className="p-2">
@@ -418,7 +418,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                             {r.action === 'update' ? (
                               <>
                                 <span className="text-sky-800 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> به‌روزرسانی</span>
-                                {r.changes?.map((c) => <span key={c} className="block text-[#4B4740] mt-0.5">{c}</span>)}
+                                {r.changes?.map((c) => <span key={c} className="block text-ink-soft mt-0.5">{c}</span>)}
                               </>
                             ) : r.action === 'unchanged' ? (
                               <span className="text-stone-600">بدون تغییر</span>

@@ -27,7 +27,7 @@ export const MobileBottomBar: React.FC = () => {
   return (
     <nav
       id="mobile-bottom-nav"
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#EAE6DF] shadow-lg px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-line shadow-lg px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]"
       dir="rtl"
     >
       <div className="flex items-stretch justify-around">
@@ -40,14 +40,14 @@ export const MobileBottomBar: React.FC = () => {
               aria-current={isActive ? 'page' : undefined}
               className={`flex-1 min-w-0 flex flex-col items-center justify-center min-h-12 py-1 px-1 rounded-xl transition-all ${
                 isActive
-                  ? 'text-[#991b1b] font-bold scale-105'
-                  : 'text-[#7A756D] hover:text-[#1E1E1E]'
+                  ? 'text-brand-strong font-bold scale-105'
+                  : 'text-muted hover:text-ink-strong'
               }`}
             >
-              <div className={`p-1 rounded-lg ${isActive ? 'bg-[#991b1b]/10' : ''}`}>
+              <div className={`p-1 rounded-lg ${isActive ? 'bg-brand-strong/10' : ''}`}>
                 {btn.icon}
               </div>
-              <span className="text-[10px] mt-0.5">{btn.label}</span>
+              <span className="text-xs mt-0.5">{btn.label}</span>
             </button>
           );
         })}
@@ -55,20 +55,20 @@ export const MobileBottomBar: React.FC = () => {
         {isGuest && (
           <button
             onClick={() => requestLogin()}
-            className="flex-1 min-w-0 flex flex-col items-center justify-center min-h-12 py-1 px-1 rounded-xl transition-all text-[#991b1b] font-bold"
+            className="flex-1 min-w-0 flex flex-col items-center justify-center min-h-12 py-1 px-1 rounded-xl transition-all text-brand-strong font-bold"
           >
             <div className="p-1 rounded-lg"><LogIn className="w-5 h-5" /></div>
-            <span className="text-[10px] mt-0.5">ورود</span>
+            <span className="text-xs mt-0.5">ورود</span>
           </button>
         )}
 
         {currentUser && (
           <button
             onClick={() => setActiveTab('colleagues', currentUser.id)}
-            className="flex-1 min-w-0 flex flex-col items-center justify-center min-h-12 py-1 px-1 rounded-xl transition-all text-[#7A756D]"
+            className="flex-1 min-w-0 flex flex-col items-center justify-center min-h-12 py-1 px-1 rounded-xl transition-all text-muted"
           >
-            <Avatar src={currentUser.avatar} firstName={currentUser.firstName} lastName={currentUser.lastName} className="w-6 h-6 rounded-full border border-[#991b1b] text-[9px]" />
-            <span className="text-[10px] mt-0.5">پروفایل</span>
+            <Avatar src={currentUser.avatar} firstName={currentUser.firstName} lastName={currentUser.lastName} className="w-6 h-6 rounded-full border border-brand-strong text-[9px]" />
+            <span className="text-xs mt-0.5">پروفایل</span>
           </button>
         )}
       </div>

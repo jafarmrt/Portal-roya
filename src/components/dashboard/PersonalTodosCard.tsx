@@ -64,17 +64,17 @@ export const PersonalTodosCard: React.FC = () => {
   };
 
   return (
-    <section className="bg-white border border-[#E6E0D5] rounded-3xl p-4 space-y-3" aria-labelledby="personal-todos-title">
+    <section className="bg-white border border-line/70 shadow-card rounded-3xl p-4 space-y-3" aria-labelledby="personal-todos-title">
       <div className="flex items-center gap-2">
         <span className="p-1.5 bg-sky-100 text-sky-800 rounded-xl"><NotebookPen className="w-4 h-4" /></span>
-        <h2 id="personal-todos-title" className="text-sm font-black text-[#2D2D2D]">یادداشت‌های من</h2>
+        <h2 id="personal-todos-title" className="text-sm font-black text-ink">یادداشت‌های من</h2>
         {urgent > 0 && (
-          <span className="px-2 py-0.5 text-[11px] font-bold bg-amber-100 text-amber-900 rounded-full" title="سررسید امروز یا گذشته">
+          <span className="px-2 py-0.5 text-xs font-bold bg-amber-100 text-amber-900 rounded-full" title="سررسید امروز یا گذشته">
             {toPersianDigits(urgent)} امروز
           </span>
         )}
         {featureInPreview(appSettings, 'todos') && (
-          <span className="px-2 py-0.5 text-[10px] font-bold bg-violet-100 text-violet-800 rounded-full">پیش‌نمایش</span>
+          <span className="px-2 py-0.5 text-xs font-bold bg-violet-100 text-violet-800 rounded-full">پیش‌نمایش</span>
         )}
         <button
           type="button"
@@ -96,7 +96,7 @@ export const PersonalTodosCard: React.FC = () => {
           {formOpen ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
         </button>
       </div>
-      <p className="text-[11px] text-[#8C867A] flex items-center gap-1 -mt-1">
+      <p className="text-xs text-faint flex items-center gap-1 -mt-1">
         <Lock className="w-3 h-3" /> فقط خودتان می‌بینید
       </p>
 
@@ -113,7 +113,7 @@ export const PersonalTodosCard: React.FC = () => {
           />
           <DueDateField value={dueDate} onChange={setDueDate} />
           <div className="flex items-center justify-between gap-2">
-            <button type="button" onClick={() => setDetailed({ title, dueDate })} className="tap-area text-[11px] font-bold text-sky-800 hover:underline">
+            <button type="button" onClick={() => setDetailed({ title, dueDate })} className="tap-area text-xs font-bold text-sky-800 hover:underline">
               مهم، تکرار، گام‌ها…
             </button>
             <button
@@ -129,14 +129,14 @@ export const PersonalTodosCard: React.FC = () => {
       )}
 
       {open.length === 0 ? (
-        <p className="text-xs text-[#6E6A60] py-1 leading-relaxed">
+        <p className="text-xs text-muted py-1 leading-relaxed">
           یادداشت بازی ندارید. با «+» یادداشتی بنویسید، یا از هر خبر، رویداد، دوره و سند «افزودن به یادداشت‌های من» را بزنید.
         </p>
       ) : (
         <div className="space-y-2">
           {shownGroups.map((g) => (
             <div key={g.id} role="group" aria-label={g.label}>
-              <h3 className={`text-[11px] font-black mb-1 ${GROUP_STYLE[g.id]}`}>
+              <h3 className={`text-xs font-black mb-1 ${GROUP_STYLE[g.id]}`}>
                 {g.label} <span className="font-bold">({toPersianDigits(groups.find((x) => x.id === g.id)!.items.length)})</span>
               </h3>
               <ul className="space-y-1">
@@ -165,13 +165,13 @@ export const PersonalTodosCard: React.FC = () => {
       )}
 
       {done.length > 0 && (
-        <div className="pt-2 border-t border-[#EFEAE1] space-y-1.5">
+        <div className="pt-2 border-t border-surface-strong space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <button
               type="button"
               aria-expanded={showDone}
               onClick={() => setShowDone((s) => !s)}
-              className="tap-area text-xs font-bold text-[#6E6A60] flex items-center gap-1"
+              className="tap-area text-xs font-bold text-muted flex items-center gap-1"
             >
               <ChevronDown className={`w-4 h-4 transition-transform ${showDone ? 'rotate-180' : ''}`} />
               انجام‌شده‌های امروز ({toPersianDigits(done.length)})
@@ -184,7 +184,7 @@ export const PersonalTodosCard: React.FC = () => {
                   <TodoRow key={t.id} todo={t} today={today} onToggle={() => void updateTodo(t.id, { done: false })} onEdit={() => setEditing(t)} onOpenSource={setActiveTab} />
                 ))}
               </ul>
-              <p className="text-[10px] text-[#8C867A]">
+              <p className="text-xs text-faint">
                 انجام‌شده‌های روزهای قبل در{' '}
                 <button type="button" onClick={() => setActiveTab('todos')} className="font-bold text-sky-800 hover:underline">
                   صفحهٔ یادداشت‌ها
@@ -225,7 +225,7 @@ interface TodoRowProps {
   onOpenSource: (tab: ActiveTab, id: string) => void;
 }
 
-const iconButton = 'p-1 rounded-lg shrink-0 text-[#8C867A] hover:bg-white';
+const iconButton = 'p-1 rounded-lg shrink-0 text-faint hover:bg-white';
 
 const TodoRow: React.FC<TodoRowProps> = ({ todo, today, group, onToggle, onEdit, onStar, onDate, onOpenSource }) => {
   const [dating, setDating] = useState(false);
@@ -235,7 +235,7 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, today, group, onToggle, onEdit,
   const late = group === 'overdue';
   const canPostpone = onDate && (group === 'overdue' || group === 'today' || group === 'none');
   return (
-    <li className={`rounded-xl border ${late ? 'bg-red-50 border-red-200' : group === 'today' ? 'bg-amber-50 border-amber-200' : 'bg-[#F9F7F4] border-[#E6E0D5]'}`}>
+    <li className={`rounded-xl border ${late ? 'bg-red-50 border-red-200' : group === 'today' ? 'bg-amber-50 border-amber-200' : 'bg-surface-soft border-line'}`}>
       <div className="flex items-center gap-1 px-1.5 py-1">
         <button
           type="button"
@@ -245,7 +245,7 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, today, group, onToggle, onEdit,
           onClick={onToggle}
           className="p-1 rounded-lg hover:bg-white shrink-0"
         >
-          {isDone ? <CheckCircle2 className="w-[18px] h-[18px] text-emerald-600" /> : <Circle className="w-[18px] h-[18px] text-[#A8A295]" />}
+          {isDone ? <CheckCircle2 className="w-[18px] h-[18px] text-emerald-600" /> : <Circle className="w-[18px] h-[18px] text-faint" />}
         </button>
         <button
           type="button"
@@ -254,10 +254,10 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, today, group, onToggle, onEdit,
           aria-label={`باز کردن ${todo.title}`}
           title={todo.note ? `${todo.title}\n${todo.note}` : todo.title}
         >
-          <span className={`truncate text-xs font-bold ${isDone ? 'line-through text-[#8C867A]' : 'text-[#2D2D2D]'}`}>{todo.title}</span>
+          <span className={`truncate text-xs font-bold ${isDone ? 'line-through text-faint' : 'text-ink'}`}>{todo.title}</span>
           {todo.repeat && <Repeat className="w-3 h-3 text-sky-700 shrink-0" aria-label="تکراری" />}
           {todo.steps.length > 0 && (
-            <span className="text-[10px] text-[#6E6A60] flex items-center gap-0.5 shrink-0" aria-label={`${toPersianDigits(stepsDone)} از ${toPersianDigits(todo.steps.length)} گام`}>
+            <span className="text-xs text-muted flex items-center gap-0.5 shrink-0" aria-label={`${toPersianDigits(stepsDone)} از ${toPersianDigits(todo.steps.length)} گام`}>
               <ListChecks className="w-3 h-3" />
               {toPersianDigits(`${stepsDone} از ${todo.steps.length}`)}
             </span>
@@ -275,11 +275,11 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, today, group, onToggle, onEdit,
             onClick={onStar}
             className={iconButton}
           >
-            <Star className={`w-3.5 h-3.5 ${todo.important ? 'fill-amber-500 text-amber-500' : 'text-[#C9C3B7]'}`} />
+            <Star className={`w-3.5 h-3.5 ${todo.important ? 'fill-amber-500 text-amber-500' : 'text-line-strong'}`} />
           </button>
         )}
         {todo.dueDate && !isDone && (
-          <span className={`text-[10px] whitespace-nowrap ${late ? 'text-red-700 font-bold' : group === 'today' ? 'text-amber-800 font-bold' : 'text-[#6E6A60]'}`}>
+          <span className={`text-xs whitespace-nowrap ${late ? 'text-red-700 font-bold' : group === 'today' ? 'text-amber-800 font-bold' : 'text-muted'}`}>
             {shortDue(todo.dueDate, today)}
           </span>
         )}
@@ -309,7 +309,7 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, today, group, onToggle, onEdit,
       </div>
       {dating && onDate && (
         <div className="px-2 pb-2 flex items-center gap-2">
-          <span className="text-[10px] font-bold text-[#6E6A60]">{todo.dueDate ? 'انتقال به:' : 'سررسید:'}</span>
+          <span className="text-xs font-bold text-muted">{todo.dueDate ? 'انتقال به:' : 'سررسید:'}</span>
           <QuickDueDates
             value=""
             only={todo.dueDate ? ['tomorrow', 'nextWeek'] : undefined}

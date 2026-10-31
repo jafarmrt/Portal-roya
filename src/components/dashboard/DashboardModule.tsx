@@ -77,19 +77,19 @@ export const DashboardModule: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 [&>*:empty]:hidden">
       {/* Hero Welcome Banner */}
-      <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 -ml-12 -mt-12 w-64 h-64 rounded-full bg-[#dc2626]/20 blur-3xl pointer-events-none" />
+      <div className="bg-gradient-to-r from-brand-deep via-brand-strong to-red-500 rounded-3xl p-4 sm:p-6 text-white shadow-card relative overflow-hidden">
+        <div className="absolute top-0 left-0 -ml-12 -mt-12 w-64 h-64 rounded-full bg-brand/20 blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4">
           <div className="space-y-2">
-            <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#dc2626]/30 text-[#E6E0D5] text-xs font-semibold border border-[#dc2626]/40">
+            <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand/30 text-line text-xs font-semibold border border-brand/40">
               <Sparkles className="w-3.5 h-3.5" />
               <span>پرتال سازمانی رویا طرح داخلی | ROYA Surface Center</span>
             </div>
             <h1 className="text-xl sm:text-3xl font-black text-white">
               {currentUser ? `سلام، ${currentUser.firstName} ${currentUser.lastName} عزیز 👋` : 'خوش آمدید 👋'}
             </h1>
-            <p className="text-[#E6E0D5] text-xs sm:text-sm max-w-xl leading-relaxed">
+            <p className="text-line text-xs sm:text-sm max-w-xl leading-relaxed">
               امروز {todayStr} ({todayHijri}) است.
               {todayOccasions && <span className="font-bold text-white"> {todayOccasions.title}{todayOccasions.isHoliday ? ' (تعطیل رسمی)' : ''}.</span>}
               {isGuest
@@ -99,15 +99,15 @@ export const DashboardModule: React.FC = () => {
           </div>
 
           {/* Quick Stat Pill Cards */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {featureOn('polls') && (
               <button
                 onClick={() => setActiveTab('polls')}
-                className="px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl backdrop-blur-xs border border-white/10 text-right transition-all"
+                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl border border-white/10 text-right transition-all"
               >
-                <div className="text-[10px] text-[#E6E0D5]">نظرسنجی‌ها</div>
-                <div className="text-base font-black text-white flex items-center gap-1.5">
-                  <Vote className="w-4 h-4 text-[#9BB088]" />
+                <div className="text-xs text-line">نظرسنجی‌ها</div>
+                <div className="text-sm sm:text-base font-black text-white flex items-center gap-1.5">
+                  <Vote className="w-4 h-4 text-sage" />
                   <span>{toPersianDigits(openPollsCount)} {isGuest ? 'در حال رأی‌گیری' : 'در انتظار رأی شما'}</span>
                 </div>
               </button>
@@ -115,11 +115,11 @@ export const DashboardModule: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('news')}
-              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl backdrop-blur-xs border border-white/10 text-right transition-all"
+              className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl border border-white/10 text-right transition-all"
             >
-              <div className="text-[10px] text-[#E6E0D5]">{isGuest ? 'اخبار و اطلاعیه‌ها' : 'اخبار نخوانده'}</div>
-              <div className="text-base font-black text-white flex items-center gap-1.5">
-                <Newspaper className="w-4 h-4 text-[#E6E0D5]" />
+              <div className="text-xs text-line">{isGuest ? 'اخبار و اطلاعیه‌ها' : 'اخبار نخوانده'}</div>
+              <div className="text-sm sm:text-base font-black text-white flex items-center gap-1.5">
+                <Newspaper className="w-4 h-4 text-line" />
                 <span>{toPersianDigits(isGuest ? publishedNews.length : unreadCount)} مورد</span>
               </div>
             </button>
@@ -127,10 +127,12 @@ export const DashboardModule: React.FC = () => {
             {canArrange && (
               <button
                 onClick={() => setArranging(true)}
-                className="self-stretch px-3 py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl backdrop-blur-xs border border-white/10 text-[11px] font-bold text-[#E6E0D5] flex items-center gap-1.5 transition-all"
+                aria-label="چیدمان داشبورد"
+                title="چیدمان داشبورد"
+                className="self-stretch px-3 py-2 sm:py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl border border-white/10 text-xs font-bold text-line flex items-center gap-1.5 transition-all"
               >
                 <LayoutDashboard className="w-4 h-4" />
-                چیدمان داشبورد
+                <span className="hidden sm:inline">چیدمان داشبورد</span>
               </button>
             )}
           </div>
@@ -189,9 +191,9 @@ export const DashboardModule: React.FC = () => {
                 >
                   <span className="flex items-center gap-2 min-w-0">
                     <FileCheck2 className="w-4 h-4 text-amber-700 shrink-0" />
-                    <span className="text-xs font-bold text-[#2D2D2D] truncate">{item.title}</span>
+                    <span className="text-xs font-bold text-ink truncate">{item.title}</span>
                   </span>
-                  <span className="text-[11px] text-[#6E6A60] whitespace-nowrap">{formatDate(item.publishAt)}</span>
+                  <span className="text-xs text-muted whitespace-nowrap">{formatDate(item.publishAt)}</span>
                 </button>
               </li>
             ))}
@@ -204,20 +206,20 @@ export const DashboardModule: React.FC = () => {
         {/* Wide column: news, new colleagues, the featured poll, the calendar and the next course */}
         <div className="contents lg:flex lg:flex-col lg:col-span-2 lg:gap-6 [&>*:empty]:hidden">
           {/* Pinned / Latest News Section */}
-          <div style={place('news')} className="bg-white rounded-3xl p-5 sm:p-6 border border-[#E6E0D5] shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
+          <div style={place('news')} className="bg-white rounded-3xl p-5 sm:p-6 border border-line/70 shadow-card space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-line">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-[#F5F2ED] text-[#dc2626] rounded-xl">
+                <div className="p-2 bg-surface text-brand rounded-xl">
                   <Newspaper className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-[#2D2D2D]">آخرین اخبار و اطلاعیه‌ها</h3>
-                  <p className="text-xs text-[#6E6A60]">اطلاع‌رسانی‌های رسمی مدیریت و دپارتمان‌ها</p>
+                  <h3 className="text-base font-black text-ink">آخرین اخبار و اطلاعیه‌ها</h3>
+                  <p className="text-xs text-muted">اطلاع‌رسانی‌های رسمی مدیریت و دپارتمان‌ها</p>
                 </div>
               </div>
               <button
                 onClick={() => setActiveTab('news')}
-                className="tap-area text-xs font-bold text-[#dc2626] hover:underline flex items-center gap-1 whitespace-nowrap shrink-0"
+                className="tap-area text-xs font-bold text-brand hover:underline flex items-center gap-1 whitespace-nowrap shrink-0"
               >
                 <span>مشاهده همه اخبار</span>
                 <ChevronLeft className="w-4 h-4" />
@@ -225,14 +227,14 @@ export const DashboardModule: React.FC = () => {
             </div>
 
             {latestNews.length === 0 ? (
-              <p className="text-xs text-[#6E6A60] py-6 text-center">هنوز خبری منتشر نشده است.</p>
+              <p className="text-xs text-muted py-6 text-center">هنوز خبری منتشر نشده است.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {latestNews.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => setActiveTab('news', item.id)}
-                    className="p-4 bg-[#F5F2ED]/60 hover:bg-[#F5F2ED] rounded-2xl border border-[#E6E0D5] cursor-pointer transition-all space-y-2 group text-right"
+                    className="p-4 bg-surface/70 hover:bg-surface-strong rounded-2xl cursor-pointer transition-colors space-y-2 group text-right"
                   >
                     {item.image && (
                       <img
@@ -242,8 +244,8 @@ export const DashboardModule: React.FC = () => {
                         className="w-full h-32 object-cover rounded-xl group-hover:opacity-95 transition-opacity"
                       />
                     )}
-                    <div className="flex items-center justify-between text-[10px] text-[#6E6A60]">
-                      <span className="font-bold text-[#dc2626] flex items-center gap-1">
+                    <div className="flex items-center justify-between text-xs text-muted">
+                      <span className="font-bold text-brand flex items-center gap-1">
                         {item.isPinned && <Pin className="w-3 h-3" />}
                         {item.category}
                       </span>
@@ -252,7 +254,7 @@ export const DashboardModule: React.FC = () => {
                         {formatDate(item.publishAt)}
                       </span>
                     </div>
-                    <h4 className="text-xs font-bold text-[#2D2D2D] line-clamp-2 group-hover:text-[#dc2626] transition-colors">
+                    <h4 className="text-sm font-bold text-ink leading-relaxed line-clamp-2 group-hover:text-brand transition-colors">
                       {item.title}
                     </h4>
                   </button>
@@ -272,34 +274,34 @@ export const DashboardModule: React.FC = () => {
           {/* Active Poll Spotlight Card */}
           {on('poll') && activePoll && (
             <MobileFold id="poll" title="نظرسنجی ویژه" icon={<Vote className="w-4 h-4" />} style={place('poll')}>
-              <div className="bg-gradient-to-br from-[#F5F2ED] via-white to-[#F7F3ED] rounded-3xl p-6 border border-[#E6E0D5] shadow-xs relative overflow-hidden">
-                <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
+              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-line/70 shadow-card relative overflow-hidden">
+                <div className="flex items-center justify-between pb-3 border-b border-line">
                   <div className="flex items-center gap-2">
-                    <div className="p-2 bg-[#dc2626] text-white rounded-xl">
+                    <div className="p-2 bg-brand text-white rounded-xl">
                       <Vote className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-base font-black text-[#2D2D2D]">نظرسنجی ویژه سازمان</h3>
-                      <p className="text-xs text-[#6E6A60]">نظرسنجی فعال جهت دریافت نظرات همکاران</p>
+                      <h3 className="text-base font-black text-ink">نظرسنجی ویژه سازمان</h3>
+                      <p className="text-xs text-muted">نظرسنجی فعال جهت دریافت نظرات همکاران</p>
                     </div>
                   </div>
-                  <span className="px-3 py-1 bg-[#D97B5F] text-white text-xs font-bold rounded-full animate-pulse">
+                  <span className="px-3 py-1 bg-warm text-white text-xs font-bold rounded-full">
                     در حال رای‌گیری
                   </span>
                 </div>
 
                 <div className="py-4 space-y-2">
-                  <h4 className="text-sm font-bold text-[#2D2D2D]">{activePoll.title}</h4>
-                  <p className="text-xs text-[#6E6A60] leading-relaxed">{activePoll.description}</p>
+                  <h4 className="text-sm font-bold text-ink">{activePoll.title}</h4>
+                  <p className="text-xs text-muted leading-relaxed">{activePoll.description}</p>
                 </div>
 
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-xs text-[#6E6A60] font-medium">
+                  <span className="text-xs text-muted font-medium">
                     {toPersianDigits(activePoll.questions.length)} سؤال · تاکنون <strong>{toPersianDigits(activePoll.responseCount)} نفر</strong> پاسخ داده‌اند
                   </span>
                   <button
                     onClick={() => setActiveTab('polls', activePoll.id)}
-                    className="px-5 py-2.5 bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                    className="px-5 py-2.5 bg-brand hover:bg-brand-hover text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5"
                   >
                     <span>شرکت در نظرسنجی</span>
                     <ChevronLeft className="w-4 h-4" />
@@ -318,23 +320,23 @@ export const DashboardModule: React.FC = () => {
           {/* Upcoming Training Highlight */}
           {on('training') && upcomingTraining && (
             <MobileFold id="training" title="کارگاه آموزشی پیش‌رو" icon={<GraduationCap className="w-4 h-4" />} style={place('training')}>
-              <div className="bg-white rounded-3xl p-6 border border-[#E6E0D5] shadow-xs space-y-3">
-                <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
+              <div className="bg-white rounded-3xl p-6 border border-line/70 shadow-card space-y-3">
+                <div className="flex items-center justify-between pb-3 border-b border-line">
                   <div className="flex items-center gap-2">
-                    <div className="p-2 bg-[#EFEFEA] text-[#991b1b] rounded-xl">
+                    <div className="p-2 bg-surface-strong text-brand-strong rounded-xl">
                       <GraduationCap className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-base font-black text-[#2D2D2D]">کارگاه آموزشی پیش‌رو</h3>
-                      <p className="text-xs text-[#6E6A60]">برنامه آموزش سازمانی رویا</p>
+                      <h3 className="text-base font-black text-ink">کارگاه آموزشی پیش‌رو</h3>
+                      <p className="text-xs text-muted">برنامه آموزش سازمانی رویا</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="text-sm font-bold text-[#2D2D2D] leading-snug">{upcomingTraining.title}</h4>
-                  <p className="text-xs text-[#6E6A60] leading-relaxed line-clamp-2">{upcomingTraining.description}</p>
-                  <div className="text-xs text-[#6E6A60] space-y-1 pt-1">
+                  <h4 className="text-sm font-bold text-ink leading-snug">{upcomingTraining.title}</h4>
+                  <p className="text-xs text-muted leading-relaxed line-clamp-2">{upcomingTraining.description}</p>
+                  <div className="text-xs text-muted space-y-1 pt-1">
                     <div>مدرس: <strong>{upcomingTraining.instructor}</strong></div>
                     <div>تاریخ: <strong>{formatDate(upcomingTraining.date)}</strong>{upcomingTraining.time && ` (ساعت ${toPersianDigits(upcomingTraining.time)})`}</div>
                   </div>
@@ -342,7 +344,7 @@ export const DashboardModule: React.FC = () => {
 
                 <button
                   onClick={() => setActiveTab('training', upcomingTraining.id)}
-                  className="w-full py-2 bg-[#991b1b] hover:bg-[#7f1d1d] text-white text-xs font-bold rounded-xl transition-colors text-center block mt-2"
+                  className="w-full py-2 bg-brand-strong hover:bg-brand-deep text-white text-xs font-bold rounded-xl transition-colors text-center block mt-2"
                 >
                   مشاهده جزییات و ثبت‌نام
                 </button>

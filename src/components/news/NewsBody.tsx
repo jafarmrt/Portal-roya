@@ -6,7 +6,7 @@ export const NewsContent: React.FC<{ content: string; format: NewsItem['contentF
   format === 'html' ? (
     <div className={`rich-text ${className}`} dangerouslySetInnerHTML={{ __html: content }} />
   ) : (
-    <div className={`whitespace-pre-line text-[#2D2D2D] ${className}`}>{content}</div>
+    <div className={`whitespace-pre-line text-ink ${className}`}>{content}</div>
   );
 
 /** Plain text as editor HTML, so an older item can be edited in the editor. */

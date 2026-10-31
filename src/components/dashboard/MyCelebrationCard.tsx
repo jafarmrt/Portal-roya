@@ -43,18 +43,18 @@ export const MyCelebrationCard: React.FC = () => {
           <section
             key={occasion}
             aria-label={isBirthday ? 'تبریک تولد شما' : 'تبریک سالگرد همکاری شما'}
-            className="bg-gradient-to-l from-[#dc2626] to-[#f87171] rounded-3xl p-5 sm:p-6 text-white shadow-lg relative overflow-hidden"
+            className="bg-gradient-to-l from-gold-soft via-warm-soft to-orange-100 rounded-3xl p-5 sm:p-6 text-ink border border-gold/40 shadow-card relative overflow-hidden"
           >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/10 rounded-full blur-xl -ml-5 -mb-5" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/50 rounded-full blur-2xl -mr-10 -mt-10" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-gold/20 rounded-full blur-xl -ml-5 -mb-5" />
             <span aria-hidden className="absolute top-3 left-4 text-4xl opacity-90 select-none">{isBirthday ? '🎂' : '🏆'}</span>
 
             <div className="relative z-10 flex items-start gap-4">
-              <div className="p-3.5 bg-white/20 rounded-full backdrop-blur-sm border border-white/30 shadow-inner shrink-0">
+              <div className="p-3.5 bg-white/80 text-warm-strong rounded-full border border-gold/40 shadow-xs shrink-0">
                 {isBirthday ? <Cake className="w-7 h-7" /> : <Award className="w-7 h-7" />}
               </div>
               <div className="min-w-0 pl-10">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-[10px] font-bold border border-white/30 mb-2">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 text-warm-strong text-xs font-bold border border-gold/40 mb-2">
                   <Sparkles className="w-3 h-3" />
                   {isBirthday ? (daysAgo === 0 ? 'امروز تولد شماست' : 'تولد شما') : 'تولد سازمانی'}
                 </div>
@@ -63,7 +63,7 @@ export const MyCelebrationCard: React.FC = () => {
                     ? `${currentUser.firstName} عزیز، تولدت مبارک! 🎉`
                     : `${currentUser.firstName} عزیز، ${yearsLabel(years)} همراهی‌ات با رویا مبارک! 🎉`}
                 </h3>
-                <p className="text-xs text-white/90 mt-1 max-w-xl leading-relaxed">
+                <p className="text-xs text-ink-soft mt-1 max-w-xl leading-relaxed">
                   {isBirthday
                     ? 'خانوادهٔ رویا طرح داخلی برایت سالی پر از سلامتی، شادی و موفقیت آرزو می‌کند.'
                     : `از اینکه ${yearsLabel(years)} در کنار ما هستی و با تلاش‌هایت به رشد رویا کمک می‌کنی، صمیمانه سپاسگزاریم.`}
@@ -73,7 +73,7 @@ export const MyCelebrationCard: React.FC = () => {
 
             {cards.length > 0 && (
               <div className="relative z-10 mt-5 space-y-2">
-                <p className="text-xs font-bold text-white/95">
+                <p className="text-xs font-bold text-ink-soft">
                   {toPersianDigits(cards.length)} کارت تبریک از همکاران؛ با یک واکنش جوابشان را بدهید:
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">

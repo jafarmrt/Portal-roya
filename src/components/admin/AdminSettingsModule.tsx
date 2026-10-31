@@ -71,14 +71,14 @@ const ListEditor: React.FC<{ settings: AppSettings; section: (typeof SECTIONS)[n
   };
 
   return (
-    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3">
+    <section className="bg-white p-5 rounded-3xl border border-line/70 shadow-card space-y-3">
       <div>
-        <h3 className="text-sm font-black text-[#2D2D2D]">{section.title}</h3>
-        <p className="text-[11px] text-[#6E6A60]">{section.hint}</p>
+        <h3 className="text-sm font-black text-ink">{section.title}</h3>
+        <p className="text-xs text-muted">{section.hint}</p>
       </div>
       <ul className="space-y-1.5">
         {items.map((item, i) => (
-          <li key={item} className="flex items-center gap-1 p-2 bg-[#F5F2ED] rounded-xl text-xs font-bold">
+          <li key={item} className="flex items-center gap-1 p-2 bg-surface rounded-xl text-xs font-bold">
             <span className="flex-1">{item}</span>
             <button onClick={() => move(i, -1)} disabled={i === 0} aria-label={`بالا بردن ${item}`} className="p-1 disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
             <button onClick={() => move(i, 1)} disabled={i === items.length - 1} aria-label={`پایین بردن ${item}`} className="p-1 disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
@@ -94,11 +94,11 @@ const ListEditor: React.FC<{ settings: AppSettings; section: (typeof SECTIONS)[n
         className="flex gap-2"
       >
         <input aria-label={`مورد جدید در ${section.title}`} value={draft} maxLength={100} onChange={(e) => setDraft(e.target.value)} placeholder="مورد جدید" className={inputClass} />
-        <button type="submit" className="px-3 rounded-xl bg-[#F5F2ED] hover:bg-[#E6E0D5]" aria-label="افزودن"><Plus className="w-4 h-4" /></button>
+        <button type="submit" className="px-3 rounded-xl bg-surface hover:bg-line" aria-label="افزودن"><Plus className="w-4 h-4" /></button>
       </form>
       {dirty && (
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[11px] text-[#8C867A]">حذف یک مورد، داده‌های قبلی را تغییر نمی‌دهد.</p>
+          <p className="text-xs text-faint">حذف یک مورد، داده‌های قبلی را تغییر نمی‌دهد.</p>
           <button
             disabled={busy}
             onClick={async () => {
@@ -231,15 +231,15 @@ const ManagedListEditor: React.FC<{ settings: AppSettings; config: ManagedList }
   };
 
   return (
-    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3" aria-labelledby={`${key}-title`}>
+    <section className="bg-white p-5 rounded-3xl border border-line/70 shadow-card space-y-3" aria-labelledby={`${key}-title`}>
       <div>
-        <h3 id={`${key}-title`} className="text-sm font-black text-[#2D2D2D]">{config.title}</h3>
-        <p className="text-[11px] text-[#6E6A60] leading-relaxed">{config.hint}</p>
+        <h3 id={`${key}-title`} className="text-sm font-black text-ink">{config.title}</h3>
+        <p className="text-xs text-muted leading-relaxed">{config.hint}</p>
       </div>
-      {list.length === 0 && <p className="text-[11px] text-[#8C867A]">فهرست خالی است.</p>}
+      {list.length === 0 && <p className="text-xs text-faint">فهرست خالی است.</p>}
       <ul className="space-y-1.5">
         {list.map((item, i) => (
-          <li key={item} className="p-2 bg-[#F5F2ED] rounded-xl text-xs font-bold space-y-2">
+          <li key={item} className="p-2 bg-surface rounded-xl text-xs font-bold space-y-2">
             {renaming?.name === item ? (
               <form
                 onSubmit={(e) => {
@@ -268,7 +268,7 @@ const ManagedListEditor: React.FC<{ settings: AppSettings; config: ManagedList }
               <div className="flex items-center gap-1">
                 <span className="flex-1">
                   <span>{item}</span>
-                  <span className="block text-[10px] font-normal text-[#6E6A60]">{describe(item)}</span>
+                  <span className="block text-xs font-normal text-muted">{describe(item)}</span>
                 </span>
                 <button onClick={() => move(i, -1)} disabled={busy || i === 0} aria-label={`بالا بردن ${item}`} className="p-1 disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
                 <button onClick={() => move(i, 1)} disabled={busy || i === list.length - 1} aria-label={`پایین بردن ${item}`} className="p-1 disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
@@ -299,7 +299,7 @@ const ManagedListEditor: React.FC<{ settings: AppSettings; config: ManagedList }
         className="flex gap-2"
       >
         <input aria-label={`${noun} جدید`} value={draft} maxLength={100} onChange={(e) => setDraft(e.target.value)} placeholder={`${noun} جدید`} className={inputClass} />
-        <button type="submit" disabled={busy} className="px-3 rounded-xl bg-[#F5F2ED] hover:bg-[#E6E0D5]" aria-label={`افزودن ${noun}`}><Plus className="w-4 h-4" /></button>
+        <button type="submit" disabled={busy} className="px-3 rounded-xl bg-surface hover:bg-line" aria-label={`افزودن ${noun}`}><Plus className="w-4 h-4" /></button>
       </form>
     </section>
   );
@@ -312,11 +312,11 @@ const Toggle: React.FC<{ label: string; hint: string; checked: boolean; disabled
   disabled,
   onChange,
 }) => (
-  <label className={`flex items-start gap-3 p-3 rounded-xl bg-[#F5F2ED] ${disabled ? 'opacity-50' : 'cursor-pointer'}`}>
+  <label className={`flex items-start gap-3 p-3 rounded-xl bg-surface ${disabled ? 'opacity-50' : 'cursor-pointer'}`}>
     <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className="mt-0.5 w-4 h-4 accent-red-700" />
     <span>
-      <span className="block text-xs font-bold text-[#2D2D2D]">{label}</span>
-      <span className="block text-[11px] text-[#6E6A60] mt-0.5 leading-relaxed">{hint}</span>
+      <span className="block text-xs font-bold text-ink">{label}</span>
+      <span className="block text-xs text-muted mt-0.5 leading-relaxed">{hint}</span>
     </span>
   </label>
 );
@@ -332,12 +332,12 @@ const GuestAccessSettings: React.FC<{ settings: AppSettings }> = ({ settings }) 
   };
 
   return (
-    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3">
+    <section className="bg-white p-5 rounded-3xl border border-line/70 shadow-card space-y-3">
       <div className="flex items-center gap-2">
         <Eye className="w-4 h-4 text-red-700" />
-        <h3 className="text-sm font-black text-[#2D2D2D]">دسترسی مهمان (بدون ورود)</h3>
+        <h3 className="text-sm font-black text-ink">دسترسی مهمان (بدون ورود)</h3>
       </div>
-      <p className="text-[11px] text-[#6E6A60]">
+      <p className="text-xs text-muted">
         مهمان فقط از داخل شبکهٔ شرکت پرتال را می‌بیند؛ از بیرون شرکت (اینترنت) همیشه باید وارد شد. مهمان نمی‌تواند نظر، رأی، لایک یا تبریک ثبت کند؛ برای هر تعامل از او خواسته می‌شود وارد شود. اخباری که برای گروه یا افراد مشخص فرستاده شده‌اند و نظرسنجی‌های مخصوص یک واحد به مهمان نشان داده نمی‌شوند.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -371,16 +371,16 @@ const LogoSettings: React.FC<{ settings: AppSettings }> = ({ settings }) => {
   };
 
   return (
-    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3" aria-labelledby="logo-title">
+    <section className="bg-white p-5 rounded-3xl border border-line/70 shadow-card space-y-3" aria-labelledby="logo-title">
       <div className="flex items-center gap-2">
         <ImageIcon className="w-4 h-4 text-red-700" />
-        <h3 id="logo-title" className="text-sm font-black text-[#2D2D2D]">لوگوی شرکت</h3>
+        <h3 id="logo-title" className="text-sm font-black text-ink">لوگوی شرکت</h3>
       </div>
-      <p className="text-[11px] text-[#6E6A60]">
+      <p className="text-xs text-muted">
         لوگو در بالای همهٔ صفحه‌ها، صفحهٔ ورود و سربرگ برگه‌های چاپی نمایش داده می‌شود. بهتر است تصویر PNG با پس‌زمینهٔ شفاف و افقی باشد (مثلاً ۴۰۰ در ۱۲۰ پیکسل)؛ در هدر حداکثر ۴۰ پیکسل ارتفاع دارد.
       </p>
       <div className="flex flex-wrap items-center gap-4">
-        <div className="px-4 py-3 rounded-2xl border border-[#EAE6DF] bg-white shadow-2xs" aria-label="پیش‌نمایش هدر">
+        <div className="px-4 py-3 rounded-2xl border border-line bg-white shadow-2xs" aria-label="پیش‌نمایش هدر">
           <RoyaLogo size="md" />
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -413,21 +413,21 @@ const FoundingDaySettings: React.FC<{ settings: AppSettings }> = ({ settings }) 
   };
 
   return (
-    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3" aria-labelledby="founding-title">
+    <section className="bg-white p-5 rounded-3xl border border-line/70 shadow-card space-y-3" aria-labelledby="founding-title">
       <div className="flex items-center gap-2">
         <PartyPopper className="w-4 h-4 text-red-700" />
-        <h3 id="founding-title" className="text-sm font-black text-[#2D2D2D]">سالگرد تأسیس شرکت</h3>
+        <h3 id="founding-title" className="text-sm font-black text-ink">سالگرد تأسیس شرکت</h3>
       </div>
-      <p className="text-[11px] text-[#6E6A60]">
+      <p className="text-xs text-muted">
         هر سال در روز تأسیس، پیام زیر بالای داشبورد همه نشان داده می‌شود و ساعت ۸ صبح برای همه اعلان می‌رود. اگر تاریخ خالی باشد، چیزی نشان داده نمی‌شود.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
-          <label htmlFor="founding-date" className="block text-xs font-bold text-[#4B4740] mb-1">تاریخ تأسیس</label>
+          <label htmlFor="founding-date" className="block text-xs font-bold text-ink-soft mb-1">تاریخ تأسیس</label>
           <JalaliDateInput id="founding-date" value={foundingDate} onChange={setFoundingDate} defaultYear={1380} />
         </div>
         <div className="sm:col-span-2">
-          <label htmlFor="founding-message" className="block text-xs font-bold text-[#4B4740] mb-1">متن پیام (اختیاری)</label>
+          <label htmlFor="founding-message" className="block text-xs font-bold text-ink-soft mb-1">متن پیام (اختیاری)</label>
           <textarea
             id="founding-message"
             rows={3}
@@ -437,7 +437,7 @@ const FoundingDaySettings: React.FC<{ settings: AppSettings }> = ({ settings }) 
             placeholder={defaultFoundingMessage(years)}
             className={inputClass}
           />
-          <p className="mt-1 text-[10px] text-[#8C867A]">اگر خالی بماند، متن پیش‌فرض بالا با تعداد سال‌ها استفاده می‌شود.</p>
+          <p className="mt-1 text-xs text-faint">اگر خالی بماند، متن پیش‌فرض بالا با تعداد سال‌ها استفاده می‌شود.</p>
         </div>
       </div>
       <div className="flex justify-end">
@@ -462,15 +462,15 @@ const DashboardCardsSettings: React.FC<{ settings: AppSettings }> = ({ settings 
   };
 
   return (
-    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3">
+    <section className="bg-white p-5 rounded-3xl border border-line/70 shadow-card space-y-3">
       <div className="flex items-center gap-2">
         <LayoutDashboard className="w-4 h-4 text-red-700" />
-        <h3 className="text-sm font-black text-[#2D2D2D]">کارت‌های داشبورد</h3>
+        <h3 className="text-sm font-black text-ink">کارت‌های داشبورد</h3>
         <button type="button" onClick={() => setArranging(true)} className={`${secondaryButtonClass} ms-auto`}>
           ترتیب پیش‌فرض برای همه
         </button>
       </div>
-      <p className="text-[11px] text-[#6E6A60]">
+      <p className="text-xs text-muted">
         کارت‌های خاموش برای هیچ‌کس نمایش داده نمی‌شوند. «آخرین اخبار» همیشه روشن است.
         {settings.dashboardDefaultOrder?.length ? ' ترتیب کارت‌ها را خودتان برای همه چیده‌اید.' : ''}
       </p>
@@ -485,9 +485,9 @@ const DashboardCardsSettings: React.FC<{ settings: AppSettings }> = ({ settings 
 };
 
 const StatusRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="p-3 rounded-xl bg-[#F5F2ED] space-y-1">
-    <dt className="text-[11px] font-bold text-[#6E6A60]">{label}</dt>
-    <dd className="text-xs text-[#2D2D2D] leading-relaxed">{children}</dd>
+  <div className="p-3 rounded-xl bg-surface space-y-1">
+    <dt className="text-xs font-bold text-muted">{label}</dt>
+    <dd className="text-xs text-ink leading-relaxed">{children}</dd>
   </div>
 );
 
@@ -495,10 +495,10 @@ const describeBackup = (file: BackupFile | null, keep: string, when: string) =>
   file ? (
     <>
       <span className="font-bold">{formatDateTime(file.at)}</span> · {formatFileSize(file.size)}
-      <span className="block text-[11px] text-[#6E6A60]">{toPersianDigits(file.count)} نسخه روی سرور ({keep}).</span>
+      <span className="block text-xs text-muted">{toPersianDigits(file.count)} نسخه روی سرور ({keep}).</span>
     </>
   ) : (
-    <span className="text-[#6E6A60]">هنوز گرفته نشده است؛ {when}.</span>
+    <span className="text-muted">هنوز گرفته نشده است؛ {when}.</span>
   );
 
 /** Disk space, backups and housekeeping on the server, so problems show up before they hurt. */
@@ -526,19 +526,19 @@ const ServerStatusCard: React.FC = () => {
   const usedPercent = disk && disk.total > 0 ? Math.round(((disk.total - disk.free) / disk.total) * 100) : 0;
 
   return (
-    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3" aria-labelledby="server-status-title">
+    <section className="bg-white p-5 rounded-3xl border border-line/70 shadow-card space-y-3" aria-labelledby="server-status-title">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <HardDrive className="w-4 h-4 text-red-700" />
-          <h3 id="server-status-title" className="text-sm font-black text-[#2D2D2D]">وضعیت سرور و پشتیبان‌ها</h3>
+          <h3 id="server-status-title" className="text-sm font-black text-ink">وضعیت سرور و پشتیبان‌ها</h3>
           {status && (
-            <span className="text-[11px] text-[#6E6A60]">
+            <span className="text-xs text-muted">
               نسخهٔ {toPersianDigits(status.version)}
               {status.build && ` · بیلد ${buildNumber(status.build)}`}
             </span>
           )}
         </div>
-        <button type="button" onClick={load} disabled={loading} aria-label="به‌روزرسانی وضعیت سرور" className="p-1.5 rounded-lg hover:bg-[#F5F2ED] disabled:opacity-40">
+        <button type="button" onClick={load} disabled={loading} aria-label="به‌روزرسانی وضعیت سرور" className="p-1.5 rounded-lg hover:bg-surface disabled:opacity-40">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
@@ -550,7 +550,7 @@ const ServerStatusCard: React.FC = () => {
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>
                 <span className="font-bold">آخرین پشتیبان‌گیری ({formatDateTime(status.backups.lastError.at)}) انجام نشد:</span> {status.backups.lastError.message}
-                <span className="block text-[11px] mt-0.5">ساعت بعد دوباره امتحان می‌شود.</span>
+                <span className="block text-xs mt-0.5">ساعت بعد دوباره امتحان می‌شود.</span>
               </span>
             </div>
           )}
@@ -558,12 +558,12 @@ const ServerStatusCard: React.FC = () => {
             <StatusRow label="نسخهٔ در حال اجرا">
               <span className="font-bold">{toPersianDigits(status.version)}</span>
               {status.build ? ` · بیلد ${buildNumber(status.build)}` : ' · اجرا از کد منبع'}
-              {status.commit && <span className="text-[11px] text-[#6E6A60]" dir="ltr"> ({status.commit})</span>}
-              <span className="block text-[11px] text-[#6E6A60]">
+              {status.commit && <span className="text-xs text-muted" dir="ltr"> ({status.commit})</span>}
+              <span className="block text-xs text-muted">
                 {status.builtAt && <>ساخته‌شده {formatDateTime(status.builtAt)} · </>}
                 راه‌اندازی {formatDateTime(status.startedAt)}
               </span>
-              <button type="button" onClick={() => setShowWhatsNew(true)} className="mt-1 text-[11px] font-bold text-red-700 hover:underline">
+              <button type="button" onClick={() => setShowWhatsNew(true)} className="mt-1 text-xs font-bold text-red-700 hover:underline">
                 تازه‌های این نسخه
               </button>
               {showWhatsNew && <WhatsNewModal info={status} onClose={() => setShowWhatsNew(false)} />}
@@ -572,10 +572,10 @@ const ServerStatusCard: React.FC = () => {
               {disk ? (
                 <>
                   <span className={lowDisk ? 'font-bold text-red-700' : 'font-bold'}>{formatFileSize(disk.free)} خالی</span> از {formatFileSize(disk.total)}
-                  <span className="block h-1.5 mt-1.5 rounded-full bg-[#E6E0D5] overflow-hidden" aria-hidden="true">
+                  <span className="block h-1.5 mt-1.5 rounded-full bg-line overflow-hidden" aria-hidden="true">
                     <span className={`block h-full ${lowDisk ? 'bg-red-600' : 'bg-emerald-600'}`} style={{ width: `${usedPercent}%` }} />
                   </span>
-                  {lowDisk && <span className="block text-[11px] text-red-700 mt-1">فضای خالی کم است؛ پشتیبان‌های قدیمی یا فایل‌های بزرگ را از سرور بردارید.</span>}
+                  {lowDisk && <span className="block text-xs text-red-700 mt-1">فضای خالی کم است؛ پشتیبان‌های قدیمی یا فایل‌های بزرگ را از سرور بردارید.</span>}
                 </>
               ) : (
                 'نامشخص'
@@ -583,7 +583,7 @@ const ServerStatusCard: React.FC = () => {
             </StatusRow>
             <StatusRow label="فایل‌های بارگذاری‌شده">
               <span className="font-bold">{toPersianDigits(status.uploads.count)} فایل</span> · {status.uploads.count ? formatFileSize(status.uploads.bytes) : 'خالی'}
-              <span className="block text-[11px] text-[#6E6A60]">
+              <span className="block text-xs text-muted">
                 {status.cleanup
                   ? `آخرین پاک‌سازی (${formatDateTime(status.cleanup.at)}): ${status.cleanup.removed ? `${toPersianDigits(status.cleanup.removed)} فایل بی‌استفاده حذف شد (${formatFileSize(status.cleanup.freedBytes)})` : 'فایل بی‌استفاده‌ای نبود'}.`
                   : 'فایل‌هایی که هیچ خبر، سند یا پروفایلی از آن‌ها استفاده نمی‌کند پس از یک هفته، هر شب پاک می‌شوند.'}
@@ -596,8 +596,8 @@ const ServerStatusCard: React.FC = () => {
               {describeBackup(status.backups.uploads, 'دو هفتهٔ آخر نگه داشته می‌شود', 'اولین پشتیبان شب جمعه گرفته می‌شود')}
             </StatusRow>
           </dl>
-          <p className="text-[11px] text-[#6E6A60] leading-relaxed">
-            پشتیبان‌ها در پوشهٔ <code dir="ltr" className="px-1 bg-[#F5F2ED] rounded">{status.backups.dir}</code> روی همین سرور ذخیره می‌شوند. اگر دیسک سرور خراب شود پشتیبان‌ها هم از دست می‌روند؛ هر چند وقت یک بار این پوشه را روی کامپیوتر یا دیسک دیگری کپی کنید.
+          <p className="text-xs text-muted leading-relaxed">
+            پشتیبان‌ها در پوشهٔ <code dir="ltr" className="px-1 bg-surface rounded">{status.backups.dir}</code> روی همین سرور ذخیره می‌شوند. اگر دیسک سرور خراب شود پشتیبان‌ها هم از دست می‌روند؛ هر چند وقت یک بار این پوشه را روی کامپیوتر یا دیسک دیگری کپی کنید.
           </p>
         </>
       )}
@@ -676,7 +676,7 @@ const SettingsSearch: React.FC<{ visibleTabs: SettingsTab[]; isAdmin: boolean; m
 
   return (
     <div className="relative">
-      <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#8C867A]" />
+      <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-faint" />
       <input
         type="search"
         aria-label="جستجو در تنظیمات"
@@ -693,13 +693,13 @@ const SettingsSearch: React.FC<{ visibleTabs: SettingsTab[]; isAdmin: boolean; m
         className={`${inputClass} pr-9`}
       />
       {q && (
-        <ul className="absolute z-20 inset-x-0 mt-1 bg-white border border-[#E6E0D5] rounded-2xl shadow-lg overflow-hidden divide-y divide-[#F0EBE3]">
-          {matches.length === 0 && <li className="px-4 py-3 text-xs text-[#6E6A60]">بخشی با این نام پیدا نشد.</li>}
+        <ul className="absolute z-20 inset-x-0 mt-1 bg-white border border-line rounded-2xl shadow-lg overflow-hidden divide-y divide-surface-strong">
+          {matches.length === 0 && <li className="px-4 py-3 text-xs text-muted">بخشی با این نام پیدا نشد.</li>}
           {matches.map((m) => (
             <li key={m.id}>
-              <button type="button" onClick={() => pick(m)} className="w-full text-right px-4 py-2.5 text-xs hover:bg-[#F5F2ED]">
-                <span className="font-bold text-[#2D2D2D]">{m.title}</span>
-                <span className="text-[#6E6A60]"> · {TABS.find((t) => t.id === m.tab)?.label}</span>
+              <button type="button" onClick={() => pick(m)} className="w-full text-right px-4 py-2.5 text-xs hover:bg-surface">
+                <span className="font-bold text-ink">{m.title}</span>
+                <span className="text-muted"> · {TABS.find((t) => t.id === m.tab)?.label}</span>
               </button>
             </li>
           ))}
@@ -773,12 +773,12 @@ export const AdminSettingsModule: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="p-3 bg-[#7f1d1d] text-white rounded-2xl shadow-lg">
+        <div className="p-3 bg-brand-deep text-white rounded-2xl shadow-lg">
           <Settings className="w-6 h-6" />
         </div>
         <div>
-          <h2 className="text-xl font-black text-[#2D2D2D]">تنظیمات پرتال</h2>
-          <p className="text-sm text-[#6E6A60]">تنظیمات در چند بخش آمده است؛ برای پیدا کردن سریع، نام آن را جستجو کنید. سامانه‌های سازمانی از صفحهٔ «سامانه‌ها» ویرایش می‌شوند.</p>
+          <h2 className="text-xl font-black text-ink">تنظیمات پرتال</h2>
+          <p className="text-sm text-muted">تنظیمات در چند بخش آمده است؛ برای پیدا کردن سریع، نام آن را جستجو کنید. سامانه‌های سازمانی از صفحهٔ «سامانه‌ها» ویرایش می‌شوند.</p>
         </div>
       </div>
 
@@ -810,13 +810,13 @@ export const AdminSettingsModule: React.FC = () => {
                     aria-current={tab === t.id ? 'page' : undefined}
                     onClick={() => open(t.id)}
                     className={`w-full flex items-start gap-2.5 text-right px-3 py-2.5 rounded-2xl transition-colors ${
-                      tab === t.id ? 'bg-[#7f1d1d] text-white' : 'text-[#2D2D2D] hover:bg-white'
+                      tab === t.id ? 'bg-brand-deep text-white' : 'text-ink hover:bg-white'
                     }`}
                   >
                     <span className="mt-0.5 shrink-0">{t.icon}</span>
                     <span>
                       <span className="block text-xs font-bold">{t.label}</span>
-                      <span className={`block text-[10px] leading-relaxed ${tab === t.id ? 'text-red-100' : 'text-[#8C867A]'}`}>{t.hint}</span>
+                      <span className={`block text-xs leading-relaxed ${tab === t.id ? 'text-red-100' : 'text-faint'}`}>{t.hint}</span>
                     </span>
                   </button>
                 </li>

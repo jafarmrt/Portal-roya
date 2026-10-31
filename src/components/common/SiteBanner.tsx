@@ -176,7 +176,7 @@ export const BannerEditorModal: React.FC<{ onClose: () => void }> = ({ onClose }
     >
       <form id="banner-form" onSubmit={save} className="space-y-4">
         {current && (
-          <p className="p-3 rounded-xl bg-[#F5F2ED] text-[#4B4740] leading-relaxed">
+          <p className="p-3 rounded-xl bg-surface text-ink-soft leading-relaxed">
             این پیام تا {formatDateTime(current.expiresAt)} نمایش داده می‌شود. با ذخیره، زمان پایان از نو حساب می‌شود و پیام برای کسانی که آن را بسته بودند دوباره نمایان می‌شود.
           </p>
         )}
@@ -191,7 +191,7 @@ export const BannerEditorModal: React.FC<{ onClose: () => void }> = ({ onClose }
             onChange={(e) => setText(e.target.value)}
             className={inputClass}
           />
-          <p className="text-[11px] text-[#8C867A] mt-1 text-left">
+          <p className="text-xs text-faint mt-1 text-left">
             {toPersianDigits(text.length)} / {toPersianDigits(MAX_LENGTH)}
           </p>
         </div>
@@ -201,13 +201,13 @@ export const BannerEditorModal: React.FC<{ onClose: () => void }> = ({ onClose }
             {LEVELS.map((l) => (
               <label
                 key={l.value}
-                className={`p-3 rounded-xl border cursor-pointer ${level === l.value ? 'border-red-600 bg-red-50' : 'border-[#E6E0D5] bg-white'}`}
+                className={`p-3 rounded-xl border cursor-pointer ${level === l.value ? 'border-red-600 bg-red-50' : 'border-line bg-white'}`}
               >
-                <span className="flex items-center gap-2 font-bold text-[#2D2D2D]">
+                <span className="flex items-center gap-2 font-bold text-ink">
                   <input type="radio" name="banner-level" value={l.value} checked={level === l.value} onChange={() => setLevel(l.value)} className="accent-red-700" />
                   {l.label}
                 </span>
-                <span className="block text-[11px] text-[#6E6A60] mt-1 leading-relaxed">{l.hint}</span>
+                <span className="block text-xs text-muted mt-1 leading-relaxed">{l.hint}</span>
               </label>
             ))}
           </div>
@@ -217,7 +217,7 @@ export const BannerEditorModal: React.FC<{ onClose: () => void }> = ({ onClose }
           <SearchableSelect id="banner-duration" value={duration} onChange={(e) => setDuration(e.target.value)} className={inputClass}>
             {DURATIONS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
           </SearchableSelect>
-          <p className="text-[11px] text-[#8C867A] mt-1">پس از این زمان پیام خودبه‌خود برداشته می‌شود.</p>
+          <p className="text-xs text-faint mt-1">پس از این زمان پیام خودبه‌خود برداشته می‌شود.</p>
         </div>
       </form>
     </Modal>

@@ -157,7 +157,7 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
               <label htmlFor="emp-hire" className={labelClass}>تاریخ استخدام</label>
               <JalaliDateInput id="emp-hire" value={form.hireDate} onChange={(v) => set('hireDate', v)} />
               {!form.isNewColleague && !form.hireDate && (
-                <p className="mt-1 text-[11px] text-[#6E6A60]">اگر نمی‌دانید خالی بماند؛ بعداً هم می‌شود ثبت کرد.</p>
+                <p className="mt-1 text-xs text-muted">اگر نمی‌دانید خالی بماند؛ بعداً هم می‌شود ثبت کرد.</p>
               )}
             </div>
           </div>
@@ -169,7 +169,7 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
             <input type="checkbox" checked={form.hasAccount} onChange={(e) => set('hasAccount', e.target.checked)} className="accent-red-700 mt-0.5" />
             <span>
               <strong>ساختن حساب پرتال</strong>
-              <span className="block text-[11px] text-[#6E6A60]">
+              <span className="block text-xs text-muted">
                 {form.hasAccount
                   ? 'همکار می‌تواند وارد پرتال شود، اعلان بگیرد، رأی بدهد و پیام بفرستد.'
                   : 'فقط در دفتر تلفن، چارت سازمانی و کارت‌های تولد و همکار جدید دیده می‌شود و وارد پرتال نمی‌شود. هر وقت لازم شد می‌توانید از «مدیریت کارکنان» برایش حساب پرتال بسازید.'}
@@ -185,7 +185,7 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
           )}
         </fieldset>
 
-        <div className="p-4 bg-[#F5F2ED] rounded-2xl space-y-2">
+        <div className="p-4 bg-surface rounded-2xl space-y-2">
           <label className="flex items-center gap-2 font-bold cursor-pointer">
             <input
               type="checkbox"

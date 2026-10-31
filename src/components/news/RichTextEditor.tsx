@@ -54,13 +54,13 @@ const ToolButton: React.FC<{ label: string; active?: boolean; disabled?: boolean
     disabled={disabled}
     onMouseDown={(e) => e.preventDefault()}
     onClick={onClick}
-    className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 ${active ? 'bg-red-700 text-white' : 'text-[#4B4740] hover:bg-[#E6E0D5]'}`}
+    className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 ${active ? 'bg-red-700 text-white' : 'text-ink-soft hover:bg-line'}`}
   >
     {children}
   </button>
 );
 
-const Divider = () => <span className="w-px h-5 bg-[#D9D4CB] mx-0.5" aria-hidden="true" />;
+const Divider = () => <span className="w-px h-5 bg-line-strong mx-0.5" aria-hidden="true" />;
 
 /** Adds or changes the link on the selected text: a web address, or a document or guide of the portal. */
 const LinkForm: React.FC<{ editor: Editor; onDone: () => void }> = ({ editor, onDone }) => {
@@ -76,7 +76,7 @@ const LinkForm: React.FC<{ editor: Editor; onDone: () => void }> = ({ editor, on
   };
 
   return (
-    <div className="p-3 border-b border-[#E6E0D5] bg-white space-y-2">
+    <div className="p-3 border-b border-line bg-white space-y-2">
       <div className="flex gap-2">
         <input
           autoFocus
@@ -188,8 +188,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
   const chain = () => editor.chain().focus();
 
   return (
-    <div className="rich-text-editor border border-[#D9D4CB] rounded-xl bg-white overflow-hidden focus-within:border-red-600 focus-within:ring-2 focus-within:ring-red-600/20">
-      <div className="flex flex-wrap items-center gap-0.5 p-1.5 bg-[#F5F2ED] border-b border-[#E6E0D5]" role="toolbar" aria-label="قالب‌بندی متن">
+    <div className="rich-text-editor border border-line-strong rounded-xl bg-white overflow-hidden focus-within:border-red-600 focus-within:ring-2 focus-within:ring-red-600/20">
+      <div className="flex flex-wrap items-center gap-0.5 p-1.5 bg-surface border-b border-line" role="toolbar" aria-label="قالب‌بندی متن">
         <ToolButton label="تیتر" active={state.h2} onClick={() => chain().toggleHeading({ level: 2 }).run()}><Heading2 className="w-4 h-4" /></ToolButton>
         <ToolButton label="زیرتیتر" active={state.h3} onClick={() => chain().toggleHeading({ level: 3 }).run()}><Heading3 className="w-4 h-4" /></ToolButton>
         <Divider />
@@ -212,8 +212,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
           <>
             <ToolButton label="افزودن سطر" onClick={() => chain().addRowAfter().run()}><Rows3 className="w-4 h-4" /></ToolButton>
             <ToolButton label="افزودن ستون" onClick={() => chain().addColumnAfter().run()}><Columns3 className="w-4 h-4" /></ToolButton>
-            <ToolButton label="حذف سطر" onClick={() => chain().deleteRow().run()}><span className="text-[10px] font-black px-0.5">− سطر</span></ToolButton>
-            <ToolButton label="حذف ستون" onClick={() => chain().deleteColumn().run()}><span className="text-[10px] font-black px-0.5">− ستون</span></ToolButton>
+            <ToolButton label="حذف سطر" onClick={() => chain().deleteRow().run()}><span className="text-xs font-black px-0.5">− سطر</span></ToolButton>
+            <ToolButton label="حذف ستون" onClick={() => chain().deleteColumn().run()}><span className="text-xs font-black px-0.5">− ستون</span></ToolButton>
             <ToolButton label="حذف جدول" onClick={() => chain().deleteTable().run()}><Trash2 className="w-4 h-4" /></ToolButton>
           </>
         )}

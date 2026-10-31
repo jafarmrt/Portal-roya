@@ -58,7 +58,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           type: 'همکاران' as const,
           title: `${e.firstName} ${e.lastName}`,
           subtitle: `${e.position}${e.extension ? ` | داخلی: ${e.extension}` : ''}`,
-          icon: <PhoneCall className="w-4 h-4 text-[#991b1b]" />,
+          icon: <PhoneCall className="w-4 h-4 text-brand-strong" />,
           action: () => {
             setActiveTab('colleagues', e.id);
             onClose();
@@ -173,7 +173,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   return (
     <div
       id="command-palette-backdrop"
-      className="fixed inset-0 z-[60] flex items-start justify-center p-3 pt-6 sm:p-4 sm:pt-24 bg-[#1E1E1E]/60 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-[60] flex items-start justify-center p-3 pt-6 sm:p-4 sm:pt-24 bg-ink-strong/60 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -181,11 +181,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     >
       <div
         id="command-palette-card"
-        className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-[#EAE6DF] overflow-hidden flex flex-col max-h-[calc(100dvh-3rem)] sm:max-h-[calc(100dvh-8rem)]"
+        className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-line overflow-hidden flex flex-col max-h-[calc(100dvh-3rem)] sm:max-h-[calc(100dvh-8rem)]"
       >
         {/* Search Input Bar */}
-        <div className="flex items-center px-4 py-3.5 border-b border-[#EAE6DF] bg-[#FCFAF7] gap-3 shrink-0">
-          <Search className="w-5 h-5 text-[#991b1b] shrink-0" />
+        <div className="flex items-center px-4 py-3.5 border-b border-line bg-page gap-3 shrink-0">
+          <Search className="w-5 h-5 text-brand-strong shrink-0" />
           <input
             ref={inputRef}
             id="command-palette-input"
@@ -197,28 +197,28 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
             }}
             onKeyDown={handleKeyDown}
             placeholder="جستجوی همکار، شماره داخلی، سامانه، خبر..."
-            className="flex-1 bg-transparent text-sm font-medium text-[#1E1E1E] focus:outline-hidden placeholder:text-[#9C968B]"
+            className="flex-1 bg-transparent text-sm font-medium text-ink-strong focus:outline-hidden placeholder:text-faint"
           />
           {query && (
             <button
               onClick={() => setQuery('')}
-              className="p-1 rounded-lg text-[#9C968B] hover:text-[#1E1E1E] transition-colors"
+              className="p-1 rounded-lg text-faint hover:text-ink-strong transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
           )}
-          <div className="hidden sm:flex items-center gap-1 text-[10px] text-[#9C968B] bg-[#EFECE6] px-2 py-0.5 rounded-md font-mono">
+          <div className="hidden sm:flex items-center gap-1 text-xs text-faint bg-surface-strong px-2 py-0.5 rounded-md font-mono">
             <span>ESC برای بستن</span>
           </div>
         </div>
 
         {/* Results List */}
-        <div className="max-h-96 flex-1 min-h-0 overflow-y-auto overscroll-contain p-2 divide-y divide-[#F5F2ED]">
+        <div className="max-h-96 flex-1 min-h-0 overflow-y-auto overscroll-contain p-2 divide-y divide-surface">
           {allResults.length === 0 ? (
-            <div className="py-12 text-center text-[#7A756D] space-y-1">
-              <Search className="w-8 h-8 text-[#D9D4CB] mx-auto mb-2" />
+            <div className="py-12 text-center text-muted space-y-1">
+              <Search className="w-8 h-8 text-line-strong mx-auto mb-2" />
               <p className="text-xs font-bold">نتیجه‌ای یافت نشد</p>
-              <p className="text-[11px]">عبارت دیگری را جستجو کنید (مانند نام، داخلی، سامانه)</p>
+              <p className="text-xs">عبارت دیگری را جستجو کنید (مانند نام، داخلی، سامانه)</p>
             </div>
           ) : (
             allResults.map((item, idx) => {
@@ -229,27 +229,27 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                   onClick={item.action}
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-colors ${
-                    isSelected ? 'bg-[#F3EFE9] text-[#1E1E1E]' : 'hover:bg-[#F9F7F4] text-[#2D2D2D]'
+                    isSelected ? 'bg-surface text-ink-strong' : 'hover:bg-surface-soft text-ink'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-white border border-[#EAE6DF] flex items-center justify-center shrink-0 shadow-2xs">
+                    <div className="w-8 h-8 rounded-xl bg-white border border-line flex items-center justify-center shrink-0 shadow-2xs">
                       {item.icon}
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-[#1E1E1E] flex items-center gap-2">
+                      <div className="text-xs font-bold text-ink-strong flex items-center gap-2">
                         <span>{item.title}</span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-md font-semibold bg-[#EFECE6] text-[#605C54]">
+                        <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold bg-surface-strong text-ink-soft">
                           {item.type}
                         </span>
                       </div>
-                      <div className="text-[11px] text-[#7A756D] line-clamp-1 mt-0.5">
+                      <div className="text-xs text-muted line-clamp-1 mt-0.5">
                         {item.subtitle}
                       </div>
                     </div>
                   </div>
 
-                  <ArrowRight className={`w-4 h-4 text-[#991b1b] transition-transform ${isSelected ? 'translate-x-0 opacity-100' : 'opacity-0'}`} />
+                  <ArrowRight className={`w-4 h-4 text-brand-strong transition-transform ${isSelected ? 'translate-x-0 opacity-100' : 'opacity-0'}`} />
                 </div>
               );
             })
@@ -257,13 +257,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         </div>
 
         {/* Command Palette Footer */}
-        <div className="hidden sm:flex px-4 py-2 bg-[#EFECE6] border-t border-[#EAE6DF] items-center justify-between text-[10px] text-[#7A756D] shrink-0">
+        <div className="hidden sm:flex px-4 py-2 bg-surface-strong border-t border-line items-center justify-between text-xs text-muted shrink-0">
           <div className="flex items-center gap-2">
             <span>استفاده از کلیدهای <strong>↑</strong> و <strong>↓</strong> جهت پیمایش</span>
             <span>•</span>
             <span><strong>Enter</strong> جهت انتخاب</span>
           </div>
-          <span className="font-semibold text-[#991b1b]">پرتال رویا طرح داخلی</span>
+          <span className="font-semibold text-brand-strong">پرتال رویا طرح داخلی</span>
         </div>
       </div>
     </div>

@@ -39,5 +39,5 @@ export const RoleSelect: React.FC<RoleSelectProps> = ({ id, value, onChange, dis
 export const RoleHint: React.FC<{ roleId: string }> = ({ roleId }) => {
   const { roles } = usePortal();
   const description = roles.find((r) => r.id === roleId)?.description;
-  return description ? <p className="mt-1 text-[11px] text-[#6E6A60] leading-relaxed">{description}</p> : null;
+  return description ? <p className="mt-1 text-xs text-muted leading-relaxed">{description}</p> : null;
 };

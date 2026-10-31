@@ -21,7 +21,7 @@ const ShowMore: React.FC<{ expanded: boolean; onToggle: () => void; label: strin
     type="button"
     onClick={onToggle}
     aria-expanded={expanded}
-    className="tap-area w-full text-xs font-bold text-[#D97B5F] hover:underline flex items-center justify-center gap-1"
+    className="tap-area w-full text-xs font-bold text-warm-strong hover:underline flex items-center justify-center gap-1"
   >
     <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
     {expanded ? 'نمایش کمتر' : `بیشتر: ${label}`}
@@ -62,7 +62,7 @@ export const BirthdayCard: React.FC = () => {
     const cards = cardsFor(emp, occasion);
     if (cards.length === 0) return null;
     return (
-      <div className="space-y-2 max-h-56 overflow-y-auto no-scrollbar pt-2 border-t border-[#E6E0D5]">
+      <div className="space-y-2 max-h-56 overflow-y-auto no-scrollbar pt-2 border-t border-line">
         {cards.map(wish => (
           <GreetingCard
             key={wish.id}
@@ -99,7 +99,7 @@ export const BirthdayCard: React.FC = () => {
       <button
         type="button"
         onClick={() => setComposing({ colleague: emp, occasion, years })}
-        className="w-full px-3.5 py-1.5 text-xs font-bold rounded-xl bg-[#D97B5F] hover:bg-[#C2684D] text-white shadow-xs flex items-center justify-center gap-1.5"
+        className="w-full px-3.5 py-1.5 text-xs font-bold rounded-xl bg-warm hover:bg-warm-strong text-white shadow-xs flex items-center justify-center gap-1.5"
       >
         <Mail className="w-3.5 h-3.5" />
         ارسال کارت تبریک
@@ -107,30 +107,30 @@ export const BirthdayCard: React.FC = () => {
     );
 
   return (
-    <div className="bg-white rounded-3xl p-6 border border-[#E6E0D5] shadow-xs space-y-4">
+    <div className="bg-white rounded-3xl p-6 border border-line/70 shadow-card space-y-4">
       
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-[#E6E0D5]">
+      <div className="flex items-center justify-between pb-3 border-b border-line">
         <div className="flex items-center gap-2">
-          <div className="p-2.5 bg-[#FBF0EC] text-[#D97B5F] rounded-2xl">
+          <div className="p-2.5 bg-warm-soft text-warm rounded-2xl">
             <Cake className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-black text-[#2D2D2D]">زادروز همکاران رویا 🎂</h3>
-            <p className="text-xs text-[#6E6A60]">تولدها و سالگردهای همکاری پیش‌رو</p>
+            <h3 className="text-base font-black text-ink">زادروز همکاران رویا 🎂</h3>
+            <p className="text-xs text-muted">تولدها و سالگردهای همکاری پیش‌رو</p>
           </div>
         </div>
         {birthdayColleagues.length > 0 && (
-          <span className="text-xs bg-[#FBF0EC] text-[#D97B5F] px-3 py-1 rounded-full font-bold border border-[#D97B5F]/30">
+          <span className="shrink-0 whitespace-nowrap text-xs bg-warm-soft text-warm-strong px-3 py-1 rounded-full font-bold border border-warm/30">
             {toPersianDigits(birthdayColleagues.length)} همکار
           </span>
         )}
       </div>
 
       {missingOwnBirthday && (
-        <div className="p-3 bg-[#FBF0EC]/60 rounded-2xl border border-dashed border-[#D97B5F]/40 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <span className="text-[#6E6A60]">تاریخ تولد شما ثبت نشده است. ثبت کنید تا همکاران روز تولدتان را بدانند.</span>
-          <button type="button" onClick={() => setEditingOwnProfile(true)} className="px-3 py-1.5 bg-[#D97B5F] hover:bg-[#C2684D] text-white font-bold rounded-xl">
+        <div className="p-3 bg-warm-soft/60 rounded-2xl border border-dashed border-warm/40 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <span className="text-muted">تاریخ تولد شما ثبت نشده است. ثبت کنید تا همکاران روز تولدتان را بدانند.</span>
+          <button type="button" onClick={() => setEditingOwnProfile(true)} className="px-3 py-1.5 bg-warm hover:bg-warm-strong text-white font-bold rounded-xl">
             ثبت تاریخ تولد
           </button>
         </div>
@@ -138,12 +138,12 @@ export const BirthdayCard: React.FC = () => {
       {editingOwnProfile && currentUser && <EditProfileModal user={currentUser} onClose={() => setEditingOwnProfile(false)} />}
 
       {isGuest ? (
-        <p className="py-4 text-center text-xs text-[#6E6A60] leading-relaxed">تولد همکاران پس از ورود به پرتال نمایش داده می‌شود.</p>
+        <p className="py-4 text-center text-xs text-muted leading-relaxed">تولد همکاران پس از ورود به پرتال نمایش داده می‌شود.</p>
       ) : birthdayColleagues.length === 0 ? (
         <div className="py-4 text-center space-y-1.5">
-          <p className="text-xs text-[#6E6A60]">در دو هفتهٔ آینده تولدی در پیش نیست.</p>
+          <p className="text-xs text-muted">در دو هفتهٔ آینده تولدی در پیش نیست.</p>
           {nextBirthday && (
-            <p className="text-xs text-[#2D2D2D]">
+            <p className="text-xs text-ink">
               نزدیک‌ترین تولد: <strong>{nextBirthday.emp.firstName} {nextBirthday.emp.lastName}</strong>، {formatBirthDay(nextBirthday.emp.birthDay)} ({daysLabel(nextBirthday.days)})
             </p>
           )}
@@ -151,23 +151,23 @@ export const BirthdayCard: React.FC = () => {
       ) : (
       <div className="space-y-3">
         {(allBirthdaysShown ? birthdayColleagues : birthdayColleagues.slice(0, MAX_SHOWN)).map(({ emp, days }) => (
-          <div key={emp.id} className="p-3 bg-[#F5F2ED]/70 rounded-2xl border border-[#E6E0D5] space-y-2.5">
+          <div key={emp.id} className="p-3 bg-surface/70 rounded-2xl border border-line space-y-2.5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <Avatar src={emp.avatar} firstName={emp.firstName} lastName={emp.lastName} className="w-10 h-10 rounded-full border-2 border-[#D97B5F] shadow-xs text-xs" />
+                <Avatar src={emp.avatar} firstName={emp.firstName} lastName={emp.lastName} className="w-10 h-10 rounded-full border-2 border-warm shadow-xs text-xs" />
                 <div>
-                  <h4 className="text-sm font-bold text-[#2D2D2D]">
+                  <h4 className="text-sm font-bold text-ink">
                     {emp.firstName} {emp.lastName}
                   </h4>
-                  <p className="text-xs text-[#6E6A60]">{emp.position} | {emp.department}</p>
+                  <p className="text-xs text-muted">{emp.position} | {emp.department}</p>
                 </div>
               </div>
 
-              <div className="text-right">
-                <span className="text-xs font-black text-[#D97B5F] bg-[#FBF0EC] px-2.5 py-1 rounded-xl border border-[#D97B5F]/20">
+              <div className="text-right shrink-0">
+                <span className="text-xs font-black text-warm-strong bg-warm-soft px-2.5 py-1 rounded-xl border border-warm/20 whitespace-nowrap">
                   {daysLabel(days)}
                 </span>
-                <div className="text-[10px] text-[#8C867A] mt-1">{formatBirthDay(emp.birthDay)}</div>
+                <div className="text-xs text-faint mt-1">{formatBirthDay(emp.birthDay)}</div>
               </div>
             </div>
 
@@ -182,22 +182,22 @@ export const BirthdayCard: React.FC = () => {
       )}
 
       {!isGuest && anniversaries.length > 0 && (
-        <div className="space-y-3 pt-3 border-t border-[#E6E0D5]">
-          <h4 className="flex items-center gap-1.5 text-sm font-black text-[#2D2D2D]">
-            <Award className="w-4 h-4 text-[#D97B5F]" />
+        <div className="space-y-3 pt-3 border-t border-line">
+          <h4 className="flex items-center gap-1.5 text-sm font-black text-ink">
+            <Award className="w-4 h-4 text-warm" />
             سالگرد همکاری
           </h4>
           {(allAnniversariesShown ? anniversaries : anniversaries.slice(0, MAX_SHOWN)).map(({ emp, days, years }) => (
-            <div key={emp.id} className="p-3 bg-[#F5F2ED]/70 rounded-2xl border border-[#E6E0D5] space-y-2.5">
+            <div key={emp.id} className="p-3 bg-surface/70 rounded-2xl border border-line space-y-2.5">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <Avatar src={emp.avatar} firstName={emp.firstName} lastName={emp.lastName} className="w-10 h-10 rounded-full border-2 border-[#D97B5F]/60 text-xs" />
+                  <Avatar src={emp.avatar} firstName={emp.firstName} lastName={emp.lastName} className="w-10 h-10 rounded-full border-2 border-warm/60 text-xs" />
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-[#2D2D2D] truncate">{emp.firstName} {emp.lastName}</p>
-                    <p className="text-[11px] text-[#6E6A60]">{yearsLabel(years)} همراهی با رویا</p>
+                    <p className="text-xs font-bold text-ink truncate">{emp.firstName} {emp.lastName}</p>
+                    <p className="text-xs text-muted">{yearsLabel(years)} همراهی با رویا</p>
                   </div>
                 </div>
-                <span className="text-xs font-black text-[#D97B5F] bg-[#FBF0EC] px-2.5 py-1 rounded-xl border border-[#D97B5F]/20 whitespace-nowrap">
+                <span className="shrink-0 text-xs font-black text-warm-strong bg-warm-soft px-2.5 py-1 rounded-xl border border-warm/20 whitespace-nowrap">
                   {daysLabel(days)}
                 </span>
               </div>

@@ -30,7 +30,7 @@ import {
 
 // Header drop-downs: full width under the header on phones, anchored to their button from sm up.
 const popoverClass =
-  'fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:top-auto sm:left-0 sm:mt-2 bg-white rounded-2xl shadow-xl border border-[#EAE6DF] py-3 z-50 text-right';
+  'fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:top-auto sm:left-0 sm:mt-2 bg-white rounded-2xl shadow-xl border border-line py-3 z-50 text-right';
 
 interface HeaderProps {
   onToggleMobileNav: () => void;
@@ -97,7 +97,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
 
   return (
     <>
-      <header ref={headerRef} className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#EAE6DF] shadow-2xs" dir="rtl">
+      <header ref={headerRef} className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-line shadow-2xs" dir="rtl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-2 sm:gap-6">
             
@@ -106,7 +106,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
               <button
                 type="button"
                 onClick={onToggleMobileNav}
-                className="lg:hidden p-2 rounded-xl text-[#2D2D2D] hover:bg-[#F5F2ED] transition-colors cursor-pointer"
+                className="lg:hidden p-2 rounded-xl text-ink hover:bg-surface transition-colors cursor-pointer"
                 aria-label="تغییر منوی همراه"
               >
                 {isMobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -126,13 +126,13 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
               <button
                 type="button"
                 onClick={() => setIsCmdPaletteOpen(true)}
-                className="w-full flex items-center justify-between px-4 py-2 bg-[#F5F2ED] hover:bg-[#EFECE6] border border-[#EAE6DF] rounded-2xl text-xs text-[#7A756D] transition-all cursor-pointer shadow-2xs"
+                className="w-full flex items-center justify-between px-4 py-2 bg-surface hover:bg-surface-strong border border-line rounded-2xl text-xs text-muted transition-all cursor-pointer shadow-2xs"
               >
                 <div className="flex items-center gap-2.5">
-                  <Search className="w-4 h-4 text-[#991b1b]" />
+                  <Search className="w-4 h-4 text-brand-strong" />
                   <span>جستجوی سریع همکار، داخلی، سامانه، خبر...</span>
                 </div>
-                <kbd className="hidden lg:inline-flex items-center gap-1 text-[10px] font-mono bg-white px-2 py-0.5 rounded-lg border border-[#D9D4CB] text-[#605C54]">
+                <kbd className="hidden lg:inline-flex items-center gap-1 text-xs font-mono bg-white px-2 py-0.5 rounded-lg border border-line-strong text-ink-soft">
                   <span>Ctrl</span><span>K</span>
                 </kbd>
               </button>
@@ -145,11 +145,11 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
               <button
                 type="button"
                 onClick={() => setIsCmdPaletteOpen(true)}
-                className="md:hidden p-2 rounded-xl text-[#2D2D2D] hover:bg-[#F5F2ED] transition-colors cursor-pointer"
+                className="md:hidden p-2 rounded-xl text-ink hover:bg-surface transition-colors cursor-pointer"
                 title="جستجو"
                 aria-label="جستجو"
               >
-                <Search className="w-5 h-5 text-[#605C54]" />
+                <Search className="w-5 h-5 text-ink-soft" />
               </button>
 
               {isLoggedIn && currentUser ? (
@@ -163,29 +163,29 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                         aria-expanded={isAppsOpen}
                         aria-haspopup="true"
                         title="سامانه‌های سازمان"
-                        className={`flex items-center gap-1.5 p-2 sm:px-3 rounded-xl border transition-colors cursor-pointer ${isAppsOpen ? 'bg-[#FEF2F2] border-[#FCA5A5] text-[#991b1b]' : 'border-transparent sm:border-[#EAE6DF] text-[#2D2D2D] hover:bg-[#F5F2ED]'}`}
+                        className={`flex items-center gap-1.5 p-2 sm:px-3 rounded-xl border transition-colors cursor-pointer ${isAppsOpen ? 'bg-brand-soft border-red-300 text-brand-strong' : 'border-transparent sm:border-line text-ink hover:bg-surface'}`}
                       >
-                        <LayoutGrid className="w-5 h-5 text-[#991b1b]" />
+                        <LayoutGrid className="w-5 h-5 text-brand-strong" />
                         <span className="hidden sm:inline text-xs font-bold">سامانه‌ها</span>
                       </button>
 
                       {isAppsOpen && (
                         <div className={`${popoverClass} sm:w-80`}>
-                          <div className="flex items-center justify-between px-4 pb-3 border-b border-[#EAE6DF]">
-                            <span className="font-bold text-sm text-[#1E1E1E] flex items-center gap-2">
-                              <LayoutGrid className="w-4 h-4 text-[#991b1b]" /> سامانه‌های سازمان
+                          <div className="flex items-center justify-between px-4 pb-3 border-b border-line">
+                            <span className="font-bold text-sm text-ink-strong flex items-center gap-2">
+                              <LayoutGrid className="w-4 h-4 text-brand-strong" /> سامانه‌های سازمان
                             </span>
-                            <span className="text-[10px] text-[#7A756D]">در زبانهٔ جدید باز می‌شوند</span>
+                            <span className="text-xs text-muted">در زبانهٔ جدید باز می‌شوند</span>
                           </div>
                           <div className="grid grid-cols-1 gap-2 p-3 max-h-[60dvh] overflow-y-auto overscroll-contain">
                             {systems.map((system) => (
                               <SystemTile key={system.id} system={system} onLaunch={() => setIsAppsOpen(false)} />
                             ))}
                           </div>
-                          <div className="pt-2.5 px-4 border-t border-[#EAE6DF] text-center">
+                          <div className="pt-2.5 px-4 border-t border-line text-center">
                             <button
                               onClick={() => { setActiveTab('systems'); setIsAppsOpen(false); }}
-                              className="text-xs text-[#991b1b] font-bold hover:underline cursor-pointer py-1"
+                              className="text-xs text-brand-strong font-bold hover:underline cursor-pointer py-1"
                             >
                               {can('systems.manage') ? 'مدیریت و ویرایش سامانه‌ها' : 'مشاهده صفحه سامانه‌ها'}
                             </button>
@@ -200,14 +200,14 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                     <button
                       type="button"
                       onClick={() => { const next = !isNotifOpen; closeMenus(); setIsNotifOpen(next); }}
-                      className="relative p-2 rounded-xl text-[#2D2D2D] hover:bg-[#F5F2ED] transition-colors cursor-pointer"
+                      className="relative p-2 rounded-xl text-ink hover:bg-surface transition-colors cursor-pointer"
                       title="اعلان‌ها"
                       aria-label={`اعلان‌ها${unreadCount ? ` (${unreadCount} خوانده‌نشده)` : ''}`}
                       aria-expanded={isNotifOpen}
                     >
-                      <Bell className="w-5 h-5 text-[#4B4740]" />
+                      <Bell className="w-5 h-5 text-ink-soft" />
                       {unreadCount > 0 && (
-                        <span className="absolute top-1 right-1 flex items-center justify-center min-w-4 h-4 px-1 text-[10px] font-bold text-white bg-[#dc2626] rounded-full animate-pulse">
+                        <span className="absolute top-1 right-1 flex items-center justify-center min-w-4 h-4 px-1 text-[10px] font-bold text-white bg-brand rounded-full">
                           {toPersianDigits(unreadCount > 99 ? '99+' : unreadCount)}
                         </span>
                       )}
@@ -216,18 +216,18 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                     {/* Notification Popover Panel */}
                     {isNotifOpen && (
                       <div className={`${popoverClass} sm:w-96`}>
-                        <div className="flex items-center justify-between px-4 pb-3 border-b border-[#EAE6DF]">
+                        <div className="flex items-center justify-between px-4 pb-3 border-b border-line">
                           <div className="flex items-center gap-2">
-                            <Bell className="w-4 h-4 text-[#991b1b]" />
-                            <span className="font-bold text-sm text-[#1E1E1E]">اعلان‌های من</span>
-                            <span className="text-[11px] bg-[#F5F2ED] text-[#991b1b] px-2 py-0.5 rounded-full font-bold">
-                              {userNotifications.length}
+                            <Bell className="w-4 h-4 text-brand-strong" />
+                            <span className="font-bold text-sm text-ink-strong">اعلان‌های من</span>
+                            <span className="text-xs bg-surface text-brand-strong px-2 py-0.5 rounded-full font-bold">
+                              {toPersianDigits(userNotifications.length)}
                             </span>
                           </div>
                           {unreadCount > 0 && (
                             <button
                               onClick={markAllNotificationsRead}
-                              className="text-xs text-[#991b1b] hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                              className="text-xs text-brand-strong hover:underline flex items-center gap-1 cursor-pointer font-medium"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               <span>خواندن همه</span>
@@ -235,16 +235,16 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                           )}
                         </div>
 
-                        <div className="max-h-[min(20rem,55dvh)] overflow-y-auto divide-y divide-[#F5F2ED]">
+                        <div className="max-h-[min(20rem,55dvh)] overflow-y-auto divide-y divide-surface">
                           {userNotifications.length === 0 ? (
-                            <div className="py-8 text-center text-[#7A756D] text-xs">
+                            <div className="py-8 text-center text-muted text-xs">
                               هیچ اعلان جدیدی وجود ندارد.
                             </div>
                           ) : (
                             userNotifications.map((notif) => (
                               <div
                                 key={notif.id}
-                                className={`p-3.5 hover:bg-[#F9F7F4] transition-colors ${!notif.isRead ? 'bg-[#FEF2F2]/60' : ''}`}
+                                className={`p-3.5 hover:bg-surface-soft transition-colors ${!notif.isRead ? 'bg-brand-soft/60' : ''}`}
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <button
@@ -258,16 +258,16 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                                   >
                                     <div className="flex items-center gap-1.5 mb-1">
                                       {!notif.isRead && (
-                                        <span className="w-2 h-2 rounded-full bg-[#dc2626] inline-block"></span>
+                                        <span className="w-2 h-2 rounded-full bg-brand inline-block"></span>
                                       )}
-                                      <h4 className="text-xs font-bold text-[#1E1E1E]">{notif.title}</h4>
+                                      <h4 className="text-xs font-bold text-ink-strong">{notif.title}</h4>
                                     </div>
-                                    <p className="text-xs text-[#605C54] leading-relaxed mb-1">{notif.message}</p>
-                                    <span className="text-[10px] text-[#9C968B]">{timeAgo(notif.date)}</span>
+                                    <p className="text-xs text-ink-soft leading-relaxed mb-1">{notif.message}</p>
+                                    <span className="text-xs text-faint">{timeAgo(notif.date)}</span>
                                   </button>
                                   <button
                                     onClick={() => deleteNotification(notif.id)}
-                                    className="text-[#9C968B] hover:text-[#dc2626] p-1 cursor-pointer"
+                                    className="text-faint hover:text-brand p-1 cursor-pointer"
                                     title="حذف"
                                     aria-label="حذف اعلان"
                                   >
@@ -279,13 +279,13 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                           )}
                         </div>
 
-                        <div className="pt-2.5 px-4 border-t border-[#EAE6DF] text-center">
+                        <div className="pt-2.5 px-4 border-t border-line text-center">
                           <button
                             onClick={() => {
                               setActiveTab('notifications');
                               setIsNotifOpen(false);
                             }}
-                            className="text-xs text-[#991b1b] font-bold hover:underline cursor-pointer py-1"
+                            className="text-xs text-brand-strong font-bold hover:underline cursor-pointer py-1"
                           >
                             مشاهده تمام اعلان‌ها در صندوق ورودی
                           </button>
@@ -301,42 +301,42 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                       onClick={() => { const next = !isUserMenuOpen; closeMenus(); setIsUserMenuOpen(next); }}
                       aria-expanded={isUserMenuOpen}
                       aria-label="منوی حساب کاربری"
-                      className="flex items-center gap-2.5 p-1 sm:p-1.5 sm:pl-2.5 rounded-2xl hover:bg-[#F5F2ED] border border-transparent hover:border-[#EAE6DF] transition-all text-right cursor-pointer"
+                      className="flex items-center gap-2.5 p-1 sm:p-1.5 sm:pl-2.5 rounded-2xl hover:bg-surface border border-transparent hover:border-line transition-all text-right cursor-pointer"
                     >
                       <Avatar
                         src={currentUser.avatar}
                         firstName={currentUser.firstName}
                         lastName={currentUser.lastName}
-                        className="w-8 h-8 rounded-full border-2 border-[#991b1b] text-[11px]"
+                        className="w-8 h-8 rounded-full border-2 border-brand-strong text-xs"
                       />
                       <div className="hidden sm:block text-right">
-                        <div className="text-xs font-bold text-[#1E1E1E] flex items-center gap-1.5">
+                        <div className="text-xs font-bold text-ink-strong flex items-center gap-1.5">
                           <span>{currentUser.firstName} {currentUser.lastName}</span>
                           {/* Only the portal admin sees a chip; everyone else is described by position and unit. */}
                           {currentUser.role === 'admin' && (
-                            <span className="text-[9px] px-1.5 rounded-full font-bold bg-[#FEF2F2] text-[#991b1b] border border-[#FCA5A5]">
+                            <span className="text-xs px-1.5 rounded-full font-bold bg-brand-soft text-brand-strong border border-red-300">
                               {roleName(currentUser.role)}
                             </span>
                           )}
                         </div>
-                        <div className="text-[10px] text-[#7A756D] truncate max-w-[150px]">
+                        <div className="text-xs text-muted truncate max-w-[150px]">
                           {[currentUser.position, currentUser.department].filter(Boolean).join(' · ')}
                         </div>
                       </div>
-                      <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-[#7A756D]" />
+                      <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-muted" />
                     </button>
 
                     {/* User Switcher Dropdown */}
                     {isUserMenuOpen && (
-                      <div className="absolute left-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-[#EAE6DF] py-2 z-50 text-right">
-                        <div className="px-4 py-2.5 border-b border-[#EAE6DF]">
-                          <div className="text-xs text-[#1E1E1E] font-bold">
+                      <div className="absolute left-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-line py-2 z-50 text-right">
+                        <div className="px-4 py-2.5 border-b border-line">
+                          <div className="text-xs text-ink-strong font-bold">
                             {currentUser.firstName} {currentUser.lastName}
                           </div>
-                          <div className="text-[10px] text-[#7A756D] mt-0.5">
+                          <div className="text-xs text-muted mt-0.5">
                             {currentUser.extension ? `داخلی: ${currentUser.extension} | ` : ''}{currentUser.department}
                           </div>
-                          <div className="text-[10px] text-[#7A756D] mt-0.5">سطح دسترسی در پرتال: {roleName(currentUser.role)}</div>
+                          <div className="text-xs text-muted mt-0.5">سطح دسترسی در پرتال: {roleName(currentUser.role)}</div>
                         </div>
 
                         <div className="p-1.5 space-y-0.5">
@@ -345,9 +345,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                               setActiveTab('colleagues', currentUser.id);
                               setIsUserMenuOpen(false);
                             }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#2D2D2D] hover:bg-[#F5F2ED] rounded-xl transition-colors text-right cursor-pointer"
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-ink hover:bg-surface rounded-xl transition-colors text-right cursor-pointer"
                           >
-                            <UserCheck className="w-4 h-4 text-[#7A756D]" />
+                            <UserCheck className="w-4 h-4 text-muted" />
                             <span>پروفایل من در دایرکتوری</span>
                           </button>
 
@@ -356,9 +356,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                               setIsEditProfileOpen(true);
                               setIsUserMenuOpen(false);
                             }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#2D2D2D] hover:bg-[#F5F2ED] rounded-xl transition-colors text-right cursor-pointer"
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-ink hover:bg-surface rounded-xl transition-colors text-right cursor-pointer"
                           >
-                            <UserPen className="w-4 h-4 text-[#7A756D]" />
+                            <UserPen className="w-4 h-4 text-muted" />
                             <span>ویرایش اطلاعات من</span>
                           </button>
 
@@ -369,9 +369,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                                 setIsPasswordOpen(true);
                                 setIsUserMenuOpen(false);
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#2D2D2D] hover:bg-[#F5F2ED] rounded-xl transition-colors text-right cursor-pointer"
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-ink hover:bg-surface rounded-xl transition-colors text-right cursor-pointer"
                             >
-                              <KeyRound className="w-4 h-4 text-[#7A756D]" />
+                              <KeyRound className="w-4 h-4 text-muted" />
                               <span>تغییر رمز عبور</span>
                             </button>
                           )}
@@ -382,9 +382,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                                 setActiveTab('reports');
                                 setIsUserMenuOpen(false);
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#2D2D2D] hover:bg-[#F5F2ED] rounded-xl transition-colors text-right cursor-pointer"
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-ink hover:bg-surface rounded-xl transition-colors text-right cursor-pointer"
                             >
-                              <BarChart2 className="w-4 h-4 text-[#7A756D]" />
+                              <BarChart2 className="w-4 h-4 text-muted" />
                               <span>گزارش‌ها</span>
                             </button>
                           )}
@@ -395,9 +395,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                                 setActiveTab('admin');
                                 setIsUserMenuOpen(false);
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#2D2D2D] hover:bg-[#F5F2ED] rounded-xl transition-colors text-right cursor-pointer"
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-ink hover:bg-surface rounded-xl transition-colors text-right cursor-pointer"
                             >
-                              <Settings className="w-4 h-4 text-[#7A756D]" />
+                              <Settings className="w-4 h-4 text-muted" />
                               <span>تنظیمات پرتال</span>
                             </button>
                           )}
@@ -408,23 +408,23 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                                 setActiveTab('audit');
                                 setIsUserMenuOpen(false);
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#2D2D2D] hover:bg-[#F5F2ED] rounded-xl transition-colors text-right cursor-pointer"
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-ink hover:bg-surface rounded-xl transition-colors text-right cursor-pointer"
                             >
-                              <History className="w-4 h-4 text-[#7A756D]" />
+                              <History className="w-4 h-4 text-muted" />
                               <span>تاریخچهٔ تغییرات</span>
                             </button>
                           )}
                           
-                          <div className="my-1 border-t border-[#EAE6DF]"></div>
+                          <div className="my-1 border-t border-line"></div>
 
                           <button
                             onClick={() => {
                               setIsUserMenuOpen(false);
                               logout();
                             }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#DC2626] hover:bg-[#FEF2F2] rounded-xl transition-colors text-right font-bold cursor-pointer"
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-brand hover:bg-brand-soft rounded-xl transition-colors text-right font-bold cursor-pointer"
                           >
-                            <ShieldAlert className="w-4 h-4 text-[#DC2626]" />
+                            <ShieldAlert className="w-4 h-4 text-brand" />
                             <span>خروج از حساب</span>
                           </button>
                           <button
@@ -433,9 +433,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                               void logoutEverywhere();
                             }}
                             title="برای وقتی که گوشی گم شده یا روی کامپیوتر دیگری وارد مانده‌اید"
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] text-[#7A756D] hover:bg-[#FEF2F2] rounded-xl transition-colors text-right cursor-pointer"
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-muted hover:bg-brand-soft rounded-xl transition-colors text-right cursor-pointer"
                           >
-                            <MonitorSmartphone className="w-4 h-4 text-[#7A756D]" />
+                            <MonitorSmartphone className="w-4 h-4 text-muted" />
                             <span>خروج از همهٔ دستگاه‌ها</span>
                           </button>
                         </div>
@@ -447,7 +447,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                 <button
                   type="button"
                   onClick={() => requestLogin()}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#991b1b] hover:bg-[#7f1d1d] text-white text-xs font-bold transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-strong hover:bg-brand-deep text-white text-xs font-bold transition-colors cursor-pointer"
                 >
                   <LogIn className="w-4 h-4" />
                   <span>ورود</span>
