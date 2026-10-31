@@ -57,7 +57,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({ onClose, children, size 
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-xs"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-ink-strong/60 backdrop-blur-xs"
       dir="rtl"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();

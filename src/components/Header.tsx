@@ -28,6 +28,7 @@ import {
   MonitorSmartphone
 } from 'lucide-react';
 import { pop } from '../lib/feedback';
+import { plainTitle } from './notifications/notificationList';
 
 // Header drop-downs: full width under the header on phones, anchored to their button from sm up.
 const popoverClass =
@@ -268,7 +269,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                                       {!notif.isRead && (
                                         <span className="w-2 h-2 rounded-full bg-brand inline-block"></span>
                                       )}
-                                      <h4 className="text-xs font-bold text-ink-strong">{notif.title}</h4>
+                                      <h4 className="text-xs font-bold text-ink-strong">{plainTitle(notif.title)}</h4>
                                     </div>
                                     <p className="text-xs text-ink-soft leading-relaxed mb-1">{notif.message}</p>
                                     <span className="text-xs text-faint">{timeAgo(notif.date)}</span>

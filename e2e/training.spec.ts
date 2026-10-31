@@ -41,7 +41,7 @@ test.describe('trainings with a waitlist, attendance, handouts and feedback', ()
     await employee.page.reload();
     await expect(card(employee.page).getByRole('button', { name: /ثبت‌نام شده‌اید/ })).toBeVisible();
     await employee.page.goto('/#notifications');
-    await expect(employee.page.getByRole('main')).toContainText('جای شما در دوره قطعی شد 🎓');
+    await expect(employee.page.getByRole('main')).toContainText('جای شما در دوره قطعی شد');
     await admin.context.close();
     await employee.context.close();
   });

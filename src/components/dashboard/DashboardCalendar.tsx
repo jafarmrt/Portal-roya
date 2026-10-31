@@ -1,19 +1,46 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { CalendarNote } from '../../types';
+import type { CalendarNote, PersonalTodo } from '../../types';
 import moment from 'moment-jalaali';
 import { JALALI_MONTHS } from '../../data/holidays';
 import { dayOccasions } from '../../lib/occasions';
 import { Modal, secondaryButtonClass } from '../common/Modal';
 import { formatDate, toPersianDigits } from '../../lib/jalali';
 import { byTime, TypeIcon } from '../calendar/eventText';
+import { WeekAgenda } from '../calendar/WeekAgenda';
+import { TodoFormModal } from '../todos/TodoFormModal';
+
+type View = 'week' | 'month';
+const VIEW_KEY = 'roya.dashboardCalendar';
+
+const readView = (): View => {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'month' ? 'month' : 'week';
+  } catch {
+    return 'week';
+  }
+};
+
+const toggleClass = (active: boolean) =>
+  `px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${active ? 'bg-white text-ink shadow-xs' : 'text-muted hover:text-ink'}`;
 
 export const DashboardCalendar: React.FC = () => {
   const { calendarEvents, setActiveTab, customHolidays } = usePortal();
   // Occasions open here; events open on the calendar page, where colleagues can also say whether they attend.
   const [selectedNote, setSelectedNote] = useState<CalendarNote | null>(null);
-  
+  const [openTodo, setOpenTodo] = useState<PersonalTodo | null>(null);
+  // The coming days as a list by default; the month grid is one click away (remembered on this device).
+  const [view, setViewState] = useState<View>(readView);
+  const setView = (next: View) => {
+    setViewState(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // Private mode: the choice lasts until the page is closed.
+    }
+  };
+
   const [currentDate, setCurrentDate] = useState(() => moment());
   const currentYear = currentDate.jYear();
   const currentMonth = currentDate.jMonth();
@@ -40,25 +67,46 @@ export const DashboardCalendar: React.FC = () => {
 
   return (
     <>
-      <div className="bg-white rounded-3xl p-6 border border-line/70 shadow-card space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-line">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-brand-deep text-white rounded-xl">
+      <div className="bg-white rounded-3xl p-4 sm:p-6 border border-line/70 shadow-card space-y-4">
+        <div className="flex items-center justify-between gap-2 pb-3 border-b border-line">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-2 bg-brand-deep text-white rounded-xl shrink-0">
               <CalendarIcon className="w-5 h-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="text-base font-black text-ink">تقویم سازمانی</h3>
-              <p className="text-xs text-muted">{JALALI_MONTHS[currentMonth]} {toPersianDigits(currentYear)}</p>
+              <p className="text-xs text-muted">{view === 'week' ? 'هفت روز پیش رو' : `${JALALI_MONTHS[currentMonth]} ${toPersianDigits(currentYear)}`}</p>
             </div>
           </div>
-          <button
-            onClick={() => setActiveTab('calendar')}
-            className="text-xs font-bold text-brand hover:underline flex items-center gap-1 whitespace-nowrap shrink-0"
-          >
-            <span>جزئیات رویدادها</span>
-            <ChevronLeft className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex p-0.5 rounded-xl bg-surface" role="group" aria-label="نمای تقویم">
+              <button type="button" onClick={() => setView('week')} aria-pressed={view === 'week'} className={toggleClass(view === 'week')}>
+                پیش رو
+              </button>
+              <button type="button" onClick={() => setView('month')} aria-pressed={view === 'month'} className={toggleClass(view === 'month')}>
+                ماه
+              </button>
+            </div>
+            <button
+              onClick={() => setActiveTab('calendar')}
+              className="text-xs font-bold text-brand hover:underline flex items-center gap-1 whitespace-nowrap"
+              aria-label="رفتن به تقویم"
+            >
+              <span className="hidden sm:inline">جزئیات رویدادها</span>
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          </div>
         </div>
+        {view === 'week' ? (
+          <WeekAgenda
+            start={moment().startOf('day')}
+            compact
+            label="برنامهٔ روزهای پیش رو"
+            onOpenEvent={(id) => setActiveTab('calendar', id)}
+            onOpenNote={setSelectedNote}
+            onOpenTodo={setOpenTodo}
+          />
+        ) : (
         <div className="pt-2">
           <div className="flex items-center justify-between mb-4 px-2">
             <button onClick={prevMonth} className="p-1 text-faint hover:text-ink" aria-label="ماه قبل"><ChevronRight className="w-4 h-4" /></button>
@@ -114,7 +162,10 @@ export const DashboardCalendar: React.FC = () => {
             })}
           </div>
         </div>
+        )}
       </div>
+
+      {openTodo && <TodoFormModal todo={openTodo} onClose={() => setOpenTodo(null)} />}
 
       {selectedNote && (
         <Modal

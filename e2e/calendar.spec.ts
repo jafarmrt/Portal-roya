@@ -45,7 +45,7 @@ test.describe('calendar events with an audience and attendance', () => {
     await page.goto('/#notifications');
     const inbox = page.getByRole('main');
     await inbox.getByRole('button', { name: 'تقویم', exact: true }).click();
-    await expect(inbox.getByRole('heading', { name: 'جلسه در تقویم 📅' }).first()).toBeVisible();
+    await expect(inbox.getByRole('heading', { name: 'جلسه در تقویم' }).first()).toBeVisible();
     await expect(inbox).toContainText(`${TITLE}، `);
     await expect(inbox).toContainText('ساعت ۱۰:۰۰ تا ۱۱:۳۰، اتاق جلسات — شرکت می‌کنید؟');
 

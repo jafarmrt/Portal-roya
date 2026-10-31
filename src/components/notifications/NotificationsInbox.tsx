@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { secondaryButtonClass } from '../common/Modal';
+import { EmptyState, SkeletonRows } from '../common/Placeholder';
+import { groupByDay, plainTitle } from './notificationList';
 
 export const NotificationsInbox: React.FC = () => {
   const {
@@ -25,7 +27,8 @@ export const NotificationsInbox: React.FC = () => {
     markNotificationRead,
     markAllNotificationsRead,
     deleteNotification,
-    setActiveTab
+    setActiveTab,
+    isLoaded
   } = usePortal();
 
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -41,25 +44,25 @@ export const NotificationsInbox: React.FC = () => {
   const getNotifIcon = (type: string) => {
     switch (type) {
       case 'birthday':
-        return <Cake className="w-5 h-5 text-pink-600" />;
+        return <Cake className="w-4 h-4 text-pink-600" />;
       case 'poll':
-        return <Vote className="w-5 h-5 text-indigo-600" />;
+        return <Vote className="w-4 h-4 text-indigo-600" />;
       case 'training':
-        return <GraduationCap className="w-5 h-5 text-blue-600" />;
+        return <GraduationCap className="w-4 h-4 text-blue-600" />;
       case 'calendar':
-        return <CalendarDays className="w-5 h-5 text-sky-700" />;
+        return <CalendarDays className="w-4 h-4 text-sky-700" />;
       case 'welcome':
-        return <User className="w-5 h-5 text-emerald-600" />;
+        return <User className="w-4 h-4 text-emerald-600" />;
       case 'document':
-        return <FileText className="w-5 h-5 text-stone-600" />;
+        return <FileText className="w-4 h-4 text-stone-600" />;
       case 'suggestion':
-        return <MessageSquareText className="w-5 h-5 text-indigo-700" />;
+        return <MessageSquareText className="w-4 h-4 text-indigo-700" />;
       case 'kudos':
-        return <Heart className="w-5 h-5 text-rose-600" />;
+        return <Heart className="w-4 h-4 text-rose-600" />;
       case 'system':
-        return <ServerCog className="w-5 h-5 text-amber-700" />;
+        return <ServerCog className="w-4 h-4 text-amber-700" />;
       default:
-        return <Newspaper className="w-5 h-5 text-red-600" />;
+        return <Newspaper className="w-4 h-4 text-red-600" />;
     }
   };
 
@@ -142,76 +145,76 @@ export const NotificationsInbox: React.FC = () => {
         </button>
       </div>
 
-      {/* Notifications List */}
-      <div className="space-y-3">
-        {filteredNotifs.length === 0 ? (
-          <div className="py-12 text-center bg-white rounded-2xl border border-dashed border-line space-y-2">
-            <Bell className="w-10 h-10 text-faint mx-auto" />
-            <p className="text-sm font-bold text-muted">اعلانی در این بخش یافت نشد.</p>
-          </div>
-        ) : (
-          filteredNotifs.map((notif) => (
-            <div
-              key={notif.id}
-              className={`p-5 rounded-2xl border transition-all flex items-start justify-between gap-4 ${
-                !notif.isRead
-                  ? 'bg-surface border-brand shadow-xs'
-                  : 'bg-white border-line opacity-80'
-              }`}
-            >
-              <div className="flex items-start gap-3.5 flex-1 min-w-0">
-                <div className="p-3 bg-white rounded-2xl shadow-2xs border border-line">
-                  {getNotifIcon(notif.type)}
-                </div>
-
-                <div className="space-y-1 flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    {!notif.isRead && (
-                      <span className="w-2 h-2 rounded-full bg-brand inline-block"></span>
-                    )}
-                    <h3 className="text-sm font-bold text-ink">{notif.title}</h3>
-                    <span className="text-xs text-faint mr-auto">{timeAgo(notif.date)}</span>
-                  </div>
-
-                  <p className="text-xs text-muted leading-relaxed">{notif.message}</p>
-
-                  {notif.linkTab && (
-                    <button
-                      onClick={() => {
+      {/* Notifications, under «امروز», «دیروز», «این هفته» and «قبل‌تر» */}
+      {!isLoaded('notifications') ? (
+        <SkeletonRows rows={4} tall />
+      ) : filteredNotifs.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-line/70 shadow-card">
+          <EmptyState
+            icon={<Bell />}
+            title={typeFilter === 'unread' ? 'همهٔ اعلان‌ها را خوانده‌اید' : typeFilter === 'all' ? 'هنوز اعلانی ندارید' : 'اعلانی از این نوع نیست'}
+            hint={typeFilter === 'all' ? 'تولد همکاران، نظرسنجی‌ها، دوره‌ها و اخباری که به شما مربوط است اینجا جمع می‌شود.' : undefined}
+          />
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {groupByDay(filteredNotifs).map((group) => (
+            <section key={group.key} aria-label={group.label} className="space-y-2">
+              <h2 className="text-xs font-bold text-muted px-1">{group.label}</h2>
+              <ul className="bg-white rounded-2xl border border-line/70 shadow-card divide-y divide-line overflow-hidden">
+                {group.items.map((notif) => {
+                  const open = notif.linkTab
+                    ? () => {
                         markNotificationRead(notif.id);
                         setActiveTab(notif.linkTab!, notif.linkId);
-                      }}
-                      className="tap-area text-xs font-bold text-brand hover:underline pt-1 inline-block"
-                    >
-                      مشاهده در بخش مربوطه »
-                    </button>
-                  )}
-                </div>
-              </div>
+                      }
+                    : undefined;
+                  return (
+                    <li key={notif.id} className={`flex items-start gap-3 p-3 sm:p-4 transition-colors ${notif.isRead ? '' : 'bg-brand-soft/60'}`}>
+                      <div className="w-9 h-9 shrink-0 rounded-xl bg-surface flex items-center justify-center">{getNotifIcon(notif.type)}</div>
 
-              <div className="flex items-center gap-1">
-                {!notif.isRead && (
-                  <button
-                    onClick={() => markNotificationRead(notif.id)}
-                    className="p-1.5 text-brand-strong hover:bg-sage-soft rounded-lg text-xs"
-                    title="علامت‌گذاری به عنوان خوانده شده"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                  </button>
-                )}
+                      <div className="flex-1 min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          {!notif.isRead && <span className="w-2 h-2 shrink-0 rounded-full bg-brand" aria-label="خوانده نشده" role="img" />}
+                          <h3 className={`text-sm min-w-0 ${notif.isRead ? 'font-semibold text-ink-soft' : 'font-bold text-ink'}`}>{plainTitle(notif.title)}</h3>
+                          <span className="text-xs text-faint mr-auto shrink-0">{timeAgo(notif.date)}</span>
+                        </div>
+                        <p className="text-xs text-muted leading-relaxed">{notif.message}</p>
+                        {open && (
+                          <button onClick={open} className="tap-area text-xs font-bold text-brand hover:underline pt-0.5 inline-block">
+                            مشاهده در بخش مربوطه »
+                          </button>
+                        )}
+                      </div>
 
-                <button
-                  onClick={() => deleteNotification(notif.id)}
-                  className="p-1.5 text-faint hover:text-warm hover:bg-warm-soft rounded-lg"
-                  title="حذف"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        {!notif.isRead && (
+                          <button
+                            onClick={() => markNotificationRead(notif.id)}
+                            className="p-1.5 text-brand-strong hover:bg-sage-soft rounded-lg"
+                            title="علامت‌گذاری به عنوان خوانده شده"
+                            aria-label="خواندم"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => deleteNotification(notif.id)}
+                          className="p-1.5 text-faint hover:text-warm hover:bg-warm-soft rounded-lg"
+                          title="حذف"
+                          aria-label="حذف اعلان"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )}
 
     </div>
   );
