@@ -23,10 +23,17 @@ import {
   Download,
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
+import { usePresence } from '../online/usePresence';
+import { OnlineDot } from '../common/OnlineDot';
+import { telHref } from '../../lib/phone';
 import { secondaryButtonClass } from '../common/Modal';
 
 export const ColleaguesDirectory: React.FC = () => {
-  const { employees, can, appSettings, departmentPages, focusId, setActiveTab } = usePortal();
+  const { employees, can, appSettings, departmentPages, focusId, setActiveTab, currentUser, featureOn } = usePortal();
+  // Green dot for colleagues who have the portal open (only those who show themselves online, and only
+  // for a viewer who shows themselves too; the server decides).
+  const { data: presence } = usePresence(!!currentUser && featureOn('onlineColleagues'));
+  const onlineIds = new Set((presence?.online ?? []).map((p) => p.id));
   const isManager = can('users.manage');
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -180,7 +187,10 @@ export const ColleaguesDirectory: React.FC = () => {
               {/* Top Card Content */}
               <div>
                 <div className="flex items-start gap-3 mb-4">
-                  <Avatar src={emp.avatar} firstName={emp.firstName} lastName={emp.lastName} className="w-14 h-14 rounded-2xl border border-line text-base" />
+                  <div className="relative shrink-0">
+                    <Avatar src={emp.avatar} firstName={emp.firstName} lastName={emp.lastName} className="w-14 h-14 rounded-2xl border border-line text-base" />
+                    {onlineIds.has(emp.id) && <OnlineDot />}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-bold text-ink group-hover:text-brand transition-colors truncate">
                       {emp.firstName} {emp.lastName}
@@ -201,47 +211,67 @@ export const ColleaguesDirectory: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Quick Contact Rows */}
-                <div className="space-y-2 py-3 border-y border-line text-xs">
-                  {/* Extension Row with Copy Button */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-muted">
-                      <PhoneCall className="w-3.5 h-3.5 text-brand" />
-                      <span>شماره داخلی:</span>
-                    </div>
-                    {emp.extension ? <button
-                      onClick={(e) => handleCopyExtension(emp.extension, e)}
-                      className="px-2.5 py-1 bg-surface hover:bg-line text-ink rounded-lg text-xs font-bold border border-line flex items-center gap-1 transition-colors"
-                      title="کپی شماره داخلی"
-                    >
-                      <span>{emp.extension}</span>
-                      {copiedExtension === emp.extension ? (
-                        <Check className="w-3 h-3 text-brand-strong" />
-                      ) : (
-                        <Copy className="w-3 h-3 text-faint" />
-                      )}
-                    </button> : <span className="text-faint">—</span>}
-                  </div>
+                {/* Quick contact: only what is filled in; the mobile number calls, the email writes. */}
+                {(emp.extension || emp.mobile || emp.email) && (
+                  <div className="space-y-2 py-3 border-y border-line text-xs">
+                    {emp.extension && (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-muted">
+                          <PhoneCall className="w-3.5 h-3.5 text-brand" />
+                          <span>شماره داخلی:</span>
+                        </div>
+                        <button
+                          onClick={(e) => handleCopyExtension(emp.extension, e)}
+                          className="px-2.5 py-1 bg-surface hover:bg-line text-ink rounded-lg text-xs font-bold border border-line flex items-center gap-1 transition-colors"
+                          title="کپی شماره داخلی"
+                          aria-label={`کپی شماره داخلی ${emp.extension}`}
+                        >
+                          <span>{emp.extension}</span>
+                          {copiedExtension === emp.extension ? (
+                            <Check className="w-3 h-3 text-brand-strong" />
+                          ) : (
+                            <Copy className="w-3 h-3 text-faint" />
+                          )}
+                        </button>
+                      </div>
+                    )}
 
-                  {/* Mobile Row */}
-                  <div className="flex items-center justify-between text-muted">
-                    <div className="flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-faint" />
-                      <span>تلفن همراه:</span>
-                    </div>
-                    <span dir="ltr" className="font-semibold text-ink">{emp.mobile || '—'}</span>
-                  </div>
+                    {emp.mobile && (
+                      <div className="flex items-center justify-between text-muted">
+                        <div className="flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-faint" />
+                          <span>تلفن همراه:</span>
+                        </div>
+                        <a
+                          href={telHref(emp.mobile)}
+                          onClick={(e) => e.stopPropagation()}
+                          dir="ltr"
+                          className="font-semibold text-ink hover:text-brand underline-offset-2 hover:underline"
+                          title="تماس"
+                        >
+                          {emp.mobile}
+                        </a>
+                      </div>
+                    )}
 
-                  {/* Email Row */}
-                  <div className="flex items-center justify-between text-muted truncate">
-                    <div className="flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5 text-faint" />
-                      <span>ایمیل:</span>
-                    </div>
-                    <span dir="ltr" className="font-medium text-ink truncate max-w-[140px] text-xs">{emp.email || '—'}</span>
+                    {emp.email && (
+                      <div className="flex items-center justify-between gap-2 text-muted">
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Mail className="w-3.5 h-3.5 text-faint" />
+                          <span>ایمیل:</span>
+                        </div>
+                        <a
+                          href={`mailto:${emp.email}`}
+                          onClick={(e) => e.stopPropagation()}
+                          dir="ltr"
+                          className="font-medium text-ink hover:text-brand truncate min-w-0 text-xs"
+                        >
+                          {emp.email}
+                        </a>
+                      </div>
+                    )}
                   </div>
-
-                </div>
+                )}
 
                 {/* Skills Preview */}
                 {emp.skills && emp.skills.length > 0 && (
@@ -274,6 +304,7 @@ export const ColleaguesDirectory: React.FC = () => {
       {/* Profile Detail View Modal */}
       {selectedUserForView && <UserProfileModal
         user={selectedUserForView}
+        online={onlineIds.has(selectedUserForView.id)}
         onClose={() => setSelectedUserForView(null)}
         onEdit={(usr) => { setSelectedUserForView(null); setSelectedUserForEdit(usr); }}
       />}

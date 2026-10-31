@@ -90,7 +90,7 @@ export const GlobalSearchModule: React.FC = () => {
   const countOf = (group: string) => results.filter((r) => groupOf(r.type) === group).length;
 
   const filters = [
-    { id: 'all', label: 'همهٔ نتایج', count: results.length, active: 'bg-slate-900' },
+    { id: 'all', label: 'همهٔ نتایج', count: results.length, active: 'bg-ink-strong' },
     { id: 'همکاران', label: 'همکاران', count: countOf('همکاران'), active: 'bg-emerald-600' },
     { id: 'اخبار', label: 'اخبار و اطلاعیه‌ها', count: countOf('اخبار'), active: 'bg-red-600' },
     { id: 'اسناد', label: 'اسناد و فرم‌ها', count: countOf('اسناد'), active: 'bg-stone-700' },
@@ -127,7 +127,7 @@ export const GlobalSearchModule: React.FC = () => {
 
       {/* Category Filter Pills */}
       {globalSearchQuery.trim().length >= 2 && (
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between gap-3 overflow-x-auto no-scrollbar">
+        <div className="bg-white p-4 rounded-2xl border border-line shadow-xs flex items-center justify-between gap-3 overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-2">
             {filters.map((f) => (
               <button
@@ -135,7 +135,7 @@ export const GlobalSearchModule: React.FC = () => {
                 onClick={() => setCategoryFilter(f.id)}
                 aria-pressed={categoryFilter === f.id}
                 className={`px-3.5 py-1.5 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${
-                  categoryFilter === f.id ? `${f.active} text-white shadow-xs` : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  categoryFilter === f.id ? `${f.active} text-white shadow-xs` : 'bg-surface hover:bg-line text-ink-soft'
                 }`}
               >
                 {f.label} ({toPersianDigits(f.count)})
@@ -143,7 +143,7 @@ export const GlobalSearchModule: React.FC = () => {
             ))}
           </div>
 
-          <div className="text-xs text-slate-400 font-medium whitespace-nowrap hidden sm:block">
+          <div className="text-xs text-faint font-medium whitespace-nowrap hidden sm:block">
             {toPersianDigits(filteredResults.length)} نتیجه یافت شد
           </div>
         </div>
@@ -152,25 +152,25 @@ export const GlobalSearchModule: React.FC = () => {
       {/* Results Content */}
       <div className="space-y-4">
         {globalSearchQuery.trim().length < 2 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-3">
-            <Search className="w-12 h-12 text-slate-300 mx-auto" />
-            <h3 className="text-base font-bold text-slate-700">لطفاً عبارت مورد نظر خود را جهت جستجو وارد کنید</h3>
-            <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+          <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-line-strong space-y-3">
+            <Search className="w-12 h-12 text-subtle mx-auto" />
+            <h3 className="text-base font-bold text-ink-soft">لطفاً عبارت مورد نظر خود را جهت جستجو وارد کنید</h3>
+            <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
               می‌توانید کلماتی مانند نام همکار، شماره تلفن داخلی، اخبار جدید، دوره‌های آموزشی یا عنوان نظرسنجی‌ها را جستجو نمایید.
             </p>
           </div>
         ) : filteredResults.length === 0 && searching ? (
-          <div className="bg-white rounded-2xl p-8 text-center border border-dashed border-slate-300 text-xs text-slate-500" role="status">
-            <FileSearch className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+          <div className="bg-white rounded-2xl p-8 text-center border border-dashed border-line-strong text-xs text-muted" role="status">
+            <FileSearch className="w-8 h-8 text-subtle mx-auto mb-2" />
             در حال جستجو در متن فایل‌ها...
           </div>
         ) : filteredResults.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 space-y-2">
-            <Search className="w-10 h-10 text-slate-300 mx-auto" />
-            <h3 className="text-sm font-bold text-slate-700">هیچ نتیجه مرتبطی برای "{globalSearchQuery}" یافت نشد.</h3>
-            <p className="text-xs text-slate-400">لطفاً کلمات کلیدی دیگری را امتحان کنید.</p>
+          <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-line-strong space-y-2">
+            <Search className="w-10 h-10 text-subtle mx-auto" />
+            <h3 className="text-sm font-bold text-ink-soft">هیچ نتیجه مرتبطی برای "{globalSearchQuery}" یافت نشد.</h3>
+            <p className="text-xs text-faint">لطفاً کلمات کلیدی دیگری را امتحان کنید.</p>
             {nothingFound && currentUser && (
-              <p className="text-xs text-slate-400">جستجوهای بی‌نتیجه (بدون نام جستجوکننده) ثبت می‌شوند تا برایشان راهنما نوشته شود.</p>
+              <p className="text-xs text-faint">جستجوهای بی‌نتیجه (بدون نام جستجوکننده) ثبت می‌شوند تا برایشان راهنما نوشته شود.</p>
             )}
           </div>
         ) : (
@@ -184,23 +184,23 @@ export const GlobalSearchModule: React.FC = () => {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') setActiveTab(item.targetTab, item.targetId);
                 }}
-                className="bg-white rounded-2xl p-5 border border-slate-200 hover:border-red-400 hover:shadow-md transition-all cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group"
+                className="bg-white rounded-2xl p-5 border border-line hover:border-red-400 hover:shadow-md transition-all cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group"
               >
                 <div className="space-y-1.5 flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full border ${item.badgeColor}`}>
                       {item.type}
                     </span>
-                    <h3 className="text-sm font-bold text-slate-800 group-hover:text-red-600 transition-colors truncate">
+                    <h3 className="text-sm font-bold text-ink group-hover:text-red-600 transition-colors truncate">
                       {item.title}
                     </h3>
                   </div>
 
-                  <p className="text-xs text-slate-600 font-medium truncate">
+                  <p className="text-xs text-ink-soft font-medium truncate">
                     {item.subtitle}
                   </p>
 
-                  <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
+                  <p className="text-xs text-muted leading-relaxed line-clamp-2">
                     {item.snippet}
                   </p>
                 </div>

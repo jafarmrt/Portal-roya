@@ -549,7 +549,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setIsLoading(true);
     setError(null);
     // A new session (signing in, or out to the guest view) loads everything again.
-    setLoadedResources(new Set(['settings']));
+    // A guest has no personal lists, so those count as loaded (and empty) at once.
+    setLoadedResources(new Set(sessionKey ? ['settings'] : ['settings', 'notifications', 'moods', 'todos', 'me']));
     // Guests only load the shared, read-only content; personal data comes after sign-in.
     const { notifications: loadNotifications, moods: loadMoods, todos: loadTodos, me: loadMe, ...shared } = loaders;
     const toLoad = sessionKey ? [...Object.values(shared), loadNotifications, loadMoods, loadTodos, loadMe] : Object.values(shared);

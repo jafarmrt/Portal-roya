@@ -36,7 +36,7 @@ export const TypeIcon: React.FC<{ type: EntryType; className?: string }> = ({ ty
     case 'event':
       return <PartyPopper className={`${className} text-amber-600`} />;
     default:
-      return <Calendar className={`${className} text-slate-500`} />;
+      return <Calendar className={`${className} text-muted`} />;
   }
 };
 

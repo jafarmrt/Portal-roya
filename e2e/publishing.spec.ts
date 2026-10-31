@@ -105,7 +105,7 @@ test.describe('publisher tools', () => {
   test('the colleague reads the answer, shared without their name', async ({ browser }) => {
     const { context, page } = await asRole(browser, 'employee');
     await page.goto('/#notifications');
-    await expect(page.getByRole('main')).toContainText('پاسخ پرسش شما 💬');
+    await expect(page.getByRole('main')).toContainText('پاسخ پرسش شما');
     const dialog = await openItem(page, `${TITLE} (ساعت ۱۰ تا ۱۳)`);
     await expect(dialog.getByRole('list', { name: 'پرسش‌های شما' })).toContainText('بله، ایمیل‌ها بعد از وصل شدن دوباره می‌رسند.');
     await expect(dialog.getByRole('list', { name: 'پرسش‌های شما' })).toContainText('پاسخ داده شد و برای همه هم آمد');

@@ -22,16 +22,20 @@ const RsvpState: React.FC<{ event: CalendarEvent; past: boolean }> = ({ event, p
 };
 
 /**
- * The week from Saturday to Friday as a list: each day's occasions, colleagues' birthdays and
- * events in order of time, and the person's own notes due that day. Easier to read than the month
- * grid, above all on a phone.
+ * Seven days from `start` as a list (on the calendar page Saturday to Friday): each day's occasions,
+ * colleagues' birthdays and events in order of time, and the person's own notes due that day. Easier
+ * to read than the month grid, above all on a phone.
+ *
+ * `compact` (the dashboard) leaves out past days and days with nothing on them, except today.
  */
 export const WeekAgenda: React.FC<{
   start: moment.Moment;
   onOpenEvent: (id: string) => void;
   onOpenNote: (note: CalendarNote) => void;
   onOpenTodo: (todo: PersonalTodo) => void;
-}> = ({ start, onOpenEvent, onOpenNote, onOpenTodo }) => {
+  compact?: boolean;
+  label?: string;
+}> = ({ start, onOpenEvent, onOpenNote, onOpenTodo, compact, label = 'برنامهٔ هفته' }) => {
   const { calendarEvents, employees, customHolidays, myDueTodos } = usePortal();
   const today = todayJalali();
 
@@ -40,11 +44,12 @@ export const WeekAgenda: React.FC<{
     const key = day.format('jYYYY/jMM/jDD');
     const [jy, jm, jd] = [day.jYear(), day.jMonth() + 1, day.jDate()];
     const occasions = dayOccasions(customHolidays, jy, jm, jd);
+    const weekday = (day.day() + 1) % 7; // 0 = Saturday … 6 = Friday
     return {
       key,
-      label: `${JALALI_WEEKDAYS[i]} ${toPersianDigits(jd)} ${JALALI_MONTHS[jm - 1]}`,
+      label: `${JALALI_WEEKDAYS[weekday]} ${toPersianDigits(jd)} ${JALALI_MONTHS[jm - 1]}`,
       hijri: formatHijri(jy, jm, jd),
-      dayOff: i === 6 || Boolean(occasions?.isHoliday),
+      dayOff: weekday === 6 || Boolean(occasions?.isHoliday),
       occasions: occasions?.items ?? [],
       birthdays: employees.filter((e) => e.isActive && e.birthDay === key.slice(5)),
       events: calendarEvents.filter((e) => e.date === key).sort(byTime),
@@ -52,17 +57,21 @@ export const WeekAgenda: React.FC<{
     };
   });
 
+  const isEmpty = (day: (typeof days)[number]) => day.occasions.length + day.birthdays.length + day.events.length + day.todos.length === 0;
+  const shown = compact ? days.filter((d) => d.key === today || (d.key > today && !isEmpty(d))) : days;
+  const restEmpty = compact && shown.every((d) => d.key === today);
+
   return (
-    <ol className="space-y-3" aria-label="برنامهٔ هفته">
-      {days.map((day) => {
+    <ol className={compact ? 'space-y-2' : 'space-y-3'} aria-label={label}>
+      {shown.map((day) => {
         const isToday = day.key === today;
         const past = day.key < today;
-        const empty = day.occasions.length + day.birthdays.length + day.events.length + day.todos.length === 0;
+        const empty = isEmpty(day);
         return (
           <li
             key={day.key}
             aria-current={isToday ? 'date' : undefined}
-            className={`rounded-2xl border p-3 ${isToday ? 'border-brand bg-brand-soft' : 'border-line bg-white'} ${past ? 'opacity-70' : ''}`}
+            className={`rounded-2xl border ${compact ? 'p-2.5' : 'p-3'} ${isToday ? 'border-brand bg-brand-soft' : compact ? 'border-line/70 bg-surface-soft' : 'border-line bg-white'} ${past ? 'opacity-70' : ''}`}
           >
             <h4 className="flex flex-wrap items-baseline gap-2 px-1 mb-1">
               <span className={`text-sm font-black ${day.dayOff ? 'text-brand' : 'text-ink'}`}>{day.label}</span>
@@ -70,7 +79,7 @@ export const WeekAgenda: React.FC<{
               <span className="text-xs text-faint">{day.hijri}</span>
             </h4>
             {empty ? (
-              <p className="px-1 text-xs text-subtle">برنامه‌ای ثبت نشده است.</p>
+              <p className="px-1 text-xs text-subtle">{compact && isToday ? 'امروز برنامه‌ای در تقویم نیست.' : 'برنامه‌ای ثبت نشده است.'}</p>
             ) : (
               <ul className="space-y-0.5">
                 {day.occasions.map((o, i) => (
@@ -144,6 +153,7 @@ export const WeekAgenda: React.FC<{
           </li>
         );
       })}
+      {restEmpty && <li className="px-2 text-xs text-subtle">در روزهای پیش رو هم برنامه‌ای ثبت نشده است.</li>}
     </ol>
   );
 };
