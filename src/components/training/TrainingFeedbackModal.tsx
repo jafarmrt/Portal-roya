@@ -14,8 +14,8 @@ const Rating: React.FC<{ name: string; legend: string; value: number; onChange: 
       {RATING_LABELS.map((label, i) => (
         <label
           key={label}
-          className={`flex flex-col items-center gap-1 py-2 rounded-xl border text-[11px] font-bold cursor-pointer transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-red-400 ${
-            value === i + 1 ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-[#D9D4CB] text-[#4B4740] hover:border-red-300'
+          className={`flex flex-col items-center gap-1 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-red-400 ${
+            value === i + 1 ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-line-strong text-ink-soft hover:border-red-300'
           }`}
         >
           <input type="radio" name={name} value={i + 1} checked={value === i + 1} onChange={() => onChange(i + 1)} className="sr-only" required />
@@ -58,7 +58,7 @@ export const TrainingFeedbackModal: React.FC<{ training: TrainingProgram; onClos
       }
     >
       <form id="training-feedback" onSubmit={submit} className="space-y-5">
-        <p className="text-[11px] text-[#6E6A60] leading-relaxed">
+        <p className="text-xs text-muted leading-relaxed">
           {training.myFeedback ? 'قبلاً نظر داده‌اید؛ با ثبت دوباره، نظر قبلی‌تان عوض می‌شود. ' : ''}
           پاسخ شما بدون نام به مسئول آموزش و مدرس نشان داده می‌شود.
         </p>

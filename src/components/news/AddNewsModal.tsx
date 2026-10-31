@@ -149,13 +149,13 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
     >
       {preview && (
         <div className="space-y-4 text-sm leading-loose" aria-label="پیش‌نمایش">
-          <p className="text-[11px] text-[#8C867A]">همکاران خبر را این‌طور می‌بینند:</p>
-          <h2 className="text-lg font-black text-[#2D2D2D]">{form.title || 'بدون عنوان'}</h2>
+          <p className="text-xs text-faint">همکاران خبر را این‌طور می‌بینند:</p>
+          <h2 className="text-lg font-black text-ink">{form.title || 'بدون عنوان'}</h2>
           {form.image && <img src={form.image} alt="" className="w-full max-h-80 object-cover rounded-2xl" />}
-          {form.summary && <div className="p-4 bg-[#F5F2ED] rounded-2xl border-r-4 border-[#dc2626] font-semibold">{form.summary}</div>}
+          {form.summary && <div className="p-4 bg-surface rounded-2xl border-r-4 border-brand font-semibold">{form.summary}</div>}
           <NewsContent content={form.content} format="html" />
           {form.attachments.length > 0 && (
-            <ul className="pt-4 border-t border-[#E6E0D5] space-y-1 text-xs">
+            <ul className="pt-4 border-t border-line space-y-1 text-xs">
               {form.attachments.map((a) => <li key={a.url} className="flex items-center gap-1.5"><Paperclip className="w-3.5 h-3.5" />{a.name}</li>)}
             </ul>
           )}
@@ -199,7 +199,7 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
 
         <div>
           <label htmlFor="news-content" className={labelClass}>متن کامل *</label>
-          <Suspense fallback={<div className="h-64 rounded-xl border border-[#D9D4CB] bg-[#F5F2ED] animate-pulse" />}>
+          <Suspense fallback={<div className="h-64 rounded-xl border border-line-strong bg-surface animate-pulse" />}>
             <RichTextEditor
               key={editorKey}
               id="news-content"
@@ -213,20 +213,20 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
         </div>
 
         {/* Delivery options: these decide who is notified and how. */}
-        <fieldset className="p-4 bg-[#F5F2ED] rounded-2xl border border-[#E6E0D5] space-y-3">
-          <legend className="text-xs font-black text-[#2D2D2D] px-1">نحوهٔ اطلاع‌رسانی</legend>
+        <fieldset className="p-4 bg-surface rounded-2xl border border-line space-y-3">
+          <legend className="text-xs font-black text-ink px-1">نحوهٔ اطلاع‌رسانی</legend>
           <label className="flex items-start gap-2 cursor-pointer">
             <input type="checkbox" checked={form.requiresAck} onChange={(e) => set('requiresAck', e.target.checked)} className="mt-0.5 accent-red-700" />
             <span>
               <strong>بخشنامه: نیاز به تأیید مطالعه دارد</strong>
-              <span className="block text-[11px] text-[#6E6A60]">هر همکار باید روی «مطالعه کردم» بزند و شما فهرست خوانده‌ها و نخوانده‌ها را می‌بینید.</span>
+              <span className="block text-xs text-muted">هر همکار باید روی «مطالعه کردم» بزند و شما فهرست خوانده‌ها و نخوانده‌ها را می‌بینید.</span>
             </span>
           </label>
           {form.requiresAck && (
             <div className="mr-6 max-w-xs">
               <label htmlFor="news-ack-date" className={labelClass}>مهلت تأیید (اختیاری)</label>
               <JalaliDateInput id="news-ack-date" value={form.ackDate} onChange={(v) => set('ackDate', v)} />
-              <p className="text-[11px] text-[#6E6A60] mt-1 leading-relaxed">
+              <p className="text-xs text-muted mt-1 leading-relaxed">
                 یک روز پیش از مهلت به کسانی که تأیید نکرده‌اند یادآوری می‌شود. بعد از مهلت، فهرست آن‌ها به تفکیک واحد برای شما و برای مدیر مستقیم هر نفر فرستاده می‌شود.
               </p>
             </div>
@@ -235,7 +235,7 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
             <input type="checkbox" checked={form.isUrgent} onChange={(e) => set('isUrgent', e.target.checked)} className="mt-0.5 accent-red-700" />
             <span>
               <strong>فوری</strong>
-              <span className="block text-[11px] text-[#6E6A60]">با نشان قرمز نمایش داده می‌شود و اگر ایمیل سازمانی تنظیم شده باشد، ایمیل هم ارسال می‌شود.</span>
+              <span className="block text-xs text-muted">با نشان قرمز نمایش داده می‌شود و اگر ایمیل سازمانی تنظیم شده باشد، ایمیل هم ارسال می‌شود.</span>
             </span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
@@ -255,7 +255,7 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
             <span className={`${labelClass} flex items-center gap-1.5`}><ImageIcon className="w-4 h-4" /> تصویر شاخص (اختیاری)</span>
             {form.image ? (
               <div className="relative">
-                <img src={form.image} alt="" className="w-full h-32 object-cover rounded-xl border border-[#E6E0D5]" />
+                <img src={form.image} alt="" className="w-full h-32 object-cover rounded-xl border border-line" />
                 <button type="button" onClick={() => set('image', '')} aria-label="حذف تصویر" className="absolute top-2 left-2 p-1.5 bg-white/90 rounded-lg text-red-700">
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -268,11 +268,11 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
           <div className="space-y-2">
             <span className={`${labelClass} flex items-center gap-1.5`}><Paperclip className="w-4 h-4" /> پیوست‌ها (PDF، Word، Excel…)</span>
             {form.attachments.map((a: Attachment) => (
-              <div key={a.url} className="flex items-center justify-between gap-2 p-2 bg-[#F5F2ED] rounded-xl">
+              <div key={a.url} className="flex items-center justify-between gap-2 p-2 bg-surface rounded-xl">
                 <span className="flex items-center gap-1.5 min-w-0">
                   <FileText className="w-4 h-4 shrink-0 text-red-700" />
                   <span className="truncate">{a.name}</span>
-                  <span className="text-[10px] text-[#8C867A] whitespace-nowrap">{formatFileSize(a.size)}</span>
+                  <span className="text-xs text-faint whitespace-nowrap">{formatFileSize(a.size)}</span>
                 </span>
                 <button type="button" aria-label={`حذف ${a.name}`} onClick={() => set('attachments', form.attachments.filter((x) => x.url !== a.url))} className="p-1 text-red-700">
                   <Trash2 className="w-4 h-4" />
@@ -292,7 +292,7 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
 
         <SaveAsTemplate form={{ ...form, tags: tagsOf(tagsText) }} suggestedName={templateName} />
 
-        <div className="border-t border-[#E6E0D5] pt-4">
+        <div className="border-t border-line pt-4">
           <button type="button" onClick={() => setScheduleOpen((o) => !o)} aria-expanded={scheduleOpen} className="flex items-center gap-1.5 font-bold text-red-700">
             <CalendarClock className="w-4 h-4" />
             زمان‌بندی انتشار و تاریخ انقضا

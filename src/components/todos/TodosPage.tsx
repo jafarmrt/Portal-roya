@@ -48,11 +48,11 @@ const CARD_TONE: Record<TodoGroup, string> = {
   overdue: 'border-red-300 bg-red-50/60',
   today: 'border-amber-300 bg-amber-50/60',
   week: 'border-sky-200 bg-white',
-  later: 'border-[#E6E0D5] bg-white',
-  none: 'border-dashed border-[#D9D4CB] bg-white',
+  later: 'border-line bg-white',
+  none: 'border-dashed border-line-strong bg-white',
 };
 /** A day that is over and has nothing left to do. */
-const FINISHED_TONE = 'border-[#E6E0D5] bg-[#F9F7F4]';
+const FINISHED_TONE = 'border-line bg-surface-soft';
 
 const repeatLabel = (todo: PersonalTodo) => TODO_REPEATS.find((r) => r.id === todo.repeat)?.label;
 
@@ -68,7 +68,7 @@ const useSearch = () => {
 
 const SearchBox: React.FC<{ value: string; onChange: (value: string) => void; label: string }> = ({ value, onChange, label }) => (
   <div className="relative">
-    <Search className="w-4 h-4 text-[#8C867A] absolute top-1/2 -translate-y-1/2 right-3 pointer-events-none" />
+    <Search className="w-4 h-4 text-faint absolute top-1/2 -translate-y-1/2 right-3 pointer-events-none" />
     <input
       type="search"
       value={value}
@@ -126,11 +126,11 @@ const DaysView: React.FC<{ onArchive: () => void }> = ({ onArchive }) => {
           <NotebookPen className="w-6 h-6" />
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-xl font-black text-[#2D2D2D] flex items-center gap-2">
+          <h2 className="text-xl font-black text-ink flex items-center gap-2">
             یادداشت‌های من
-            {featureInPreview(appSettings, 'todos') && <span className="px-2 py-0.5 text-[10px] font-bold bg-violet-100 text-violet-800 rounded-full">پیش‌نمایش</span>}
+            {featureInPreview(appSettings, 'todos') && <span className="px-2 py-0.5 text-xs font-bold bg-violet-100 text-violet-800 rounded-full">پیش‌نمایش</span>}
           </h2>
-          <p className="text-sm text-[#6E6A60] flex flex-wrap items-center gap-x-1">
+          <p className="text-sm text-muted flex flex-wrap items-center gap-x-1">
             <span className="flex items-center gap-1 whitespace-nowrap"><Lock className="w-3.5 h-3.5" /> فقط خودتان می‌بینید</span>
             <span className="whitespace-nowrap">· {toPersianDigits(open.length)} یادداشت باز</span>
           </p>
@@ -138,7 +138,7 @@ const DaysView: React.FC<{ onArchive: () => void }> = ({ onArchive }) => {
         <button
           type="button"
           onClick={onArchive}
-          className="px-3 py-2 text-sm font-bold rounded-xl border border-[#E6E0D5] bg-white text-[#4B4740] hover:border-sky-600 flex items-center gap-1.5"
+          className="px-3 py-2 text-sm font-bold rounded-xl border border-line bg-white text-ink-soft hover:border-sky-600 flex items-center gap-1.5"
         >
           <Archive className="w-4 h-4" /> آرشیو
         </button>
@@ -147,7 +147,7 @@ const DaysView: React.FC<{ onArchive: () => void }> = ({ onArchive }) => {
         </button>
       </div>
 
-      <div className="bg-white border border-[#E6E0D5] rounded-3xl p-3 sm:p-4 space-y-3">
+      <div className="bg-white border border-line/70 shadow-card rounded-3xl p-3 sm:p-4 space-y-3">
         <SearchBox value={query} onChange={setQuery} label="جستجو در یادداشت‌ها" />
         <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="نمایش">
           {FILTERS.map((f) => (
@@ -157,11 +157,11 @@ const DaysView: React.FC<{ onArchive: () => void }> = ({ onArchive }) => {
               aria-pressed={filter === f.id}
               onClick={() => setFilter(f.id)}
               className={`px-3 py-1.5 text-xs font-bold rounded-full border flex items-center gap-1.5 transition-colors ${
-                filter === f.id ? 'bg-sky-700 border-sky-700 text-white' : 'bg-white border-[#E6E0D5] text-[#4B4740] hover:border-sky-600'
+                filter === f.id ? 'bg-sky-700 border-sky-700 text-white' : 'bg-white border-line text-ink-soft hover:border-sky-600'
               }`}
             >
               {f.label}
-              <span className={`text-[10px] ${filter === f.id ? 'text-sky-100' : 'text-[#8C867A]'}`}>{toPersianDigits(counts[f.id])}</span>
+              <span className={`text-xs ${filter === f.id ? 'text-sky-100' : 'text-faint'}`}>{toPersianDigits(counts[f.id])}</span>
             </button>
           ))}
           {listedDone.length > 0 && (
@@ -178,7 +178,7 @@ const DaysView: React.FC<{ onArchive: () => void }> = ({ onArchive }) => {
       </div>
 
       {listed.length === 0 ? (
-        <p className="py-12 text-center text-sm text-[#6E6A60]">
+        <p className="py-12 text-center text-sm text-muted">
           {searching
             ? 'یادداشتی با این جستجو پیدا نشد.'
             : filter === 'done'
@@ -192,10 +192,10 @@ const DaysView: React.FC<{ onArchive: () => void }> = ({ onArchive }) => {
           {current.length > 0 && <DayGrid days={current} today={today} onEdit={setEditing} />}
           {past.length > 0 && (
             <section aria-labelledby="todo-past-days" className="space-y-2">
-              <h3 id="todo-past-days" className="text-sm font-black text-[#6E6A60]">
+              <h3 id="todo-past-days" className="text-sm font-black text-muted">
                 روزهای گذشته، همه انجام شده <span className="font-bold">({toPersianDigits(past.length)} روز)</span>
               </h3>
-              <p className="text-xs text-[#8C867A]">این روزها تا وقتی بایگانی‌شان نکنید همین‌جا می‌مانند و خودبه‌خود پاک نمی‌شوند.</p>
+              <p className="text-xs text-faint">این روزها تا وقتی بایگانی‌شان نکنید همین‌جا می‌مانند و خودبه‌خود پاک نمی‌شوند.</p>
               <DayGrid days={past} today={today} onEdit={setEditing} />
             </section>
           )}
@@ -248,12 +248,12 @@ const ArchiveView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <button type="button" onClick={onBack} aria-label="بازگشت به یادداشت‌های من" title="بازگشت به یادداشت‌های من" className="p-2 rounded-xl text-sky-800 hover:bg-sky-50">
           <ArrowRight className="w-5 h-5" />
         </button>
-        <div className="p-3 bg-[#6E6A60] text-white rounded-2xl shadow-lg">
+        <div className="p-3 bg-muted text-white rounded-2xl shadow-lg">
           <Archive className="w-6 h-6" />
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-xl font-black text-[#2D2D2D]">آرشیو یادداشت‌ها</h2>
-          <p className="text-sm text-[#6E6A60] flex flex-wrap items-center gap-x-1">
+          <h2 className="text-xl font-black text-ink">آرشیو یادداشت‌ها</h2>
+          <p className="text-sm text-muted flex flex-wrap items-center gap-x-1">
             <span className="flex items-center gap-1 whitespace-nowrap"><Lock className="w-3.5 h-3.5" /> فقط خودتان می‌بینید</span>
             {items && <span className="whitespace-nowrap">· {toPersianDigits(items.length)} یادداشت</span>}
           </p>
@@ -265,14 +265,14 @@ const ArchiveView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         )}
       </div>
 
-      <div className="bg-white border border-[#E6E0D5] rounded-3xl p-3 sm:p-4">
+      <div className="bg-white border border-line/70 shadow-card rounded-3xl p-3 sm:p-4">
         <SearchBox value={query} onChange={setQuery} label="جستجو در آرشیو" />
       </div>
 
       {items === null ? (
-        <p className="py-12 flex justify-center text-[#8C867A]"><Loader2 className="w-5 h-5 animate-spin" aria-label="در حال بارگذاری" /></p>
+        <p className="py-12 flex justify-center text-faint"><Loader2 className="w-5 h-5 animate-spin" aria-label="در حال بارگذاری" /></p>
       ) : listed.length === 0 ? (
-        <p className="py-12 text-center text-sm text-[#6E6A60]">
+        <p className="py-12 text-center text-sm text-muted">
           {searching ? 'یادداشتی با این جستجو در آرشیو نیست.' : 'آرشیو خالی است. یادداشت‌های انجام‌شده را در صفحهٔ یادداشت‌ها با «بایگانی» به این‌جا بفرستید.'}
         </p>
       ) : (
@@ -313,12 +313,12 @@ const DayCard: React.FC<{ day: TodoDay } & Omit<DayGridProps, 'days'>> = ({ day,
   return (
     <section aria-label={`کارهای ${heading}`} className={`rounded-2xl border p-3 space-y-2 shadow-xs ${tone}`}>
       <div className="flex items-center gap-2">
-        <h3 className={`flex-1 min-w-0 text-sm font-black ${archived || left === 0 ? 'text-[#4B4740]' : GROUP_STYLE[group]}`}>
+        <h3 className={`flex-1 min-w-0 text-sm font-black ${archived || left === 0 ? 'text-ink-soft' : GROUP_STYLE[group]}`}>
           {title.near && <span>{title.near}، </span>}
           <span className={title.near ? 'font-bold' : ''}>{title.day}</span>
-          {late && <span className="ms-1 text-[11px] font-bold">(عقب‌افتاده)</span>}
+          {late && <span className="ms-1 text-xs font-bold">(عقب‌افتاده)</span>}
         </h3>
-        <span className="text-[11px] font-bold text-[#6E6A60] whitespace-nowrap">
+        <span className="text-xs font-bold text-muted whitespace-nowrap">
           {archived ? `${toPersianDigits(day.items.length)} کار` : `${toPersianDigits(done.length)} از ${toPersianDigits(day.items.length)} انجام شد`}
         </span>
         {!archived && done.length > 0 && (
@@ -327,7 +327,7 @@ const DayCard: React.FC<{ day: TodoDay } & Omit<DayGridProps, 'days'>> = ({ day,
             onClick={() => void archiveDoneTodos(done.map((t) => t.id))}
             aria-label={`بایگانی انجام‌شده‌های ${heading}`}
             title="بایگانی انجام‌شده‌های این روز"
-            className="p-1.5 rounded-lg text-[#6E6A60] hover:bg-white hover:text-sky-800"
+            className="p-1.5 rounded-lg text-muted hover:bg-white hover:text-sky-800"
           >
             <Archive className="w-4 h-4" />
           </button>
@@ -342,7 +342,7 @@ const DayCard: React.FC<{ day: TodoDay } & Omit<DayGridProps, 'days'>> = ({ day,
   );
 };
 
-const iconButton = 'p-1 rounded-lg text-[#6E6A60] hover:bg-white hover:text-sky-800';
+const iconButton = 'p-1 rounded-lg text-muted hover:bg-white hover:text-sky-800';
 
 /** One note in its day's card: its steps can be ticked right here. */
 const NoteRow: React.FC<{ todo: PersonalTodo; onEdit?: () => void; archived: boolean; onChanged?: () => void }> = ({
@@ -386,25 +386,25 @@ const NoteRow: React.FC<{ todo: PersonalTodo; onEdit?: () => void; archived: boo
             onClick={() => (isDone ? void updateTodo(todo.id, { done: false }) : void tick(todo))}
             className="p-0.5 rounded-lg hover:bg-white shrink-0"
           >
-            {isDone ? <CheckCircle2 className="w-5 h-5 text-emerald-600" /> : <Circle className="w-5 h-5 text-[#A8A295]" />}
+            {isDone ? <CheckCircle2 className="w-5 h-5 text-emerald-600" /> : <Circle className="w-5 h-5 text-faint" />}
           </button>
         )}
         <div className="flex-1 min-w-0 pt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-          <h4 className={`min-w-0 text-sm font-black leading-snug break-words ${isDone ? 'line-through text-[#8C867A]' : 'text-[#2D2D2D]'}`}>{todo.title}</h4>
-          {isDone && <span className="px-1.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold whitespace-nowrap">انجام شد {formatDate(todo.doneAt)}</span>}
+          <h4 className={`min-w-0 text-sm font-black leading-snug break-words ${isDone ? 'line-through text-faint' : 'text-ink'}`}>{todo.title}</h4>
+          {isDone && <span className="px-1.5 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold whitespace-nowrap">انجام شد {formatDate(todo.doneAt)}</span>}
           {todo.repeat && (
-            <span className="text-sky-800 text-[10px] flex items-center gap-0.5 whitespace-nowrap" title={repeatLabel(todo)}>
+            <span className="text-sky-800 text-xs flex items-center gap-0.5 whitespace-nowrap" title={repeatLabel(todo)}>
               <Repeat className="w-3 h-3" /> {repeatLabel(todo)}
             </span>
           )}
           {!isDone && todo.dueDate && (
-            <span className="text-[#A8A295] flex items-center gap-0.5 text-[10px]" title={todo.remind === 'none' ? 'بدون یادآوری' : todo.remind === 'both' ? 'یادآوری روز قبل و همان روز' : 'یادآوری صبح همان روز'}>
+            <span className="text-faint flex items-center gap-0.5 text-xs" title={todo.remind === 'none' ? 'بدون یادآوری' : todo.remind === 'both' ? 'یادآوری روز قبل و همان روز' : 'یادآوری صبح همان روز'}>
               {todo.remind === 'none' ? <BellOff className="w-3 h-3" /> : <Bell className="w-3 h-3" />}
               {todo.remind === 'both' && <span>۲</span>}
             </span>
           )}
           {todo.steps.length > 0 && (
-            <span className="text-[10px] font-bold text-[#8C867A] whitespace-nowrap">
+            <span className="text-xs font-bold text-faint whitespace-nowrap">
               {toPersianDigits(stepsDone)} از {toPersianDigits(todo.steps.length)} گام
             </span>
           )}
@@ -459,13 +459,13 @@ const NoteRow: React.FC<{ todo: PersonalTodo; onEdit?: () => void; archived: boo
               onClick={() => void updateTodo(todo.id, { important: !todo.important })}
               className={iconButton}
             >
-              <Star className={`w-4 h-4 ${todo.important ? 'fill-amber-500 text-amber-500' : 'text-[#C9C3B7]'}`} />
+              <Star className={`w-4 h-4 ${todo.important ? 'fill-amber-500 text-amber-500' : 'text-line-strong'}`} />
             </button>
           )}
         </div>
       </div>
 
-      {todo.note && <p className="ps-7 text-xs text-[#4B4740] leading-relaxed whitespace-pre-line line-clamp-5">{todo.note}</p>}
+      {todo.note && <p className="ps-7 text-xs text-ink-soft leading-relaxed whitespace-pre-line line-clamp-5">{todo.note}</p>}
 
       {todo.steps.length > 0 && (
         <ul className="ps-7 space-y-0.5">
@@ -473,7 +473,7 @@ const NoteRow: React.FC<{ todo: PersonalTodo; onEdit?: () => void; archived: boo
             <li key={s.id}>
               <label className="flex items-start gap-2 text-xs cursor-pointer">
                 <input type="checkbox" checked={s.done} disabled={isDone} onChange={() => toggleStep(s.id)} className="mt-0.5 w-3.5 h-3.5 accent-sky-700" />
-                <span className={s.done ? 'line-through text-[#8C867A]' : 'text-[#2D2D2D]'}>{s.text}</span>
+                <span className={s.done ? 'line-through text-faint' : 'text-ink'}>{s.text}</span>
               </label>
             </li>
           ))}

@@ -22,6 +22,7 @@ import {
   FileText,
   MessageSquareHeart
 } from 'lucide-react';
+import { PageHeader } from '../common/PageHeader';
 
 export const TrainingModule: React.FC = () => {
   const { trainings, currentUser, can, enrollTraining, leaveTraining, deleteTraining, appSettings, focusId } = usePortal();
@@ -75,41 +76,25 @@ export const TrainingModule: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-5 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#dc2626]/30 text-[#E6E0D5] text-xs font-semibold border border-[#dc2626]/40">
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>پرتال توسعه سرمایه‌های انسانی و آموزش رویا</span>
-            </div>
-            <h1 className="text-xl sm:text-3xl font-black text-white">برنامه‌ها و دوره‌های آموزشی سازمانی</h1>
-            <p className="text-[#E6E0D5] text-xs sm:text-sm max-w-2xl leading-relaxed">
-              ارتقای مستمر مهارتهای تخصصی، تکنیک‌های طراحی، استانداردهای بین‌المللی پوشش‌های سطح و فنون مذاکره B2B.
-            </p>
-          </div>
-
-          {can('trainings.manage') && (
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="px-5 py-3 text-xs font-bold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-2xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap self-start sm:self-auto"
-            >
-              <Plus className="w-4 h-4" />
-              <span>تعریف دوره آموزشی جدید</span>
-            </button>
-          )}
-        </div>
-      </div>
+      <PageHeader icon={<GraduationCap />} title="آموزش" description="دوره‌ها و کارگاه‌های آموزشی رویا؛ ثبت‌نام، یادآوری و جزوه‌ها همین‌جاست.">
+        {can('trainings.manage') && (
+          <button onClick={() => setIsAddModalOpen(true)} className={primaryButtonClass}>
+            <Plus className="w-4 h-4" />
+            <span>تعریف دورهٔ آموزشی جدید</span>
+          </button>
+        )}
+      </PageHeader>
 
       {/* Category Tabs */}
-      <div className="bg-white p-4 rounded-2xl border border-[#E6E0D5] shadow-xs flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+      <div className="bg-white p-4 rounded-2xl border border-line shadow-xs flex items-center gap-1.5 overflow-x-auto no-scrollbar">
         {categories.map((cat) => (
           <button
             key={cat.id}
             onClick={() => setSelectedCategory(cat.id)}
             className={`px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${
               selectedCategory === cat.id
-                ? 'bg-[#991b1b] text-white shadow-xs'
-                : 'bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D]'
+                ? 'bg-brand-strong text-white shadow-xs'
+                : 'bg-surface hover:bg-line text-ink'
             }`}
           >
             {cat.label}
@@ -120,9 +105,9 @@ export const TrainingModule: React.FC = () => {
       {/* Course Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredTrainings.length === 0 ? (
-          <div className="md:col-span-2 lg:col-span-3 py-12 text-center bg-white rounded-2xl border border-dashed border-[#E6E0D5]">
-            <GraduationCap className="w-10 h-10 text-[#8C867A] mx-auto mb-2" />
-            <p className="text-sm font-bold text-[#6E6A60]">دوره‌ای در این بخش یافت نشد.</p>
+          <div className="md:col-span-2 lg:col-span-3 py-12 text-center bg-white rounded-2xl border border-dashed border-line">
+            <GraduationCap className="w-10 h-10 text-faint mx-auto mb-2" />
+            <p className="text-sm font-bold text-muted">دوره‌ای در این بخش یافت نشد.</p>
           </div>
         ) : (
           ordered.map((program) => {
@@ -140,14 +125,14 @@ export const TrainingModule: React.FC = () => {
                 key={program.id}
                 id={`training-${program.id}`}
                 aria-label={program.title}
-                className={`bg-white rounded-2xl border overflow-hidden hover:border-[#991b1b] hover:shadow-xl transition-all flex flex-col justify-between ${focusId === program.id ? 'border-[#991b1b] ring-2 ring-red-200' : 'border-[#E6E0D5]'}`}
+                className={`bg-white rounded-2xl border overflow-hidden hover:border-brand-strong hover:shadow-xl transition-all flex flex-col justify-between ${focusId === program.id ? 'border-brand-strong ring-2 ring-red-200' : 'border-line'}`}
               >
                 {/* Course Cover Image */}
-                <div className="relative h-44 overflow-hidden bg-[#F5F2ED] flex items-center justify-center">
+                <div className="relative h-44 overflow-hidden bg-surface flex items-center justify-center">
                   {program.coverImage ? (
                     <img src={program.coverImage} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <GraduationCap className="w-12 h-12 text-[#D9D4CB]" />
+                    <GraduationCap className="w-12 h-12 text-line-strong" />
                   )}
                   {can('trainings.manage') && (
                     <div className="absolute top-3 left-3 flex items-center gap-1.5">
@@ -155,7 +140,7 @@ export const TrainingModule: React.FC = () => {
                         onClick={() => setEditingId(program.id)}
                         aria-label={`ویرایش دوره ${program.title}`}
                         title="ویرایش دوره"
-                        className="p-1.5 bg-white/90 hover:bg-white text-[#2D2D2D] rounded-lg"
+                        className="p-1.5 bg-white/90 hover:bg-white text-ink rounded-lg"
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
@@ -169,7 +154,7 @@ export const TrainingModule: React.FC = () => {
                       </button>
                     </div>
                   )}
-                  <span className="absolute top-3 right-3 px-3 py-1 text-[10px] font-bold bg-[#7f1d1d]/80 text-white backdrop-blur-xs rounded-full">
+                  <span className="absolute top-3 right-3 px-3 py-1 text-xs font-bold bg-brand-deep/80 text-white backdrop-blur-xs rounded-full">
                     {program.category}
                   </span>
                 </div>
@@ -177,33 +162,33 @@ export const TrainingModule: React.FC = () => {
                 {/* Course Details */}
                 <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                   <div className="space-y-2">
-                    <h3 className="text-sm font-bold text-[#2D2D2D] leading-snug">
+                    <h3 className="text-sm font-bold text-ink leading-snug">
                       {program.title}
                     </h3>
 
-                    <p className="text-xs text-[#6E6A60] leading-relaxed line-clamp-3">
+                    <p className="text-xs text-muted leading-relaxed line-clamp-3">
                       {program.description}
                     </p>
 
                     {/* Metadata */}
-                    <div className="space-y-1.5 pt-2 text-xs text-[#6E6A60]">
+                    <div className="space-y-1.5 pt-2 text-xs text-muted">
                       <div className="flex items-center gap-2">
-                        <UserCheck className="w-3.5 h-3.5 text-[#991b1b]" />
+                        <UserCheck className="w-3.5 h-3.5 text-brand-strong" />
                         <span>مدرس: <strong>{program.instructor}</strong>{program.instructorRole && ` (${program.instructorRole})`}</span>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5 text-[#991b1b]" />
+                        <Calendar className="w-3.5 h-3.5 text-brand-strong" />
                         <span>تاریخ: {formatDate(program.date)}{program.time && ` | ساعت: ${toPersianDigits(program.time)}`}{program.duration && ` | ${program.duration}`}</span>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <MapPin className="w-3.5 h-3.5 text-[#991b1b]" />
+                        <MapPin className="w-3.5 h-3.5 text-brand-strong" />
                         <span>مکان: {program.location || '—'}</span>
                       </div>
                       {program.prerequisites && (
                         <div className="flex items-center gap-2">
-                          <BookOpen className="w-3.5 h-3.5 text-[#991b1b]" />
+                          <BookOpen className="w-3.5 h-3.5 text-brand-strong" />
                           <span>پیش‌نیاز: {program.prerequisites}</span>
                         </div>
                       )}
@@ -211,31 +196,31 @@ export const TrainingModule: React.FC = () => {
                   </div>
 
                   {/* Capacity Progress Bar & Enrollment Button */}
-                  <div className="space-y-3 pt-3 border-t border-[#E6E0D5]">
+                  <div className="space-y-3 pt-3 border-t border-line">
                     <div>
-                      <div className="flex items-center justify-between text-[11px] font-bold mb-1">
-                        <span className="text-[#6E6A60]">تکمیل ظرفیت ثبت‌نام:</span>
+                      <div className="flex items-center justify-between text-xs font-bold mb-1">
+                        <span className="text-muted">تکمیل ظرفیت ثبت‌نام:</span>
                         {runs(program) ? (
                           <button
                             onClick={() => setEnrollmentsId(program.id)}
-                            className="text-[#991b1b] hover:underline flex items-center gap-1"
+                            className="text-brand-strong hover:underline flex items-center gap-1"
                             title="دیدن فهرست ثبت‌نام‌شده‌ها"
                           >
                             <Users className="w-3.5 h-3.5" />
                             {toPersianDigits(`${enrolledCount} از ${program.capacity} نفر (${percentage}٪)`)}
                           </button>
                         ) : (
-                          <span className="text-[#991b1b]">{toPersianDigits(`${enrolledCount} از ${program.capacity} نفر (${percentage}٪)`)}</span>
+                          <span className="text-brand-strong">{toPersianDigits(`${enrolledCount} از ${program.capacity} نفر (${percentage}٪)`)}</span>
                         )}
                       </div>
-                      <div className="w-full h-2.5 bg-[#F5F2ED] rounded-full overflow-hidden">
+                      <div className="w-full h-2.5 bg-surface rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-[#991b1b] to-[#383D33] rounded-full transition-all duration-300"
+                          className="h-full bg-gradient-to-r from-brand-strong to-brand-deep rounded-full transition-all duration-300"
                           style={{ width: `${percentage}%` }}
                         />
                       </div>
                       {program.waitlistCount > 0 && (
-                        <p className="mt-1 text-[11px] text-[#6E6A60] flex items-center gap-1">
+                        <p className="mt-1 text-xs text-muted flex items-center gap-1">
                           <Hourglass className="w-3 h-3" /> {toPersianDigits(program.waitlistCount)} نفر در لیست انتظار
                         </p>
                       )}
@@ -243,14 +228,14 @@ export const TrainingModule: React.FC = () => {
 
                     {program.materials.length > 0 && (
                       <div className="space-y-1">
-                        <p className="text-[11px] font-bold text-[#6E6A60]">جزوه و اسلایدها:</p>
+                        <p className="text-xs font-bold text-muted">جزوه و اسلایدها:</p>
                         <ul className="space-y-1">
                           {program.materials.map((m) => (
                             <li key={m.url}>
-                              <a href={m.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs font-bold text-[#991b1b] hover:underline">
+                              <a href={m.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs font-bold text-brand-strong hover:underline">
                                 <FileText className="w-3.5 h-3.5 shrink-0" />
                                 <span className="truncate">{m.name}</span>
-                                <span className="text-[10px] font-normal text-[#8C867A] shrink-0">{formatFileSize(m.size)}</span>
+                                <span className="text-xs font-normal text-faint shrink-0">{formatFileSize(m.size)}</span>
                               </a>
                             </li>
                           ))}
@@ -262,11 +247,11 @@ export const TrainingModule: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setEnrollmentsId(program.id)}
-                        className="w-full py-2 px-4 rounded-xl text-xs font-bold border border-[#D9D4CB] hover:border-[#991b1b] text-[#2D2D2D] flex items-center justify-center gap-1.5"
+                        className="w-full py-2 px-4 rounded-xl text-xs font-bold border border-line-strong hover:border-brand-strong text-ink flex items-center justify-center gap-1.5"
                       >
-                        <Users className="w-4 h-4 text-[#991b1b]" />
+                        <Users className="w-4 h-4 text-brand-strong" />
                         {isPast || program.date === today ? 'حضور و غیاب، جزوه و نظرها' : 'شرکت‌کننده‌ها و جزوه'}
-                        {program.feedbackCount ? <span className="text-[10px] text-[#6E6A60]">({toPersianDigits(program.feedbackCount)} نظر)</span> : null}
+                        {program.feedbackCount ? <span className="text-xs text-muted">({toPersianDigits(program.feedbackCount)} نظر)</span> : null}
                       </button>
                     )}
 
@@ -274,7 +259,7 @@ export const TrainingModule: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setFeedbackId(program.id)}
-                        className={`w-full py-2 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 ${program.myFeedback ? 'text-[#6E6A60] hover:underline' : 'bg-amber-100 text-amber-900 hover:bg-amber-200'}`}
+                        className={`w-full py-2 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 ${program.myFeedback ? 'text-muted hover:underline' : 'bg-amber-100 text-amber-900 hover:bg-amber-200'}`}
                       >
                         <MessageSquareHeart className="w-4 h-4" />
                         {program.myFeedback ? 'نظر شما ثبت شد (تغییر نظر)' : 'دوره چطور بود؟ نظر بدهید'}
@@ -286,14 +271,14 @@ export const TrainingModule: React.FC = () => {
                       disabled={isPast || attendanceTaken || !currentUser}
                       className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
                         isPast || attendanceTaken
-                          ? 'bg-[#F5F2ED] text-[#8C867A] cursor-not-allowed'
+                          ? 'bg-surface text-faint cursor-not-allowed'
                           : isEnrolled
-                          ? 'bg-[#EBF2E8] text-[#991b1b] border border-[#991b1b]/30 hover:bg-[#DEEAD9]'
+                          ? 'bg-sage-soft text-brand-strong border border-brand-strong/30 hover:bg-sage-soft'
                           : isWaiting
                           ? 'bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100'
                           : isFull
-                          ? 'bg-white text-[#991b1b] border border-[#991b1b] hover:bg-[#FDF2F2]'
-                          : 'bg-[#991b1b] hover:bg-[#495040] text-white shadow-md'
+                          ? 'bg-white text-brand-strong border border-brand-strong hover:bg-brand-soft'
+                          : 'bg-brand-strong hover:bg-brand-deep text-white shadow-md'
                       }`}
                     >
                       {isPast ? (
@@ -310,7 +295,7 @@ export const TrainingModule: React.FC = () => {
                         <span>{program.myAttended ? 'حضور شما ثبت شد' : 'غایب ثبت شدید'}</span>
                       ) : isEnrolled ? (
                         <>
-                          <CheckCircle2 className="w-4 h-4 text-[#991b1b]" />
+                          <CheckCircle2 className="w-4 h-4 text-brand-strong" />
                           <span>ثبت‌نام شده‌اید (جهت لغو کلیک کنید)</span>
                         </>
                       ) : isWaiting ? (

@@ -124,12 +124,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
 
       <div className="overflow-y-auto overscroll-contain flex-1 min-h-0">
         {/* Cover banner scrolls together with the avatar that overlaps it, so nothing is cut off. */}
-        <div className="h-28 sm:h-32 bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444]" />
+        <div className="h-28 sm:h-32 bg-gradient-to-r from-brand-deep via-brand-strong to-red-500" />
 
         <div className="px-5 sm:px-6 pb-6">
           
           {/* Avatar and Main Info Overlay */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 -mt-12 sm:-mt-14 mb-6 pb-4 border-b border-[#E6E0D5]">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 -mt-12 sm:-mt-14 mb-6 pb-4 border-b border-line">
             <div className="flex items-start gap-4 min-w-0">
               <Avatar
                 src={user.avatar}
@@ -138,27 +138,27 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                 className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-4 border-white shadow-lg text-2xl"
               />
               <div className="space-y-1 min-w-0 pt-14 sm:pt-16">
-                <h2 className="text-xl sm:text-2xl font-black text-[#2D2D2D] break-words">
+                <h2 className="text-xl sm:text-2xl font-black text-ink break-words">
                   {user.firstName} {user.lastName}
                 </h2>
-                <p className="text-xs font-bold text-[#dc2626] flex items-center gap-1.5">
+                <p className="text-xs font-bold text-brand flex items-center gap-1.5">
                   <Briefcase className="w-3.5 h-3.5" />
                   <span>{user.position || NO_POSITION}</span>
                 </p>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[#6E6A60]">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
                   {appSettings?.departments.includes(user.department) && tabOn(appSettings, 'departments') ? (
                     <button
                       type="button"
                       onClick={() => setActiveTab('departments', user.department)}
-                      className="flex items-center gap-1 hover:text-[#dc2626] underline-offset-2 hover:underline"
+                      className="flex items-center gap-1 hover:text-brand underline-offset-2 hover:underline"
                       title="صفحهٔ واحد"
                     >
-                      <Building2 className="w-3 h-3 text-[#8C867A]" />
+                      <Building2 className="w-3 h-3 text-faint" />
                       <span>بخش: {user.department}</span>
                     </button>
                   ) : (
                     <span className="flex items-center gap-1">
-                      <Building2 className="w-3 h-3 text-[#8C867A]" />
+                      <Building2 className="w-3 h-3 text-faint" />
                       <span>{user.department ? `بخش: ${user.department}` : NO_DEPARTMENT}</span>
                     </span>
                   )}
@@ -166,7 +166,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                     <>
                       <span>•</span>
                       <span className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-[#8C867A]" />
+                        <MapPin className="w-3 h-3 text-faint" />
                         <span>{user.location}</span>
                       </span>
                     </>
@@ -179,31 +179,31 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => copyToClipboard(user.extension, 'داخلی')}
-                className="px-3 py-2 bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D] rounded-xl text-xs font-bold border border-[#E6E0D5] flex items-center gap-1.5 transition-colors"
+                className="px-3 py-2 bg-surface hover:bg-line text-ink rounded-xl text-xs font-bold border border-line flex items-center gap-1.5 transition-colors"
                 title="شماره داخلی همکار"
               >
-                <PhoneCall className="w-3.5 h-3.5 text-[#dc2626]" />
+                <PhoneCall className="w-3.5 h-3.5 text-brand" />
                 <span>داخلی: <strong dir="ltr">{user.extension || '—'}</strong></span>
-                {copiedField === 'داخلی' ? <Check className="w-3 h-3 text-[#991b1b]" /> : <Copy className="w-3 h-3 text-[#8C867A]" />}
+                {copiedField === 'داخلی' ? <Check className="w-3 h-3 text-brand-strong" /> : <Copy className="w-3 h-3 text-faint" />}
               </button>
 
               <button
                 onClick={() => copyToClipboard(user.mobile, 'موبایل')}
-                className="px-3 py-2 bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D] rounded-xl text-xs font-bold border border-[#E6E0D5] flex items-center gap-1.5 transition-colors"
+                className="px-3 py-2 bg-surface hover:bg-line text-ink rounded-xl text-xs font-bold border border-line flex items-center gap-1.5 transition-colors"
               >
-                <Phone className="w-3.5 h-3.5 text-[#991b1b]" />
+                <Phone className="w-3.5 h-3.5 text-brand-strong" />
                 <span dir="ltr">{user.mobile || '—'}</span>
-                {copiedField === 'موبایل' ? <Check className="w-3 h-3 text-[#991b1b]" /> : <Copy className="w-3 h-3 text-[#8C867A]" />}
+                {copiedField === 'موبایل' ? <Check className="w-3 h-3 text-brand-strong" /> : <Copy className="w-3 h-3 text-faint" />}
               </button>
             </div>
           </div>
 
           {can('users.manage') && user.isActive && (
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-4 p-3 rounded-2xl border border-dashed border-[#D9D4CB] text-xs">
-              <span className="text-[#6E6A60]">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4 p-3 rounded-2xl border border-dashed border-line-strong text-xs">
+              <span className="text-muted">
                 {introduction ? 'این همکار در داشبورد به عنوان همکار جدید معرفی شده است.' : 'هنوز در داشبورد به عنوان همکار جدید معرفی نشده است.'}
               </span>
-              <button type="button" onClick={() => setIntroducing(true)} className="px-3 py-1.5 bg-[#991b1b] hover:bg-[#7f1d1d] text-white font-bold rounded-xl flex items-center gap-1.5">
+              <button type="button" onClick={() => setIntroducing(true)} className="px-3 py-1.5 bg-brand-strong hover:bg-brand-deep text-white font-bold rounded-xl flex items-center gap-1.5">
                 <UserPlus className="w-3.5 h-3.5" />
                 {introduction ? 'ویرایش کارت معرفی' : 'معرفی به عنوان همکار جدید'}
               </button>
@@ -212,39 +212,39 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
           {introducing && <IntroduceColleagueModal colleague={user} card={introduction} onClose={() => setIntroducing(false)} />}
 
           {/* Quick Contact & Info Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 p-4 bg-[#F5F2ED] rounded-2xl border border-[#E6E0D5] text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 p-4 bg-surface rounded-2xl border border-line text-xs">
             <div className="flex items-center gap-2.5">
-              <Mail className="w-4 h-4 text-[#8C867A]" />
+              <Mail className="w-4 h-4 text-faint" />
               <div>
-                <span className="text-[#8C867A] text-[10px] block">پست الکترونیکی:</span>
+                <span className="text-faint text-xs block">پست الکترونیکی:</span>
                 {user.email ? (
-                  <a href={`mailto:${user.email}`} dir="ltr" className="font-semibold text-[#2D2D2D] hover:text-[#dc2626] break-all">
+                  <a href={`mailto:${user.email}`} dir="ltr" className="font-semibold text-ink hover:text-brand break-all">
                     {user.email}
                   </a>
                 ) : (
-                  <span className="text-[#8C867A]">—</span>
+                  <span className="text-faint">—</span>
                 )}
               </div>
             </div>
 
             <div className="flex items-center gap-2.5">
-              <Calendar className="w-4 h-4 text-[#8C867A]" />
+              <Calendar className="w-4 h-4 text-faint" />
               <div>
-                <span className="text-[#8C867A] text-[10px] block">زادروز:</span>
-                <span className="font-bold text-[#2D2D2D]">
+                <span className="text-faint text-xs block">زادروز:</span>
+                <span className="font-bold text-ink">
                   {formatBirthDay(user.birthDay) || '—'}
-                  {isOwnProfile && user.hideBirthday && <span className="font-normal text-[#8C867A]"> (برای همکاران پنهان)</span>}
+                  {isOwnProfile && user.hideBirthday && <span className="font-normal text-faint"> (برای همکاران پنهان)</span>}
                 </span>
               </div>
             </div>
 
             <div className="flex items-center gap-2.5">
-              <UserCheck className="w-4 h-4 text-[#8C867A]" />
+              <UserCheck className="w-4 h-4 text-faint" />
               <div>
-                <span className="text-[#8C867A] text-[10px] block">مدیر مستقیم:</span>
-                <span className="font-bold text-[#2D2D2D]">
+                <span className="text-faint text-xs block">مدیر مستقیم:</span>
+                <span className="font-bold text-ink">
                   {user.directManager || (unitHead ? `${unitHead.firstName} ${unitHead.lastName}` : '—')}
-                  {!user.directManager && unitHead && <span className="font-normal text-[#8C867A]"> (مسئول واحد)</span>}
+                  {!user.directManager && unitHead && <span className="font-normal text-faint"> (مسئول واحد)</span>}
                 </span>
               </div>
             </div>
@@ -359,7 +359,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                   <div key={exp.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
                     <div className="flex items-center justify-between text-xs font-bold text-slate-800">
                       <span>{exp.role} - <span className="text-red-700">{exp.company}</span></span>
-                      <span className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
+                      <span className="flex items-center gap-2 text-xs text-slate-500 font-medium">
                         {exp.startYear} - {exp.endYear}
                         {canEdit && (
                           <button
@@ -373,7 +373,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                       </span>
                     </div>
                     {exp.description && (
-                      <p className="text-[11px] text-slate-600 leading-relaxed pt-1">
+                      <p className="text-xs text-slate-600 leading-relaxed pt-1">
                         {exp.description}
                       </p>
                     )}
@@ -433,7 +433,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                   >
                     <span>{skill.name}</span>
                     {isOwnProfile ? (
-                      <span className="flex items-center gap-1 px-1.5 py-0.5 text-slate-500 text-[10px] font-bold" title="تعداد تأییدها">
+                      <span className="flex items-center gap-1 px-1.5 py-0.5 text-slate-500 text-xs font-bold" title="تعداد تأییدها">
                         <ThumbsUp className="w-3 h-3" />
                         <span>{skill.endorsements}</span>
                       </span>
@@ -441,7 +441,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                       <button
                         onClick={() => endorseSkill(user.id, skill.id)}
                         aria-pressed={skill.endorsedByMe}
-                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[10px] font-bold border shadow-2xs ${skill.endorsedByMe ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 hover:bg-red-50 border-slate-200'}`}
+                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-xs font-bold border shadow-2xs ${skill.endorsedByMe ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 hover:bg-red-50 border-slate-200'}`}
                         title={skill.endorsedByMe ? 'لغو تأیید' : 'تأیید این مهارت'}
                       >
                         <ThumbsUp className="w-3 h-3" />
@@ -463,10 +463,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
         </div>
       </div>
 
-      <div className="px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-[#F5F2ED] border-t border-[#E6E0D5] flex justify-end shrink-0">
+      <div className="px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-surface border-t border-line flex justify-end shrink-0">
         <button
           onClick={onClose}
-          className="px-5 py-2 text-xs font-bold text-[#2D2D2D] bg-white hover:bg-[#F5F2ED] border border-[#D9D4CB] rounded-xl transition-colors"
+          className="px-5 py-2 text-xs font-bold text-ink bg-white hover:bg-surface border border-line-strong rounded-xl transition-colors"
         >
           بستن کارت همکار
         </button>

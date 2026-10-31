@@ -21,18 +21,18 @@ export const MonthlySummaries: React.FC<{ onShowMonth: (from: string, to: string
   }, []);
 
   return (
-    <section aria-labelledby="monthly-summaries" className="flex flex-wrap items-center gap-2 bg-white rounded-2xl px-4 py-3 border border-[#e5e5e5]">
-      <h3 id="monthly-summaries" className="text-xs font-black text-[#2D2D2D] flex items-center gap-1.5 ml-2">
-        <CalendarRange className="w-4 h-4 text-[#991b1b]" /> خلاصه‌های ماهانه
+    <section aria-labelledby="monthly-summaries" className="flex flex-wrap items-center gap-2 bg-white rounded-2xl px-4 py-3 border border-line">
+      <h3 id="monthly-summaries" className="text-xs font-black text-ink flex items-center gap-1.5 ml-2">
+        <CalendarRange className="w-4 h-4 text-brand-strong" /> خلاصه‌های ماهانه
       </h3>
       {summaries.length === 0 ? (
-        <p className="text-[11px] text-[#6E6A60]">خلاصهٔ هر ماه، صبح روز اول ماه بعد اینجا می‌آید و برای کسانی که گزارش‌ها را می‌بینند اعلان می‌شود.</p>
+        <p className="text-xs text-muted">خلاصهٔ هر ماه، صبح روز اول ماه بعد اینجا می‌آید و برای کسانی که گزارش‌ها را می‌بینند اعلان می‌شود.</p>
       ) : (
         summaries.map((s) => (
           <button
             key={s.month}
             onClick={() => setOpen(s)}
-            className="px-3 py-1.5 text-xs font-bold rounded-xl bg-[#F5F2ED] hover:bg-[#E6E0D5] text-[#2D2D2D]"
+            className="px-3 py-1.5 text-xs font-bold rounded-xl bg-surface hover:bg-line text-ink"
           >
             {jalaliMonthLabel(s.month)}
           </button>
@@ -53,9 +53,9 @@ export const MonthlySummaries: React.FC<{ onShowMonth: (from: string, to: string
 };
 
 const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="flex items-start justify-between gap-3 py-2 border-b border-[#F5F2ED] last:border-0 text-xs">
-    <dt className="text-[#6E6A60]">{label}</dt>
-    <dd className="font-bold text-[#2D2D2D] text-left">{children}</dd>
+  <div className="flex items-start justify-between gap-3 py-2 border-b border-surface last:border-0 text-xs">
+    <dt className="text-muted">{label}</dt>
+    <dd className="font-bold text-ink text-left">{children}</dd>
   </div>
 );
 
@@ -75,7 +75,7 @@ const SummaryModal: React.FC<{ summary: StoredMonthlySummary; onClose: () => voi
   >
     <div className="space-y-5">
       <section>
-        <h4 className="text-xs font-black text-[#991b1b] mb-1">اطلاع‌رسانی</h4>
+        <h4 className="text-xs font-black text-brand-strong mb-1">اطلاع‌رسانی</h4>
         <dl>
           <Row label="اطلاعیه‌های منتشرشده">{toPersianDigits(s.news.items)}</Row>
           <Row label="خوانده‌شدن">{formatPercent(s.news.readPercent)}</Row>
@@ -88,7 +88,7 @@ const SummaryModal: React.FC<{ summary: StoredMonthlySummary; onClose: () => voi
         </dl>
       </section>
       <section>
-        <h4 className="text-xs font-black text-[#991b1b] mb-1">مشارکت</h4>
+        <h4 className="text-xs font-black text-brand-strong mb-1">مشارکت</h4>
         <dl>
           <Row label="نظرسنجی‌ها">
             {s.participation.polls > 0 ? `${toPersianDigits(s.participation.polls)}، با ${formatPercent(s.participation.responsePercent)} پاسخ` : '—'}

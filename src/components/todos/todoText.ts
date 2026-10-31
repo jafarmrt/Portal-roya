@@ -9,8 +9,8 @@ export const GROUP_STYLE: Record<TodoGroup, string> = {
   overdue: 'text-red-700',
   today: 'text-amber-800',
   week: 'text-sky-800',
-  later: 'text-[#6E6A60]',
-  none: 'text-[#6E6A60]',
+  later: 'text-muted',
+  none: 'text-muted',
 };
 
 /** Starred first, then by due date, then oldest first. */

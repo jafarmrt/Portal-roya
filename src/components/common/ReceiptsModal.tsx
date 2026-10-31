@@ -117,7 +117,7 @@ export const ReceiptsModal: React.FC<{ item: ReceiptsSource; onClose: () => void
       {receipts && (
         <div className="space-y-4">
           {deadline !== null && (
-            <p className={`text-xs flex items-center gap-1.5 ${deadline < Date.now() ? 'text-red-700 font-bold' : 'text-[#4B4740]'}`}>
+            <p className={`text-xs flex items-center gap-1.5 ${deadline < Date.now() ? 'text-red-700 font-bold' : 'text-ink-soft'}`}>
               <AlarmClock className="w-4 h-4" />
               مهلت تأیید: {formatDate(item.ackDeadline!)}
               {deadline < Date.now() && ' (گذشته است)'}
@@ -127,20 +127,20 @@ export const ReceiptsModal: React.FC<{ item: ReceiptsSource; onClose: () => void
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
               <div className="text-2xl font-black text-emerald-800">{toPersianDigits(done.length)}</div>
-              <div className="text-[11px] text-emerald-900">
+              <div className="text-xs text-emerald-900">
                 {doneLabel}
                 {late > 0 && ` (${toPersianDigits(late)} نفر با تأخیر)`}
               </div>
             </div>
             <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200">
               <div className="text-2xl font-black text-amber-800">{toPersianDigits(pending.length)}</div>
-              <div className="text-[11px] text-amber-900">{pendingLabel}</div>
+              <div className="text-xs text-amber-900">{pendingLabel}</div>
             </div>
           </div>
 
           {byDepartment.length > 1 && (
             <div className="space-y-1.5">
-              <span className="text-[11px] font-bold text-[#6E6A60]">به تفکیک واحد</span>
+              <span className="text-xs font-bold text-muted">به تفکیک واحد</span>
               <div className="flex flex-wrap gap-1.5">
                 {byDepartment.map(([name, g]) => (
                   <button
@@ -148,7 +148,7 @@ export const ReceiptsModal: React.FC<{ item: ReceiptsSource; onClose: () => void
                     type="button"
                     aria-pressed={department === name}
                     onClick={() => setDepartment(department === name ? ALL : name)}
-                    className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-colors ${
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
                       department === name ? 'bg-red-700 text-white border-red-700' : g.done < g.total ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'
                     }`}
                   >
@@ -169,7 +169,7 @@ export const ReceiptsModal: React.FC<{ item: ReceiptsSource; onClose: () => void
             <button onClick={exportCsv} className={secondaryButtonClass}>
               <Download className="w-4 h-4" /> خروجی اکسل
             </button>
-            {remindedAt && <span className="text-[11px] text-[#6E6A60]">آخرین یادآوری: {formatDateTime(remindedAt)}</span>}
+            {remindedAt && <span className="text-xs text-muted">آخرین یادآوری: {formatDateTime(remindedAt)}</span>}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -180,7 +180,7 @@ export const ReceiptsModal: React.FC<{ item: ReceiptsSource; onClose: () => void
                   role="tab"
                   aria-selected={tab === t}
                   onClick={() => setTab(t)}
-                  className={`px-3 py-1.5 rounded-xl font-bold ${tab === t ? 'bg-red-700 text-white' : 'bg-[#F5F2ED]'}`}
+                  className={`px-3 py-1.5 rounded-xl font-bold ${tab === t ? 'bg-red-700 text-white' : 'bg-surface'}`}
                 >
                   {t === 'pending' ? pendingLabel : doneLabel}
                 </button>
@@ -188,7 +188,7 @@ export const ReceiptsModal: React.FC<{ item: ReceiptsSource; onClose: () => void
             </div>
             <div className="flex items-center gap-2">
               {locations.length > 1 && (
-                <SearchableSelect aria-label="محل استقرار" value={location} onChange={(e) => setLocation(e.target.value)} className="px-2.5 py-1.5 border border-[#D9D4CB] rounded-xl bg-white text-xs focus:border-red-600 outline-hidden">
+                <SearchableSelect aria-label="محل استقرار" value={location} onChange={(e) => setLocation(e.target.value)} className="px-2.5 py-1.5 border border-line-strong rounded-xl bg-white text-xs focus:border-red-600 outline-hidden">
                   <option value={ALL}>همهٔ محل‌ها</option>
                   {locations.map((l) => (
                     <option key={l} value={l}>{l}</option>
@@ -206,7 +206,7 @@ export const ReceiptsModal: React.FC<{ item: ReceiptsSource; onClose: () => void
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-[#6E6A60] border-b border-[#E6E0D5]">
+                <tr className="text-muted border-b border-line">
                   <th className="text-right py-2 font-medium">نام</th>
                   <th className="text-right py-2 font-medium">واحد</th>
                   <th className="text-right py-2 font-medium">محل</th>
@@ -216,7 +216,7 @@ export const ReceiptsModal: React.FC<{ item: ReceiptsSource; onClose: () => void
               </thead>
               <tbody>
                 {shown.map((r) => (
-                  <tr key={r.userId} className="border-b border-[#F5F2ED]">
+                  <tr key={r.userId} className="border-b border-surface">
                     <td className="py-2 font-bold">{r.name}</td>
                     <td className="py-2">{r.department}</td>
                     <td className="py-2">{r.location || '—'}</td>
@@ -224,13 +224,13 @@ export const ReceiptsModal: React.FC<{ item: ReceiptsSource; onClose: () => void
                     {item.requiresAck && (
                       <td className="py-2">
                         {r.acknowledgedAt ? formatDateTime(r.acknowledgedAt) : '—'}
-                        {isLate(r) && <span className="mr-1 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 text-[10px] font-bold">با تأخیر</span>}
+                        {isLate(r) && <span className="mr-1 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 text-xs font-bold">با تأخیر</span>}
                       </td>
                     )}
                   </tr>
                 ))}
                 {shown.length === 0 && (
-                  <tr><td colSpan={5} className="py-6 text-center text-[#6E6A60]">کسی در این فهرست نیست.</td></tr>
+                  <tr><td colSpan={5} className="py-6 text-center text-muted">کسی در این فهرست نیست.</td></tr>
                 )}
               </tbody>
             </table>

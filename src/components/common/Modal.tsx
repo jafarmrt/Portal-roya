@@ -70,7 +70,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({ onClose, children, size 
         aria-labelledby={labelledBy}
         aria-label={labelledBy ? undefined : label}
         tabIndex={-1}
-        className={`relative bg-white shadow-2xl border border-[#E6E0D5] w-full ${SIZES[size]} rounded-t-3xl sm:rounded-3xl overflow-hidden text-right max-h-[92dvh] sm:max-h-[calc(100dvh-2rem)] flex flex-col outline-none ${className}`}
+        className={`relative bg-white shadow-2xl border border-line w-full ${SIZES[size]} rounded-t-3xl sm:rounded-3xl overflow-hidden text-right max-h-[92dvh] sm:max-h-[calc(100dvh-2rem)] flex flex-col outline-none ${className}`}
       >
         {children}
       </div>
@@ -95,19 +95,19 @@ export const Modal: React.FC<ModalProps> = ({ title, subtitle, icon, onClose, ch
 
   return (
     <ModalShell onClose={onClose} size={size} labelledBy={titleId}>
-      <div className="flex items-center justify-between gap-3 px-5 sm:px-6 py-4 bg-[#F5F2ED] border-b border-[#E6E0D5] shrink-0">
+      <div className="flex items-center justify-between gap-3 px-5 sm:px-6 py-4 bg-surface border-b border-line shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           {icon && <div className="p-2 bg-red-100 text-red-700 rounded-xl shrink-0">{icon}</div>}
           <div className="min-w-0">
-            <h3 id={titleId} className="text-base font-bold text-[#2D2D2D] truncate">{title}</h3>
-            {subtitle && <p className="text-xs text-[#6E6A60] truncate">{subtitle}</p>}
+            <h3 id={titleId} className="text-base font-bold text-ink truncate">{title}</h3>
+            {subtitle && <p className="text-xs text-muted truncate">{subtitle}</p>}
           </div>
         </div>
         <ModalCloseButton onClose={onClose} />
       </div>
       <div className="p-5 sm:p-6 overflow-y-auto overscroll-contain flex-1 min-h-0 text-xs">{children}</div>
       {footer && (
-        <div className="px-5 sm:px-6 py-3 sm:py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-[#F5F2ED] border-t border-[#E6E0D5] flex flex-wrap justify-end gap-2 shrink-0">
+        <div className="px-5 sm:px-6 py-3 sm:py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-surface border-t border-line flex flex-wrap justify-end gap-2 shrink-0">
           {footer}
         </div>
       )}
@@ -121,16 +121,16 @@ export const ModalCloseButton: React.FC<{ onClose: () => void; className?: strin
     data-close
     onClick={onClose}
     aria-label="بستن"
-    className={`p-2 text-[#8C867A] hover:text-[#2D2D2D] rounded-xl hover:bg-[#E6E0D5] transition-colors shrink-0 ${className}`}
+    className={`p-2 text-faint hover:text-ink rounded-xl hover:bg-line transition-colors shrink-0 ${className}`}
   >
     <X className="w-5 h-5" />
   </button>
 );
 
 export const inputClass =
-  'w-full p-2.5 border border-[#D9D4CB] rounded-xl bg-white text-sm focus:border-red-600 focus:ring-2 focus:ring-red-600/20 outline-hidden disabled:opacity-60 disabled:bg-[#F5F2ED]';
-export const labelClass = 'block text-xs font-bold text-[#4B4740] mb-1';
+  'w-full p-2.5 border border-line-strong rounded-xl bg-white text-sm focus:border-red-600 focus:ring-2 focus:ring-red-600/20 outline-hidden disabled:opacity-60 disabled:bg-surface';
+export const labelClass = 'block text-xs font-bold text-ink-soft mb-1';
 export const primaryButtonClass =
   'px-5 py-2 text-xs font-bold text-white bg-red-700 hover:bg-red-800 rounded-xl shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2';
 export const secondaryButtonClass =
-  'px-4 py-2 text-xs font-bold text-[#2D2D2D] bg-white hover:bg-[#F5F2ED] border border-[#D9D4CB] rounded-xl transition-colors flex items-center gap-1.5';
+  'px-4 py-2 text-xs font-bold text-ink bg-white hover:bg-surface border border-line-strong rounded-xl transition-colors flex items-center gap-1.5';

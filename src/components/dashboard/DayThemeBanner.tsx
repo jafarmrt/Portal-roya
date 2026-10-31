@@ -47,7 +47,7 @@ export const ThemeBannerView: React.FC<{ theme: DayTheme; label: string; childre
         </span>
       ))}
       <div className={`relative min-w-0 ${look.decorations.length ? 'pl-12 sm:pl-24 md:pl-48' : ''}`}>
-        <p className="text-[11px] font-bold" style={{ color: look.accent }}>{label}</p>
+        <p className="text-xs font-bold" style={{ color: look.accent }}>{label}</p>
         <h2 className="text-lg sm:text-xl font-black mt-0.5">{theme.title}</h2>
         {theme.message && <p className="text-xs sm:text-sm mt-1.5 leading-relaxed max-w-2xl" style={{ color: look.muted }}>{theme.message}</p>}
         {children}
@@ -56,7 +56,7 @@ export const ThemeBannerView: React.FC<{ theme: DayTheme; label: string; childre
   );
 };
 
-const linkClass = 'tap-area inline-flex items-center gap-1 text-[11px] font-bold underline-offset-2 hover:underline';
+const linkClass = 'tap-area inline-flex items-center gap-1 text-xs font-bold underline-offset-2 hover:underline';
 
 /**
  * The top of the dashboard on Nowruz, the first day of each season, Yalda, the founding day and the

@@ -15,6 +15,7 @@ import {
   type SuggestionKind,
 } from '../../../shared/suggestions';
 import { Avatar } from '../common/Avatar';
+import { PageHeader } from '../common/PageHeader';
 
 const releaseHour = toPersianDigits(ANONYMOUS_RELEASE_HOUR);
 
@@ -41,9 +42,9 @@ interface BoxMessage extends SentMessage {
 
 type View = 'send' | 'mine' | 'track' | SuggestionBox;
 
-const cardClass = 'bg-white border border-[#E6E0D5] rounded-3xl p-4 sm:p-6';
-const inputClass = 'w-full px-3 py-2.5 rounded-xl border border-[#E6E0D5] bg-[#FDFBF7] text-sm focus:outline-none focus:border-[#dc2626]';
-const primaryButton = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#991b1b] hover:bg-[#7f1d1d] text-white text-xs font-bold disabled:opacity-50';
+const cardClass = 'bg-white border border-line rounded-3xl p-4 sm:p-6';
+const inputClass = 'w-full px-3 py-2.5 rounded-xl border border-line bg-page text-sm focus:outline-none focus:border-brand';
+const primaryButton = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand-strong hover:bg-brand-deep text-white text-xs font-bold disabled:opacity-50';
 
 /** A box's name and who it goes to, as the administrator named them. */
 const useBoxNames = () => {
@@ -56,7 +57,7 @@ const sentAt = (m: SentMessage) => (m.isAnonymous ? formatDate(m.createdAt) : fo
 
 const KindBadge: React.FC<{ kind: string }> = ({ kind }) => (
   <span
-    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+    className={`px-2 py-0.5 rounded-full text-xs font-bold ${
       kind === 'criticism' ? 'bg-amber-100 text-amber-900' : kind === 'suggestion' ? 'bg-emerald-100 text-emerald-900' : 'bg-stone-100 text-stone-700'
     }`}
   >
@@ -68,14 +69,14 @@ const ReplyBlock: React.FC<{ message: SentMessage; by?: string | null }> = ({ me
   const names = useBoxNames();
   return message.reply ? (
     <div className="mt-3 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-950 space-y-1">
-      <div className="text-[11px] font-bold text-emerald-800">
+      <div className="text-xs font-bold text-emerald-800">
         پاسخ {names(message.box).to}
         {by ? ` (${by})` : ''}، {formatDateTime(message.repliedAt)}
       </div>
       <p className="whitespace-pre-line leading-7">{message.reply}</p>
     </div>
   ) : (
-    <div className="mt-3 text-[11px] text-[#6E6A60]">{message.isRead ? 'خوانده شده، هنوز پاسخی داده نشده است.' : 'هنوز خوانده نشده است.'}</div>
+    <div className="mt-3 text-xs text-muted">{message.isRead ? 'خوانده شده، هنوز پاسخی داده نشده است.' : 'هنوز خوانده نشده است.'}</div>
   );
 };
 
@@ -111,25 +112,25 @@ const SendForm: React.FC<{ onSent: (trackingCode: string | null) => void }> = ({
     }
   };
 
-  if (!box) return <div className={`${cardClass} text-center text-sm text-[#6E6A60]`}>فعلاً هیچ صندوقی پیام تازه نمی‌پذیرد.</div>;
+  if (!box) return <div className={`${cardClass} text-center text-sm text-muted`}>فعلاً هیچ صندوقی پیام تازه نمی‌پذیرد.</div>;
 
   return (
     <form onSubmit={submit} className={`${cardClass} space-y-5`}>
       {openBoxes.length > 1 ? (
         <fieldset className="space-y-2">
-          <legend className="text-xs font-bold text-[#2D2D2D] mb-2">پیام برای چه کسی است؟</legend>
+          <legend className="text-xs font-bold text-ink mb-2">پیام برای چه کسی است؟</legend>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {openBoxes.map((id) => (
               <label
                 key={id}
                 className={`flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-colors ${
-                  box === id ? 'border-[#dc2626] bg-[#fef2f2]' : 'border-[#E6E0D5] hover:border-[#dc2626]/50'
+                  box === id ? 'border-brand bg-brand-soft' : 'border-line hover:border-brand/50'
                 }`}
               >
-                <input type="radio" name="box" value={id} checked={box === id} onChange={() => setBox(id)} className="accent-[#991b1b]" />
+                <input type="radio" name="box" value={id} checked={box === id} onChange={() => setBox(id)} className="accent-brand-strong" />
                 <span>
-                  <span className="block text-sm font-bold text-[#2D2D2D]">{names(id).label}</span>
-                  <span className="block text-[11px] text-[#6E6A60]">خواننده: {names(id).to}</span>
+                  <span className="block text-sm font-bold text-ink">{names(id).label}</span>
+                  <span className="block text-xs text-muted">خواننده: {names(id).to}</span>
                 </span>
               </label>
             ))}
@@ -137,19 +138,19 @@ const SendForm: React.FC<{ onSent: (trackingCode: string | null) => void }> = ({
         </fieldset>
       ) : (
         // Only one box is open, so there is nothing to choose.
-        <p className="text-sm font-bold text-[#2D2D2D]">
-          پیام شما به {names(box).to} می‌رسد <span className="text-[11px] font-normal text-[#6E6A60]">({names(box).label})</span>
+        <p className="text-sm font-bold text-ink">
+          پیام شما به {names(box).to} می‌رسد <span className="text-xs font-normal text-muted">({names(box).label})</span>
         </p>
       )}
 
       <fieldset>
-        <legend className="text-xs font-bold text-[#2D2D2D] mb-2">نوع پیام</legend>
+        <legend className="text-xs font-bold text-ink mb-2">نوع پیام</legend>
         <div className="flex flex-wrap gap-2">
           {SUGGESTION_KINDS.map((k) => (
             <label
               key={k.id}
               className={`px-4 py-2 rounded-xl border text-xs font-bold cursor-pointer ${
-                kind === k.id ? 'border-[#991b1b] bg-[#991b1b] text-white' : 'border-[#E6E0D5] text-[#4B4740] hover:border-[#991b1b]/50'
+                kind === k.id ? 'border-brand-strong bg-brand-strong text-white' : 'border-line text-ink-soft hover:border-brand-strong/50'
               }`}
             >
               <input type="radio" name="kind" value={k.id} checked={kind === k.id} onChange={() => setKind(k.id)} className="sr-only" />
@@ -160,19 +161,19 @@ const SendForm: React.FC<{ onSent: (trackingCode: string | null) => void }> = ({
       </fieldset>
 
       <label className="block space-y-1.5">
-        <span className="text-xs font-bold text-[#2D2D2D]">موضوع</span>
+        <span className="text-xs font-bold text-ink">موضوع</span>
         <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} required className={inputClass} placeholder="مثلاً: ساعت ناهار" />
       </label>
       <label className="block space-y-1.5">
-        <span className="text-xs font-bold text-[#2D2D2D]">متن پیام</span>
+        <span className="text-xs font-bold text-ink">متن پیام</span>
         <textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={5000} required rows={6} className={`${inputClass} leading-7`} />
       </label>
 
-      <div className={`rounded-2xl border p-3 sm:p-4 space-y-2 ${anonymous ? 'border-indigo-300 bg-indigo-50' : 'border-[#E6E0D5] bg-[#F9F7F4]'}`}>
+      <div className={`rounded-2xl border p-3 sm:p-4 space-y-2 ${anonymous ? 'border-indigo-300 bg-indigo-50' : 'border-line bg-surface-soft'}`}>
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)} className="w-4 h-4 accent-indigo-700" />
           <VenetianMask className="w-4 h-4 text-indigo-700" />
-          <span className="text-sm font-bold text-[#2D2D2D]">ناشناس بفرست</span>
+          <span className="text-sm font-bold text-ink">ناشناس بفرست</span>
         </label>
         {anonymous ? (
           <ul className="text-xs text-indigo-950 leading-6 list-disc pr-5">
@@ -182,7 +183,7 @@ const SendForm: React.FC<{ onSent: (trackingCode: string | null) => void }> = ({
             <li>اگر در متن نام خودتان یا جزئیاتی بنویسید که شما را معرفی کند، پیام دیگر ناشناس نمی‌ماند.</li>
           </ul>
         ) : (
-          <p className="text-xs text-[#6E6A60] leading-6">نام و واحد شما برای خوانندهٔ صندوق نمایش داده می‌شود و پاسخ را در «پیام‌های من» و اعلان‌ها می‌بینید.</p>
+          <p className="text-xs text-muted leading-6">نام و واحد شما برای خوانندهٔ صندوق نمایش داده می‌شود و پاسخ را در «پیام‌های من» و اعلان‌ها می‌بینید.</p>
         )}
       </div>
 
@@ -206,15 +207,15 @@ const TrackingCodeNotice: React.FC<{ code: string; onDone: () => void }> = ({ co
   return (
     <div className={`${cardClass} border-indigo-300 text-center space-y-4`} role="status">
       <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
-      <h2 className="text-base font-black text-[#2D2D2D]">پیام ناشناس شما فرستاده شد</h2>
-      <p className="text-xs text-[#4B4740] leading-6">
+      <h2 className="text-base font-black text-ink">پیام ناشناس شما فرستاده شد</h2>
+      <p className="text-xs text-ink-soft leading-6">
         کد پیگیری زیر را یادداشت کنید. این کد فقط همین یک بار نمایش داده می‌شود و جایی همراه نام شما ذخیره نشده است. پیام فردا ساعت {releaseHour} صبح، همراه پیام‌های ناشناس دیگر، به دست خوانندهٔ صندوق می‌رسد و پاسخ را با همین کد در بخش «پیگیری با کد» می‌بینید.
       </p>
       <div className="flex items-center justify-center gap-2">
         <code dir="ltr" className="px-4 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-lg font-black tracking-widest text-indigo-900">
           {code}
         </code>
-        <button type="button" onClick={copy} className="p-2.5 rounded-xl border border-[#E6E0D5] hover:border-indigo-400" aria-label="کپی کد پیگیری">
+        <button type="button" onClick={copy} className="p-2.5 rounded-xl border border-line hover:border-indigo-400" aria-label="کپی کد پیگیری">
           <Copy className="w-4 h-4" />
         </button>
       </div>
@@ -234,7 +235,7 @@ const MyMessages: React.FC = () => {
   if (!items) return <Loader2 className="w-6 h-6 text-red-600 animate-spin mx-auto my-10" />;
   if (items.length === 0) {
     return (
-      <div className={`${cardClass} text-center text-sm text-[#6E6A60]`}>
+      <div className={`${cardClass} text-center text-sm text-muted`}>
         هنوز پیامی با نام خودتان نفرستاده‌اید. پیام‌های ناشناس اینجا نمی‌آیند؛ پاسخ آن‌ها را با کد پیگیری ببینید.
       </div>
     );
@@ -243,13 +244,13 @@ const MyMessages: React.FC = () => {
     <ul className="space-y-3">
       {items.map((m) => (
         <li key={m.id} className={cardClass}>
-          <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#6E6A60]">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
             <KindBadge kind={m.kind} />
-            <span className="font-bold text-[#4B4740]">{names(m.box).label}</span>
+            <span className="font-bold text-ink-soft">{names(m.box).label}</span>
             <span>{sentAt(m)}</span>
           </div>
-          <h3 className="mt-2 text-sm font-black text-[#2D2D2D]">{m.subject}</h3>
-          <p className="mt-1 text-sm text-[#4B4740] whitespace-pre-line leading-7">{m.body}</p>
+          <h3 className="mt-2 text-sm font-black text-ink">{m.subject}</h3>
+          <p className="mt-1 text-sm text-ink-soft whitespace-pre-line leading-7">{m.body}</p>
           <ReplyBlock message={m} />
         </li>
       ))}
@@ -277,7 +278,7 @@ const TrackByCode: React.FC = () => {
   return (
     <div className="space-y-3">
       <form onSubmit={submit} className={`${cardClass} space-y-3`}>
-        <p className="text-xs text-[#4B4740] leading-6">کد پیگیری‌ای را که پس از ارسال پیام ناشناس گرفتید وارد کنید تا پیام و پاسخ آن را ببینید.</p>
+        <p className="text-xs text-ink-soft leading-6">کد پیگیری‌ای را که پس از ارسال پیام ناشناس گرفتید وارد کنید تا پیام و پاسخ آن را ببینید.</p>
         <div className="flex flex-col sm:flex-row gap-2">
           <input
             dir="ltr"
@@ -296,13 +297,13 @@ const TrackByCode: React.FC = () => {
       </form>
       {found && (
         <div className={cardClass}>
-          <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#6E6A60]">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
             <KindBadge kind={found.kind} />
-            <span className="font-bold text-[#4B4740]">{names(found.box).label}</span>
+            <span className="font-bold text-ink-soft">{names(found.box).label}</span>
             <span>{sentAt(found)}</span>
           </div>
-          <h3 className="mt-2 text-sm font-black text-[#2D2D2D]">{found.subject}</h3>
-          <p className="mt-1 text-sm text-[#4B4740] whitespace-pre-line leading-7">{found.body}</p>
+          <h3 className="mt-2 text-sm font-black text-ink">{found.subject}</h3>
+          <p className="mt-1 text-sm text-ink-soft whitespace-pre-line leading-7">{found.body}</p>
           <ReplyBlock message={found} />
         </div>
       )}
@@ -335,12 +336,12 @@ const BoxMessageCard: React.FC<{ message: BoxMessage; onChanged: () => void }> =
   };
 
   return (
-    <li className={`${cardClass} ${!m.readAt ? 'border-[#dc2626]/50' : ''} ${m.isClosed ? 'opacity-75' : ''}`}>
+    <li className={`${cardClass} ${!m.readAt ? 'border-brand/50' : ''} ${m.isClosed ? 'opacity-75' : ''}`}>
       <button type="button" onClick={toggle} aria-expanded={open} className="w-full text-right">
-        <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#6E6A60]">
-          {!m.readAt && <span className="px-2 py-0.5 rounded-full bg-[#dc2626] text-white text-[10px] font-bold">تازه</span>}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+          {!m.readAt && <span className="px-2 py-0.5 rounded-full bg-brand text-white text-xs font-bold">تازه</span>}
           <KindBadge kind={m.kind} />
-          {m.reply && <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-bold">پاسخ داده شد</span>}
+          {m.reply && <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-xs font-bold">پاسخ داده شد</span>}
           <span>{sentAt(m)}</span>
         </div>
         <div className="mt-2 flex items-center gap-2">
@@ -351,7 +352,7 @@ const BoxMessageCard: React.FC<{ message: BoxMessage; onChanged: () => void }> =
               {m.isAnonymous ? <VenetianMask className="w-4 h-4" /> : <UserRound className="w-4 h-4" />}
             </span>
           )}
-          <span className="text-xs text-[#4B4740]">
+          <span className="text-xs text-ink-soft">
             {m.sender ? (
               <>
                 <strong>{m.sender.name}</strong>
@@ -364,19 +365,19 @@ const BoxMessageCard: React.FC<{ message: BoxMessage; onChanged: () => void }> =
             )}
           </span>
         </div>
-        <h3 className="mt-2 text-sm font-black text-[#2D2D2D]">{m.subject}</h3>
-        {!open && <p className="mt-1 text-xs text-[#6E6A60] line-clamp-2">{m.body}</p>}
+        <h3 className="mt-2 text-sm font-black text-ink">{m.subject}</h3>
+        {!open && <p className="mt-1 text-xs text-muted line-clamp-2">{m.body}</p>}
       </button>
 
       {open && (
         <div className="mt-2 space-y-3">
-          <p className="text-sm text-[#2D2D2D] whitespace-pre-line leading-7">{m.body}</p>
+          <p className="text-sm text-ink whitespace-pre-line leading-7">{m.body}</p>
           <div className="space-y-2">
-            <label className="block text-xs font-bold text-[#2D2D2D]" htmlFor={`reply-${m.id}`}>
+            <label className="block text-xs font-bold text-ink" htmlFor={`reply-${m.id}`}>
               {m.reply ? `پاسخ (${m.repliedByName ?? ''}، ${formatDateTime(m.repliedAt)})` : 'پاسخ'}
             </label>
             <textarea id={`reply-${m.id}`} value={reply} onChange={(e) => setReply(e.target.value)} rows={3} maxLength={5000} className={`${inputClass} leading-7`} />
-            <p className="text-[11px] text-[#6E6A60]">
+            <p className="text-xs text-muted">
               {m.isAnonymous
                 ? 'فرستنده ناشناس است؛ پاسخ را با کد پیگیری خودش می‌بیند و اعلانی برایش نمی‌رود.'
                 : m.canFollow
@@ -397,7 +398,7 @@ const BoxMessageCard: React.FC<{ message: BoxMessage; onChanged: () => void }> =
               type="button"
               disabled={busy}
               onClick={() => act(() => api.patch(`/api/suggestions/${m.id}`, { closed: !m.isClosed }), m.isClosed ? 'پیام به صندوق برگشت.' : 'پیام بایگانی شد.')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E6E0D5] text-xs font-bold text-[#4B4740] hover:border-[#991b1b]"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-line text-xs font-bold text-ink-soft hover:border-brand-strong"
             >
               {m.isClosed ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
               {m.isClosed ? 'برگرداندن از بایگانی' : 'بایگانی'}
@@ -445,16 +446,16 @@ const BoxInbox: React.FC<{ box: SuggestionBox }> = ({ box }) => {
         </p>
       )}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-[#6E6A60]">
+        <p className="text-xs text-muted">
           پیام‌های {names(box).label}. نام فرستندهٔ پیام‌های ناشناس جایی ثبت نشده است.
         </p>
-        <button type="button" onClick={() => setShowClosed((s) => !s)} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#991b1b]">
+        <button type="button" onClick={() => setShowClosed((s) => !s)} className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-strong">
           <Archive className="w-4 h-4" />
           {showClosed ? 'پیام‌های جاری' : `بایگانی (${toPersianDigits(closedCount)})`}
         </button>
       </div>
       {shown.length === 0 ? (
-        <div className={`${cardClass} text-center text-sm text-[#6E6A60]`}>{showClosed ? 'پیام بایگانی‌شده‌ای نیست.' : 'پیام تازه‌ای در این صندوق نیست.'}</div>
+        <div className={`${cardClass} text-center text-sm text-muted`}>{showClosed ? 'پیام بایگانی‌شده‌ای نیست.' : 'پیام تازه‌ای در این صندوق نیست.'}</div>
       ) : (
         <ul className="space-y-3">
           {shown.map((m) => (
@@ -501,18 +502,12 @@ export const SuggestionsModule: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-5 sm:p-8 text-white shadow-xl">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#dc2626]/30 text-[#E6E0D5] text-xs font-semibold border border-[#dc2626]/40">
-            <MessageSquareText className="w-3.5 h-3.5" />
-            <span>صدای همکاران</span>
-          </div>
-          <h1 className="text-xl sm:text-3xl font-black">صندوق انتقادات و پیشنهادات</h1>
-          <p className="text-[#E6E0D5] text-xs sm:text-sm max-w-2xl leading-relaxed">
-            انتقاد یا پیشنهادتان را برای {openBoxes.map((b) => names(b).to).join(' یا ') || 'همکاران مسئول'} بفرستید. اگر بخواهید، پیام کاملاً ناشناس فرستاده می‌شود.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        icon={<MessageSquareText />}
+        title="انتقادات و پیشنهادات"
+        descriptionOnPhone
+        description={<>انتقاد یا پیشنهادتان را برای {openBoxes.map((b) => names(b).to).join(' یا ') || 'همکاران مسئول'} بفرستید. اگر بخواهید، پیام کاملاً ناشناس فرستاده می‌شود.</>}
+      />
 
       <div className="flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="بخش‌های صندوق">
         {tabs.map((t) => (
@@ -523,12 +518,12 @@ export const SuggestionsModule: React.FC = () => {
             aria-selected={view === t.id}
             onClick={() => choose(t.id)}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap ${
-              view === t.id ? 'bg-[#991b1b] text-white' : 'bg-white border border-[#E6E0D5] text-[#4B4740] hover:border-[#991b1b]/50'
+              view === t.id ? 'bg-brand-strong text-white' : 'bg-white border border-line text-ink-soft hover:border-brand-strong/50'
             }`}
           >
             {t.icon}
             {t.label}
-            {t.badge ? <span className="px-1.5 rounded-full bg-amber-400 text-amber-950 text-[10px]">{toPersianDigits(t.badge)}</span> : null}
+            {t.badge ? <span className="px-1.5 rounded-full bg-amber-400 text-amber-950 text-xs">{toPersianDigits(t.badge)}</span> : null}
           </button>
         ))}
       </div>
@@ -551,7 +546,7 @@ export const SuggestionsModule: React.FC = () => {
       {view === 'track' && <TrackByCode />}
       {(view === 'management' || view === 'hr') && readable.includes(view) && <BoxInbox box={view} />}
 
-      <p className="flex items-center gap-1.5 text-[11px] text-[#6E6A60]">
+      <p className="flex items-center gap-1.5 text-xs text-muted">
         <ShieldCheck className="w-3.5 h-3.5" />
         خوانندگان هر صندوق را ادمین پرتال در «تنظیمات ← سطح‌های دسترسی» تعیین می‌کند. ادمین پرتال همیشه هر دو صندوق را می‌بیند. پیام‌های ناشناس روزی یک بار، ساعت {releaseHour} صبح، با هم می‌رسند تا زمان نوشتنشان معلوم نباشد.
       </p>

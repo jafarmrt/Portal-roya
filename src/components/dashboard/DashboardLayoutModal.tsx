@@ -65,7 +65,7 @@ export const DashboardLayoutModal: React.FC<DashboardLayoutModalProps> = ({ mode
         </>
       }
     >
-      <p className="text-[11px] text-[#6E6A60] leading-relaxed mb-3">
+      <p className="text-xs text-muted leading-relaxed mb-3">
         روی گوشی کارت‌ها دقیقاً به همین ترتیب زیر هم می‌آیند. روی کامپیوتر هر کارت در بخش خودش از صفحه می‌ماند و در همان بخش به همین ترتیب چیده می‌شود.
         {everyone && ' کسانی که ترتیب خودشان را چیده‌اند، همان ترتیب خودشان را می‌بینند.'}
       </p>
@@ -73,11 +73,11 @@ export const DashboardLayoutModal: React.FC<DashboardLayoutModalProps> = ({ mode
         {visible.map((id, i) => {
           const info = cardInfo(id);
           return (
-            <li key={id} className="flex items-center gap-2 p-2.5 bg-[#F5F2ED] rounded-xl">
-              <span className="w-5 text-center text-[11px] font-bold text-[#8C867A] tabular-nums">{(i + 1).toLocaleString('fa-IR')}</span>
+            <li key={id} className="flex items-center gap-2 p-2.5 bg-surface rounded-xl">
+              <span className="w-5 text-center text-xs font-bold text-faint tabular-nums">{(i + 1).toLocaleString('fa-IR')}</span>
               <span className="flex-1 min-w-0">
-                <span className="block text-xs font-bold text-[#2D2D2D]">{info.label}</span>
-                <span className="hidden lg:block text-[10px] text-[#8C867A]">{DASHBOARD_ZONE_LABELS[info.zone]}</span>
+                <span className="block text-xs font-bold text-ink">{info.label}</span>
+                <span className="hidden lg:block text-xs text-faint">{DASHBOARD_ZONE_LABELS[info.zone]}</span>
               </span>
               <button type="button" onClick={() => move(id, -1)} disabled={i === 0} aria-label={`بالا بردن ${info.label}`} className="p-1.5 rounded-lg hover:bg-white disabled:opacity-30">
                 <ArrowUp className="w-4 h-4" />
@@ -98,15 +98,15 @@ export const DashboardLayoutModal: React.FC<DashboardLayoutModalProps> = ({ mode
 const LayoutPreview: React.FC<{ order: DashboardCardKey[] }> = ({ order }) => {
   const zone = (z: DashboardZone) => order.filter((id) => cardInfo(id).zone === z);
   const box = (id: DashboardCardKey) => (
-    <div key={id} className="px-1.5 py-1 bg-white border border-[#E6E0D5] rounded-md text-[10px] font-bold text-[#4B4740] truncate">
+    <div key={id} className="px-1.5 py-1 bg-white border border-line rounded-md text-xs font-bold text-ink-soft truncate">
       {cardInfo(id).label}
     </div>
   );
   return (
     <figure className="mt-4 hidden sm:block" aria-label="پیش‌نمایش روی کامپیوتر">
-      <figcaption className="text-[11px] font-bold text-[#6E6A60] mb-1.5">پیش‌نمایش روی کامپیوتر</figcaption>
-      <div className="p-2 bg-[#F5F2ED] rounded-xl space-y-1.5" aria-hidden="true">
-        <div className="h-5 rounded-md bg-gradient-to-l from-[#7f1d1d] to-[#ef4444] opacity-80" />
+      <figcaption className="text-xs font-bold text-muted mb-1.5">پیش‌نمایش روی کامپیوتر</figcaption>
+      <div className="p-2 bg-surface rounded-xl space-y-1.5" aria-hidden="true">
+        <div className="h-5 rounded-md bg-gradient-to-l from-brand-deep to-red-500 opacity-80" />
         <div className="space-y-1">{zone('top').map(box)}</div>
         <div className="grid grid-cols-3 gap-1.5">
           <div className="col-span-2 space-y-1">{zone('main').map(box)}</div>

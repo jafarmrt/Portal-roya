@@ -7,6 +7,8 @@ import { PollAnswerModal } from './PollAnswerModal';
 import { PollFormModal } from './PollFormModal';
 import { PollResultsModal } from './PollResultsModal';
 import { audienceLabel, hiddenResultsReason, visibilityNote } from './pollText';
+import { PageHeader } from '../common/PageHeader';
+import { primaryButtonClass } from '../common/Modal';
 
 type Filter = 'all' | 'active' | 'closed';
 type Dialog = { kind: 'answer' | 'results' | 'edit'; id: string } | { kind: 'create' } | null;
@@ -25,34 +27,34 @@ const PollCard: React.FC<{ poll: Poll; focused: boolean; open: (kind: 'answer' |
     <article
       id={`poll-${poll.id}`}
       aria-labelledby={`poll-title-${poll.id}`}
-      className={`bg-white rounded-2xl border p-5 sm:p-6 flex flex-col gap-4 shadow-xs ${waiting ? 'border-red-200' : 'border-[#E6E0D5]'} ${poll.isActive ? '' : 'bg-[#FBFAF8]'} ${focused ? 'ring-2 ring-red-600' : ''}`}
+      className={`bg-white rounded-2xl border p-5 sm:p-6 flex flex-col gap-4 shadow-xs ${waiting ? 'border-red-200' : 'border-line'} ${poll.isActive ? '' : 'bg-page'} ${focused ? 'ring-2 ring-red-600' : ''}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full ${poll.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-[#EFEBE4] text-[#6E6A60]'}`}>
+        <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${poll.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-surface-strong text-muted'}`}>
           {poll.isActive ? 'باز' : 'بسته‌شده'}
         </span>
-        <span className="flex items-center gap-1 text-[11px] text-[#6E6A60]">
+        <span className="flex items-center gap-1 text-xs text-muted">
           <Users className="w-3.5 h-3.5" /> {audienceLabel(poll)}
         </span>
       </div>
 
       <div className="space-y-1.5">
-        <h3 id={`poll-title-${poll.id}`} className="text-base font-bold text-[#2D2D2D] leading-snug">{poll.title}</h3>
-        {poll.description && <p className="text-xs text-[#4B4740] leading-relaxed line-clamp-3 whitespace-pre-line">{poll.description}</p>}
+        <h3 id={`poll-title-${poll.id}`} className="text-base font-bold text-ink leading-snug">{poll.title}</h3>
+        {poll.description && <p className="text-xs text-ink-soft leading-relaxed line-clamp-3 whitespace-pre-line">{poll.description}</p>}
       </div>
 
-      <div className="flex flex-wrap gap-1.5 text-[11px]">
+      <div className="flex flex-wrap gap-1.5 text-xs">
         <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full font-bold ${poll.anonymous ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'}`}>
           {poll.anonymous ? <ShieldCheck className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
           {poll.anonymous ? 'ناشناس' : 'با نام'}
         </span>
-        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#F5F2ED] text-[#4B4740] font-bold">
+        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface text-ink-soft font-bold">
           {poll.resultsVisibility === 'managers' ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           {visibilityNote[poll.resultsVisibility]}
         </span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[#6E6A60] pt-3 border-t border-[#F0ECE5]">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted pt-3 border-t border-surface-strong">
         <span className="flex items-center gap-1">
           <Clock className="w-3.5 h-3.5" /> {poll.expiryDate ? `مهلت: ${dayLabel(poll.expiryDate)}` : 'بدون مهلت'}
         </span>
@@ -88,22 +90,22 @@ const PollCard: React.FC<{ poll: Poll; focused: boolean; open: (kind: 'answer' |
           </button>
         )}
         {poll.resultsVisible ? (
-          <button onClick={() => open('results')} className="px-4 py-2 text-xs font-bold text-[#2D2D2D] bg-[#F5F2ED] hover:bg-[#E6E0D5] rounded-xl flex items-center gap-1.5">
+          <button onClick={() => open('results')} className="px-4 py-2 text-xs font-bold text-ink bg-surface hover:bg-line rounded-xl flex items-center gap-1.5">
             <BarChart3 className="w-4 h-4 text-red-700" /> نتایج
           </button>
         ) : (
-          <span className="text-[11px] text-[#8C867A] basis-full">{hiddenResultsReason(poll)}</span>
+          <span className="text-xs text-faint basis-full">{hiddenResultsReason(poll)}</span>
         )}
 
         {poll.canManage && (
           <div className="flex items-center gap-1 mr-auto">
             <button
               onClick={() => togglePollActiveStatus(poll.id)}
-              className="px-3 py-1.5 text-[11px] font-bold rounded-lg text-[#4B4740] bg-[#F5F2ED] hover:bg-[#E6E0D5]"
+              className="px-3 py-1.5 text-xs font-bold rounded-lg text-ink-soft bg-surface hover:bg-line"
             >
               {poll.isActive ? 'بستن نظرسنجی' : 'باز کردن دوباره'}
             </button>
-            <button onClick={() => open('edit')} className="p-1.5 text-[#6E6A60] hover:text-red-700 hover:bg-[#F5F2ED] rounded-lg" aria-label={`ویرایش ${poll.title}`} title="ویرایش">
+            <button onClick={() => open('edit')} className="p-1.5 text-muted hover:text-red-700 hover:bg-surface rounded-lg" aria-label={`ویرایش ${poll.title}`} title="ویرایش">
               <Pencil className="w-4 h-4" />
             </button>
             {can('polls.manage') && (
@@ -111,7 +113,7 @@ const PollCard: React.FC<{ poll: Poll; focused: boolean; open: (kind: 'answer' |
                 onClick={() => {
                   if (confirm(`نظرسنجی «${poll.title}» و همهٔ پاسخ‌هایش حذف شود؟`)) deletePoll(poll.id);
                 }}
-                className="p-1.5 text-[#8C867A] hover:text-red-700 hover:bg-red-50 rounded-lg"
+                className="p-1.5 text-faint hover:text-red-700 hover:bg-red-50 rounded-lg"
                 aria-label={`حذف ${poll.title}`}
                 title="حذف"
               >
@@ -149,28 +151,22 @@ export const PollsModule: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-[#7f1d1d] via-[#991b1b] to-[#ef4444] rounded-3xl p-5 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 -ml-12 -mt-12 w-64 h-64 rounded-full bg-[#dc2626]/20 blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <h1 className="text-xl sm:text-3xl font-black text-white">نظرسنجی‌ها</h1>
-            <p className="text-[#F5E9E4] text-xs sm:text-sm max-w-2xl leading-relaxed">
-              روی هر نظرسنجی نوشته شده که پاسخ‌ها ناشناس است یا با نام، و نتایج را چه کسانی می‌بینند.
-              {waiting > 0 && <strong className="block mt-1 text-white">{toPersianDigits(waiting)} نظرسنجی منتظر پاسخ شماست.</strong>}
-            </p>
-          </div>
-          {can('polls.manage') && (
-            <button
-              onClick={() => setDialog({ kind: 'create' })}
-              className="px-5 py-3 text-xs font-bold text-red-800 bg-white hover:bg-[#F5F2ED] rounded-2xl shadow-lg flex items-center gap-2 whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4" /> نظرسنجی جدید
-            </button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        icon={<Vote />}
+        title="نظرسنجی‌ها"
+        descriptionOnPhone={waiting > 0}
+        description={waiting > 0
+          ? <strong className="text-brand-strong">{toPersianDigits(waiting)} نظرسنجی منتظر پاسخ شماست.</strong>
+          : 'روی هر نظرسنجی نوشته شده که پاسخ‌ها ناشناس است یا با نام، و نتایج را چه کسانی می‌بینند.'}
+      >
+        {can('polls.manage') && (
+          <button onClick={() => setDialog({ kind: 'create' })} className={primaryButtonClass}>
+            <Plus className="w-4 h-4" /> نظرسنجی جدید
+          </button>
+        )}
+      </PageHeader>
 
-      <div className="flex items-center gap-1.5 bg-white p-2 rounded-2xl border border-[#E6E0D5] w-fit" role="group" aria-label="نمایش نظرسنجی‌ها">
+      <div className="flex items-center gap-1.5 bg-white p-2 rounded-2xl border border-line w-fit" role="group" aria-label="نمایش نظرسنجی‌ها">
         {FILTERS.map((f) => {
           const count = polls.filter((p) => (f.value === 'active' ? p.isActive : f.value === 'closed' ? !p.isActive : true)).length;
           return (
@@ -178,7 +174,7 @@ export const PollsModule: React.FC = () => {
               key={f.value}
               aria-pressed={filter === f.value}
               onClick={() => setFilter(f.value)}
-              className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors ${filter === f.value ? 'bg-[#991b1b] text-white' : 'text-[#6E6A60] hover:bg-[#F5F2ED]'}`}
+              className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors ${filter === f.value ? 'bg-brand-strong text-white' : 'text-muted hover:bg-surface'}`}
             >
               {f.label} ({toPersianDigits(count)})
             </button>
@@ -188,9 +184,9 @@ export const PollsModule: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {shown.length === 0 ? (
-          <div className="lg:col-span-2 py-12 text-center bg-white rounded-2xl border border-dashed border-[#D9D4CB]">
-            <Vote className="w-10 h-10 text-[#C9C2B5] mx-auto mb-2" />
-            <p className="text-sm font-bold text-[#6E6A60]">نظرسنجی‌ای در این بخش نیست.</p>
+          <div className="lg:col-span-2 py-12 text-center bg-white rounded-2xl border border-dashed border-line-strong">
+            <Vote className="w-10 h-10 text-line-strong mx-auto mb-2" />
+            <p className="text-sm font-bold text-muted">نظرسنجی‌ای در این بخش نیست.</p>
           </div>
         ) : (
           shown.map((poll) => (

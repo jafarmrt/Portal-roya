@@ -58,13 +58,13 @@ export const NewsHistoryModal: React.FC<{ item: NewsItem; onClose: () => void }>
             const texts = entry.changed.filter((k) => k === 'title' || k === 'summary' || k === 'content');
             const others = earlierValues(entry.before, entry.changed, roleName);
             return (
-              <li key={entry.id} className="p-3 rounded-xl border border-[#E6E0D5] space-y-2">
+              <li key={entry.id} className="p-3 rounded-xl border border-line space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
-                  <span className="font-bold text-[#2D2D2D]">
+                  <span className="font-bold text-ink">
                     {entry.editor || 'همکار حذف‌شده'}
                     {entry.action === 'publish' ? ' پیش‌نویس را منتشر کرد' : ` ویرایش کرد: ${changedLabels(entry.changed).join('، ')}`}
                   </span>
-                  <span className="text-[11px] text-[#6E6A60]">{formatDateTime(entry.createdAt)}</span>
+                  <span className="text-xs text-muted">{formatDateTime(entry.createdAt)}</span>
                 </div>
                 {entry.action === 'edit' && (
                   <>
@@ -72,12 +72,12 @@ export const NewsHistoryModal: React.FC<{ item: NewsItem; onClose: () => void }>
                       type="button"
                       onClick={() => setOpen(open === entry.id ? null : entry.id)}
                       aria-expanded={open === entry.id}
-                      className="text-[11px] font-bold text-red-700 flex items-center gap-1"
+                      className="text-xs font-bold text-red-700 flex items-center gap-1"
                     >
                       <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open === entry.id ? 'rotate-180' : ''}`} /> پیش از این ویرایش چه بود؟
                     </button>
                     {open === entry.id && (
-                      <div className="p-3 bg-[#F5F2ED] rounded-xl space-y-2 text-xs">
+                      <div className="p-3 bg-surface rounded-xl space-y-2 text-xs">
                         {texts.includes('title') && <p><strong>عنوان:</strong> {entry.before.title}</p>}
                         {texts.includes('summary') && <p><strong>خلاصه:</strong> {entry.before.summary}</p>}
                         {texts.includes('content') && (
@@ -96,9 +96,9 @@ export const NewsHistoryModal: React.FC<{ item: NewsItem; onClose: () => void }>
               </li>
             );
           })}
-          <li className="p-3 rounded-xl border border-dashed border-[#D9D4CB] text-xs flex items-center justify-between gap-2 flex-wrap">
-            <span className="font-bold text-[#2D2D2D]">{history.author || 'همکار حذف‌شده'} آن را نوشت</span>
-            <span className="text-[11px] text-[#6E6A60]">{formatDateTime(history.createdAt)}</span>
+          <li className="p-3 rounded-xl border border-dashed border-line-strong text-xs flex items-center justify-between gap-2 flex-wrap">
+            <span className="font-bold text-ink">{history.author || 'همکار حذف‌شده'} آن را نوشت</span>
+            <span className="text-xs text-muted">{formatDateTime(history.createdAt)}</span>
           </li>
         </ol>
       )}

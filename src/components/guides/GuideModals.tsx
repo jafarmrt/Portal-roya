@@ -114,7 +114,7 @@ export const GuideFormModal: React.FC<{ guide?: Guide; onClose: () => void }> = 
         </div>
         <div>
           <label htmlFor="guide-content" className={labelClass}>متن کامل *</label>
-          <Suspense fallback={<div className="h-64 rounded-xl border border-[#D9D4CB] bg-[#F5F2ED] animate-pulse" />}>
+          <Suspense fallback={<div className="h-64 rounded-xl border border-line-strong bg-surface animate-pulse" />}>
             <RichTextEditor
               id="guide-content"
               value={form.content}
@@ -129,7 +129,7 @@ export const GuideFormModal: React.FC<{ guide?: Guide; onClose: () => void }> = 
         <div>
           <label htmlFor="guide-review" className={labelClass}>تاریخ بازبینی</label>
           <JalaliDateInput id="guide-review" value={form.reviewDate} onChange={(v) => set('reviewDate', v)} placeholder="مثلاً شش ماه بعد" />
-          <p className="text-[11px] text-[#6E6A60] mt-1">در این روز به مسئول راهنما یادآوری می‌شود که متن هنوز درست است یا نه.</p>
+          <p className="text-xs text-muted mt-1">در این روز به مسئول راهنما یادآوری می‌شود که متن هنوز درست است یا نه.</p>
         </div>
       </form>
     </Modal>
@@ -171,7 +171,7 @@ export const GuideReviewModal: React.FC<{ guide: Guide; onClose: () => void; onE
       <form id="guide-review-form" onSubmit={handleSubmit} className="space-y-4">
         <p className="leading-relaxed">راهنما را بخوانید. اگر هنوز درست است، تاریخ بازبینی بعدی را بگذارید؛ وگرنه متن را به‌روز کنید.</p>
         {guide.feedback && (guide.feedback.helpful > 0 || guide.feedback.notHelpful > 0) && (
-          <p className="text-[#4B4740]">
+          <p className="text-ink-soft">
             نظر همکاران تا امروز: {toPersianDigits(guide.feedback.helpful)} نفر مفید و {toPersianDigits(guide.feedback.notHelpful)} نفر نامفید دانسته‌اند.
           </p>
         )}
@@ -219,13 +219,13 @@ const FeedbackBox: React.FC<{ guide: Guide }> = ({ guide }) => {
 
   const choice = (helpful: boolean, active: boolean) =>
     `px-4 py-2 text-xs font-bold rounded-xl border transition-colors flex items-center gap-1.5 ${
-      !active ? 'text-[#2D2D2D] bg-white hover:bg-[#F5F2ED] border-[#D9D4CB]' : helpful ? 'text-white bg-emerald-600 border-emerald-600' : 'text-white bg-red-700 border-red-700'
+      !active ? 'text-ink bg-white hover:bg-surface border-line-strong' : helpful ? 'text-white bg-emerald-600 border-emerald-600' : 'text-white bg-red-700 border-red-700'
     }`;
 
   return (
-    <div className="p-4 rounded-2xl bg-[#F9F7F4] border border-[#E6E0D5] space-y-3">
+    <div className="p-4 rounded-2xl bg-surface-soft border border-line space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-bold text-[#2D2D2D]">
+        <p className="font-bold text-ink">
           {guide.myFeedback === true ? 'ممنون که نظر دادید. این راهنما به کارتان آمد.' : 'این راهنما به کارتان آمد؟'}
         </p>
         <div className="flex gap-2">
@@ -305,10 +305,10 @@ export const GuideViewModal: React.FC<{
       <div className="space-y-5">
         {guide.summary && <p className="p-3 rounded-xl bg-red-50 text-red-950 font-bold leading-relaxed">{guide.summary}</p>}
         <NewsContent content={guide.content} format="html" className="text-sm" />
-        <div className="pt-3 border-t border-[#E6E0D5] flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[#6E6A60]">
+        <div className="pt-3 border-t border-line flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
           {guide.owner && (
             <span className="flex items-center gap-1">
-              <UserRound className="w-3.5 h-3.5" /> مسئول: <strong className="text-[#2D2D2D]">{guide.owner}</strong>
+              <UserRound className="w-3.5 h-3.5" /> مسئول: <strong className="text-ink">{guide.owner}</strong>
               {guide.ownerExtension && (
                 <span className="flex items-center gap-1 mr-1">
                   <Phone className="w-3.5 h-3.5" /> داخلی {toPersianDigits(guide.ownerExtension)}
@@ -324,7 +324,7 @@ export const GuideViewModal: React.FC<{
           )}
         </div>
         {looksAfter && (
-          <p className="text-[11px] text-[#4B4740] bg-[#F5F2ED] rounded-xl p-2.5">
+          <p className="text-xs text-ink-soft bg-surface rounded-xl p-2.5">
             {guide.feedback &&
               (guide.feedback.helpful + guide.feedback.notHelpful > 0
                 ? `${toPersianDigits(guide.feedback.helpful)} نفر مفید و ${toPersianDigits(guide.feedback.notHelpful)} نفر نامفید دانسته‌اند.`

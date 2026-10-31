@@ -106,8 +106,8 @@ export const TodoFormModal: React.FC<TodoFormModalProps> = ({ todo, initial, onC
               type="button"
               aria-pressed={important}
               onClick={() => setImportant(!important)}
-              className={`mb-1 px-2 py-0.5 text-[11px] font-bold rounded-full border flex items-center gap-1 ${
-                important ? 'bg-amber-100 border-amber-400 text-amber-900' : 'border-[#E6E0D5] text-[#6E6A60] hover:border-amber-400'
+              className={`mb-1 px-2 py-0.5 text-xs font-bold rounded-full border flex items-center gap-1 ${
+                important ? 'bg-amber-100 border-amber-400 text-amber-900' : 'border-line text-muted hover:border-amber-400'
               }`}
             >
               <Star className={`w-3.5 h-3.5 ${important ? 'fill-amber-500 text-amber-500' : ''}`} /> مهم
@@ -122,7 +122,7 @@ export const TodoFormModal: React.FC<TodoFormModalProps> = ({ todo, initial, onC
             className={inputClass}
             placeholder="مثلاً فرم مرخصی را پر کنم"
           />
-          {source && <p className="mt-1 text-[11px] text-[#6E6A60]">از {source.label}؛ از روی کارت می‌توانید دوباره به آن بروید.</p>}
+          {source && <p className="mt-1 text-xs text-muted">از {source.label}؛ از روی کارت می‌توانید دوباره به آن بروید.</p>}
         </div>
         <div>
           <label htmlFor={`${formId}-due`} className={labelClass}>تاریخ سررسید</label>
@@ -143,7 +143,7 @@ export const TodoFormModal: React.FC<TodoFormModalProps> = ({ todo, initial, onC
             </SearchableSelect>
           </div>
         </div>
-        {repeat && <p className="-mt-2 text-[11px] text-[#6E6A60]">با تیک زدن این کار، نوبت بعدی‌اش خودش در فهرست نوشته می‌شود.</p>}
+        {repeat && <p className="-mt-2 text-xs text-muted">با تیک زدن این کار، نوبت بعدی‌اش خودش در فهرست نوشته می‌شود.</p>}
         <fieldset>
           <legend className={labelClass}>گام‌ها (اختیاری، تا {toPersianDigits(TODO_STEPS_MAX)} مورد)</legend>
           {steps.length > 0 && (
@@ -162,9 +162,9 @@ export const TodoFormModal: React.FC<TodoFormModalProps> = ({ todo, initial, onC
                     maxLength={TODO_STEP_MAX}
                     onChange={(e) => setSteps(steps.map((s, j) => (j === i ? { ...s, text: e.target.value } : s)))}
                     aria-label={`گام ${toPersianDigits(i + 1)}`}
-                    className={`${inputClass} !py-1.5 ${step.done ? 'line-through text-[#8C867A]' : ''}`}
+                    className={`${inputClass} !py-1.5 ${step.done ? 'line-through text-faint' : ''}`}
                   />
-                  <button type="button" onClick={() => setSteps(steps.filter((_, j) => j !== i))} aria-label={`حذف گام ${step.text}`} className="p-1.5 rounded-lg text-[#8C867A] hover:text-red-700 hover:bg-red-50">
+                  <button type="button" onClick={() => setSteps(steps.filter((_, j) => j !== i))} aria-label={`حذف گام ${step.text}`} className="p-1.5 rounded-lg text-faint hover:text-red-700 hover:bg-red-50">
                     <X className="w-4 h-4" />
                   </button>
                 </li>

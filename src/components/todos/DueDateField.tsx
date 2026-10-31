@@ -14,8 +14,8 @@ export const QuickDueDates: React.FC<{ value: string; onPick: (date: string) => 
           type="button"
           aria-pressed={value === d.date}
           onClick={() => onPick(d.date)}
-          className={`px-2.5 py-1 text-[11px] font-bold rounded-full border transition-colors ${
-            value === d.date ? 'bg-sky-700 border-sky-700 text-white' : 'bg-white border-[#E6E0D5] text-[#4B4740] hover:border-sky-600'
+          className={`px-2.5 py-1 text-xs font-bold rounded-full border transition-colors ${
+            value === d.date ? 'bg-sky-700 border-sky-700 text-white' : 'bg-white border-line text-ink-soft hover:border-sky-600'
           }`}
         >
           {d.label}

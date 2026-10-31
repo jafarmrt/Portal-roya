@@ -102,7 +102,7 @@ export const JalaliDateInput: React.FC<JalaliDateInputProps> = ({ id, value, onC
         />
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
           {value && (
-            <button type="button" onClick={() => onChange('')} aria-label="پاک کردن تاریخ" className="p-1 text-[#8C867A] hover:text-[#2D2D2D]">
+            <button type="button" onClick={() => onChange('')} aria-label="پاک کردن تاریخ" className="p-1 text-faint hover:text-ink">
               <X className="w-3.5 h-3.5" />
             </button>
           )}
@@ -120,19 +120,19 @@ export const JalaliDateInput: React.FC<JalaliDateInputProps> = ({ id, value, onC
           </button>
         </div>
       </div>
-      {invalid && <p className="text-[11px] text-red-600 mt-1">تاریخ را به شکل ۱۴۰۵/۰۸/۱۵ وارد کنید.</p>}
+      {invalid && <p className="text-xs text-red-600 mt-1">تاریخ را به شکل ۱۴۰۵/۰۸/۱۵ وارد کنید.</p>}
 
       {open && position && createPortal(
         <div
           ref={popoverRef}
           dir="rtl"
           style={{ top: position.top, left: position.left, width: POPOVER_WIDTH }}
-          className="fixed z-[70] bg-white border border-[#E6E0D5] rounded-2xl shadow-xl p-3 text-xs text-right"
+          className="fixed z-[70] bg-white border border-line rounded-2xl shadow-xl p-3 text-xs text-right"
           role="dialog"
           aria-label="انتخاب تاریخ"
         >
           <div className="flex items-center justify-between mb-2 gap-1">
-            <button type="button" aria-label="ماه قبل" onClick={() => setView(view.clone().subtract(1, 'jMonth'))} className="p-1.5 hover:bg-[#F5F2ED] rounded-lg">
+            <button type="button" aria-label="ماه قبل" onClick={() => setView(view.clone().subtract(1, 'jMonth'))} className="p-1.5 hover:bg-surface rounded-lg">
               <ChevronRight className="w-4 h-4" />
             </button>
             <div className="flex items-center gap-1">
@@ -140,7 +140,7 @@ export const JalaliDateInput: React.FC<JalaliDateInputProps> = ({ id, value, onC
                 aria-label="ماه"
                 value={month}
                 onChange={(e) => setView(moment(`${year}/${Number(e.target.value) + 1}/1`, 'jYYYY/jM/jD'))}
-                className="bg-[#F5F2ED] rounded-lg px-1 py-1 font-bold"
+                className="bg-surface rounded-lg px-1 py-1 font-bold"
               >
                 {JALALI_MONTH_NAMES.map((name, i) => (
                   <option key={name} value={i}>{name}</option>
@@ -156,16 +156,16 @@ export const JalaliDateInput: React.FC<JalaliDateInputProps> = ({ id, value, onC
                   const y = Number(e.target.value);
                   if (y >= 1300 && y <= 1499) setView(moment(`${y}/${month + 1}/1`, 'jYYYY/jM/jD'));
                 }}
-                className="w-16 bg-[#F5F2ED] rounded-lg px-1 py-1 font-bold text-center"
+                className="w-16 bg-surface rounded-lg px-1 py-1 font-bold text-center"
               />
             </div>
-            <button type="button" aria-label="ماه بعد" onClick={() => setView(view.clone().add(1, 'jMonth'))} className="p-1.5 hover:bg-[#F5F2ED] rounded-lg">
+            <button type="button" aria-label="ماه بعد" onClick={() => setView(view.clone().add(1, 'jMonth'))} className="p-1.5 hover:bg-surface rounded-lg">
               <ChevronLeft className="w-4 h-4" />
             </button>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center">
             {WEEKDAYS.map((d) => (
-              <div key={d} className={`py-1 font-bold ${d === 'ج' ? 'text-red-600' : 'text-[#8C867A]'}`}>{d}</div>
+              <div key={d} className={`py-1 font-bold ${d === 'ج' ? 'text-red-600' : 'text-faint'}`}>{d}</div>
             ))}
             {cells.map((day, i) => {
               if (day === null) return <div key={`e${i}`} />;
@@ -177,14 +177,14 @@ export const JalaliDateInput: React.FC<JalaliDateInputProps> = ({ id, value, onC
                   key={day}
                   type="button"
                   onClick={() => pick(day)}
-                  className={`py-1.5 rounded-lg font-bold ${selected ? 'bg-red-700 text-white' : today ? 'ring-1 ring-red-600 text-red-700' : 'hover:bg-[#F5F2ED]'}`}
+                  className={`py-1.5 rounded-lg font-bold ${selected ? 'bg-red-700 text-white' : today ? 'ring-1 ring-red-600 text-red-700' : 'hover:bg-surface'}`}
                 >
                   {toPersianDigits(day)}
                 </button>
               );
             })}
           </div>
-          <button type="button" onClick={() => { setView(moment()); pick(moment().jDate()); }} className="mt-2 w-full py-1.5 rounded-lg bg-[#F5F2ED] hover:bg-[#E6E0D5] font-bold">
+          <button type="button" onClick={() => { setView(moment()); pick(moment().jDate()); }} className="mt-2 w-full py-1.5 rounded-lg bg-surface hover:bg-line font-bold">
             امروز
           </button>
         </div>,

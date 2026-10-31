@@ -91,18 +91,18 @@ export const AuditLogModule: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="p-3 bg-[#fdfbf7] text-[#991b1b] rounded-2xl border border-[#f5f2ed]">
+        <div className="p-3 bg-page text-brand-strong rounded-2xl border border-surface">
           <History className="w-6 h-6" />
         </div>
         <div>
-          <h2 className="text-xl font-black text-[#2d2d2d]">تاریخچهٔ تغییرات</h2>
-          <p className="text-sm text-[#6e6a60] mt-1">چه کسی، چه زمانی، اطلاعیه، سند، سطح دسترسی، حساب پرتال یا تنظیمات را ساخت، تغییر داد یا حذف کرد</p>
+          <h2 className="text-xl font-black text-ink">تاریخچهٔ تغییرات</h2>
+          <p className="text-sm text-muted mt-1">چه کسی، چه زمانی، اطلاعیه، سند، سطح دسترسی، حساب پرتال یا تنظیمات را ساخت، تغییر داد یا حذف کرد</p>
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl border border-[#E6E0D5] grid grid-cols-1 sm:grid-cols-[1fr_12rem_10rem] gap-2">
+      <div className="bg-white p-4 rounded-2xl border border-line grid grid-cols-1 sm:grid-cols-[1fr_12rem_10rem] gap-2">
         <div className="relative">
-          <Search className="w-4 h-4 text-[#8C867A] absolute right-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-faint absolute right-3 top-1/2 -translate-y-1/2" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -129,34 +129,34 @@ export const AuditLogModule: React.FC = () => {
       {!items ? (
         <div className="py-16 flex justify-center"><Loader2 className="w-7 h-7 text-red-600 animate-spin" /></div>
       ) : items.length === 0 ? (
-        <p className="text-xs text-[#6E6A60] text-center py-10 bg-white rounded-2xl border border-[#E6E0D5]">
+        <p className="text-xs text-muted text-center py-10 bg-white rounded-2xl border border-line">
           {filtered ? 'موردی با این جستجو پیدا نشد.' : 'هنوز تغییری ثبت نشده است. از این نسخه به بعد تغییرها اینجا ثبت می‌شوند.'}
         </p>
       ) : (
-        <ol className="bg-white rounded-2xl border border-[#E6E0D5] divide-y divide-[#F5F2ED]" aria-label="تغییرها">
+        <ol className="bg-white rounded-2xl border border-line divide-y divide-surface" aria-label="تغییرها">
           {items.map((item) => {
             const page = item.action !== 'delete' ? PAGES[item.entity] : undefined;
             return (
               <li key={item.id} className="p-4 flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
                 <div className="flex items-center gap-1.5 shrink-0 sm:w-44">
-                  <span className={`px-2 py-0.5 rounded-lg text-[11px] font-bold ${ACTION_STYLES[item.action]}`}>{AUDIT_ACTION_LABELS[item.action]}</span>
-                  <span className="text-[11px] font-bold text-[#6E6A60]">{AUDIT_ENTITY_LABELS[item.entity]}</span>
+                  <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${ACTION_STYLES[item.action]}`}>{AUDIT_ACTION_LABELS[item.action]}</span>
+                  <span className="text-xs font-bold text-muted">{AUDIT_ENTITY_LABELS[item.entity]}</span>
                 </div>
                 <div className="flex-1 min-w-0 space-y-0.5">
                   {page ? (
                     <button
                       onClick={() => setActiveTab(page, page === 'admin' ? null : item.entityId)}
-                      className="text-sm font-bold text-[#2D2D2D] hover:text-[#dc2626] text-right break-words"
+                      className="text-sm font-bold text-ink hover:text-brand text-right break-words"
                     >
                       {item.title}
                     </button>
                   ) : (
-                    <p className="text-sm font-bold text-[#2D2D2D] break-words">{item.title}</p>
+                    <p className="text-sm font-bold text-ink break-words">{item.title}</p>
                   )}
-                  {item.detail && <p className="text-xs text-[#6E6A60] whitespace-pre-line break-words">{toPersianDigits(item.detail)}</p>}
+                  {item.detail && <p className="text-xs text-muted whitespace-pre-line break-words">{toPersianDigits(item.detail)}</p>}
                 </div>
-                <div className="shrink-0 text-[11px] text-[#6E6A60] sm:text-left">
-                  <p className="font-bold text-[#2D2D2D]">{item.actorName}</p>
+                <div className="shrink-0 text-xs text-muted sm:text-left">
+                  <p className="font-bold text-ink">{item.actorName}</p>
                   <p>{formatDateTime(item.createdAt)}</p>
                 </div>
               </li>

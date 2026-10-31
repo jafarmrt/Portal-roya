@@ -9,7 +9,7 @@ interface AvatarProps {
 
 /** Profile photo with an initials fallback for colleagues without a picture. */
 export const Avatar: React.FC<AvatarProps> = ({ src, firstName, lastName = '', className = 'w-10 h-10 rounded-full' }) => {
-  if (src) return <img src={src} alt={`${firstName} ${lastName}`} className={`${className} object-cover bg-[#F5F2ED]`} />;
+  if (src) return <img src={src} alt={`${firstName} ${lastName}`} className={`${className} object-cover bg-surface`} />;
   const initials = `${firstName.charAt(0)}${lastName.charAt(0) ? `‌${lastName.charAt(0)}` : ''}`;
   return (
     <div

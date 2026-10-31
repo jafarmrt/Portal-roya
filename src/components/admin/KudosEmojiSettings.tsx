@@ -31,12 +31,12 @@ export const KudosEmojiSettings: React.FC<{ settings: AppSettings }> = ({ settin
   };
 
   return (
-    <section className="bg-white p-5 rounded-3xl border border-[#E6E0D5] space-y-3" aria-labelledby="kudos-emojis-title">
+    <section className="bg-white p-5 rounded-3xl border border-line/70 shadow-card space-y-3" aria-labelledby="kudos-emojis-title">
       <div className="flex items-center gap-2">
         <Smile className="w-4 h-4 text-red-700" />
-        <h3 id="kudos-emojis-title" className="text-sm font-black text-[#2D2D2D]">ایموجی‌های همکاران آنلاین</h3>
+        <h3 id="kudos-emojis-title" className="text-sm font-black text-ink">ایموجی‌های همکاران آنلاین</h3>
       </div>
-      <p className="text-[11px] text-[#6E6A60]">
+      <p className="text-xs text-muted">
         همکاران فقط همین ایموجی‌ها را می‌توانند برای هم بفرستند؛ متن آزاد وجود ندارد. برچسب در پیام گیرنده می‌آید، مثلاً «سارا احمدی برایتان 🌹 «تقدیم با گل» فرستاد». حداکثر {toPersianDigits(KUDOS_EMOJI_MAX)} مورد.
       </p>
       <ul className="space-y-2">
@@ -61,7 +61,7 @@ export const KudosEmojiSettings: React.FC<{ settings: AppSettings }> = ({ settin
               onClick={() => setList((l) => l.filter((_, j) => j !== i))}
               disabled={list.length <= 1}
               aria-label={`حذف ${e.label || 'ایموجی'}`}
-              className="p-2 rounded-xl text-[#8C867A] hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
+              className="p-2 rounded-xl text-faint hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
             >
               <Trash2 className="w-4 h-4" />
             </button>

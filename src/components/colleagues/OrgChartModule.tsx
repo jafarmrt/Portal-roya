@@ -52,7 +52,7 @@ const OrgNodeView: React.FC<{ node: OrgNode; depth: number }> = ({ node, depth }
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
             aria-label={open ? 'بستن زیرمجموعه' : 'باز کردن زیرمجموعه'}
-            className="p-1 rounded-lg text-[#6E6A60] hover:bg-[#F5F2ED]"
+            className="p-1 rounded-lg text-muted hover:bg-surface"
           >
             {open ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
@@ -61,12 +61,12 @@ const OrgNodeView: React.FC<{ node: OrgNode; depth: number }> = ({ node, depth }
         )}
         <button
           onClick={() => setActiveTab('colleagues', person.id)}
-          className="flex items-center gap-3 p-2.5 pl-4 bg-white border border-[#E6E0D5] hover:border-red-600 rounded-2xl text-right transition-colors"
+          className="flex items-center gap-3 p-2.5 pl-4 bg-white border border-line hover:border-red-600 rounded-2xl text-right transition-colors"
         >
           <Avatar src={person.avatar} firstName={person.firstName} lastName={person.lastName} className="w-10 h-10 rounded-xl text-xs" />
           <span>
-            <span className="block text-sm font-bold text-[#2D2D2D]">{person.firstName} {person.lastName}</span>
-            <span className="block text-[11px] text-[#6E6A60]">
+            <span className="block text-sm font-bold text-ink">{person.firstName} {person.lastName}</span>
+            <span className="block text-xs text-muted">
               {placeText(person)}
               {total > 0 && ` · ${toPersianDigits(total)} نفر زیرمجموعه`}
             </span>
@@ -74,7 +74,7 @@ const OrgNodeView: React.FC<{ node: OrgNode; depth: number }> = ({ node, depth }
         </button>
       </div>
       {open && reports.length > 0 && (
-        <ul className="mr-6 pr-4 border-r-2 border-[#E6E0D5] space-y-2">
+        <ul className="mr-6 pr-4 border-r-2 border-line space-y-2">
           {reports.map((r) => <OrgNodeView key={r.person.id} node={r} depth={depth + 1} />)}
         </ul>
       )}
@@ -99,35 +99,35 @@ export const OrgChartModule: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#7f1d1d] text-white rounded-2xl shadow-lg">
+          <div className="p-3 bg-brand-deep text-white rounded-2xl shadow-lg">
             <Network className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-[#2D2D2D]">چارت سازمانی</h2>
-            <p className="text-sm text-[#6E6A60]">بر اساس «مدیر مستقیم» هر همکار؛ اگر ثبت نشده باشد، مسئول واحدش</p>
+            <h2 className="text-xl font-black text-ink">چارت سازمانی</h2>
+            <p className="text-sm text-muted">بر اساس «مدیر مستقیم» هر همکار؛ اگر ثبت نشده باشد، مسئول واحدش</p>
           </div>
         </div>
         <SearchableSelect
           aria-label="واحد"
           value={department}
           onChange={(e) => setDepartment(e.target.value)}
-          className="p-2.5 bg-white border border-[#E6E0D5] rounded-xl text-sm font-bold"
+          className="p-2.5 bg-white border border-line rounded-xl text-sm font-bold"
         >
           <option value="all">همهٔ واحدها</option>
           {departments.map((d) => <option key={d} value={d}>{d}</option>)}
         </SearchableSelect>
       </div>
 
-      <div className="bg-[#FDFBF7] p-4 sm:p-6 rounded-3xl border border-[#E6E0D5] overflow-x-auto">
+      <div className="bg-page p-4 sm:p-6 rounded-3xl border border-line overflow-x-auto">
         {trees.length === 0 ? (
-          <p className="text-sm text-[#6E6A60] text-center py-8">همکاری برای نمایش وجود ندارد.</p>
+          <p className="text-sm text-muted text-center py-8">همکاری برای نمایش وجود ندارد.</p>
         ) : (
           <ul className="space-y-3 min-w-max">
             {trees.map((t) => <OrgNodeView key={t.person.id} node={t} depth={0} />)}
           </ul>
         )}
       </div>
-      <p className="text-[11px] text-[#8C867A]">
+      <p className="text-xs text-faint">
         برای اصلاح چارت، کسی که «مدیریت کارکنان» دارد می‌تواند در ویرایش پروفایل هر همکار «مدیر مستقیم» را تغییر دهد.
       </p>
     </div>

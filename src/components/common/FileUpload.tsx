@@ -37,7 +37,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ accept, label, onUploade
         type="button"
         disabled={busy}
         onClick={() => inputRef.current?.click()}
-        className={`px-3 py-2 text-xs font-bold bg-white border border-dashed border-[#B9B2A6] hover:border-red-600 hover:text-red-700 rounded-xl flex items-center gap-1.5 disabled:opacity-60 ${className}`}
+        className={`px-3 py-2 text-xs font-bold bg-white border border-dashed border-subtle hover:border-red-600 hover:text-red-700 rounded-xl flex items-center gap-1.5 disabled:opacity-60 ${className}`}
       >
         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
         <span>{busy ? 'در حال بارگذاری...' : label}</span>

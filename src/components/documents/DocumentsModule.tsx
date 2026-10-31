@@ -37,7 +37,7 @@ type Filter = 'all' | 'mine' | 'mandatory' | 'review';
 type Dialog = { kind: 'edit' | 'version' | 'review' | 'history' | 'receipts' | 'delete'; doc: PortalDocument };
 
 const smallButton = (alert = false) =>
-  `flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold border bg-white ${alert ? 'border-red-300 text-red-800 hover:border-red-500' : 'border-[#E6E0D5] hover:border-red-300'}`;
+  `flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border bg-white ${alert ? 'border-red-300 text-red-800 hover:border-red-500' : 'border-line hover:border-red-300'}`;
 
 const DocumentCard: React.FC<{ doc: PortalDocument; focused: boolean; open: (kind: Dialog['kind']) => void }> = ({ doc, focused, open }) => {
   const { can, currentUser, roleName, acknowledgeDocument } = usePortal();
@@ -49,40 +49,40 @@ const DocumentCard: React.FC<{ doc: PortalDocument; focused: boolean; open: (kin
   return (
     <li
       id={`doc-${doc.id}`}
-      className={`bg-white p-4 rounded-2xl border space-y-3 ${focused ? 'border-red-600 ring-2 ring-red-200' : awaitsMyAck(doc) ? 'border-amber-300' : 'border-[#E6E0D5]'}`}
+      className={`bg-white p-4 rounded-2xl border space-y-3 ${focused ? 'border-red-600 ring-2 ring-red-200' : awaitsMyAck(doc) ? 'border-amber-300' : 'border-line'}`}
     >
       <div className="flex items-start gap-3">
         <div className="p-2.5 bg-red-50 text-red-700 rounded-xl shrink-0">{fileIcon(doc)}</div>
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <p className="text-sm font-bold text-[#2D2D2D]">{doc.title}</p>
+            <p className="text-sm font-bold text-ink">{doc.title}</p>
             {doc.requiresAck && (
-              <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-900 flex items-center gap-1">
+              <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-900 flex items-center gap-1">
                 <FileCheck2 className="w-3 h-3" /> لازم‌الاجرا
               </span>
             )}
-            {doc.version > 1 && <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[#F5F2ED] text-[#4B4740]">نسخهٔ {toPersianDigits(doc.version)}</span>}
+            {doc.version > 1 && <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-surface text-ink-soft">نسخهٔ {toPersianDigits(doc.version)}</span>}
             {doc.needsReview && (
-              <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-700 text-white flex items-center gap-1">
+              <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-red-700 text-white flex items-center gap-1">
                 <CalendarClock className="w-3 h-3" /> زمان بازبینی
               </span>
             )}
           </div>
-          {doc.description && <p className="text-xs text-[#6E6A60] leading-relaxed">{doc.description}</p>}
-          {doc.version > 1 && doc.versionNote && <p className="text-[11px] text-[#4B4740]">تغییر نسخهٔ {toPersianDigits(doc.version)}: {doc.versionNote}</p>}
-          <p className="text-[11px] text-[#8C867A]">
+          {doc.description && <p className="text-xs text-muted leading-relaxed">{doc.description}</p>}
+          {doc.version > 1 && doc.versionNote && <p className="text-xs text-ink-soft">تغییر نسخهٔ {toPersianDigits(doc.version)}: {doc.versionNote}</p>}
+          <p className="text-xs text-faint">
             {formatFileSize(doc.fileSize)} · {doc.version > 1 ? `به‌روز شده ${formatDate(doc.updatedAt)}` : formatDate(doc.createdAt)}
             {doc.owner ? ` · مسئول: ${doc.owner}` : doc.uploadedBy && ` · ${doc.uploadedBy}`}
             {caretaker && doc.reviewAt && ` · بازبینی: ${formatDate(doc.reviewAt)}`}
           </p>
           {audience && (
-            <p className="text-[11px] text-[#6E6A60] flex items-center gap-1">
+            <p className="text-xs text-muted flex items-center gap-1">
               <Users className="w-3.5 h-3.5 shrink-0" /> مخصوص {audience}
             </p>
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <a href={doc.fileUrl} download={doc.fileName} className="p-2 rounded-xl text-[#2D2D2D] hover:bg-[#F5F2ED]" aria-label={`دریافت ${doc.title}`} title="دریافت فایل">
+          <a href={doc.fileUrl} download={doc.fileName} className="p-2 rounded-xl text-ink hover:bg-surface" aria-label={`دریافت ${doc.title}`} title="دریافت فایل">
             <Download className="w-4 h-4" />
           </a>
           <AddToTodosButton
@@ -90,11 +90,11 @@ const DocumentCard: React.FC<{ doc: PortalDocument; focused: boolean; open: (kin
             id={doc.id}
             title={awaitsMyAck(doc) ? `مطالعه و تأیید: ${doc.title}` : doc.title}
             iconOnly
-            className="p-2 rounded-xl text-[#2D2D2D] hover:bg-[#F5F2ED]"
+            className="p-2 rounded-xl text-ink hover:bg-surface"
           />
           {isManager && (
             <>
-              <button onClick={() => open('edit')} className="p-2 rounded-xl text-[#2D2D2D] hover:bg-[#F5F2ED]" aria-label={`ویرایش ${doc.title}`} title="ویرایش مشخصات">
+              <button onClick={() => open('edit')} className="p-2 rounded-xl text-ink hover:bg-surface" aria-label={`ویرایش ${doc.title}`} title="ویرایش مشخصات">
                 <Pencil className="w-4 h-4" />
               </button>
               <button onClick={() => open('delete')} className="p-2 rounded-xl text-red-700 hover:bg-red-50" aria-label={`حذف ${doc.title}`} title="حذف سند">
@@ -107,12 +107,12 @@ const DocumentCard: React.FC<{ doc: PortalDocument; focused: boolean; open: (kin
 
       {doc.requiresAck && doc.forMe && (
         doc.acknowledgedAt ? (
-          <p className="text-[11px] font-bold text-emerald-800 flex items-center gap-1.5">
+          <p className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4" /> مطالعه را {formatDate(doc.acknowledgedAt)} تأیید کرده‌اید.
           </p>
         ) : (
           <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[11px] text-amber-950 leading-relaxed">
+            <p className="text-xs text-amber-950 leading-relaxed">
               {doc.acknowledgedEarlier ? 'نسخهٔ جدید آمده است؛ لطفاً دوباره مطالعه و تأیید کنید.' : 'این سند لازم‌الاجراست؛ پس از مطالعه تأیید کنید.'}
             </p>
             <button
@@ -209,12 +209,12 @@ export const DocumentsModule: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#7f1d1d] text-white rounded-2xl shadow-lg">
+          <div className="p-3 bg-brand-deep text-white rounded-2xl shadow-lg">
             <FolderOpen className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-[#2D2D2D]">اسناد و فرم‌ها</h2>
-            <p className="text-sm text-[#6E6A60]">آخرین نسخهٔ آیین‌نامه‌ها، دستورالعمل‌ها و فرم‌های سازمان</p>
+            <h2 className="text-xl font-black text-ink">اسناد و فرم‌ها</h2>
+            <p className="text-sm text-muted">آخرین نسخهٔ آیین‌نامه‌ها، دستورالعمل‌ها و فرم‌های سازمان</p>
           </div>
         </div>
         {isManager && (
@@ -233,10 +233,10 @@ export const DocumentsModule: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white p-4 rounded-2xl border border-[#E6E0D5] space-y-3">
+      <div className="bg-white p-4 rounded-2xl border border-line space-y-3">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#8C867A]" />
+            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-faint" />
             <input
               type="search"
               aria-label="جستجو در اسناد"
@@ -260,7 +260,7 @@ export const DocumentsModule: React.FC = () => {
                   key={f.id}
                   aria-pressed={activeFilter === f.id}
                   onClick={() => setFilter(f.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border ${activeFilter === f.id ? 'bg-red-700 text-white border-red-700' : 'bg-white border-[#D9D4CB]'}`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border ${activeFilter === f.id ? 'bg-red-700 text-white border-red-700' : 'bg-white border-line-strong'}`}
                 >
                   {f.label}
                 </button>
@@ -270,17 +270,17 @@ export const DocumentsModule: React.FC = () => {
       </div>
 
       {grouped.length === 0 ? (
-        <div className="py-12 text-center bg-white rounded-2xl border border-dashed border-[#E6E0D5]">
-          <FolderOpen className="w-10 h-10 text-[#8C867A] mx-auto mb-2" />
-          <p className="text-sm font-bold text-[#6E6A60]">
+        <div className="py-12 text-center bg-white rounded-2xl border border-dashed border-line">
+          <FolderOpen className="w-10 h-10 text-faint mx-auto mb-2" />
+          <p className="text-sm font-bold text-muted">
             {documents.length === 0 ? 'هنوز سندی بارگذاری نشده است.' : 'سندی با این مشخصات پیدا نشد.'}
           </p>
         </div>
       ) : (
         grouped.map((group) => (
           <section key={group.category} className="space-y-3">
-            <h3 className="text-sm font-black text-[#2D2D2D]">
-              {group.category} <span className="text-[#8C867A] font-bold">({toPersianDigits(group.items.length)})</span>
+            <h3 className="text-sm font-black text-ink">
+              {group.category} <span className="text-faint font-bold">({toPersianDigits(group.items.length)})</span>
             </h3>
             <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
               {group.items.map((doc) => (

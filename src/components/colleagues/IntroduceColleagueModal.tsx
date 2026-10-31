@@ -49,7 +49,7 @@ export const IntroduceColleagueModal: React.FC<IntroduceColleagueModalProps> = (
     >
       <form id="introduce-colleague" onSubmit={handleSubmit} className="space-y-4">
         {!card && (
-          <p className="p-3 bg-[#F5F2ED] rounded-xl leading-relaxed text-[#4B4740]">
+          <p className="p-3 bg-surface rounded-xl leading-relaxed text-ink-soft">
             کارت معرفی تا ۶۰ روز در داشبورد نمایش داده می‌شود و به همهٔ همکاران اعلان داده می‌شود.
           </p>
         )}

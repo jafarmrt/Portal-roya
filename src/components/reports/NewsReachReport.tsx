@@ -56,7 +56,7 @@ export const NewsReachReport: React.FC<{ report: NewsReport }> = ({ report }) =>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-[#8C867A] border-b border-[#E6E0D5]">
+              <tr className="text-faint border-b border-line">
                 <th className={th}>واحد</th>
                 <th className={`${th} w-2/5`}>خوانده‌شدن</th>
                 <th className={th}>میانگین زمان تا خواندن</th>
@@ -65,11 +65,11 @@ export const NewsReachReport: React.FC<{ report: NewsReport }> = ({ report }) =>
             </thead>
             <tbody>
               {report.departments.map((d) => (
-                <tr key={d.name} className="border-b border-[#F5F2ED] last:border-0">
-                  <td className={`${td} font-bold text-[#2D2D2D] whitespace-nowrap`}>{d.name}</td>
+                <tr key={d.name} className="border-b border-surface last:border-0">
+                  <td className={`${td} font-bold text-ink whitespace-nowrap`}>{d.name}</td>
                   <td className={td}><ShareBar part={d.read} total={d.audience} label={`خوانده‌شدن در ${d.name}`} /></td>
-                  <td className={`${td} whitespace-nowrap text-[#6E6A60]`}>{formatMinutes(d.avgReadMinutes)}</td>
-                  <td className={`${td} whitespace-nowrap text-[#6E6A60]`}>
+                  <td className={`${td} whitespace-nowrap text-muted`}>{formatMinutes(d.avgReadMinutes)}</td>
+                  <td className={`${td} whitespace-nowrap text-muted`}>
                     {d.ackAudience > 0 ? `${formatPercent(percentOf(d.acknowledged, d.ackAudience))} (${toPersianDigits(d.acknowledged)} از ${toPersianDigits(d.ackAudience)})` : '—'}
                   </td>
                 </tr>
@@ -84,7 +84,7 @@ export const NewsReachReport: React.FC<{ report: NewsReport }> = ({ report }) =>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-[#8C867A] border-b border-[#E6E0D5]">
+              <tr className="text-faint border-b border-line">
                 <th className={th}>دسته</th>
                 <th className={th}>اطلاعیه</th>
                 <th className={`${th} w-2/5`}>خوانده‌شدن</th>
@@ -93,11 +93,11 @@ export const NewsReachReport: React.FC<{ report: NewsReport }> = ({ report }) =>
             </thead>
             <tbody>
               {report.categories.map((c) => (
-                <tr key={c.name} className="border-b border-[#F5F2ED] last:border-0">
-                  <td className={`${td} font-bold text-[#2D2D2D] whitespace-nowrap`}>{c.name}</td>
-                  <td className={`${td} text-[#6E6A60]`}>{toPersianDigits(c.items)}</td>
+                <tr key={c.name} className="border-b border-surface last:border-0">
+                  <td className={`${td} font-bold text-ink whitespace-nowrap`}>{c.name}</td>
+                  <td className={`${td} text-muted`}>{toPersianDigits(c.items)}</td>
                   <td className={td}><ShareBar part={c.read} total={c.audience} label={`خوانده‌شدن ${c.name}`} /></td>
-                  <td className={`${td} whitespace-nowrap text-[#6E6A60]`}>{formatMinutes(c.avgReadMinutes)}</td>
+                  <td className={`${td} whitespace-nowrap text-muted`}>{formatMinutes(c.avgReadMinutes)}</td>
                 </tr>
               ))}
             </tbody>
@@ -111,7 +111,7 @@ export const NewsReachReport: React.FC<{ report: NewsReport }> = ({ report }) =>
           {ranked.low.length > 0 && (
             <RankedList id="reach-low" icon={<ThumbsDown className="w-5 h-5" />} title="کم‌خواننده‌ترین اطلاعیه‌ها" items={ranked.low} onOpen={openItem} />
           )}
-          <p className="text-[11px] text-[#6E6A60] lg:col-span-2 -mt-3">
+          <p className="text-xs text-muted lg:col-span-2 -mt-3">
             اطلاعیه‌های {toPersianDigits(RANK_MIN_AGE_DAYS)} روز اخیر که هنوز در حال خوانده‌شدن‌اند و اطلاعیه‌هایی که برای کمتر از سه نفر بوده‌اند در این مقایسه نیستند.
           </p>
         </div>
@@ -122,7 +122,7 @@ export const NewsReachReport: React.FC<{ report: NewsReport }> = ({ report }) =>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-[#8C867A] border-b border-[#E6E0D5]">
+              <tr className="text-faint border-b border-line">
                 <th className={th}>عنوان</th>
                 <th className={th}>تاریخ</th>
                 <th className={`${th} w-1/3`}>خوانده‌شدن</th>
@@ -132,31 +132,31 @@ export const NewsReachReport: React.FC<{ report: NewsReport }> = ({ report }) =>
             </thead>
             <tbody>
               {items.map((item) => (
-                <tr key={item.id} className="border-b border-[#F5F2ED] last:border-0">
+                <tr key={item.id} className="border-b border-surface last:border-0">
                   <td className={td}>
-                    <button onClick={() => openItem(item)} className="font-bold text-[#2D2D2D] hover:text-[#dc2626] text-right">{item.title}</button>
-                    <span className="block text-[10px] text-[#8C867A]">{item.category}{item.author ? `، ${item.author}` : ''}</span>
+                    <button onClick={() => openItem(item)} className="font-bold text-ink hover:text-brand text-right">{item.title}</button>
+                    <span className="block text-xs text-faint">{item.category}{item.author ? `، ${item.author}` : ''}</span>
                   </td>
-                  <td className={`${td} whitespace-nowrap text-[#6E6A60]`}>{formatDate(item.publishAt)}</td>
+                  <td className={`${td} whitespace-nowrap text-muted`}>{formatDate(item.publishAt)}</td>
                   <td className={td}><ShareBar part={item.read} total={item.audience} label={`خوانده‌شدن ${item.title}`} /></td>
                   <td className={`${td} whitespace-nowrap`}>
                     {item.requiresAck ? (
-                      <span className="flex items-center gap-1 font-bold text-[#991b1b]">
+                      <span className="flex items-center gap-1 font-bold text-brand-strong">
                         <FileCheck2 className="w-3.5 h-3.5" />
                         {toPersianDigits(item.acknowledged)} از {toPersianDigits(item.audience)}
                       </span>
                     ) : (
-                      <span className="text-[#8C867A]">—</span>
+                      <span className="text-faint">—</span>
                     )}
                   </td>
-                  <td className={`${td} whitespace-nowrap text-[#6E6A60]`}>{formatMinutes(item.avgReadMinutes)}</td>
+                  <td className={`${td} whitespace-nowrap text-muted`}>{formatMinutes(item.avgReadMinutes)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         {report.items.length > ITEMS_SHOWN && (
-          <button onClick={() => setShowAll(!showAll)} className="text-xs font-bold text-[#991b1b] hover:underline">
+          <button onClick={() => setShowAll(!showAll)} className="text-xs font-bold text-brand-strong hover:underline">
             {showAll ? 'نمایش کمتر' : `نمایش همهٔ ${toPersianDigits(report.items.length)} اطلاعیه`}
           </button>
         )}
@@ -177,7 +177,7 @@ const RankedList: React.FC<{ id: string; icon: React.ReactNode; title: string; i
     <ol className="space-y-3">
       {items.map((item) => (
         <li key={item.id} className="space-y-1 text-xs">
-          <button onClick={() => onOpen(item)} className="font-bold text-[#2D2D2D] hover:text-[#dc2626] text-right">{item.title}</button>
+          <button onClick={() => onOpen(item)} className="font-bold text-ink hover:text-brand text-right">{item.title}</button>
           <ShareBar part={item.read} total={item.audience} label={`خوانده‌شدن ${item.title}`} />
         </li>
       ))}
@@ -201,10 +201,10 @@ export const IdlePeopleCard: React.FC<{ people: IdlePerson[] }> = ({ people }) =
       ) : (
         <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2" aria-label="همکارانی که سر نزده‌اند">
           {people.map((p) => (
-            <li key={p.id} className="p-3 rounded-xl bg-[#F5F2ED] text-xs space-y-0.5">
-              <button onClick={() => setActiveTab('colleagues', p.id)} className="font-bold text-[#2D2D2D] hover:text-[#dc2626] text-right">{p.name}</button>
-              <p className="text-[11px] text-[#6E6A60]">{[p.position, p.department].filter(Boolean).join('، ')}</p>
-              <p className="text-[11px] font-bold text-[#991b1b]">
+            <li key={p.id} className="p-3 rounded-xl bg-surface text-xs space-y-0.5">
+              <button onClick={() => setActiveTab('colleagues', p.id)} className="font-bold text-ink hover:text-brand text-right">{p.name}</button>
+              <p className="text-xs text-muted">{[p.position, p.department].filter(Boolean).join('، ')}</p>
+              <p className="text-xs font-bold text-brand-strong">
                 {p.lastSeenAt ? `آخرین بار ${formatDate(p.lastSeenAt)}` : `ورودی از او ثبت نشده است (حساب از ${formatDate(p.createdAt)})`}
               </p>
             </li>

@@ -14,7 +14,7 @@ const isAnswered = (q: PollQuestion, a: PollAnswer) =>
 
 const choiceClass = (checked: boolean, disabled: boolean) =>
   `flex items-center gap-3 p-3 rounded-xl border text-xs transition-colors ${
-    checked ? 'border-red-600 bg-red-50 font-bold text-[#2D2D2D]' : 'border-[#E6E0D5] bg-white text-[#2D2D2D]'
+    checked ? 'border-red-600 bg-red-50 font-bold text-ink' : 'border-line bg-white text-ink'
   } ${disabled ? 'cursor-default' : 'cursor-pointer hover:border-red-300'}`;
 
 /** One question of the form; `disabled` shows an answer already sent. */
@@ -29,15 +29,15 @@ const QuestionField: React.FC<{
   const name = `q-${q.id}`;
   return (
     <fieldset
-      className={`p-4 rounded-2xl border space-y-3 ${missing ? 'border-red-400 bg-red-50/40' : 'border-[#E6E0D5] bg-[#F9F7F4]'}`}
+      className={`p-4 rounded-2xl border space-y-3 ${missing ? 'border-red-400 bg-red-50/40' : 'border-line bg-surface-soft'}`}
       aria-describedby={missing ? `${name}-missing` : undefined}
     >
       <legend className="sr-only">{q.text}</legend>
-      <p className="text-sm font-bold text-[#2D2D2D] leading-relaxed" aria-hidden="true">
+      <p className="text-sm font-bold text-ink leading-relaxed" aria-hidden="true">
         {toPersianDigits(index + 1)}. {q.text}
-        {q.required ? <span className="text-red-600"> *</span> : <span className="text-[11px] font-normal text-[#8C867A]"> (اختیاری)</span>}
+        {q.required ? <span className="text-red-600"> *</span> : <span className="text-xs font-normal text-faint"> (اختیاری)</span>}
       </p>
-      {q.type === 'multiple' && <p className="text-[11px] text-[#6E6A60]">چند گزینه را می‌توانید با هم انتخاب کنید.</p>}
+      {q.type === 'multiple' && <p className="text-xs text-muted">چند گزینه را می‌توانید با هم انتخاب کنید.</p>}
 
       {(q.type === 'single' || q.type === 'multiple') && (
         <div className="space-y-2">
@@ -73,11 +73,11 @@ const QuestionField: React.FC<{
             return (
               <label
                 key={value}
-                className={`flex flex-col items-center gap-0.5 py-2 rounded-xl border text-center ${checked ? 'border-red-600 bg-red-700 text-white' : 'border-[#E6E0D5] bg-white text-[#2D2D2D]'} ${disabled ? '' : 'cursor-pointer hover:border-red-300'}`}
+                className={`flex flex-col items-center gap-0.5 py-2 rounded-xl border text-center ${checked ? 'border-red-600 bg-red-700 text-white' : 'border-line bg-white text-ink'} ${disabled ? '' : 'cursor-pointer hover:border-red-300'}`}
               >
                 <input type="radio" name={name} checked={checked} disabled={disabled} onChange={() => onChange({ ...answer, rating: value })} className="sr-only" />
                 <span className="text-base font-black">{toPersianDigits(value)}</span>
-                <span className={`text-[10px] ${checked ? 'text-white' : 'text-[#6E6A60]'}`}>{label}</span>
+                <span className={`text-xs ${checked ? 'text-white' : 'text-muted'}`}>{label}</span>
               </label>
             );
           })}
@@ -97,7 +97,7 @@ const QuestionField: React.FC<{
         />
       )}
       {missing && (
-        <p id={`${name}-missing`} className="text-[11px] font-bold text-red-700">
+        <p id={`${name}-missing`} className="text-xs font-bold text-red-700">
           پاسخ به این سؤال لازم است.
         </p>
       )}
@@ -156,8 +156,8 @@ export const PollAnswerModal: React.FC<{ poll: Poll; onClose: () => void }> = ({
       }
     >
       <form id="poll-answer" onSubmit={submit} className="space-y-4" noValidate>
-        {poll.description && <p className="text-xs text-[#4B4740] leading-relaxed whitespace-pre-line">{poll.description}</p>}
-        <p className={`flex items-start gap-2 p-3 rounded-xl text-[11px] leading-relaxed ${poll.anonymous ? 'bg-emerald-50 text-emerald-900 border border-emerald-200' : 'bg-amber-50 text-amber-900 border border-amber-200'}`}>
+        {poll.description && <p className="text-xs text-ink-soft leading-relaxed whitespace-pre-line">{poll.description}</p>}
+        <p className={`flex items-start gap-2 p-3 rounded-xl text-xs leading-relaxed ${poll.anonymous ? 'bg-emerald-50 text-emerald-900 border border-emerald-200' : 'bg-amber-50 text-amber-900 border border-amber-200'}`}>
           {poll.anonymous ? <ShieldCheck className="w-4 h-4 shrink-0" /> : <UserCheck className="w-4 h-4 shrink-0" />}
           <span>
             {poll.anonymous

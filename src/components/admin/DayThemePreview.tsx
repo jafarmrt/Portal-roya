@@ -5,7 +5,7 @@ import { ThemeBannerView } from '../dashboard/DayThemeBanner';
 import { ThemeEffect } from '../dashboard/ThemeEffect';
 
 const chipClass = (active: boolean) =>
-  `px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${active ? 'bg-red-700 text-white border-red-700' : 'bg-white border-[#D9D4CB] hover:border-red-300'}`;
+  `px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${active ? 'bg-red-700 text-white border-red-700' : 'bg-white border-line-strong hover:border-red-300'}`;
 
 /** Shows the administrator each day's banner and plays its effect, whatever today is. */
 export const DayThemePreview: React.FC = () => {
@@ -16,7 +16,7 @@ export const DayThemePreview: React.FC = () => {
 
   return (
     <div className="space-y-2 pt-1">
-      <span className="flex items-center gap-1 text-[11px] font-bold text-[#6E6A60]">
+      <span className="flex items-center gap-1 text-xs font-bold text-muted">
         <Eye className="w-3.5 h-3.5" />
         پیش‌نمایش روزها
       </span>
@@ -36,7 +36,7 @@ export const DayThemePreview: React.FC = () => {
           </button>
         ))}
       </div>
-      <p className="text-[10px] text-[#8C867A] leading-relaxed">
+      <p className="text-xs text-faint leading-relaxed">
         {desktop
           ? 'افکت حدود یک دقیقه پخش می‌شود و با «توقف افکت» زودتر تمام می‌شود.'
           : 'روی گوشی و تبلت فقط بنر نشان داده می‌شود؛ افکت را روی رایانه ببینید.'}

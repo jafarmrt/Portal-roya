@@ -17,30 +17,30 @@ const GuideRow: React.FC<{ guide: Guide; onOpen: () => void }> = ({ guide, onOpe
         type="button"
         onClick={onOpen}
         className={`w-full h-full text-right bg-white p-4 rounded-2xl border flex items-start gap-3 hover:border-red-400 hover:shadow-sm transition-all ${
-          guide.needsReview ? 'border-red-300' : 'border-[#E6E0D5]'
+          guide.needsReview ? 'border-red-300' : 'border-line'
         }`}
       >
         <span className="flex-1 min-w-0 space-y-1">
           <span className="flex flex-wrap items-center gap-1.5">
-            <span className="text-sm font-bold text-[#2D2D2D]">{guide.title}</span>
+            <span className="text-sm font-bold text-ink">{guide.title}</span>
             {guide.needsReview && (
-              <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-700 text-white flex items-center gap-1">
+              <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-red-700 text-white flex items-center gap-1">
                 <CalendarClock className="w-3 h-3" /> زمان بازبینی
               </span>
             )}
           </span>
-          {guide.summary && <span className="block text-xs text-[#4B4740] leading-relaxed">{guide.summary}</span>}
-          <span className="block text-[11px] text-[#8C867A]">
+          {guide.summary && <span className="block text-xs text-ink-soft leading-relaxed">{guide.summary}</span>}
+          <span className="block text-xs text-faint">
             {[guide.department, guide.owner && `مسئول: ${guide.owner}`, `به‌روز شده ${formatDate(guide.updatedAt)}`].filter(Boolean).join(' · ')}
           </span>
           {looksAfter && guide.feedback && (guide.feedback.helpful > 0 || guide.feedback.notHelpful > 0) && (
-            <span className="flex items-center gap-3 text-[11px] text-[#6E6A60]">
+            <span className="flex items-center gap-3 text-xs text-muted">
               <span className="flex items-center gap-1"><ThumbsUp className="w-3 h-3 text-emerald-700" /> {toPersianDigits(guide.feedback.helpful)}</span>
               <span className="flex items-center gap-1"><ThumbsDown className="w-3 h-3 text-red-700" /> {toPersianDigits(guide.feedback.notHelpful)}</span>
             </span>
           )}
         </span>
-        <ChevronLeft className="w-4 h-4 text-[#A8A295] shrink-0 mt-1" />
+        <ChevronLeft className="w-4 h-4 text-faint shrink-0 mt-1" />
       </button>
     </li>
   );
@@ -78,12 +78,12 @@ export const GuidesModule: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#7f1d1d] text-white rounded-2xl shadow-lg">
+          <div className="p-3 bg-brand-deep text-white rounded-2xl shadow-lg">
             <LifeBuoy className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-[#2D2D2D]">راهنماها و پرسش‌های رایج</h2>
-            <p className="text-sm text-[#6E6A60]">چطور انجامش بدهم؟ کدام فرم؟ با چه کسی تماس بگیرم؟</p>
+            <h2 className="text-xl font-black text-ink">راهنماها و پرسش‌های رایج</h2>
+            <p className="text-sm text-muted">چطور انجامش بدهم؟ کدام فرم؟ با چه کسی تماس بگیرم؟</p>
           </div>
         </div>
         {isManager && (
@@ -93,9 +93,9 @@ export const GuidesModule: React.FC = () => {
         )}
       </div>
 
-      <div className="bg-white p-4 rounded-2xl border border-[#E6E0D5] space-y-3">
+      <div className="bg-white p-4 rounded-2xl border border-line space-y-3">
         <div className="relative">
-          <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#8C867A]" />
+          <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-faint" />
           <input
             type="search"
             aria-label="جستجو در راهنماها"
@@ -116,7 +116,7 @@ export const GuidesModule: React.FC = () => {
                 key={f.id}
                 aria-pressed={category === f.id}
                 onClick={() => setCategory(f.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold border ${category === f.id ? 'bg-red-700 text-white border-red-700' : 'bg-white border-[#D9D4CB]'}`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border ${category === f.id ? 'bg-red-700 text-white border-red-700' : 'bg-white border-line-strong'}`}
               >
                 {f.label}
               </button>
@@ -126,13 +126,13 @@ export const GuidesModule: React.FC = () => {
       </div>
 
       {grouped.length === 0 ? (
-        <div className="py-12 text-center bg-white rounded-2xl border border-dashed border-[#E6E0D5] space-y-2">
-          <LifeBuoy className="w-10 h-10 text-[#8C867A] mx-auto" />
-          <p className="text-sm font-bold text-[#6E6A60]">
+        <div className="py-12 text-center bg-white rounded-2xl border border-dashed border-line space-y-2">
+          <LifeBuoy className="w-10 h-10 text-faint mx-auto" />
+          <p className="text-sm font-bold text-muted">
             {guides.length === 0 ? 'هنوز راهنمایی نوشته نشده است.' : 'راهنمایی با این عبارت پیدا نشد.'}
           </p>
           {guides.length === 0 && isManager && (
-            <p className="text-xs text-[#8C867A] max-w-md mx-auto leading-relaxed">
+            <p className="text-xs text-faint max-w-md mx-auto leading-relaxed">
               از پرسش‌هایی شروع کنید که همکاران بیشتر تلفنی می‌پرسند. گزارش «جستجوهای بی‌نتیجه» هم نشان می‌دهد همکاران دنبال چه چیزی بوده‌اند.
             </p>
           )}
@@ -140,8 +140,8 @@ export const GuidesModule: React.FC = () => {
       ) : (
         grouped.map((group) => (
           <section key={group.category} className="space-y-3">
-            <h3 className="text-sm font-black text-[#2D2D2D]">
-              {group.category} <span className="text-[#8C867A] font-bold">({toPersianDigits(group.items.length)})</span>
+            <h3 className="text-sm font-black text-ink">
+              {group.category} <span className="text-faint font-bold">({toPersianDigits(group.items.length)})</span>
             </h3>
             <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {group.items.map((g) => (

@@ -32,10 +32,10 @@ const ChangelogText: React.FC<{ text: string }> = ({ text }) => (
   <>
     {text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, i) =>
       part.startsWith('**') && part.endsWith('**') ? (
-        <strong key={i} className="font-bold text-[#2D2D2D]">{part.slice(2, -2)}</strong>
+        <strong key={i} className="font-bold text-ink">{part.slice(2, -2)}</strong>
       ) : part.startsWith('`') && part.endsWith('`') && part.length > 1 ? (
         // Commands and file names are left-to-right inside the Persian text.
-        <bdi key={i} dir="ltr" className="font-mono text-[11px] bg-[#F5F2ED] px-1 rounded">{part.slice(1, -1)}</bdi>
+        <bdi key={i} dir="ltr" className="font-mono text-xs bg-surface px-1 rounded">{part.slice(1, -1)}</bdi>
       ) : (
         <React.Fragment key={i}>{part}</React.Fragment>
       ),
@@ -72,20 +72,20 @@ export const WhatsNewModal: React.FC<{ info: BuildInfo; onClose: () => void }> =
       {!entries && !error && (
         <div className="py-10 flex justify-center"><Loader2 className="w-6 h-6 text-red-600 animate-spin" /></div>
       )}
-      {entries && entries.length === 0 && <p className="text-sm text-[#6E6A60]">فهرست تغییرات روی سرور پیدا نشد.</p>}
+      {entries && entries.length === 0 && <p className="text-sm text-muted">فهرست تغییرات روی سرور پیدا نشد.</p>}
       {entries && entries.length > 0 && (
         <div className="space-y-6">
           {entries.map((entry) => (
             <section key={entry.version} aria-labelledby={`changelog-${entry.version}`}>
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-2">
-                <span className={`text-[11px] font-black px-2 py-0.5 rounded-full ${entry.version === info.version ? 'bg-red-700 text-white' : 'bg-[#F5F2ED] text-[#4B4740]'}`}>
+                <span className={`text-xs font-black px-2 py-0.5 rounded-full ${entry.version === info.version ? 'bg-red-700 text-white' : 'bg-surface text-ink-soft'}`}>
                   نسخهٔ {toPersianDigits(entry.version)}
                   {entry.version === info.version && ' (نسخهٔ فعلی)'}
                 </span>
-                {entry.date && <span className="text-[11px] text-[#6E6A60]">{formatDate(entry.date)}</span>}
+                {entry.date && <span className="text-xs text-muted">{formatDate(entry.date)}</span>}
               </div>
-              {entry.title && <h4 id={`changelog-${entry.version}`} className="text-sm font-black text-[#2D2D2D] mb-2">{entry.title}</h4>}
-              <ul className="list-disc pr-5 space-y-1.5 text-xs leading-relaxed text-[#4B4740]">
+              {entry.title && <h4 id={`changelog-${entry.version}`} className="text-sm font-black text-ink mb-2">{entry.title}</h4>}
+              <ul className="list-disc pr-5 space-y-1.5 text-xs leading-relaxed text-ink-soft">
                 {entry.items.map((item, i) => (
                   <li key={i}><ChangelogText text={item} /></li>
                 ))}
@@ -122,7 +122,7 @@ export const VersionInfo: React.FC<{ className?: string }> = ({ className = '' }
           setSeen(info.version);
         }}
         title="تازه‌های این نسخه"
-        className={`tap-area inline-flex items-center gap-1.5 underline-offset-4 hover:underline hover:text-white ${className}`}
+        className={`tap-area inline-flex items-center gap-1.5 underline-offset-4 hover:underline hover:text-ink ${className}`}
       >
         {isNew && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true" />}
         <span dir="rtl">{label}</span>

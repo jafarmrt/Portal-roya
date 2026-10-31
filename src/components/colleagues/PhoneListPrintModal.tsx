@@ -99,7 +99,7 @@ export const PhoneListPrintModal: React.FC<{ onClose: () => void }> = ({ onClose
       role="radio"
       aria-checked={value === current}
       onClick={() => set(value)}
-      className={`px-3 py-1.5 rounded-xl font-bold border ${value === current ? 'bg-red-700 text-white border-red-700' : 'bg-white border-[#D9D4CB]'}`}
+      className={`px-3 py-1.5 rounded-xl font-bold border ${value === current ? 'bg-red-700 text-white border-red-700' : 'bg-white border-line-strong'}`}
     >
       {label}
     </button>
@@ -134,7 +134,7 @@ export const PhoneListPrintModal: React.FC<{ onClose: () => void }> = ({ onClose
             </label>
           )}
         </div>
-        <p className="text-[11px] text-[#6E6A60]">پیش‌نمایش؛ در چاپ به برگه‌های A4 تقسیم می‌شود (برای حدود صد نفر معمولاً دو برگه).</p>
+        <p className="text-xs text-muted">پیش‌نمایش؛ در چاپ به برگه‌های A4 تقسیم می‌شود (برای حدود صد نفر معمولاً دو برگه).</p>
         <div className="sheet-preview-frame">
           <div className="sheet-preview">
             <PhoneListSheet groups={groups} total={people.length} showMobile={showMobile} />

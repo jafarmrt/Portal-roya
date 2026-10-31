@@ -24,7 +24,7 @@ const weekOf = (day: moment.Moment) => day.clone().startOf('day').subtract((day.
 const initialView = (): View => (typeof window !== 'undefined' && window.matchMedia?.('(max-width: 639px)').matches ? 'week' : 'month');
 
 const toggleClass = (active: boolean) =>
-  `flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-colors ${active ? 'bg-[#991b1b] text-white' : 'text-[#6E6A60] hover:bg-[#F5F2ED]'}`;
+  `flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-colors ${active ? 'bg-brand-strong text-white' : 'text-muted hover:bg-surface'}`;
 
 export const CalendarModule: React.FC = () => {
   const { calendarEvents, can, employees, customHolidays, setCustomHoliday, removeCustomHoliday, focusId, myDueTodos } = usePortal();
@@ -147,30 +147,30 @@ export const CalendarModule: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 bg-[#7f1d1d] text-white rounded-2xl shadow-lg">
+        <div className="p-3 bg-brand-deep text-white rounded-2xl shadow-lg">
           <Calendar className="w-6 h-6" />
         </div>
         <div>
-          <h2 className="text-xl font-black text-[#2D2D2D]">تقویم سازمانی</h2>
-          <p className="text-sm text-[#6E6A60]">مشاهده رویدادها، جلسات، آموزش‌ها و تولدها</p>
+          <h2 className="text-xl font-black text-ink">تقویم سازمانی</h2>
+          <p className="text-sm text-muted">مشاهده رویدادها، جلسات، آموزش‌ها و تولدها</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3">
-          <div className="bg-white rounded-3xl p-4 sm:p-6 border border-[#E6E0D5] shadow-xs">
+          <div className="bg-white rounded-3xl p-4 sm:p-6 border border-line/70 shadow-card">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div className="flex flex-wrap items-center gap-2">
                 {isManager && (
                   <button
                     onClick={() => setForm({})}
-                    className="px-5 py-3 text-xs font-bold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-2xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
+                    className="px-5 py-3 text-xs font-bold text-white bg-brand hover:bg-brand-hover rounded-2xl shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
                   >
                     <Plus className="w-4 h-4" />
                     <span>افزودن رویداد جدید</span>
                   </button>
                 )}
-                <div className="flex items-center gap-1 bg-[#FDFBF7] border border-[#E6E0D5] p-1 rounded-2xl" role="group" aria-label="نمای تقویم">
+                <div className="flex items-center gap-1 bg-page border border-line p-1 rounded-2xl" role="group" aria-label="نمای تقویم">
                   <button type="button" aria-pressed={view === 'month'} onClick={() => setView('month')} className={toggleClass(view === 'month')}>
                     <CalendarDays className="w-4 h-4" /> ماه
                   </button>
@@ -182,34 +182,34 @@ export const CalendarModule: React.FC = () => {
 
               {view === 'month' ? (
                 <div className="flex items-center gap-4">
-                  <button onClick={prevMonth} className="p-2 hover:bg-[#F5F2ED] rounded-xl transition-colors text-right" title="ماه قبل" aria-label="ماه قبل">
-                    <ChevronRight className="w-5 h-5 text-[#2D2D2D]" />
+                  <button onClick={prevMonth} className="p-2 hover:bg-surface rounded-xl transition-colors text-right" title="ماه قبل" aria-label="ماه قبل">
+                    <ChevronRight className="w-5 h-5 text-ink" />
                   </button>
                   <div className="text-center">
-                    <h3 className="text-xl font-bold text-[#2D2D2D]">
+                    <h3 className="text-xl font-bold text-ink">
                       {JALALI_MONTHS[currentMonth]} {toPersianDigits(currentYear)}
                     </h3>
-                    <p className="text-[10px] text-[#8C867A] mt-0.5">{monthInfo.hijriLabel} · {monthInfo.gregorianLabel}</p>
+                    <p className="text-xs text-faint mt-0.5">{monthInfo.hijriLabel} · {monthInfo.gregorianLabel}</p>
                   </div>
-                  <button onClick={nextMonth} className="p-2 hover:bg-[#F5F2ED] rounded-xl transition-colors text-left" title="ماه بعد" aria-label="ماه بعد">
-                    <ChevronLeft className="w-5 h-5 text-[#2D2D2D]" />
+                  <button onClick={nextMonth} className="p-2 hover:bg-surface rounded-xl transition-colors text-left" title="ماه بعد" aria-label="ماه بعد">
+                    <ChevronLeft className="w-5 h-5 text-ink" />
                   </button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 sm:gap-4">
-                  <button onClick={() => setWeekStart(weekStart.clone().subtract(7, 'day'))} className="p-2 hover:bg-[#F5F2ED] rounded-xl transition-colors" title="هفتهٔ قبل" aria-label="هفتهٔ قبل">
-                    <ChevronRight className="w-5 h-5 text-[#2D2D2D]" />
+                  <button onClick={() => setWeekStart(weekStart.clone().subtract(7, 'day'))} className="p-2 hover:bg-surface rounded-xl transition-colors" title="هفتهٔ قبل" aria-label="هفتهٔ قبل">
+                    <ChevronRight className="w-5 h-5 text-ink" />
                   </button>
                   <div className="text-center">
-                    <h3 className="text-base sm:text-lg font-bold text-[#2D2D2D]">{weekStart.isSame(thisWeek, 'day') ? 'این هفته' : 'هفتهٔ'} {weekTitle}</h3>
+                    <h3 className="text-base sm:text-lg font-bold text-ink">{weekStart.isSame(thisWeek, 'day') ? 'این هفته' : 'هفتهٔ'} {weekTitle}</h3>
                     {!weekStart.isSame(thisWeek, 'day') && (
-                      <button type="button" onClick={() => setWeekStart(thisWeek)} className="text-[11px] font-bold text-[#dc2626] hover:underline">
+                      <button type="button" onClick={() => setWeekStart(thisWeek)} className="text-xs font-bold text-brand hover:underline">
                         برگشت به این هفته
                       </button>
                     )}
                   </div>
-                  <button onClick={() => setWeekStart(weekStart.clone().add(7, 'day'))} className="p-2 hover:bg-[#F5F2ED] rounded-xl transition-colors" title="هفتهٔ بعد" aria-label="هفتهٔ بعد">
-                    <ChevronLeft className="w-5 h-5 text-[#2D2D2D]" />
+                  <button onClick={() => setWeekStart(weekStart.clone().add(7, 'day'))} className="p-2 hover:bg-surface rounded-xl transition-colors" title="هفتهٔ بعد" aria-label="هفتهٔ بعد">
+                    <ChevronLeft className="w-5 h-5 text-ink" />
                   </button>
                 </div>
               )}
@@ -222,14 +222,14 @@ export const CalendarModule: React.FC = () => {
             <div className="min-w-[600px]">
               <div className="grid grid-cols-7 gap-2 mb-2">
                 {JALALI_WEEKDAYS.map(day => (
-                  <div key={day} className="text-center text-xs font-bold text-[#8C867A] py-2">
+                  <div key={day} className="text-center text-xs font-bold text-faint py-2">
                     {day}
                   </div>
                 ))}
               </div>
               <div className="grid grid-cols-7 gap-2">
                 {days.map((day, index) => {
-                  if (!day) return <div key={`empty-${index}`} className="h-28 rounded-2xl bg-[#FDFBF7] border border-transparent"></div>;
+                  if (!day) return <div key={`empty-${index}`} className="h-28 rounded-2xl bg-page border border-transparent"></div>;
                   const isFri = (index % 7) === 6;
                   const dayDate = jalaliKey(currentYear, currentMonth, day);
                   const holidayObj = getDayHolidays(currentYear, currentMonth, day);
@@ -243,20 +243,20 @@ export const CalendarModule: React.FC = () => {
                     <div 
                       key={day} 
                       className={`h-28 overflow-hidden rounded-2xl border p-2 flex flex-col ${
-                        isTodayCell ? 'border-[#dc2626] bg-[#fef2f2] shadow-sm' : 
-                        isDayOff ? 'border-[#fca5a5] bg-[#fff5f5]' : 
-                        'border-[#E6E0D5] hover:border-[#D5CEC2] bg-white'
+                        isTodayCell ? 'border-brand bg-brand-soft shadow-sm' : 
+                        isDayOff ? 'border-red-300 bg-brand-soft' : 
+                        'border-line hover:border-line-strong bg-white'
                       }`}
                     >
                       <div className="flex justify-between items-start mb-1">
                         <div className="flex items-baseline gap-1.5">
-                          <span className={`text-sm font-black ${isTodayCell ? 'text-[#dc2626]' : isDayOff ? 'text-[#ef4444]' : 'text-[#2D2D2D]'}`}>
+                          <span className={`text-sm font-black ${isTodayCell ? 'text-brand' : isDayOff ? 'text-red-500' : 'text-ink'}`}>
                             {toPersianDigits(day)}
                           </span>
-                          <span className="text-[9px] text-[#8C867A]" title={formatHijri(currentYear, currentMonth + 1, day)}>
+                          <span className="text-[10px] text-faint" title={formatHijri(currentYear, currentMonth + 1, day)}>
                             {toPersianDigits(hijriDate(currentYear, currentMonth + 1, day).day)}
                           </span>
-                          <span className="text-[9px] text-[#B5AFA3]" dir="ltr">{gregorianDate(currentYear, currentMonth + 1, day).day}</span>
+                          <span className="text-[10px] text-subtle" dir="ltr">{gregorianDate(currentYear, currentMonth + 1, day).day}</span>
                         </div>
                         {isManager && (
                           <button 
@@ -266,7 +266,7 @@ export const CalendarModule: React.FC = () => {
                                setPublicIsHoliday(holidayObj ? holidayObj.isHoliday : false);
                                setEditingPublicDate({ year: currentYear, month: currentMonth, day, title: holidayObj?.title || '', isHoliday: holidayObj?.isHoliday ?? true });
                             }}
-                            className="p-1 text-[#8C867A] hover:text-[#dc2626] transition-colors rounded-lg"
+                            className="p-1 text-faint hover:text-brand transition-colors rounded-lg"
                             title="ویرایش مناسبت تقویمی"
                             aria-label={`ویرایش مناسبت ${toPersianDigits(day)} ${JALALI_MONTHS[currentMonth]}`}
                           >
@@ -278,7 +278,7 @@ export const CalendarModule: React.FC = () => {
                         {holidayObj?.items.map((occasion, i) => (
                           <div
                             key={i}
-                            className={`text-[9px] font-bold px-1 py-0.5 rounded leading-tight cursor-pointer ${occasion.holiday ? 'text-[#dc2626] bg-red-100' : 'text-[#9a3412] bg-orange-50'}`}
+                            className={`text-[10px] font-bold px-1 py-0.5 rounded leading-tight cursor-pointer ${occasion.holiday ? 'text-brand bg-red-100' : 'text-orange-800 bg-orange-50'}`}
                             title={occasion.title}
                             onClick={() =>
                               openNote({
@@ -305,7 +305,7 @@ export const CalendarModule: React.FC = () => {
                                 description: `تولد ${b.firstName} ${b.lastName} عزیز از واحد ${b.department}.`,
                               })
                             }
-                            className="text-[9px] font-bold bg-pink-100 text-pink-700 px-1 py-0.5 rounded flex items-center gap-1 leading-tight truncate cursor-pointer" 
+                            className="text-[10px] font-bold bg-pink-100 text-pink-700 px-1 py-0.5 rounded flex items-center gap-1 leading-tight truncate cursor-pointer" 
                             title={`تولد ${b.firstName} ${b.lastName}`}
                           >
                             <Cake className="w-2.5 h-2.5 shrink-0" />
@@ -320,7 +320,7 @@ export const CalendarModule: React.FC = () => {
                               type="button"
                               key={e.id}
                               onClick={() => openEvent(e.id)}
-                              className={`block w-full text-right text-[9px] font-bold px-1 py-0.5 rounded truncate leading-tight ${typeChipClass(e.type)} ${waiting ? 'ring-1 ring-amber-500' : ''}`}
+                              className={`block w-full text-right text-[10px] font-bold px-1 py-0.5 rounded truncate leading-tight ${typeChipClass(e.type)} ${waiting ? 'ring-1 ring-amber-500' : ''}`}
                               title={[e.title, timeRange(e), waiting ? 'منتظر پاسخ شما' : ''].filter(Boolean).join(' · ')}
                             >
                               {e.time && <span className="font-normal">{toPersianDigits(e.time)} </span>}
@@ -334,7 +334,7 @@ export const CalendarModule: React.FC = () => {
                             type="button"
                             key={t.id}
                             onClick={() => setOpenTodo(t)}
-                            className="block w-full text-right text-[9px] font-bold px-1 py-0.5 rounded truncate leading-tight bg-sky-50 text-sky-800 border border-dashed border-sky-300"
+                            className="block w-full text-right text-[10px] font-bold px-1 py-0.5 rounded truncate leading-tight bg-sky-50 text-sky-800 border border-dashed border-sky-300"
                             title={`یادداشت من: ${t.title}`}
                           >
                             {t.title}
@@ -352,60 +352,60 @@ export const CalendarModule: React.FC = () => {
         </div>
 
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white rounded-3xl p-5 border border-[#E6E0D5] shadow-xs">
-            <h3 className="text-sm font-bold text-[#2D2D2D] mb-4 flex items-center gap-2">
-              <Flag className="w-4 h-4 text-[#dc2626]" />
+          <div className="bg-white rounded-3xl p-5 border border-line/70 shadow-card">
+            <h3 className="text-sm font-bold text-ink mb-4 flex items-center gap-2">
+              <Flag className="w-4 h-4 text-brand" />
               مناسبت‌های {JALALI_MONTHS[currentMonth]}
             </h3>
             {monthInfo.list.length > 0 ? (
               <ul className="space-y-2 max-h-80 overflow-y-auto">
                 {monthInfo.list.map((o, i) => (
                   <li key={i} className="flex items-start gap-2 text-xs leading-relaxed">
-                    <span className={`shrink-0 w-7 text-center font-black ${o.holiday ? 'text-[#dc2626]' : 'text-[#6E6A60]'}`}>{toPersianDigits(o.day)}</span>
-                    <span className={o.holiday ? 'font-bold text-[#dc2626]' : 'text-[#2D2D2D]'}>
+                    <span className={`shrink-0 w-7 text-center font-black ${o.holiday ? 'text-brand' : 'text-muted'}`}>{toPersianDigits(o.day)}</span>
+                    <span className={o.holiday ? 'font-bold text-brand' : 'text-ink'}>
                       {o.title}
-                      {o.holiday && <span className="mr-1 text-[10px] font-normal">(تعطیل)</span>}
-                      {o.estimated && <span className="mr-1 text-[10px] text-[#8C867A]" title="تاریخ تقریبی">*</span>}
+                      {o.holiday && <span className="mr-1 text-xs font-normal">(تعطیل)</span>}
+                      {o.estimated && <span className="mr-1 text-xs text-faint" title="تاریخ تقریبی">*</span>}
                     </span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-xs text-[#6E6A60] text-center py-4 bg-[#F5F2ED] rounded-xl">مناسبتی در این ماه ثبت نشده است.</p>
+              <p className="text-xs text-muted text-center py-4 bg-surface rounded-xl">مناسبتی در این ماه ثبت نشده است.</p>
             )}
             {monthInfo.list.some((o) => o.estimated) && (
-              <p className="mt-3 text-[10px] text-[#8C867A] leading-relaxed">
+              <p className="mt-3 text-xs text-faint leading-relaxed">
                 * تقویم رسمی این سال هنوز در پرتال ثبت نشده و تاریخ مناسبت‌های قمری محاسبه‌ای است؛ ممکن است یک روز جابه‌جا باشد. مدیر تقویم می‌تواند هر روز را اصلاح کند.
               </p>
             )}
           </div>
 
-          <div className="bg-white rounded-3xl p-5 border border-[#E6E0D5] shadow-xs">
-            <h3 className="text-sm font-bold text-[#2D2D2D] mb-4 flex items-center gap-2">
+          <div className="bg-white rounded-3xl p-5 border border-line/70 shadow-card">
+            <h3 className="text-sm font-bold text-ink mb-4 flex items-center gap-2">
               <Cake className="w-4 h-4 text-pink-500" />
               متولدین امروز
             </h3>
             {todayBirthdays.length > 0 ? (
               <div className="space-y-3">
                 {todayBirthdays.map(emp => (
-                  <div key={emp.id} className="flex items-center gap-3 p-3 bg-[#FDFBF7] border border-[#E6E0D5] rounded-xl">
+                  <div key={emp.id} className="flex items-center gap-3 p-3 bg-page border border-line rounded-xl">
                     <Avatar src={emp.avatar} firstName={emp.firstName} lastName={emp.lastName} className="w-10 h-10 rounded-full text-xs" />
                     <div>
-                      <div className="font-bold text-sm text-[#2D2D2D]">{emp.firstName} {emp.lastName}</div>
-                      <div className="text-[10px] text-[#6E6A60]">{emp.department} - {emp.position}</div>
+                      <div className="font-bold text-sm text-ink">{emp.firstName} {emp.lastName}</div>
+                      <div className="text-xs text-muted">{emp.department} - {emp.position}</div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-[#6E6A60] text-center py-4 bg-[#F5F2ED] rounded-xl">
+              <p className="text-xs text-muted text-center py-4 bg-surface rounded-xl">
                 امروز تولد هیچ یک از همکاران نیست.
               </p>
             )}
           </div>
 
-          <div className="bg-white rounded-3xl p-5 border border-[#E6E0D5] shadow-xs">
-            <h3 className="text-sm font-bold text-[#2D2D2D] mb-4">رویدادهای پیش‌رو</h3>
+          <div className="bg-white rounded-3xl p-5 border border-line/70 shadow-card">
+            <h3 className="text-sm font-bold text-ink mb-4">رویدادهای پیش‌رو</h3>
             {upcomingEvents.length > 0 ? (
               <div className="space-y-3">
                 {upcomingEvents.map((e) => {
@@ -415,17 +415,17 @@ export const CalendarModule: React.FC = () => {
                       type="button"
                       key={e.id}
                       onClick={() => openEvent(e.id)}
-                      className="block w-full text-right p-3 border border-[#E6E0D5] rounded-xl bg-white hover:border-[#dc2626] transition-colors group"
+                      className="block w-full text-right p-3 border border-line rounded-xl bg-white hover:border-brand transition-colors group"
                     >
                       <span className="flex items-center justify-between mb-2">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${typeChipClass(e.type)} flex items-center gap-1`}>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${typeChipClass(e.type)} flex items-center gap-1`}>
                           <TypeIcon type={e.type} className="w-3 h-3" /> {TYPE_LABELS[e.type]}
                         </span>
-                        <span className="text-[10px] font-bold text-[#6E6A60] group-hover:text-[#dc2626] transition-colors">{formatDate(e.date)}</span>
+                        <span className="text-xs font-bold text-muted group-hover:text-brand transition-colors">{formatDate(e.date)}</span>
                       </span>
-                      <span className="block text-xs font-bold text-[#2D2D2D] leading-tight truncate">{e.title}</span>
+                      <span className="block text-xs font-bold text-ink leading-tight truncate">{e.title}</span>
                       {(e.time || waiting) && (
-                        <span className="flex items-center justify-between gap-2 mt-1 text-[10px] text-[#6E6A60]">
+                        <span className="flex items-center justify-between gap-2 mt-1 text-xs text-muted">
                           <span>{timeRange(e)}</span>
                           {waiting && <span className="font-bold text-amber-700">منتظر پاسخ شما</span>}
                         </span>
@@ -435,7 +435,7 @@ export const CalendarModule: React.FC = () => {
                 })}
               </div>
             ) : (
-              <p className="text-xs text-[#6E6A60] text-center py-4 bg-[#F5F2ED] rounded-xl">
+              <p className="text-xs text-muted text-center py-4 bg-surface rounded-xl">
                 رویدادی برای نمایش وجود ندارد.
               </p>
             )}
@@ -472,7 +472,7 @@ export const CalendarModule: React.FC = () => {
                 onChange={(e) => setPublicIsHoliday(e.target.checked)}
                 className="w-4 h-4 accent-red-700"
               />
-              <span className="font-bold text-[#2D2D2D]">این روز تعطیل رسمی است</span>
+              <span className="font-bold text-ink">این روز تعطیل رسمی است</span>
             </label>
           </form>
         </Modal>
@@ -497,7 +497,7 @@ export const CalendarModule: React.FC = () => {
           onClose={() => setSelected(null)}
           size="sm"
         >
-          <p className="text-sm text-[#6E6A60] leading-relaxed">{selected.note.description}</p>
+          <p className="text-sm text-muted leading-relaxed">{selected.note.description}</p>
         </Modal>
       )}
     </div>

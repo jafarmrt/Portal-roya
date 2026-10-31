@@ -31,21 +31,21 @@ const KudosRow: React.FC<{
       </div>
       <p className="flex-1 text-xs leading-relaxed">
         {item.message}
-        <span className="block text-[10px] text-[#8C867A]">{timeAgo(item.createdAt)}</span>
+        <span className="block text-xs text-faint">{timeAgo(item.createdAt)}</span>
       </p>
       <button
         type="button"
         onClick={() => onClose(item)}
         aria-label={`بستن ایموجی ${nameOf(item.from)}`}
         title="بستن"
-        className="p-1 rounded-lg text-[#8C867A] hover:bg-[#F5F2ED]"
+        className="p-1 rounded-lg text-faint hover:bg-surface"
       >
         <X className="w-3.5 h-3.5" />
       </button>
     </div>
     {item.canReply && (
       <div className="flex items-center gap-1 flex-wrap">
-        <span className="text-[10px] text-[#8C867A] ms-1">پاسخ:</span>
+        <span className="text-xs text-faint ms-1">پاسخ:</span>
         {emojis.map((e) => (
           <button
             key={e.id}
@@ -53,7 +53,7 @@ const KudosRow: React.FC<{
             onClick={() => onReply(item, e)}
             title={e.label}
             aria-label={`پاسخ با ${e.label} به ${nameOf(item.from)}`}
-            className="w-8 h-8 rounded-xl bg-[#F9F7F4] hover:bg-emerald-50 border border-[#E6E0D5] text-base leading-none"
+            className="w-8 h-8 rounded-xl bg-surface-soft hover:bg-emerald-50 border border-line text-base leading-none"
           >
             {e.emoji}
           </button>
@@ -71,7 +71,7 @@ const SoundToggle: React.FC<{ on: boolean }> = ({ on }) => (
     aria-pressed={!on}
     aria-label={on ? 'بی‌صدا کردن ایموجی‌های تازه' : 'پخش صدا برای ایموجی‌های تازه'}
     title={on ? 'بی‌صدا کردن' : 'پخش صدا'}
-    className="absolute top-2.5 left-2.5 p-1 rounded-lg text-[#8C867A] hover:bg-[#F5F2ED]"
+    className="absolute top-2.5 left-2.5 p-1 rounded-lg text-faint hover:bg-surface"
   >
     {on ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
   </button>
@@ -136,7 +136,7 @@ const KudosBanner: React.FC<{ emojis: KudosEmoji[] }> = ({ emojis }) => {
   return (
     <section
       aria-label="ایموجی‌های همکاران"
-      className="fixed z-40 left-2 right-2 bottom-[calc(76px+env(safe-area-inset-bottom))] sm:right-auto sm:w-80 lg:left-4 lg:bottom-4 max-h-[60vh] overflow-y-auto bg-white text-[#2D2D2D] border border-[#E6E0D5] rounded-2xl shadow-xl p-3 space-y-2"
+      className="fixed z-40 left-2 right-2 bottom-[calc(76px+env(safe-area-inset-bottom))] sm:right-auto sm:w-80 lg:left-4 lg:bottom-4 max-h-[60vh] overflow-y-auto bg-white text-ink border border-line rounded-2xl shadow-xl p-3 space-y-2"
       dir="rtl"
     >
       <SoundToggle on={soundOn} />
@@ -149,15 +149,15 @@ const KudosBanner: React.FC<{ emojis: KudosEmoji[] }> = ({ emojis }) => {
             <span className="text-xs font-bold truncate">
               {toPersianDigits(new Set(items.map((i) => i.from.id)).size)} همکار برایتان ایموجی فرستادند
             </span>
-            <ChevronDown className={`w-4 h-4 text-[#8C867A] shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-4 h-4 text-faint shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
           </button>
-          <button type="button" onClick={() => dismiss()} aria-label="بستن همه" title="بستن همه" className="p-1 rounded-lg text-[#8C867A] hover:bg-[#F5F2ED]">
+          <button type="button" onClick={() => dismiss()} aria-label="بستن همه" title="بستن همه" className="p-1 rounded-lg text-faint hover:bg-surface">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
       {shown.length > 0 && (
-        <ul className={`space-y-3 ${several ? 'pt-2 border-t border-[#E6E0D5]' : 'pl-6'}`}>
+        <ul className={`space-y-3 ${several ? 'pt-2 border-t border-line' : 'pl-6'}`}>
           {shown.map((item) => (
             <KudosRow key={item.id} item={item} emojis={emojis} onReply={(i, e) => void reply(i, e)} onClose={(i) => dismiss([i.id])} />
           ))}

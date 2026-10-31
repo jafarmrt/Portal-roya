@@ -30,7 +30,7 @@ const newQuestion = (type: PollQuestionType): Draft => ({
 });
 
 const radioCard = (checked: boolean) =>
-  `flex items-start gap-2 p-3 rounded-xl border cursor-pointer transition-colors ${checked ? 'border-red-600 bg-red-50' : 'border-[#E6E0D5] bg-white hover:border-red-300'}`;
+  `flex items-start gap-2 p-3 rounded-xl border cursor-pointer transition-colors ${checked ? 'border-red-600 bg-red-50' : 'border-line bg-white hover:border-red-300'}`;
 
 /** One question in the form builder. Questions that already have answers keep their type and options. */
 const QuestionEditor: React.FC<{
@@ -46,11 +46,11 @@ const QuestionEditor: React.FC<{
   const setOption = (i: number, text: string) => onChange({ ...draft, options: draft.options.map((o, j) => (j === i ? { ...o, text } : o)) });
 
   return (
-    <li className="p-4 rounded-2xl border border-[#E6E0D5] bg-[#F9F7F4] space-y-3">
+    <li className="p-4 rounded-2xl border border-line bg-surface-soft space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="px-2.5 py-1 rounded-lg bg-white border border-[#E6E0D5] text-[11px] font-black text-[#991b1b]">سؤال {n}</span>
+        <span className="px-2.5 py-1 rounded-lg bg-white border border-line text-xs font-black text-brand-strong">سؤال {n}</span>
         {locked ? (
-          <span className="flex items-center gap-1 text-[11px] font-bold text-[#6E6A60]" title="این سؤال پاسخ گرفته است و نوعش تغییر نمی‌کند">
+          <span className="flex items-center gap-1 text-xs font-bold text-muted" title="این سؤال پاسخ گرفته است و نوعش تغییر نمی‌کند">
             <Lock className="w-3.5 h-3.5" /> {typeLabel(draft.type)}
           </span>
         ) : (
@@ -62,26 +62,26 @@ const QuestionEditor: React.FC<{
               const keep = isChoice(type) && isChoice(draft.type);
               onChange({ ...draft, type, options: keep ? draft.options : isChoice(type) ? [{ text: '' }, { text: '' }] : [] });
             }}
-            className="p-1.5 border border-[#D9D4CB] rounded-lg bg-white text-xs font-bold"
+            className="p-1.5 border border-line-strong rounded-lg bg-white text-xs font-bold"
           >
             {QUESTION_TYPES.map((t) => (
               <option key={t.type} value={t.type}>{t.label}</option>
             ))}
           </SearchableSelect>
         )}
-        <label className="flex items-center gap-1.5 text-xs font-bold text-[#4B4740] cursor-pointer">
+        <label className="flex items-center gap-1.5 text-xs font-bold text-ink-soft cursor-pointer">
           <input type="checkbox" checked={draft.required} onChange={(e) => onChange({ ...draft, required: e.target.checked })} className="accent-red-700" />
           اجباری
         </label>
         <div className="flex items-center gap-0.5 mr-auto">
-          <button type="button" onClick={() => onMove(-1)} disabled={index === 0} aria-label={`بالا بردن سؤال ${n}`} className="p-1.5 rounded-lg text-[#6E6A60] hover:bg-white disabled:opacity-30">
+          <button type="button" onClick={() => onMove(-1)} disabled={index === 0} aria-label={`بالا بردن سؤال ${n}`} className="p-1.5 rounded-lg text-muted hover:bg-white disabled:opacity-30">
             <ArrowUp className="w-4 h-4" />
           </button>
-          <button type="button" onClick={() => onMove(1)} disabled={index === count - 1} aria-label={`پایین بردن سؤال ${n}`} className="p-1.5 rounded-lg text-[#6E6A60] hover:bg-white disabled:opacity-30">
+          <button type="button" onClick={() => onMove(1)} disabled={index === count - 1} aria-label={`پایین بردن سؤال ${n}`} className="p-1.5 rounded-lg text-muted hover:bg-white disabled:opacity-30">
             <ArrowDown className="w-4 h-4" />
           </button>
           {!locked && count > 1 && (
-            <button type="button" onClick={onRemove} aria-label={`حذف سؤال ${n}`} className="p-1.5 rounded-lg text-[#8C867A] hover:text-red-700 hover:bg-white">
+            <button type="button" onClick={onRemove} aria-label={`حذف سؤال ${n}`} className="p-1.5 rounded-lg text-faint hover:text-red-700 hover:bg-white">
               <Trash2 className="w-4 h-4" />
             </button>
           )}
@@ -103,7 +103,7 @@ const QuestionEditor: React.FC<{
             const fixed = locked && Boolean(o.id);
             return (
               <div key={o.id ?? `new-${i}`} className="flex items-center gap-2">
-                <span className={`w-4 h-4 shrink-0 border-2 border-[#C9C2B5] ${draft.type === 'single' ? 'rounded-full' : 'rounded'}`} aria-hidden="true" />
+                <span className={`w-4 h-4 shrink-0 border-2 border-line-strong ${draft.type === 'single' ? 'rounded-full' : 'rounded'}`} aria-hidden="true" />
                 <input
                   aria-label={`گزینهٔ ${toPersianDigits(i + 1)} سؤال ${n}`}
                   value={o.text}
@@ -117,7 +117,7 @@ const QuestionEditor: React.FC<{
                     type="button"
                     onClick={() => onChange({ ...draft, options: draft.options.filter((_, j) => j !== i) })}
                     aria-label={`حذف گزینهٔ ${toPersianDigits(i + 1)} سؤال ${n}`}
-                    className="p-1.5 text-[#8C867A] hover:text-red-700 rounded-lg"
+                    className="p-1.5 text-faint hover:text-red-700 rounded-lg"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -141,11 +141,11 @@ const QuestionEditor: React.FC<{
       {draft.type === 'rating' && (
         <div className="grid grid-cols-5 gap-1.5" aria-hidden="true">
           {[1, 2, 3, 4, 5].map((v) => (
-            <span key={v} className="py-1.5 rounded-lg border border-dashed border-[#D9D4CB] text-center text-xs font-bold text-[#8C867A]">{toPersianDigits(v)}</span>
+            <span key={v} className="py-1.5 rounded-lg border border-dashed border-line-strong text-center text-xs font-bold text-faint">{toPersianDigits(v)}</span>
           ))}
         </div>
       )}
-      {draft.type === 'text' && <p className="text-[11px] text-[#8C867A] p-2.5 rounded-lg border border-dashed border-[#D9D4CB]">پاسخ‌دهنده متن می‌نویسد (تا ۲۰۰۰ نویسه).</p>}
+      {draft.type === 'text' && <p className="text-xs text-faint p-2.5 rounded-lg border border-dashed border-line-strong">پاسخ‌دهنده متن می‌نویسد (تا ۲۰۰۰ نویسه).</p>}
     </li>
   );
 };
@@ -254,7 +254,7 @@ export const PollFormModal: React.FC<{ poll?: Poll; onClose: () => void }> = ({ 
         </div>
 
         <section aria-labelledby="poll-questions-title" className="space-y-3">
-          <h4 id="poll-questions-title" className="text-xs font-black text-[#2D2D2D]">سؤال‌ها ({toPersianDigits(questions.length)})</h4>
+          <h4 id="poll-questions-title" className="text-xs font-black text-ink">سؤال‌ها ({toPersianDigits(questions.length)})</h4>
           <ol className="space-y-3">
             {questions.map((q, i) => (
               <QuestionEditor
@@ -270,15 +270,15 @@ export const PollFormModal: React.FC<{ poll?: Poll; onClose: () => void }> = ({ 
             ))}
           </ol>
           {questions.length < MAX_QUESTIONS && (
-            <div className="flex flex-wrap items-center gap-1.5 p-3 rounded-2xl border border-dashed border-[#D9D4CB]">
-              <span className="text-[11px] font-bold text-[#6E6A60] ml-1">افزودن سؤال:</span>
+            <div className="flex flex-wrap items-center gap-1.5 p-3 rounded-2xl border border-dashed border-line-strong">
+              <span className="text-xs font-bold text-muted ml-1">افزودن سؤال:</span>
               {QUESTION_TYPES.map((t) => (
                 <button
                   key={t.type}
                   type="button"
                   onClick={() => setQuestions((qs) => [...qs, newQuestion(t.type)])}
                   title={t.hint}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white border border-[#D9D4CB] text-xs font-bold hover:border-red-400"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white border border-line-strong text-xs font-bold hover:border-red-400"
                 >
                   <Plus className="w-3.5 h-3.5 text-red-700" /> {t.label}
                 </button>
@@ -290,7 +290,7 @@ export const PollFormModal: React.FC<{ poll?: Poll; onClose: () => void }> = ({ 
         <div>
           <label htmlFor="poll-expiry" className={labelClass}>مهلت پاسخ‌گویی (اختیاری)</label>
           <JalaliDateInput id="poll-expiry" value={expiryDate} onChange={setExpiryDate} />
-          <p className="text-[11px] text-[#6E6A60] mt-1">نظرسنجی آخر این روز بسته می‌شود و یک روز مانده به آن، به کسانی که پاسخ نداده‌اند یادآوری می‌شود.</p>
+          <p className="text-xs text-muted mt-1">نظرسنجی آخر این روز بسته می‌شود و یک روز مانده به آن، به کسانی که پاسخ نداده‌اند یادآوری می‌شود.</p>
         </div>
 
         <fieldset className="space-y-2">
@@ -303,13 +303,13 @@ export const PollFormModal: React.FC<{ poll?: Poll; onClose: () => void }> = ({ 
                   <input type="radio" name="poll-anonymous" checked={anonymous === value} disabled={disabled} onChange={() => setAnonymous(value)} className="accent-red-700 mt-0.5" />
                   <span>
                     <span className="block text-xs font-bold">{value ? 'ناشناس' : 'با نام'}</span>
-                    <span className="block text-[11px] text-[#6E6A60] leading-relaxed">{anonymityNote(value)}</span>
+                    <span className="block text-xs text-muted leading-relaxed">{anonymityNote(value)}</span>
                   </span>
                 </label>
               );
             })}
           </div>
-          {answered && poll!.anonymous && <p className="text-[11px] text-[#6E6A60]">پاسخ‌ها با وعدهٔ ناشناس بودن ثبت شده‌اند، پس این نظرسنجی ناشناس می‌ماند.</p>}
+          {answered && poll!.anonymous && <p className="text-xs text-muted">پاسخ‌ها با وعدهٔ ناشناس بودن ثبت شده‌اند، پس این نظرسنجی ناشناس می‌ماند.</p>}
         </fieldset>
 
         <fieldset className="space-y-2">
@@ -320,7 +320,7 @@ export const PollFormModal: React.FC<{ poll?: Poll; onClose: () => void }> = ({ 
                 <input type="radio" name="poll-visibility" checked={visibility === v.value} onChange={() => setVisibility(v.value)} className="accent-red-700 mt-0.5" />
                 <span>
                   <span className="block text-xs font-bold">{v.label}</span>
-                  <span className="block text-[11px] text-[#6E6A60] leading-relaxed">{v.hint}</span>
+                  <span className="block text-xs text-muted leading-relaxed">{v.hint}</span>
                 </span>
               </label>
             ))}
@@ -330,7 +330,7 @@ export const PollFormModal: React.FC<{ poll?: Poll; onClose: () => void }> = ({ 
               <input type="checkbox" checked={showTextAnswers} onChange={(e) => setShowTextAnswers(e.target.checked)} className="accent-red-700 mt-0.5" />
               <span>
                 <span className="block text-xs font-bold">متن پاسخ‌های تشریحی هم به همکاران نشان داده شود</span>
-                <span className="block text-[11px] text-[#6E6A60]">اگر انتخاب نشود، متن پاسخ‌ها فقط برای شما و مدیران نظرسنجی است و همکاران فقط تعداد پاسخ‌ها را می‌بینند.</span>
+                <span className="block text-xs text-muted">اگر انتخاب نشود، متن پاسخ‌ها فقط برای شما و مدیران نظرسنجی است و همکاران فقط تعداد پاسخ‌ها را می‌بینند.</span>
               </span>
             </label>
           )}

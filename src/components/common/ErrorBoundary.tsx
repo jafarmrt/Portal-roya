@@ -67,20 +67,20 @@ export class ErrorBoundary extends React.Component<Props, State> {
     if (!error) return this.props.children;
     const updated = isChunkLoadError(error);
     return (
-      <div className={this.props.fullScreen ? 'min-h-screen bg-[#FDFBF7] flex items-center justify-center p-6' : 'py-12 flex justify-center'} dir="rtl">
-        <div role="alert" className="bg-white p-8 rounded-3xl shadow-sm border border-[#fca5a5] max-w-md w-full text-center space-y-4">
-          <div className="w-12 h-12 bg-[#fef2f2] text-[#dc2626] rounded-2xl flex items-center justify-center mx-auto">
+      <div className={this.props.fullScreen ? 'min-h-screen bg-page flex items-center justify-center p-6' : 'py-12 flex justify-center'} dir="rtl">
+        <div role="alert" className="bg-white p-8 rounded-3xl shadow-sm border border-red-300 max-w-md w-full text-center space-y-4">
+          <div className="w-12 h-12 bg-brand-soft text-brand rounded-2xl flex items-center justify-center mx-auto">
             <AlertCircle className="w-6 h-6" />
           </div>
-          <h2 className="text-lg font-bold text-[#2d2d2d]">{updated ? 'پرتال به‌روزرسانی شده است' : 'نمایش این بخش با خطا روبه‌رو شد'}</h2>
-          <p className="text-sm text-[#6e6a60] leading-relaxed">
+          <h2 className="text-lg font-bold text-ink">{updated ? 'پرتال به‌روزرسانی شده است' : 'نمایش این بخش با خطا روبه‌رو شد'}</h2>
+          <p className="text-sm text-muted leading-relaxed">
             {updated
               ? 'برای دیدن نسخهٔ جدید، صفحه را دوباره بارگذاری کنید.'
               : 'لطفاً صفحه را دوباره بارگذاری کنید. اگر مشکل ادامه داشت، به واحد فناوری اطلاعات خبر دهید.'}
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="w-full py-3 bg-[#dc2626] text-white font-bold rounded-xl hover:bg-[#b91c1c] transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 bg-brand text-white font-bold rounded-xl hover:bg-brand-hover transition-colors flex items-center justify-center gap-2"
           >
             <RefreshCw className="w-4 h-4" /> بارگذاری دوباره
           </button>

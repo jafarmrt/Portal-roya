@@ -43,21 +43,21 @@ const SuggestionsModule = named(() => import('./components/suggestions/Suggestio
 const TodosPage = named(() => import('./components/todos/TodosPage'), 'TodosPage');
 
 const FullScreenLoader: React.FC<{ text: string }> = ({ text }) => (
-  <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center gap-4" role="status">
-    <Loader2 className="w-10 h-10 text-[#dc2626] animate-spin" />
-    <p className="text-[#6e6a60] font-medium text-sm">{text}</p>
+  <div className="min-h-screen bg-page flex flex-col items-center justify-center gap-4" role="status">
+    <Loader2 className="w-10 h-10 text-brand animate-spin" />
+    <p className="text-muted font-medium text-sm">{text}</p>
   </div>
 );
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
-  <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-6">
-    <div role="alert" className="bg-white p-8 rounded-3xl shadow-sm border border-[#fca5a5] max-w-md w-full text-center space-y-4">
-      <div className="w-12 h-12 bg-[#fef2f2] text-[#dc2626] rounded-2xl flex items-center justify-center mx-auto">
+  <div className="min-h-screen bg-page flex flex-col items-center justify-center p-6">
+    <div role="alert" className="bg-white p-8 rounded-3xl shadow-sm border border-red-300 max-w-md w-full text-center space-y-4">
+      <div className="w-12 h-12 bg-brand-soft text-brand rounded-2xl flex items-center justify-center mx-auto">
         <AlertCircle className="w-6 h-6" />
       </div>
-      <h2 className="text-lg font-bold text-[#2d2d2d]">خطا در بارگذاری پرتال</h2>
-      <p className="text-sm text-[#6e6a60]">{message}</p>
-      <button onClick={() => window.location.reload()} className="w-full py-3 bg-[#dc2626] text-white font-bold rounded-xl mt-4 hover:bg-[#b91c1c] transition-colors">
+      <h2 className="text-lg font-bold text-ink">خطا در بارگذاری پرتال</h2>
+      <p className="text-sm text-muted">{message}</p>
+      <button onClick={() => window.location.reload()} className="w-full py-3 bg-brand text-white font-bold rounded-xl mt-4 hover:bg-brand-hover transition-colors">
         تلاش دوباره
       </button>
     </div>
@@ -68,12 +68,12 @@ const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
 const LoginRequired: React.FC<{ message: string }> = ({ message }) => {
   const { requestLogin } = usePortal();
   return (
-    <div className="max-w-md mx-auto my-12 bg-white p-8 rounded-3xl border border-[#E6E0D5] text-center space-y-4">
-      <div className="w-12 h-12 bg-[#fef2f2] text-[#991b1b] rounded-2xl flex items-center justify-center mx-auto">
+    <div className="max-w-md mx-auto my-12 bg-white p-8 rounded-3xl border border-line text-center space-y-4">
+      <div className="w-12 h-12 bg-brand-soft text-brand-strong rounded-2xl flex items-center justify-center mx-auto">
         <LogIn className="w-6 h-6" />
       </div>
-      <p className="text-sm text-[#4B4740] leading-relaxed">{message}</p>
-      <button onClick={() => requestLogin()} className="w-full py-3 bg-[#991b1b] hover:bg-[#7f1d1d] text-white font-bold rounded-xl transition-colors">
+      <p className="text-sm text-ink-soft leading-relaxed">{message}</p>
+      <button onClick={() => requestLogin()} className="w-full py-3 bg-brand-strong hover:bg-brand-deep text-white font-bold rounded-xl transition-colors">
         ورود به پرتال
       </button>
     </div>
@@ -84,9 +84,9 @@ const LoginRequired: React.FC<{ message: string }> = ({ message }) => {
 const NotAvailable: React.FC = () => {
   const { setActiveTab } = usePortal();
   return (
-    <div className="max-w-md mx-auto my-12 bg-white p-8 rounded-3xl border border-[#E6E0D5] text-center space-y-4">
-      <p className="text-sm text-[#4B4740] leading-relaxed">این بخش فعلاً در پرتال در دسترس نیست.</p>
-      <button onClick={() => setActiveTab('dashboard')} className="w-full py-3 bg-[#991b1b] hover:bg-[#7f1d1d] text-white font-bold rounded-xl transition-colors">
+    <div className="max-w-md mx-auto my-12 bg-white p-8 rounded-3xl border border-line text-center space-y-4">
+      <p className="text-sm text-ink-soft leading-relaxed">این بخش فعلاً در پرتال در دسترس نیست.</p>
+      <button onClick={() => setActiveTab('dashboard')} className="w-full py-3 bg-brand-strong hover:bg-brand-deep text-white font-bold rounded-xl transition-colors">
         رفتن به داشبورد
       </button>
     </div>
@@ -127,7 +127,7 @@ const MainContent: React.FC = () => {
   const directoryNotice = 'دفتر تلفن و اطلاعات همکاران فقط برای کاربران واردشده نمایش داده می‌شود.';
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-[#2D2D2D] flex flex-col font-sans pb-16 lg:pb-0" dir="rtl">
+    <div className="min-h-screen bg-page text-ink flex flex-col font-sans pb-16 lg:pb-0" dir="rtl">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:right-2 focus:z-50 bg-white px-3 py-2 rounded-lg shadow">
         پرش به محتوای اصلی
       </a>
@@ -176,13 +176,13 @@ const MainContent: React.FC = () => {
       {currentUser && featureOn('onlineColleagues') && <KudosListener emojis={appSettings?.kudosEmojis ?? []} />}
       {isGuest && <LoginModal />}
 
-      <footer className="bg-[#7f1d1d] text-[#E6E0D5] border-t border-[#7f1d1d] py-6 mt-12 text-xs">
+      <footer className="bg-surface text-muted border-t border-line py-6 mt-12 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right">
           <div>
-            <span className="font-bold text-white">شرکت رویا طرح داخلی (ROYA Surface Center)</span>
-            <p className="text-[11px] text-[#E6E0D5]/80 mt-0.5">پرتال اطلاع‌رسانی، اخبار، اطلاعیه‌ها و ارتباط همکاران</p>
+            <span className="font-bold text-ink">شرکت رویا طرح داخلی (ROYA Surface Center)</span>
+            <p className="text-xs text-muted mt-0.5">پرتال اطلاع‌رسانی، اخبار، اطلاعیه‌ها و ارتباط همکاران</p>
           </div>
-          <div className="flex flex-col items-center sm:items-end gap-1 text-[11px] text-[#E6E0D5]/80">
+          <div className="flex flex-col items-center sm:items-end gap-1 text-xs text-muted">
             <span>© {toPersianDigits(currentJalaliYear())}</span>
             <VersionInfo />
             <InstallApp />

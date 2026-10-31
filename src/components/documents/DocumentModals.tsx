@@ -15,9 +15,9 @@ const checkboxRow = 'flex items-start gap-2 cursor-pointer';
 
 /** The chosen file, with a button to choose another. */
 const ChosenFile: React.FC<{ file: UploadedFile; onClear: () => void }> = ({ file, onClear }) => (
-  <div className="flex items-center justify-between gap-2 p-2.5 bg-[#F5F2ED] rounded-xl">
+  <div className="flex items-center justify-between gap-2 p-2.5 bg-surface rounded-xl">
     <span className="truncate">{file.name}</span>
-    <span className="text-[10px] text-[#8C867A] whitespace-nowrap">{formatFileSize(file.size)}</span>
+    <span className="text-xs text-faint whitespace-nowrap">{formatFileSize(file.size)}</span>
     <button type="button" onClick={onClear} aria-label="حذف فایل" className="text-red-700"><Trash2 className="w-4 h-4" /></button>
   </div>
 );
@@ -146,13 +146,13 @@ export const DocumentFormModal: React.FC<{ doc?: PortalDocument; onClose: () => 
         <div>
           <label htmlFor="doc-review" className={labelClass}>تاریخ بازبینی</label>
           <JalaliDateInput id="doc-review" value={form.reviewDate} onChange={(v) => set('reviewDate', v)} placeholder="مثلاً یک سال بعد" />
-          <p className="text-[11px] text-[#6E6A60] mt-1">در این روز به مسئول سند (یا اگر مسئول ندارد، به بارگذاری‌کننده) یادآوری می‌شود که سند هنوز درست است یا نه.</p>
+          <p className="text-xs text-muted mt-1">در این روز به مسئول سند (یا اگر مسئول ندارد، به بارگذاری‌کننده) یادآوری می‌شود که سند هنوز درست است یا نه.</p>
         </div>
         <label className={checkboxRow}>
           <input type="checkbox" checked={form.requiresAck} onChange={(e) => set('requiresAck', e.target.checked)} className="accent-red-700 mt-1" />
           <span>
             <span className="font-bold">لازم‌الاجرا</span>
-            <span className="block text-[11px] text-[#6E6A60]">مثل بخشنامه، مخاطبان باید مطالعه را تأیید کنند و آمار تأییدها دیده می‌شود. با نسخهٔ جدید می‌شود دوباره تأیید خواست.</span>
+            <span className="block text-xs text-muted">مثل بخشنامه، مخاطبان باید مطالعه را تأیید کنند و آمار تأییدها دیده می‌شود. با نسخهٔ جدید می‌شود دوباره تأیید خواست.</span>
           </span>
         </label>
         <AudiencePicker
@@ -168,7 +168,7 @@ export const DocumentFormModal: React.FC<{ doc?: PortalDocument; onClose: () => 
           </label>
         )}
         {form.requiresAck && (!doc || !doc.requiresAck) && (
-          <p className="text-[11px] text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-2.5">به مخاطبان اعلان می‌رود که سند را مطالعه و تأیید کنند.</p>
+          <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-2.5">به مخاطبان اعلان می‌رود که سند را مطالعه و تأیید کنند.</p>
         )}
       </form>
     </Modal>
@@ -212,7 +212,7 @@ export const NewVersionModal: React.FC<{ doc: PortalDocument; onClose: () => voi
       }
     >
       <form id="document-version" onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-[11px] text-[#6E6A60] leading-relaxed">
+        <p className="text-xs text-muted leading-relaxed">
           فایل جدید جای فایل فعلی را می‌گیرد. نسخهٔ قبلی در «تاریخچه» می‌ماند و پیوندهایی که به این سند داده شده همچنان کار می‌کنند.
         </p>
         <div>
@@ -232,7 +232,7 @@ export const NewVersionModal: React.FC<{ doc: PortalDocument; onClose: () => voi
             <input type="checkbox" checked={reAck} onChange={(e) => setReAck(e.target.checked)} className="accent-red-700 mt-1" />
             <span>
               <span className="font-bold">همه دوباره مطالعه و تأیید کنند</span>
-              <span className="block text-[11px] text-[#6E6A60]">برای اصلاح غلط تایپی یا تغییر جزئی این را بردارید تا تأییدهای قبلی معتبر بمانند.</span>
+              <span className="block text-xs text-muted">برای اصلاح غلط تایپی یا تغییر جزئی این را بردارید تا تأییدهای قبلی معتبر بمانند.</span>
             </span>
           </label>
         )}
@@ -310,18 +310,18 @@ export const VersionsModal: React.FC<{ doc: PortalDocument; onClose: () => void 
       {versions && (
         <ol className="space-y-2">
           {versions.map((v) => (
-            <li key={v.version} className={`p-3 rounded-2xl border flex items-start gap-3 ${v.current ? 'border-emerald-300 bg-emerald-50' : 'border-[#E6E0D5]'}`}>
-              <span className={`shrink-0 px-2 py-1 rounded-lg text-[11px] font-black ${v.current ? 'bg-emerald-600 text-white' : 'bg-[#F5F2ED]'}`}>
+            <li key={v.version} className={`p-3 rounded-2xl border flex items-start gap-3 ${v.current ? 'border-emerald-300 bg-emerald-50' : 'border-line'}`}>
+              <span className={`shrink-0 px-2 py-1 rounded-lg text-xs font-black ${v.current ? 'bg-emerald-600 text-white' : 'bg-surface'}`}>
                 نسخهٔ {toPersianDigits(v.version)}
               </span>
               <div className="flex-1 min-w-0 space-y-0.5">
-                {v.current && <span className="text-[11px] font-bold text-emerald-800">نسخهٔ فعلی</span>}
-                {v.note && <p className="text-xs text-[#2D2D2D] leading-relaxed">{v.note}</p>}
-                <p className="text-[11px] text-[#8C867A]">
+                {v.current && <span className="text-xs font-bold text-emerald-800">نسخهٔ فعلی</span>}
+                {v.note && <p className="text-xs text-ink leading-relaxed">{v.note}</p>}
+                <p className="text-xs text-faint">
                   {formatDate(v.createdAt)}{v.uploadedBy && ` · ${v.uploadedBy}`} · {formatFileSize(v.fileSize)}
                 </p>
               </div>
-              <a href={v.fileUrl} download={v.fileName} className="p-2 rounded-xl text-[#2D2D2D] hover:bg-white" aria-label={`دریافت نسخهٔ ${toPersianDigits(v.version)}`} title="دریافت فایل">
+              <a href={v.fileUrl} download={v.fileName} className="p-2 rounded-xl text-ink hover:bg-white" aria-label={`دریافت نسخهٔ ${toPersianDigits(v.version)}`} title="دریافت فایل">
                 <Download className="w-4 h-4" />
               </a>
             </li>

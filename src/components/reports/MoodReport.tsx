@@ -50,13 +50,13 @@ export const MoodReport: React.FC = () => {
         title="حال‌وهوای سازمان"
         hint={`جمع پاسخ‌های بی‌نام همکاران در ${RANGE_LABELS[range]} (${toPersianDigits(total)} پاسخ)`}
         action={
-          <div className="flex bg-[#F5F2ED] rounded-xl p-1 border border-[#E6E0D5] w-fit" role="group" aria-label="بازهٔ حال‌وهوا">
+          <div className="flex bg-surface rounded-xl p-1 border border-line w-fit" role="group" aria-label="بازهٔ حال‌وهوا">
             {(Object.keys(RANGE_LABELS) as Range[]).map((r) => (
               <button
                 key={r}
                 onClick={() => setRange(r)}
                 aria-pressed={range === r}
-                className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${range === r ? 'bg-white text-[#dc2626] shadow-sm' : 'text-[#8C867A] hover:text-[#2D2D2D]'}`}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${range === r ? 'bg-white text-brand shadow-sm' : 'text-faint hover:text-ink'}`}
               >
                 {RANGE_LABELS[r]}
               </button>

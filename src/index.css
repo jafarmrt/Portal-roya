@@ -2,66 +2,70 @@
 
 @theme {
   --font-sans: "Vazirmatn", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* The portal's colours, in one place. Every screen uses these names (text-ink, bg-surface,
+     border-line…) instead of a colour code, so a later dark theme only has to redefine them here. */
+  --color-page: #FDFBF7;           /* page background */
+  --color-surface: #F5F2ED;        /* inner boxes, inputs, chips */
+  --color-surface-soft: #F9F7F4;
+  --color-surface-strong: #EFEBE4; /* hover / pressed */
+  --color-line: #E6E0D5;           /* borders and dividers */
+  --color-line-strong: #D9D4CB;    /* field borders */
+  --color-subtle: #B5AFA3;         /* decoration and disabled things, never body text */
+  --color-faint: #7D776C;          /* dates and side notes (still readable on white) */
+  --color-muted: #6E6A60;          /* secondary text */
+  --color-ink-soft: #4B4740;
+  --color-ink: #2D2D2D;            /* main text */
+  --color-ink-strong: #1E1E1E;
+
+  /* Roya red: the brand, and things that need the person (unread, waiting, urgent). */
+  --color-brand: #DC2626;
+  --color-brand-hover: #B91C1C;
+  --color-brand-strong: #991B1B;
+  --color-brand-deep: #7F1D1D;
+  --color-brand-soft: #FEF2F2;
+  --color-on-brand-muted: #E7DADA; /* quiet text on the red bar */
+
+  /* Warm tones for celebrations and personal moments, so red keeps its meaning. */
+  --color-warm: #D97B5F;
+  --color-warm-strong: #AD5536;
+  --color-warm-soft: #FBF0EC;
+  --color-gold: #E9C46A;
+  --color-gold-soft: #FBF3DC;
+  --color-sage: #9BB088;
+  --color-sage-soft: #EBF2E8;
+
+  /* Cards float on a soft shadow instead of a hard outline. */
+  --shadow-card: 0 1px 2px rgb(45 40 30 / 0.04), 0 6px 20px -6px rgb(45 40 30 / 0.08);
 }
 
 @layer base {
   body {
     font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background-color: #FDFBF7;
-    color: #2D2D2D;
+    background-color: var(--color-page);
+    color: var(--color-ink);
   }
 }
 
-/* Custom smooth scrollbars with Natural Tones */
+/* Thin scrollbars in the portal's own tones */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #F5F2ED;
+  background: var(--color-surface);
 }
 ::-webkit-scrollbar-thumb {
-  background: #D5CEC2;
+  background: var(--color-line-strong);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #B5A898;
-}
-
-/* Natural Tones Custom Color Palette */
-.bg-natural-base { background-color: #FDFBF7; }
-.bg-natural-surface { background-color: #F5F2ED; }
-.bg-natural-card { background-color: #FFFFFF; }
-.bg-natural-sage { background-color: #991b1b; }
-.bg-natural-sage-light { background-color: #EFEFEA; }
-.bg-natural-wood { background-color: #dc2626; }
-.bg-natural-wood-light { background-color: #F7F3ED; }
-.bg-natural-terracotta { background-color: #f87171; }
-.bg-natural-terracotta-light { background-color: #FBF0EC; }
-.bg-natural-nav { background-color: #7f1d1d; }
-.text-natural-dark { color: #2D2D2D; }
-.text-natural-muted { color: #6E6A60; }
-.text-natural-sage { color: #991b1b; }
-.text-natural-wood { color: #dc2626; }
-.text-natural-terracotta { color: #f87171; }
-.border-natural { border-color: #E6E0D5; }
-.border-natural-sage { border-color: #991b1b; }
-.border-natural-wood { border-color: #dc2626; }
-.border-natural-terracotta { border-color: #f87171; }
-
-.brand-red {
-  color: #dc2626;
-}
-.bg-brand-red {
-  background-color: #dc2626;
-}
-.border-brand-red {
-  border-color: #dc2626;
+  background: var(--color-subtle);
 }
 
 /* Visible keyboard focus everywhere */
 :focus-visible {
-  outline: 2px solid #b91c1c;
+  outline: 2px solid var(--color-brand-hover);
   outline-offset: 2px;
 }
 
@@ -192,7 +196,7 @@
   print-color-adjust: exact;
 }
 .sheet-preview-frame {
-  background: #E6E0D5;
+  background: var(--color-line);
   border-radius: 1rem;
   padding: 12px;
   overflow: auto;
@@ -429,26 +433,26 @@
 }
 
 /* News text written in the editor (and the editor itself). */
-.rich-text { line-height: 2; color: #2D2D2D; overflow-wrap: anywhere; }
+.rich-text { line-height: 2; color: var(--color-ink); overflow-wrap: anywhere; }
 .rich-text > * + * { margin-top: 0.75em; }
 .rich-text > :first-child { margin-top: 0; }
-.rich-text h2 { font-size: 1.15rem; font-weight: 900; color: #7f1d1d; margin-top: 1.25em; }
+.rich-text h2 { font-size: 1.15rem; font-weight: 900; color: var(--color-brand-deep); margin-top: 1.25em; }
 .rich-text h3 { font-size: 1rem; font-weight: 800; margin-top: 1em; }
 .rich-text ul { list-style: disc; padding-inline-start: 1.5em; }
 .rich-text ol { list-style: persian; padding-inline-start: 1.5em; }
 .rich-text li > p { margin: 0; }
-.rich-text a { color: #b91c1c; text-decoration: underline; text-underline-offset: 3px; }
-.rich-text blockquote { border-inline-start: 4px solid #E6E0D5; padding-inline-start: 1em; color: #4B4740; }
-.rich-text hr { border: 0; border-top: 1px solid #E6E0D5; margin: 1.25em 0; }
+.rich-text a { color: var(--color-brand-hover); text-decoration: underline; text-underline-offset: 3px; }
+.rich-text blockquote { border-inline-start: 4px solid var(--color-line); padding-inline-start: 1em; color: var(--color-ink-soft); }
+.rich-text hr { border: 0; border-top: 1px solid var(--color-line); margin: 1.25em 0; }
 .rich-text img { max-width: 100%; height: auto; border-radius: 1rem; }
 .rich-text table { width: 100%; border-collapse: collapse; font-size: 0.85em; display: block; overflow-x: auto; }
-.rich-text th, .rich-text td { border: 1px solid #D9D4CB; padding: 0.4em 0.7em; text-align: right; vertical-align: top; min-width: 4em; }
-.rich-text th { background: #F5F2ED; font-weight: 800; }
+.rich-text th, .rich-text td { border: 1px solid var(--color-line-strong); padding: 0.4em 0.7em; text-align: right; vertical-align: top; min-width: 4em; }
+.rich-text th { background: var(--color-surface); font-weight: 800; }
 .rich-text td > p, .rich-text th > p { margin: 0; }
 .rich-text .selectedCell { background: #FEE2E2; }
 .rich-text-editor .ProseMirror { outline: none; min-height: 14rem; padding: 0.75rem 1rem; }
 .rich-text-editor .ProseMirror p.is-editor-empty:first-child::before {
-  content: attr(data-placeholder); color: #A8A196; float: right; height: 0; pointer-events: none;
+  content: attr(data-placeholder); color: var(--color-subtle); float: right; height: 0; pointer-events: none;
 }
 
 /* Rows of filter chips scroll sideways on phones without showing a scrollbar. */

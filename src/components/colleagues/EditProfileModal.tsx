@@ -19,7 +19,7 @@ const OnlineProfileChoices: React.FC = () => {
   const { data, setChoice } = usePresence(true);
   if (!data) return null;
   return (
-    <fieldset className="p-3 rounded-2xl border border-[#E6E0D5] space-y-1">
+    <fieldset className="p-3 rounded-2xl border border-line space-y-1">
       <legend className="text-xs font-black px-1">همکاران آنلاین</legend>
       <OnlineChoices me={data.me} onChange={(choice) => void setChoice(choice)} />
     </fieldset>
@@ -27,8 +27,8 @@ const OnlineProfileChoices: React.FC = () => {
 };
 
 /** The three parts of a colleague: personal details, place in the organisation and portal account. */
-export const sectionClass = 'p-4 rounded-2xl border border-[#E6E0D5] space-y-4';
-export const legendClass = 'text-xs font-black px-1 text-[#2D2D2D]';
+export const sectionClass = 'p-4 rounded-2xl border border-line space-y-4';
+export const legendClass = 'text-xs font-black px-1 text-ink';
 
 interface EditProfileModalProps {
   user: UserProfile;
@@ -135,7 +135,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
     >
       <form id="edit-profile" onSubmit={handleSubmit} className="space-y-4">
         {!isAdmin && (
-          <p className="p-3 bg-[#F5F2ED] rounded-xl text-[11px] text-[#6E6A60]">سمت، واحد و سطح دسترسی را کسی تغییر می‌دهد که «مدیریت کارکنان» دارد{user.role === 'admin' ? ' (حساب ادمین را فقط ادمین پرتال)' : ''}.</p>
+          <p className="p-3 bg-surface rounded-xl text-xs text-muted">سمت، واحد و سطح دسترسی را کسی تغییر می‌دهد که «مدیریت کارکنان» دارد{user.role === 'admin' ? ' (حساب ادمین را فقط ادمین پرتال)' : ''}.</p>
         )}
 
         <fieldset className={sectionClass}>
@@ -163,15 +163,15 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
             <div>
               <label htmlFor="edit-birth" className={labelClass}>تاریخ تولد</label>
               <JalaliDateInput id="edit-birth" value={form.birthDate} onChange={(v) => set('birthDate', v)} defaultYear={1370} />
-              <label className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[#6E6A60] cursor-pointer">
+              <label className="mt-1.5 flex items-center gap-1.5 text-xs text-muted cursor-pointer">
                 <input type="checkbox" checked={form.hideBirthday} onChange={(e) => set('hideBirthday', e.target.checked)} className="accent-red-700" />
                 {isSelf ? 'تولدم به همکاران نمایش داده نشود' : 'تولد این همکار به دیگران نمایش داده نشود'}
               </label>
-              <label className="mt-1 flex items-center gap-1.5 text-[11px] text-[#6E6A60] cursor-pointer">
+              <label className="mt-1 flex items-center gap-1.5 text-xs text-muted cursor-pointer">
                 <input type="checkbox" checked={form.hideAnniversary} onChange={(e) => set('hideAnniversary', e.target.checked)} className="accent-red-700" />
                 {isSelf ? 'سالگرد همکاری‌ام به همکاران اعلام نشود' : 'سالگرد همکاری این همکار به دیگران اعلام نشود'}
               </label>
-              <p className="mt-1 text-[10px] text-[#8C867A]">سال تولد به همکاران نشان داده نمی‌شود؛ فقط روز و ماه.</p>
+              <p className="mt-1 text-xs text-faint">سال تولد به همکاران نشان داده نمی‌شود؛ فقط روز و ماه.</p>
             </div>
           </div>
           <div>
@@ -208,7 +208,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
                     ))}
                   </SearchableSelect>
                   {fallbackManager && (
-                    <p className="mt-1 text-[11px] text-[#6E6A60]">
+                    <p className="mt-1 text-xs text-muted">
                       خالی یعنی مسئول واحد، {fallbackManager.firstName} {fallbackManager.lastName}، در چارت سازمانی مدیر او حساب می‌شود.
                     </p>
                   )}
@@ -231,7 +231,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
               />
               <span>
                 <strong className="text-xs">مسئول این واحد است</strong>
-                <span className="block text-[11px] text-[#6E6A60] leading-relaxed">
+                <span className="block text-xs text-muted leading-relaxed">
                   {!live.hasAccount
                     ? 'مسئول واحد باید حساب پرتال داشته باشد.'
                     : otherHead && unitHead
@@ -256,19 +256,19 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
                   {mayChangeAccount ? (
                     <RoleHint roleId={form.role} />
                   ) : (
-                    <p className="mt-1 text-[11px] text-[#6E6A60] leading-relaxed">
+                    <p className="mt-1 text-xs text-muted leading-relaxed">
                       {isSelf ? 'سطح دسترسی خودتان را ادمین پرتال تغییر می‌دهد.' : 'این همکار دسترسی‌هایی دارد که شما ندارید؛ سطح دسترسی، رمز و حساب او را ادمین پرتال تغییر می‌دهد.'}
                     </p>
                   )}
                 </div>
-                <div className="text-[11px] text-[#4B4740] leading-relaxed sm:pt-6">
+                <div className="text-xs text-ink-soft leading-relaxed sm:pt-6">
                   نام کاربری <code dir="ltr">{live.username}</code>
                   {' · '}
                   {live.authSource === 'ldap' ? 'ورود با حساب ویندوز (اکتیو دایرکتوری)' : 'ورود با رمز پرتال'}
                 </div>
               </div>
             ) : (
-              <p className="text-[11px] text-[#6E6A60] leading-relaxed">حساب پرتال ندارد؛ فقط در دفتر تلفن، چارت سازمانی و کارت‌ها دیده می‌شود و سطح دسترسی ندارد.</p>
+              <p className="text-xs text-muted leading-relaxed">حساب پرتال ندارد؛ فقط در دفتر تلفن، چارت سازمانی و کارت‌ها دیده می‌شود و سطح دسترسی ندارد.</p>
             )}
             {!isSelf && mayChangeAccount && (
               <div className="flex flex-wrap items-center gap-2">
@@ -285,7 +285,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
             )}
             {tempPassword && <TemporaryPasswordNotice username={live.username} password={tempPassword} />}
             {!isSelf && live.hasAccount && live.authSource === 'ldap' && directoryLogin && (
-              <p className="text-[11px] text-[#6E6A60] leading-relaxed">
+              <p className="text-xs text-muted leading-relaxed">
                 این همکار با حساب اکتیو دایرکتوری وارد می‌شود؛ رمز عبورش در ویندوز تغییر می‌کند، نه در پرتال.
               </p>
             )}

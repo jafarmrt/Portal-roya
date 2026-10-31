@@ -119,7 +119,7 @@ export const AddTrainingModal: React.FC<AddTrainingModalProps> = ({ training, on
                 <option key={c.id} value={c.id}>{c.firstName} {c.lastName}{c.department ? ` (${c.department})` : ''}</option>
               ))}
             </SearchableSelect>
-            <p className="text-[11px] text-[#6E6A60] mt-1">مدرس همکار، حضور و غیاب را ثبت می‌کند، جزوه می‌گذارد و نظر شرکت‌کننده‌ها را می‌بیند.</p>
+            <p className="text-xs text-muted mt-1">مدرس همکار، حضور و غیاب را ثبت می‌کند، جزوه می‌گذارد و نظر شرکت‌کننده‌ها را می‌بیند.</p>
           </div>
           <div>
             <label htmlFor="tr-category" className={labelClass}>دسته‌بندی</label>
@@ -138,7 +138,7 @@ export const AddTrainingModal: React.FC<AddTrainingModalProps> = ({ training, on
             <label htmlFor="tr-capacity" className={labelClass}>ظرفیت *</label>
             <input id="tr-capacity" type="number" min={Math.max(1, enrolledCount)} max={1000} required value={form.capacity} onChange={(e) => set('capacity', Number(e.target.value))} className={inputClass} />
             {training?.waitlistCount ? (
-              <p className="text-[11px] text-[#6E6A60] mt-1">{toPersianDigits(training.waitlistCount)} نفر در لیست انتظارند؛ با بیشتر کردن ظرفیت به ترتیب ثبت‌نام می‌شوند.</p>
+              <p className="text-xs text-muted mt-1">{toPersianDigits(training.waitlistCount)} نفر در لیست انتظارند؛ با بیشتر کردن ظرفیت به ترتیب ثبت‌نام می‌شوند.</p>
             ) : null}
           </div>
         </div>
@@ -148,16 +148,16 @@ export const AddTrainingModal: React.FC<AddTrainingModalProps> = ({ training, on
         </div>
         {textField('tr-prereq', 'پیش‌نیازها و مخاطبان', 'prerequisites')}
         <div className="flex items-center gap-3">
-          {form.coverImage && <img src={form.coverImage} alt="" className="w-24 h-14 object-cover rounded-xl border border-[#E6E0D5]" />}
+          {form.coverImage && <img src={form.coverImage} alt="" className="w-24 h-14 object-cover rounded-xl border border-line" />}
           <FileUpload accept={IMAGE_ACCEPT} label={form.coverImage ? 'تغییر تصویر' : 'تصویر جلد (اختیاری)'} onUploaded={(f) => set('coverImage', f.url)} />
           {form.coverImage && <button type="button" onClick={() => set('coverImage', '')} className="text-red-700 font-bold">حذف تصویر</button>}
         </div>
         {signedUpCount > 0 && (
-          <label className="flex items-start gap-2 p-3 bg-[#F5F2ED] rounded-xl cursor-pointer">
-            <input type="checkbox" checked={notifyEnrolled} onChange={(e) => setNotifyEnrolled(e.target.checked)} className="mt-1 accent-[#991b1b]" />
+          <label className="flex items-start gap-2 p-3 bg-surface rounded-xl cursor-pointer">
+            <input type="checkbox" checked={notifyEnrolled} onChange={(e) => setNotifyEnrolled(e.target.checked)} className="mt-1 accent-brand-strong" />
             <span>
               به {toPersianDigits(signedUpCount)} نفر ثبت‌نام‌شده{training?.waitlistCount ? ' و لیست انتظار' : ''} اطلاع داده شود
-              <span className="block text-[11px] text-[#6E6A60]">مثلاً وقتی تاریخ، ساعت یا محل دوره عوض شده است. برای اصلاح غلط تایپی لازم نیست.</span>
+              <span className="block text-xs text-muted">مثلاً وقتی تاریخ، ساعت یا محل دوره عوض شده است. برای اصلاح غلط تایپی لازم نیست.</span>
             </span>
           </label>
         )}

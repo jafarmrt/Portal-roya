@@ -24,7 +24,7 @@ export const SystemIcon: React.FC<{ system: ExternalSystem; size?: keyof typeof 
 
   if (image) {
     return (
-      <span className={`${s.box} shrink-0 overflow-hidden bg-white border border-[#E6E0D5] flex items-center justify-center ${className}`}>
+      <span className={`${s.box} shrink-0 overflow-hidden bg-white border border-line flex items-center justify-center ${className}`}>
         <img src={image} alt="" loading="lazy" onError={() => setFailedUrl(image)} className="w-full h-full object-contain" />
       </span>
     );
