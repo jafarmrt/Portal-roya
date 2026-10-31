@@ -342,7 +342,7 @@ const DayCard: React.FC<{ day: TodoDay } & Omit<DayGridProps, 'days'>> = ({ day,
   );
 };
 
-const iconButton = 'p-1.5 rounded-lg text-[#6E6A60] hover:bg-white hover:text-sky-800';
+const iconButton = 'p-1 rounded-lg text-[#6E6A60] hover:bg-white hover:text-sky-800';
 
 /** One note in its day's card: its steps can be ticked right here. */
 const NoteRow: React.FC<{ todo: PersonalTodo; onEdit?: () => void; archived: boolean; onChanged?: () => void }> = ({
@@ -372,8 +372,9 @@ const NoteRow: React.FC<{ todo: PersonalTodo; onEdit?: () => void; archived: boo
   };
 
   return (
-    <li aria-label={todo.title} className="py-2 first:pt-0 last:pb-0 space-y-1.5">
-      <div className="flex items-start gap-2">
+    <li aria-label={todo.title} className="py-1.5 first:pt-0 last:pb-0 space-y-1">
+      {/* One line: tick, title with its small signs, then the buttons; a long title wraps beside them. */}
+      <div className="flex items-start gap-1.5">
         {archived ? (
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" aria-label="انجام شد" />
         ) : (
@@ -388,104 +389,97 @@ const NoteRow: React.FC<{ todo: PersonalTodo; onEdit?: () => void; archived: boo
             {isDone ? <CheckCircle2 className="w-5 h-5 text-emerald-600" /> : <Circle className="w-5 h-5 text-[#A8A295]" />}
           </button>
         )}
-        <div className="flex-1 min-w-0 space-y-1">
-          <h4 className={`text-sm font-black leading-snug break-words ${isDone ? 'line-through text-[#8C867A]' : 'text-[#2D2D2D]'}`}>{todo.title}</h4>
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-            {isDone && <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-bold">انجام شد {formatDate(todo.doneAt)}</span>}
-            {todo.repeat && (
-              <span className="px-2 py-0.5 rounded-full bg-sky-50 text-sky-800 flex items-center gap-1">
-                <Repeat className="w-3 h-3" /> {repeatLabel(todo)}
-              </span>
-            )}
-            {!isDone && todo.dueDate && (
-              <span className="text-[#8C867A] flex items-center gap-0.5" title={todo.remind === 'none' ? 'بدون یادآوری' : todo.remind === 'both' ? 'یادآوری روز قبل و همان روز' : 'یادآوری صبح همان روز'}>
-                {todo.remind === 'none' ? <BellOff className="w-3 h-3" /> : <Bell className="w-3 h-3" />}
-                {todo.remind === 'both' && <span>۲</span>}
-              </span>
-            )}
-          </div>
+        <div className="flex-1 min-w-0 pt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+          <h4 className={`min-w-0 text-sm font-black leading-snug break-words ${isDone ? 'line-through text-[#8C867A]' : 'text-[#2D2D2D]'}`}>{todo.title}</h4>
+          {isDone && <span className="px-1.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold whitespace-nowrap">انجام شد {formatDate(todo.doneAt)}</span>}
+          {todo.repeat && (
+            <span className="text-sky-800 text-[10px] flex items-center gap-0.5 whitespace-nowrap" title={repeatLabel(todo)}>
+              <Repeat className="w-3 h-3" /> {repeatLabel(todo)}
+            </span>
+          )}
+          {!isDone && todo.dueDate && (
+            <span className="text-[#A8A295] flex items-center gap-0.5 text-[10px]" title={todo.remind === 'none' ? 'بدون یادآوری' : todo.remind === 'both' ? 'یادآوری روز قبل و همان روز' : 'یادآوری صبح همان روز'}>
+              {todo.remind === 'none' ? <BellOff className="w-3 h-3" /> : <Bell className="w-3 h-3" />}
+              {todo.remind === 'both' && <span>۲</span>}
+            </span>
+          )}
+          {todo.steps.length > 0 && (
+            <span className="text-[10px] font-bold text-[#8C867A] whitespace-nowrap">
+              {toPersianDigits(stepsDone)} از {toPersianDigits(todo.steps.length)} گام
+            </span>
+          )}
         </div>
-        {!isDone && (
-          <button
-            type="button"
-            aria-pressed={todo.important}
-            aria-label={todo.important ? `برداشتن ستارهٔ ${todo.title}` : `مهم: ${todo.title}`}
-            onClick={() => void updateTodo(todo.id, { important: !todo.important })}
-            className="p-0.5 rounded-lg hover:bg-white shrink-0"
-          >
-            <Star className={`w-4 h-4 ${todo.important ? 'fill-amber-500 text-amber-500' : 'text-[#C9C3B7]'}`} />
-          </button>
-        )}
+        <div className="flex items-center shrink-0">
+          {archived ? (
+            <>
+              <button type="button" onClick={() => void restore()} aria-label={`برگرداندن ${todo.title} از آرشیو`} title="برگرداندن به صفحهٔ یادداشت‌ها" className={iconButton}>
+                <ArchiveRestore className="w-4 h-4" />
+              </button>
+              <button type="button" onClick={() => void remove()} aria-label={`پاک کردن ${todo.title}`} title="پاک کردن برای همیشه" className={`${iconButton} hover:text-red-700`}>
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
+          ) : (
+            <>
+              {onEdit && (
+                <button type="button" onClick={onEdit} aria-label={`ویرایش ${todo.title}`} title="ویرایش" className={iconButton}>
+                  <Pencil className="w-4 h-4" />
+                </button>
+              )}
+              {!isDone && (
+                <button
+                  type="button"
+                  aria-expanded={dating}
+                  aria-label={todo.dueDate ? `به تعویق انداختن ${todo.title}` : `تاریخ برای ${todo.title}`}
+                  title={todo.dueDate ? 'به تعویق انداختن' : 'تاریخ بگذارید'}
+                  onClick={() => setDating((d) => !d)}
+                  className={iconButton}
+                >
+                  <CalendarClock className="w-4 h-4" />
+                </button>
+              )}
+              {isDone && (
+                <button type="button" onClick={() => void updateTodo(todo.id, { archived: true })} aria-label={`بایگانی ${todo.title}`} title="بایگانی" className={iconButton}>
+                  <Archive className="w-4 h-4" />
+                </button>
+              )}
+            </>
+          )}
+          {source && todo.sourceId && (
+            <button type="button" onClick={() => setActiveTab(source.tab, todo.sourceId!)} aria-label={`رفتن به ${source.label}`} title={`رفتن به ${source.label}`} className={iconButton}>
+              <ExternalLink className="w-4 h-4" />
+            </button>
+          )}
+          {!isDone && (
+            <button
+              type="button"
+              aria-pressed={todo.important}
+              aria-label={todo.important ? `برداشتن ستارهٔ ${todo.title}` : `مهم: ${todo.title}`}
+              title={todo.important ? 'مهم' : 'علامت مهم'}
+              onClick={() => void updateTodo(todo.id, { important: !todo.important })}
+              className={iconButton}
+            >
+              <Star className={`w-4 h-4 ${todo.important ? 'fill-amber-500 text-amber-500' : 'text-[#C9C3B7]'}`} />
+            </button>
+          )}
+        </div>
       </div>
 
       {todo.note && <p className="ps-7 text-xs text-[#4B4740] leading-relaxed whitespace-pre-line line-clamp-5">{todo.note}</p>}
 
       {todo.steps.length > 0 && (
-        <div className="ps-7 space-y-1">
-          <p className="text-[10px] font-bold text-[#8C867A]">
-            {toPersianDigits(stepsDone)} از {toPersianDigits(todo.steps.length)} گام
-          </p>
-          <ul className="space-y-0.5">
-            {todo.steps.map((s) => (
-              <li key={s.id}>
-                <label className="flex items-start gap-2 text-xs cursor-pointer">
-                  <input type="checkbox" checked={s.done} disabled={isDone} onChange={() => toggleStep(s.id)} className="mt-0.5 w-3.5 h-3.5 accent-sky-700" />
-                  <span className={s.done ? 'line-through text-[#8C867A]' : 'text-[#2D2D2D]'}>{s.text}</span>
-                </label>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <ul className="ps-7 space-y-0.5">
+          {todo.steps.map((s) => (
+            <li key={s.id}>
+              <label className="flex items-start gap-2 text-xs cursor-pointer">
+                <input type="checkbox" checked={s.done} disabled={isDone} onChange={() => toggleStep(s.id)} className="mt-0.5 w-3.5 h-3.5 accent-sky-700" />
+                <span className={s.done ? 'line-through text-[#8C867A]' : 'text-[#2D2D2D]'}>{s.text}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
       )}
 
-      <div className="ps-6 flex items-center gap-0.5">
-        {archived ? (
-          <>
-            <button type="button" onClick={() => void restore()} aria-label={`برگرداندن ${todo.title} از آرشیو`} title="برگرداندن به صفحهٔ یادداشت‌ها" className={iconButton}>
-              <ArchiveRestore className="w-4 h-4" />
-            </button>
-            <button type="button" onClick={() => void remove()} aria-label={`پاک کردن ${todo.title}`} title="پاک کردن برای همیشه" className={`${iconButton} hover:text-red-700`}>
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </>
-        ) : (
-          <>
-            {onEdit && (
-              <button type="button" onClick={onEdit} aria-label={`ویرایش ${todo.title}`} title="ویرایش" className={iconButton}>
-                <Pencil className="w-4 h-4" />
-              </button>
-            )}
-            {!isDone && (
-              <button
-                type="button"
-                aria-expanded={dating}
-                aria-label={todo.dueDate ? `به تعویق انداختن ${todo.title}` : `تاریخ برای ${todo.title}`}
-                title={todo.dueDate ? 'به تعویق انداختن' : 'تاریخ بگذارید'}
-                onClick={() => setDating((d) => !d)}
-                className={iconButton}
-              >
-                <CalendarClock className="w-4 h-4" />
-              </button>
-            )}
-            {isDone && (
-              <button type="button" onClick={() => void updateTodo(todo.id, { archived: true })} aria-label={`بایگانی ${todo.title}`} title="بایگانی" className={iconButton}>
-                <Archive className="w-4 h-4" />
-              </button>
-            )}
-          </>
-        )}
-        {source && todo.sourceId && (
-          <button
-            type="button"
-            onClick={() => setActiveTab(source.tab, todo.sourceId!)}
-            aria-label={`رفتن به ${source.label}`}
-            title={`رفتن به ${source.label}`}
-            className={`${iconButton} ms-auto`}
-          >
-            <ExternalLink className="w-4 h-4" />
-          </button>
-        )}
-      </div>
       {dating && (
         <div className="ps-7">
           <QuickDueDates
