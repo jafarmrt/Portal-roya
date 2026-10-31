@@ -9,6 +9,8 @@ import { PersonTrainingsSection } from '../training/PersonTrainingsSection';
 import { ModalShell } from '../common/Modal';
 import { OnlineDot } from '../common/OnlineDot';
 import { telHref } from '../../lib/phone';
+import { AboutMeList } from './AboutMeList';
+import { aboutMeAnswers } from '../../../shared/aboutMe';
 import {
   X,
   Phone,
@@ -27,7 +29,8 @@ import {
   Check,
   Sparkles,
   Trash2,
-  UserPlus
+  UserPlus,
+  Smile
 } from 'lucide-react';
 import { featureOn, tabOn } from '../../lib/features';
 
@@ -278,16 +281,44 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
             );
           })()}
 
-          {/* Bio / About section */}
-          <div className="mb-6 space-y-2">
-            <h3 className="text-xs font-bold text-ink-soft flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-red-600" />
-              <span>معرفی کوتاه و درباره همکار:</span>
-            </h3>
-            <p className="text-xs text-ink-soft leading-relaxed bg-surface-soft/70 p-4 rounded-2xl border border-line">
-              {user.bio || 'توضیحات معرفی ثبت نشده است.'}
-            </p>
-          </div>
+          {/* A short introduction and «دربارهٔ من»; empty ones are left out (one's own card invites to fill them in). */}
+          {(user.bio || isOwnProfile) && (
+            <div className="mb-6 space-y-2">
+              <h3 className="text-xs font-bold text-ink-soft flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-red-600" />
+                <span>معرفی کوتاه:</span>
+              </h3>
+              <p className={`text-xs leading-relaxed bg-surface-soft/70 p-4 rounded-2xl border border-line ${user.bio ? 'text-ink-soft' : 'text-faint'}`}>
+                {user.bio || 'هنوز معرفی کوتاهی ننوشته‌اید؛ از «ویرایش پروفایل» اضافه کنید.'}
+              </p>
+            </div>
+          )}
+
+          {aboutMeAnswers(user.aboutMe).length > 0 ? (
+            <div className="mb-6 space-y-2">
+              <h3 className="text-xs font-bold text-ink-soft flex items-center gap-1.5">
+                <Smile className="w-4 h-4 text-warm-strong" />
+                <span>دربارهٔ من</span>
+              </h3>
+              <AboutMeList about={user.aboutMe} />
+            </div>
+          ) : (
+            isOwnProfile && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEdit(user);
+                }}
+                className="mb-6 w-full p-4 rounded-2xl border border-dashed border-warm/40 bg-warm-soft/50 text-right hover:bg-warm-soft transition-colors"
+              >
+                <span className="flex items-center gap-1.5 text-xs font-bold text-warm-strong">
+                  <Smile className="w-4 h-4" /> «دربارهٔ من» را پر کنید
+                </span>
+                <span className="block mt-1 text-xs text-muted leading-relaxed">چند سؤال خودمانی (سرگرمی، غذای محبوب، کتاب پیشنهادی…) تا همکاران شما را بهتر بشناسند. همه دلخواه است.</span>
+              </button>
+            )
+          )}
 
           {/* Courses: for the colleague themself and the people who run trainings. */}
           {user.hasAccount && (isOwnProfile || can('trainings.manage')) && featureOn(appSettings, 'training') && (

@@ -16,6 +16,7 @@ import { MobileFold } from './MobileFold';
 import { MyTasksCard } from './MyTasksCard';
 import { PersonalTodosCard } from './PersonalTodosCard';
 import { OnlineColleaguesCard } from '../online/OnlineColleaguesCard';
+import { ProfileNudge } from './ProfileNudge';
 import { NoticeBoard } from '../notices/NoticeBoard';
 import { WelcomeHero } from './WelcomeHero';
 import { EmptyState, SkeletonTiles } from '../common/Placeholder';
@@ -299,6 +300,13 @@ export const DashboardModule: React.FC = () => {
           {on('todos') && !isGuest && (
             <div style={place('todos')}>
               <PersonalTodosCard />
+            </div>
+          )}
+
+          {/* A private, gentle reminder of what is missing from one's own card */}
+          {!isGuest && (
+            <div style={place('todos')}>
+              <ProfileNudge />
             </div>
           )}
 

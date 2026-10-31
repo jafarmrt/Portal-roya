@@ -109,6 +109,7 @@ export type ProfileUpdate = Partial<
     | 'hideAnniversary'
     | 'hireDate'
     | 'bio'
+    | 'aboutMe'
     | 'location'
     | 'avatar'
     | 'directManagerId'

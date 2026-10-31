@@ -1,4 +1,5 @@
 import { randomBytes } from 'crypto';
+import { ABOUT_ME_KEYS, ABOUT_ME_MAX } from '../../shared/aboutMe.js';
 import { and, desc, eq, ne, or, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import multer from 'multer';
@@ -366,6 +367,8 @@ const contactUpdateFields = {
   bio: textValue(2000),
   location: textValue(200),
   avatar: assetUrlValue,
+  // Only the colleague themselves (checked below).
+  aboutMe: z.partialRecord(z.enum(ABOUT_ME_KEYS), z.string().trim().max(ABOUT_ME_MAX, `هر پاسخ «دربارهٔ من» حداکثر ${ABOUT_ME_MAX} حرف است.`)),
   birthDate: jalaliDateValue,
   hideBirthday: z.boolean(),
   hideAnniversary: z.boolean(),
@@ -390,6 +393,10 @@ employeesRouter.patch(
     const target = await loadEmployee(req.params.id);
     const body = parse(updateSchema, req.body);
 
+    if (body.aboutMe !== undefined && viewer.id !== target.id) {
+      throw new HttpError(403, '«دربارهٔ من» را فقط خود همکار می‌نویسد.');
+    }
+    if (body.aboutMe !== undefined) body.aboutMe = Object.fromEntries(Object.entries(body.aboutMe).filter(([, answer]) => answer));
     const changesAccount = Object.keys(managerOnlyFields).some((key) => key in body);
     if (changesAccount) {
       if (!can(viewer, 'users.manage')) {

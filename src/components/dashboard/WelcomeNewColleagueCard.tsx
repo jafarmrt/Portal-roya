@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { aboutMeAnswers } from '../../../shared/aboutMe';
+import { AboutMeList } from '../colleagues/AboutMeList';
 import { usePortal } from '../../context/PortalContext';
 import { Send, UserPlus, MessageSquare, Check, Trash2, Edit3, Maximize2, Phone, Mail, MapPin, Smartphone } from 'lucide-react';
 import { Avatar } from '../common/Avatar';
@@ -150,6 +152,7 @@ const ColleagueSpotlight: React.FC<{ nc: NewColleagueWelcome; colleague: UserPro
             {colleague.bio && <p className="text-xs leading-relaxed text-ink-soft">{colleague.bio}</p>}
           </div>
         </div>
+        <AboutMeList about={colleague.aboutMe} />
         {nc.welcomeMessage && (
           <p className="text-sm text-ink leading-relaxed bg-surface-soft p-4 rounded-2xl border border-line">"{nc.welcomeMessage}"</p>
         )}
@@ -214,6 +217,8 @@ export const WelcomeNewColleagueCard: React.FC = () => {
           const colleague = employees.find(e => e.id === nc.userId);
           if (!colleague) return null;
           const name = `${colleague.firstName} ${colleague.lastName}`;
+          // One «دربارهٔ من» answer as a conversation starter; all of them in the large view.
+          const firstAnswer = aboutMeAnswers(colleague.aboutMe)[0];
 
           return (
             <div key={nc.id} className="p-4 sm:p-5 bg-surface/70 rounded-2xl space-y-4">
@@ -248,6 +253,11 @@ export const WelcomeNewColleagueCard: React.FC = () => {
                     <span className="block text-xs text-muted">
                       تاریخ پیوستن: <strong>{formatDate(nc.joinDate)}</strong>
                     </span>
+                    {firstAnswer && (
+                      <span className="block text-xs text-ink-soft leading-relaxed">
+                        <span className="text-muted">{firstAnswer.question}</span> <strong>{firstAnswer.answer}</strong>
+                      </span>
+                    )}
                     <span className="block text-xs font-bold text-brand-strong underline-offset-4 group-hover:underline">نمایش بزرگ‌تر و اطلاعات تماس</span>
                   </span>
                 </button>

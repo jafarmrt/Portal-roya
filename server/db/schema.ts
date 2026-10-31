@@ -10,6 +10,7 @@ import {
   timestamp,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import type { AboutMe } from '../../shared/aboutMe.js';
 import type { AuditAction, AuditEntity } from '../../shared/audit.js';
 import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
 import type { KudosEmoji } from '../../shared/kudos.js';
@@ -104,6 +105,8 @@ export const employees = pgTable('employees', {
   mobile: text('mobile').notNull().default(''),
   extension: text('extension').notNull().default(''),
   bio: text('bio').notNull().default(''),
+  /** Answers to the light «دربارهٔ من» questions (shared/aboutMe.ts); only the colleague edits them. */
+  aboutMe: jsonb('about_me').$type<AboutMe>().notNull().default({}),
   location: text('location').notNull().default(''),
   avatarUrl: text('avatar_url').notNull().default(''),
   birthDate: text('birth_date').notNull().default(''),

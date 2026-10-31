@@ -3,6 +3,7 @@ import { SearchableSelect } from '../common/SearchableSelect';
 import { CheckCircle2, KeyRound, ShieldOff, User } from 'lucide-react';
 import { type ManagedProfileUpdate, usePortal, type ProfileUpdate } from '../../context/PortalContext';
 import { NO_DEPARTMENT, unitHeads } from '../../../shared/profile';
+import { ABOUT_ME_MAX, ABOUT_ME_QUESTIONS } from '../../../shared/aboutMe';
 import type { UserProfile } from '../../types';
 import { FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
 import { JalaliDateInput } from '../common/JalaliDateInput';
@@ -62,6 +63,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
     hideAnniversary: user.hideAnniversary,
     hireDate: user.hireDate,
     bio: user.bio,
+    aboutMe: user.aboutMe ?? {},
     location: user.location,
     avatar: user.avatar,
     directManagerId: user.directManagerId,
@@ -83,13 +85,16 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
     setBusy(true);
     // Employees may only change their own contact details; the server enforces the same rule.
     // The role is sent only when changed here, so access granted or removed meanwhile keeps its role.
-    const { role, ...managed } = form;
+    // «دربارهٔ من» is the colleague's own; nobody else sends it.
+    const { role, aboutMe, ...managed } = form;
+    const own = isSelf ? { aboutMe } : {};
     const headsChosenUnit = Boolean(form.department) && heads.get(form.department) === user.id;
     const update: ManagedProfileUpdate = isAdmin
       ? {
           ...managed,
           ...(live.hasAccount && role !== user.role ? { role } : {}),
           ...(unitHead !== headsChosenUnit ? { isUnitHead: unitHead } : {}),
+          ...own,
         }
       : {
           firstName: form.firstName,
@@ -103,6 +108,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
           bio: form.bio,
           location: form.location,
           avatar: form.avatar,
+          ...own,
         };
     const ok = await updateUserProfile(user.id, update);
     setBusy(false);
@@ -179,6 +185,30 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
             <textarea id="edit-bio" rows={3} value={form.bio} onChange={(e) => set('bio', e.target.value)} className={inputClass} />
           </div>
         </fieldset>
+
+        {isSelf && (
+          <fieldset className={sectionClass} id="about-me">
+            <legend className={legendClass}>دربارهٔ من (دلخواه)</legend>
+            <p className="text-xs text-muted leading-relaxed -mt-1">
+              چند سؤال خودمانی تا همکاران شما را بهتر بشناسند و نقطهٔ مشترک پیدا کنند. پاسخ‌ها روی کارت شما و در معرفی همکار جدید دیده می‌شوند؛ هر کدام را نخواستید خالی بگذارید.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {ABOUT_ME_QUESTIONS.map((q) => (
+                <div key={q.key}>
+                  <label htmlFor={`about-${q.key}`} className={labelClass}>{q.question}</label>
+                  <input
+                    id={`about-${q.key}`}
+                    value={form.aboutMe[q.key] ?? ''}
+                    maxLength={ABOUT_ME_MAX}
+                    placeholder={q.placeholder}
+                    onChange={(e) => set('aboutMe', { ...form.aboutMe, [q.key]: e.target.value })}
+                    className={inputClass}
+                  />
+                </div>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
         {isSelf && featureOn('onlineColleagues') && <OnlineProfileChoices />}
 
