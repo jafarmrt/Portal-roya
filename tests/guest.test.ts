@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { pool } from '../server/db/index';
-import { isCompanyAddress } from '../server/network';
+import { isCompanyAddress, outsideList } from '../server/network';
 import { isInsideOnlyUrl, systemLink } from '../shared/systemLinks';
 import { app, createEmployee, resetDatabase, setupAdmin } from './helpers';
 
@@ -113,6 +113,25 @@ describe('guest (not signed in) access', () => {
     }
     for (const ip of ['79.127.49.210', '5.160.10.20', '172.32.0.1', '100.64.0.1', '2a01:4f8::1', '::ffff:8.8.8.8', '', undefined]) {
       expect(isCompanyAddress(ip), String(ip)).toBe(false);
+    }
+  });
+
+  it('counts a router that hides internet visitors behind its LAN address as outside (OUTSIDE_ADDRESSES)', () => {
+    const outside = outsideList(['192.168.0.100', '10.9.0.0/16', 'not-an-ip', '192.168.0.0/99']);
+    for (const ip of ['192.168.0.100', '::ffff:192.168.0.100', '10.9.4.2']) expect(isCompanyAddress(ip, outside), ip).toBe(false);
+    for (const ip of ['192.168.0.15', '192.168.0.101', '10.8.0.1']) expect(isCompanyAddress(ip, outside), ip).toBe(true);
+    // Not set: every private address is inside, as before.
+    expect(isCompanyAddress('192.168.0.100')).toBe(true);
+  });
+
+  it('tells the visitor the address the portal sees, so a manager can check inside/outside', async () => {
+    app.set('trust proxy', 1);
+    try {
+      const at = async (ip: string) => (await request(app).get('/api/system/status').set('X-Forwarded-For', ip).expect(200)).body;
+      expect(await at('5.160.10.20')).toMatchObject({ companyNetwork: false, visitorAddress: '5.160.10.20' });
+      expect(await at('192.168.0.100')).toMatchObject({ companyNetwork: true, visitorAddress: '192.168.0.100' });
+    } finally {
+      app.set('trust proxy', false);
     }
   });
 

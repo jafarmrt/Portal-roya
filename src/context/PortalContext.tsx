@@ -55,6 +55,8 @@ export const PRESENCE_EVENT = 'portal:presence';
 export const KUDOS_EVENT = 'portal:kudos';
 /** Pages spread their refetches after a live signal over this long, so they do not all ask at once. */
 const LIVE_SPREAD_MS = 800;
+// Inside or outside the company is checked again this often while the page is open (see below).
+const NETWORK_CHECK_MS = 3 * 60_000;
 
 /** How a colleague with portal access signs in: a portal password, or their Active Directory password. */
 export type SignInMethod = 'local' | 'ldap';
@@ -145,6 +147,7 @@ interface PortalContextType {
   guestAccess: boolean;
   /** The visitor is inside the company network (false when they came from the internet). */
   companyNetwork: boolean;
+  visitorAddress: string;
   /** The address of an organisation app that works where the visitor is; '' when it has none. */
   systemHref: (system: ExternalSystem) => string;
   /** Staff sign in with their Active Directory (Windows) username and password. */
@@ -349,6 +352,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [guestAccess, setGuestAccess] = useState(false);
   // Guests may only read from inside the company network; from the internet everyone signs in.
   const [companyNetwork, setCompanyNetwork] = useState(true);
+  // The address the server sees for this visitor; managers see it next to the app links.
+  const [visitorAddress, setVisitorAddress] = useState('');
   const [directoryLogin, setDirectoryLogin] = useState(false);
   const [logoUrl, setLogoUrl] = useState('');
   const [loginPrompt, setLoginPrompt] = useState<string | null>(null);
@@ -400,6 +405,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           isSetupComplete: boolean;
           guestAccess?: boolean;
           companyNetwork?: boolean;
+          visitorAddress?: string;
           directoryLogin?: boolean;
           logoUrl?: string;
         }>('/api/system/status');
@@ -407,6 +413,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setIsSetupComplete(status.isSetupComplete);
         setGuestAccess(Boolean(status.guestAccess));
         setCompanyNetwork(status.companyNetwork !== false);
+        setVisitorAddress(status.visitorAddress ?? '');
         setDirectoryLogin(Boolean(status.directoryLogin));
         if (status.isSetupComplete) {
           const me = await api.get<{ user: CurrentUser }>('/api/auth/me').catch(() => null);
@@ -601,6 +608,38 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       for (const timer of waiting.values()) clearTimeout(timer);
     };
   }, [isReady, sessionKey, loaders, refresh]);
+
+  // A phone or laptop moves between the office Wi-Fi and the internet while the page (or the installed
+  // app) stays open, so inside/outside is checked again whenever the page comes back into view, the
+  // network returns, and every few minutes. Otherwise app links keep the address of where it was opened.
+  useEffect(() => {
+    if (!isSetupComplete) return;
+    let stopped = false;
+    const check = async () => {
+      try {
+        const status = await api.get<{ companyNetwork?: boolean; visitorAddress?: string }>('/api/system/status');
+        if (stopped) return;
+        setCompanyNetwork(status.companyNetwork !== false);
+        setVisitorAddress(status.visitorAddress ?? '');
+      } catch {
+        // Offline: keep the last answer.
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void check();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', check);
+    window.addEventListener('focus', check);
+    const timer = window.setInterval(check, NETWORK_CHECK_MS);
+    return () => {
+      stopped = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', check);
+      window.removeEventListener('focus', check);
+      clearInterval(timer);
+    };
+  }, [isSetupComplete]);
 
   // A manager may switch guest access or replace the logo while the page is open.
   useEffect(() => {
@@ -1122,6 +1161,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isGuest,
         guestAccess,
         companyNetwork,
+        visitorAddress,
         systemHref,
         directoryLogin,
         logoSrc,

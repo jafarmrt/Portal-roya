@@ -25,7 +25,7 @@ function externalHint(system: ExternalSystem) {
 }
 
 export const SystemsModule: React.FC = () => {
-  const { can, appSettings, updateSettings, systemHref, companyNetwork } = usePortal();
+  const { can, appSettings, updateSettings, systemHref, companyNetwork, visitorAddress } = usePortal();
   const isManager = can('systems.manage');
   const [isEditing, setIsEditing] = useState(false);
   
@@ -129,6 +129,16 @@ export const SystemsModule: React.FC = () => {
 
       {isEditing ? (
         <div className="space-y-6">
+          {/* So a manager can check, e.g. from a phone on mobile data, how the portal sees this connection. */}
+          <p className="text-xs text-[#6E6A60] bg-[#F5F2ED] rounded-xl px-3 py-2" dir="rtl">
+            پرتال این اتصال را <strong className="text-[#2D2D2D]">{companyNetwork ? 'داخل شرکت' : 'بیرون شرکت'}</strong> می‌بیند
+            {visitorAddress && (
+              <>
+                {' '}(آدرس شما از نگاه پرتال: <span dir="ltr" className="font-mono">{visitorAddress}</span>)
+              </>
+            )}
+            . اگر از اینترنت وصل هستید ولی اینجا «داخل شرکت» نوشته شده، روتر آدرس بازدیدکننده‌ها را عوض می‌کند و لینک‌های داخلی باز می‌شوند.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {editedSystems.map((system, index) => {
               return (
