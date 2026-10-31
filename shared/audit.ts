@@ -26,6 +26,7 @@ export const AUDIT_ENTITIES = [
   'employee',
   'settings',
   'message',
+  'notice',
 ] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 
@@ -43,6 +44,7 @@ export const AUDIT_ENTITY_LABELS: Record<AuditEntity, string> = {
   employee: 'همکار و حساب کاربری',
   settings: 'تنظیمات',
   message: 'پیام همکاران',
+  notice: 'تابلوی اعلانات',
 };
 
 /** How a changed field of an announcement is named; the audience lists and text format share a name. */

@@ -512,7 +512,7 @@ export interface CalendarRsvpRow {
   respondedAt: string | null;
 }
 
-export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system' | 'suggestion' | 'todo' | 'kudos';
+export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system' | 'suggestion' | 'todo' | 'kudos' | 'notice';
 
 export interface NotificationItem {
   id: string;
@@ -851,4 +851,29 @@ export interface ReceivedKudos {
   message: string;
   createdAt: string;
   canReply: boolean;
+}
+
+/** A notice on «تابلوی اعلانات»: a short message (not news) on the dashboard from its first to its last day. */
+export interface Notice {
+  id: string;
+  text: string;
+  /** Who it is from, e.g. «واحد اداری»; may be empty. */
+  sender: string;
+  important: boolean;
+  startsAt: string;
+  endsAt: string;
+  /** This person pressed «دیدم». */
+  seen: boolean;
+}
+
+/** A notice as the people who publish them see it in «مدیریت اطلاعیه‌ها». */
+export interface ManagedNotice extends Notice {
+  notify: boolean;
+  targetDepartments: string[];
+  targetLocations: string[];
+  targetRoles: string[];
+  targetUserIds: string[];
+  createdBy: string;
+  createdAt: string;
+  stats: { seen: number; audience: number };
 }

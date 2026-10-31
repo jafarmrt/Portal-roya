@@ -37,6 +37,7 @@ const FEATURE_ROUTES: { key: FeatureKey; pattern: RegExp; emptyReads: Record<str
   { key: 'mood', pattern: /^\/moods(\/|$)/, emptyReads: { '/moods/me': [] } },
   { key: 'todos', pattern: /^\/todos(\/|$)/, emptyReads: { '/todos': [], '/todos/archive': [] } },
   { key: 'onlineColleagues', pattern: /^\/(presence|kudos)(\/|$)/, emptyReads: {} },
+  { key: 'noticeBoard', pattern: /^\/notices(\/|$)/, emptyReads: { '/notices': [], '/notices/manage': [] } },
 ];
 
 /** Keeps a hidden part out of reach even for someone who types its address. */

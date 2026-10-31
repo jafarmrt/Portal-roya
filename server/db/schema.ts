@@ -801,3 +801,46 @@ export const kudos = pgTable(
   },
   (t) => [index('kudos_to_idx').on(t.toId, t.createdAt), index('kudos_from_idx').on(t.fromId, t.createdAt), uniqueIndex('kudos_reply_idx').on(t.replyToId)],
 );
+
+/**
+ * «تابلوی اعلانات»: a short notice (not a news item) shown in full on the dashboard of its audience
+ * between its first and last day. It never appears in the news list.
+ */
+export const notices = pgTable(
+  'notices',
+  {
+    id: text('id').primaryKey(),
+    text: text('text').notNull(),
+    // Who it is from, as shown under the text (e.g. «واحد اداری»); empty shows nothing.
+    sender: text('sender').notNull().default(''),
+    // Shown first and highlighted.
+    important: boolean('important').notNull().default(false),
+    // Same audience rules as news (shared/audience.ts); all empty is everyone.
+    targetDepartments: text('target_departments').array().notNull().default([]),
+    targetLocations: text('target_locations').array().notNull().default([]),
+    targetRoles: text('target_roles').array().notNull().default([]),
+    targetUserIds: text('target_user_ids').array().notNull().default([]),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    // The publisher asked for a bell notification; it goes out once, when the notice starts.
+    notify: boolean('notify').notNull().default(false),
+    notifiedAt: timestamp('notified_at', { withTimezone: true }),
+    // Set once open pages were told the notice started, so a scheduled one shows on time.
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    createdById: text('created_by_id').references(() => employees.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('notices_ends_at_idx').on(t.endsAt)],
+);
+
+/** A colleague pressed «دیدم» on a notice; it folds away on their dashboard. */
+export const noticeDismissals = pgTable(
+  'notice_dismissals',
+  {
+    noticeId: text('notice_id').notNull().references(() => notices.id, { onDelete: 'cascade' }),
+    employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.noticeId, t.employeeId] })],
+);

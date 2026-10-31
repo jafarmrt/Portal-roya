@@ -351,6 +351,7 @@ const FEATURE_RESOURCES: Record<FeatureKey, ResourceName[]> = {
   occasionThemes: [],
   dashboardLayout: [],
   onlineColleagues: ['presence', 'notifications'],
+  noticeBoard: ['notices', 'notifications'],
 };
 
 function broadcastFeatures(keys: FeatureKey[]) {
