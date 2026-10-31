@@ -20,7 +20,7 @@ export function useTickTodo() {
               toast.dismiss(t.id);
               void updateTodo(todo.id, { done: false });
             }}
-            className="px-2 py-1 font-bold text-sky-200 hover:text-white underline whitespace-nowrap"
+            className="px-2 py-1 font-bold text-white/80 hover:text-white underline whitespace-nowrap"
           >
             برگردان
           </button>

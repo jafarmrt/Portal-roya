@@ -14,7 +14,7 @@ import { startPresenceSweep } from './presence.js';
 // the portal for everyone; request errors already reach the error handler.
 process.on('unhandledRejection', (err) => console.error('Unhandled error:', err));
 
-const NO_CACHE_FILES = new Set(['sw.js', 'manifest.webmanifest', 'offline.html']);
+const NO_CACHE_FILES = new Set(['sw.js', 'manifest.webmanifest', 'offline.html', 'appearance.js']);
 
 async function main() {
   await runMigrations();

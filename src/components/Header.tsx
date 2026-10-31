@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { pop } from '../lib/feedback';
 import { plainTitle } from './notifications/notificationList';
+import { AppearanceChoices } from './common/AppearanceChoices';
 
 // Header drop-downs: full width under the header on phones, anchored to their button from sm up.
 const popoverClass =
@@ -424,6 +425,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                             </button>
                           )}
                           
+                          <div className="my-1 border-t border-line"></div>
+                          <AppearanceChoices />
                           <div className="my-1 border-t border-line"></div>
 
                           <button
