@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Mail, Send } from 'lucide-react';
 import { WISH_DESIGNS, type WishDesign, type WishOccasion, yearsLabel } from '../../../shared/celebrations';
 import { usePortal } from '../../context/PortalContext';
 import type { UserProfile } from '../../types';
 import { CARD_DESIGNS, GreetingCard } from '../common/GreetingCard';
 import { Modal, inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
+import { confettiFrom } from '../../lib/feedback';
 
 const SUGGESTIONS: Record<WishOccasion, string[]> = {
   birthday: [
@@ -37,12 +38,17 @@ export const GreetingCardComposer: React.FC<Props> = ({ colleague, occasion, yea
   const [busy, setBusy] = useState(false);
   const name = `${colleague.firstName} ${colleague.lastName}`;
 
+  const sendButton = useRef<HTMLButtonElement>(null);
   const send = async () => {
     if (!message.trim()) return;
     setBusy(true);
     const ok = await sendBirthdayWish(colleague.id, { message: message.trim(), occasion, design, isPrivate });
     setBusy(false);
-    if (ok) onClose();
+    if (ok) {
+      // A little celebration as the card goes out (on a computer; phones get none).
+      confettiFrom(sendButton.current);
+      onClose();
+    }
   };
 
   return (
@@ -55,7 +61,7 @@ export const GreetingCardComposer: React.FC<Props> = ({ colleague, occasion, yea
       footer={
         <>
           <button type="button" onClick={onClose} className={secondaryButtonClass}>انصراف</button>
-          <button type="button" onClick={send} disabled={busy || !message.trim()} className={primaryButtonClass}>
+          <button ref={sendButton} type="button" onClick={send} disabled={busy || !message.trim()} className={primaryButtonClass}>
             <Send className="w-3.5 h-3.5" />
             {busy ? 'در حال ارسال…' : 'ارسال کارت'}
           </button>

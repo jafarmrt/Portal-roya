@@ -31,6 +31,7 @@ import { QuickDueDates } from './DueDateField';
 import { TodoFormModal } from './TodoFormModal';
 import { useTickTodo } from './useTickTodo';
 import { byDay, dayTitle, GROUP_STYLE, type TodoDay } from './todoText';
+import { haptic, pop } from '../../lib/feedback';
 
 type Filter = 'all' | 'open' | 'urgent' | 'week' | 'important' | 'repeat' | 'done';
 
@@ -383,14 +384,18 @@ const NoteRow: React.FC<{ todo: PersonalTodo; onEdit?: () => void; archived: boo
             role="checkbox"
             aria-checked={isDone}
             aria-label={isDone ? `برگرداندن «${todo.title}» به یادداشت‌های باز` : `انجام شد: ${todo.title}`}
-            onClick={() => (isDone ? void updateTodo(todo.id, { done: false }) : void tick(todo))}
+            onClick={(e) => {
+              haptic();
+              if (!isDone) pop(e.currentTarget.firstElementChild);
+              return isDone ? void updateTodo(todo.id, { done: false }) : void tick(todo);
+            }}
             className="p-0.5 rounded-lg hover:bg-white shrink-0"
           >
             {isDone ? <CheckCircle2 className="w-5 h-5 text-emerald-600" /> : <Circle className="w-5 h-5 text-faint" />}
           </button>
         )}
         <div className="flex-1 min-w-0 pt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-          <h4 className={`min-w-0 text-sm font-black leading-snug break-words ${isDone ? 'line-through text-faint' : 'text-ink'}`}>{todo.title}</h4>
+          <h4 className={`min-w-0 text-sm font-black leading-snug break-words transition-colors ${isDone ? 'line-through text-faint' : 'text-ink'}`}>{todo.title}</h4>
           {isDone && <span className="px-1.5 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold whitespace-nowrap">انجام شد {formatDate(todo.doneAt)}</span>}
           {todo.repeat && (
             <span className="text-sky-800 text-xs flex items-center gap-0.5 whitespace-nowrap" title={repeatLabel(todo)}>

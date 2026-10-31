@@ -7,6 +7,7 @@ import { formatDate, timeAgo, toPersianDigits } from '../../lib/jalali';
 import type { NewColleagueWelcome, UserProfile } from '../../types';
 import { IntroduceColleagueModal } from '../colleagues/IntroduceColleagueModal';
 import { ReactionBar } from '../common/ReactionBar';
+import { SkeletonRows } from '../common/Placeholder';
 
 const DEFAULT_WISH = 'ورودتان به رویا طرح داخلی را صمیمانه تبریک می‌گوییم! 🎉';
 
@@ -161,7 +162,7 @@ const ColleagueSpotlight: React.FC<{ nc: NewColleagueWelcome; colleague: UserPro
 };
 
 export const WelcomeNewColleagueCard: React.FC = () => {
-  const { newColleagues, employees, deleteIntroduction, can, isGuest, currentUser } = usePortal();
+  const { newColleagues, employees, deleteIntroduction, can, isGuest, currentUser, isLoaded } = usePortal();
   const [editing, setEditing] = useState<NewColleagueWelcome | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const canManage = can('users.manage');
@@ -183,7 +184,7 @@ export const WelcomeNewColleagueCard: React.FC = () => {
           </div>
           <div>
             <h3 className="text-base font-black text-ink">معرفی همکاران جدید</h3>
-            <p className="text-xs text-muted">ارسال پیام خوش‌آمدگویی به اعضای جدید سازمان</p>
+            <p className="text-xs text-muted">به همکاران تازه خوش‌آمد بگویید</p>
           </div>
         </div>
         {recent.length > 0 && (
@@ -196,7 +197,9 @@ export const WelcomeNewColleagueCard: React.FC = () => {
       {editing && editingColleague && <IntroduceColleagueModal colleague={editingColleague} card={editing} onClose={() => setEditing(null)} />}
       {opened && openedColleague && <ColleagueSpotlight nc={opened} colleague={openedColleague} onClose={() => setOpenId(null)} />}
 
-      {recent.length === 0 ? (
+      {!isGuest && !isLoaded('new_colleagues') ? (
+        <SkeletonRows rows={1} tall />
+      ) : recent.length === 0 ? (
         <div className="py-4 text-center space-y-1.5 text-xs">
           <p className="text-muted">
             {isGuest && newColleagues.length === 0 ? 'معرفی همکاران جدید پس از ورود به پرتال نمایش داده می‌شود.' : 'در دو ماه گذشته همکار جدیدی معرفی نشده است.'}

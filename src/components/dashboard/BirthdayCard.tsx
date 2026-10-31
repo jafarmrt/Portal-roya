@@ -9,6 +9,7 @@ import { GreetingCard } from '../common/GreetingCard';
 import { daysUntilBirthday, formatBirthDay, toPersianDigits } from '../../lib/jalali';
 import { EditProfileModal } from '../colleagues/EditProfileModal';
 import { GreetingCardComposer } from './GreetingCardComposer';
+import { SkeletonRows } from '../common/Placeholder';
 
 const UPCOMING_DAYS = 14;
 const ANNIVERSARY_DAYS = 7;
@@ -31,7 +32,7 @@ const ShowMore: React.FC<{ expanded: boolean; onToggle: () => void; label: strin
 const daysLabel = (days: number) => (days === 0 ? 'امروز 🎉' : days === 1 ? 'فردا' : `${toPersianDigits(days)} روز دیگر`);
 
 export const BirthdayCard: React.FC = () => {
-  const { employees, deleteBirthdayWish, birthdayWishes, currentUser, can, isGuest } = usePortal();
+  const { employees, deleteBirthdayWish, birthdayWishes, currentUser, can, isGuest, isLoaded } = usePortal();
   const [composing, setComposing] = useState<{ colleague: UserProfile; occasion: WishOccasion; years?: number } | null>(null);
   const [editingOwnProfile, setEditingOwnProfile] = useState(false);
   const [allBirthdaysShown, setAllBirthdaysShown] = useState(false);
@@ -139,6 +140,8 @@ export const BirthdayCard: React.FC = () => {
 
       {isGuest ? (
         <p className="py-4 text-center text-xs text-muted leading-relaxed">تولد همکاران پس از ورود به پرتال نمایش داده می‌شود.</p>
+      ) : !isLoaded('employees') ? (
+        <SkeletonRows rows={2} tall />
       ) : birthdayColleagues.length === 0 ? (
         <div className="py-4 text-center space-y-1.5">
           <p className="text-xs text-muted">در دو هفتهٔ آینده تولدی در پیش نیست.</p>

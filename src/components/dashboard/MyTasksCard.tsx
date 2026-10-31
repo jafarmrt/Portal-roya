@@ -8,6 +8,7 @@ import type { PendingNewsQuestion } from '../../types';
 import { deadlineState } from '../news/NewsBody';
 import { useSuggestionSummary } from '../../lib/suggestionSummary';
 import { boxNames } from '../../../shared/suggestions';
+import { SkeletonRows } from '../common/Placeholder';
 
 interface Task {
   key: string;
@@ -33,7 +34,7 @@ const SHOWN = 5;
  * coming seven days. Opens the side column of the dashboard, one line per task.
  */
 export const MyTasksCard: React.FC = () => {
-  const { currentUser, news, polls, trainings, calendarEvents, documents, guides, can, setActiveTab, appSettings } = usePortal();
+  const { currentUser, news, polls, trainings, calendarEvents, documents, guides, can, setActiveTab, appSettings, isLoaded } = usePortal();
   const [questions, setQuestions] = useState<PendingNewsQuestion[]>([]);
   const [showAll, setShowAll] = useState(false);
   const suggestionSummary = useSuggestionSummary();
@@ -195,18 +196,31 @@ export const MyTasksCard: React.FC = () => {
   }
   tasks.sort((a, b) => Number(Boolean(b.urgent)) - Number(Boolean(a.urgent)) || a.rank.localeCompare(b.rank));
 
+  // Until news and polls have arrived, a placeholder instead of "nothing waiting".
+  if (!isLoaded('news') || !isLoaded('polls')) {
+    return (
+      <section className="bg-white border border-line/70 shadow-card rounded-3xl p-4" aria-label="منتظر اقدام شما">
+        <SkeletonRows rows={2} />
+      </section>
+    );
+  }
+
   if (tasks.length === 0) {
     return (
-      <section className="bg-white border border-line rounded-2xl px-4 py-3 flex items-center gap-2 text-xs text-ink-soft leading-relaxed" aria-label="منتظر اقدام شما">
-        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-        <span><strong>منتظر اقدام شما:</strong> فعلاً چیزی نیست؛ بخشنامه، سند یا نظرسنجی بی‌پاسخ و برنامه‌ای برای این هفته ندارید.</span>
+      <section
+        className="bg-white border border-line/70 shadow-card rounded-2xl px-4 py-3 flex items-center gap-2 text-sm text-ink-soft"
+        aria-label="منتظر اقدام شما"
+        title="بخشنامه، سند یا نظرسنجی بی‌پاسخ و برنامه‌ای برای این هفته ندارید."
+      >
+        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+        <span className="font-bold">کاری منتظر شما نیست ☕</span>
       </section>
     );
   }
 
   const shown = showAll ? tasks : tasks.slice(0, SHOWN);
   return (
-    <section className="bg-white border border-amber-300 rounded-3xl p-4 space-y-2.5" aria-labelledby="my-tasks-title">
+    <section className="bg-white border border-amber-300 shadow-card rounded-3xl p-4 space-y-2.5" aria-labelledby="my-tasks-title">
       <div className="flex items-center gap-2">
         <span className="p-1.5 bg-amber-100 text-amber-800 rounded-xl"><ListTodo className="w-4 h-4" /></span>
         <h2 id="my-tasks-title" className="text-sm font-black text-ink">منتظر اقدام شما</h2>

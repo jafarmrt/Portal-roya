@@ -40,6 +40,7 @@ import { NoticePrintModal } from './NoticePrintModal';
 import { AddToTodosButton } from '../todos/AddToTodosButton';
 import { ReadReceiptsModal } from '../common/ReceiptsModal';
 import { PageHeader } from '../common/PageHeader';
+import { haptic, pop } from '../../lib/feedback';
 
 type Filter = 'all' | 'unread' | 'ack' | string;
 
@@ -439,12 +440,16 @@ const ArticleModal: React.FC<ArticleModalProps> = ({ article, isManager, onClose
       footer={
         <div className="w-full flex flex-wrap items-center justify-between gap-2">
           <button
-            onClick={onLike}
+            onClick={(e) => {
+              haptic();
+              if (!article.likedByMe) pop(e.currentTarget.querySelector('svg'));
+              onLike();
+            }}
             aria-pressed={article.likedByMe}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold ${article.likedByMe ? 'bg-brand text-white' : 'bg-white border border-line'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors ${article.likedByMe ? 'bg-brand text-white' : 'bg-white border border-line'}`}
           >
             <Heart className={`w-4 h-4 ${article.likedByMe ? 'fill-white' : ''}`} />
-            <span>پسندیدن ({toPersianDigits(article.likesCount)})</span>
+            <span>پسندیدن{article.likesCount > 0 ? ` (${toPersianDigits(article.likesCount)})` : ''}</span>
           </button>
           <div className="flex flex-wrap items-center gap-2">
             {isManager && (
