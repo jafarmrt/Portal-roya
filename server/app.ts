@@ -28,6 +28,7 @@ import { suggestionsRouter } from './routes/suggestions.js';
 import { todosRouter } from './routes/todos.js';
 import { kudosRouter } from './routes/kudos.js';
 import { reactionsRouter } from './routes/reactions.js';
+import { noticesRouter } from './routes/notices.js';
 import { buildInfo, changelog } from './version.js';
 
 /** Builds the API application. The static/Vite front-end is attached in server/index.ts. */
@@ -93,6 +94,7 @@ export function createApp() {
   api.use(todosRouter);
   api.use(kudosRouter);
   api.use(reactionsRouter);
+  api.use(noticesRouter);
   api.use(uploadsRouter);
   api.use((_req, res) => res.status(404).json({ error: 'مسیر یافت نشد.' }));
 

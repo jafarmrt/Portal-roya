@@ -225,6 +225,13 @@
       "when": 1793435705613,
       "tag": "0031_reactions",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793437828380,
+      "tag": "0032_notice_board",
+      "breakpoints": true
     }
   ]
 }

@@ -20,6 +20,7 @@ export type ResourceName =
   | 'notifications'
   | 'moods'
   | 'todos'
+  | 'notices'
   | 'presence';
 
 interface Client {

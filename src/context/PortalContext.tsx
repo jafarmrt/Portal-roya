@@ -32,6 +32,7 @@ import type {
   PollInput,
   Permission,
   PersonalTodo,
+  Notice,
   PortalDocument,
   DocumentDetails,
   RoleInfo,
@@ -198,6 +199,11 @@ interface PortalContextType {
   todayMoodSubmitted: boolean;
   /** This person's own to-do notes (empty for guests and while the part is hidden). */
   todos: PersonalTodo[];
+  /** Notices on «تابلوی اعلانات» for this person right now (guests: those for everyone). */
+  notices: Notice[];
+  /** «دیدم» folds a notice away on this person's dashboard; false opens it again. */
+  setNoticeSeen: (id: string, seen: boolean) => Promise<void>;
+  reloadNotices: () => Promise<void>;
 
   /** Whether this person sees a part an administrator can keep hidden until it is introduced. */
   featureOn: (key: FeatureKey) => boolean;
@@ -368,6 +374,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [departmentPages, setDepartmentPages] = useState<DepartmentPage[]>([]);
   const [userMoods, setUserMoods] = useState<UserMood[]>([]);
   const [todos, setTodos] = useState<PersonalTodo[]>([]);
+  const [notices, setNotices] = useState<Notice[]>([]);
   const [roles, setRoles] = useState<RoleInfo[]>([]);
   const newsCount = useRef(NEWS_PAGE_SIZE);
 
@@ -496,6 +503,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       department_pages: () => api.get<DepartmentPage[]>('/api/department_pages').then(setDepartmentPages),
       moods: () => api.get<UserMood[]>('/api/moods/me').then(setUserMoods),
       todos: () => api.get<PersonalTodo[]>('/api/todos').then(setTodos),
+      notices: () => api.get<Notice[]>('/api/notices').then(setNotices),
       roles: () => api.get<RoleInfo[]>('/api/roles').then(setRoles),
       // An admin may change this user's role or the role's permissions at any time.
       me: () => api.get<{ user: CurrentUser }>('/api/auth/me').then(({ user }) => setCurrentUser(user)),
@@ -709,6 +717,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const result = await attempt(() => api.post<{ archived: number }>('/api/todos/archive', ids ? { ids } : {}), 'به آرشیو رفت.');
     if (result) setTodos((prev) => prev.filter((t) => !t.doneAt || (ids && !ids.includes(t.id))));
     return Boolean(result);
+  };
+
+  const setNoticeSeen: PortalContextType['setNoticeSeen'] = async (id, seen) => {
+    setNotices((prev) => prev.map((n) => (n.id === id ? { ...n, seen } : n)));
+    const ok = await attempt(() => (seen ? api.post(`/api/notices/${id}/seen`, {}) : api.delete(`/api/notices/${id}/seen`)).then(() => true));
+    if (!ok) void refresh('notices');
+  };
+  const reloadNotices = async () => {
+    await refresh('notices');
   };
 
   const replacePoll = (poll: Poll) => setPolls((prev) => prev.map((p) => (p.id === poll.id ? poll : p)));
@@ -1146,6 +1163,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         userMoods,
         todayMoodSubmitted,
         todos,
+        notices,
+        setNoticeSeen,
+        reloadNotices,
         featureOn,
         markFeatureSeen,
         setOccasionEffects,

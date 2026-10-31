@@ -16,6 +16,7 @@ import { MobileFold } from './MobileFold';
 import { MyTasksCard } from './MyTasksCard';
 import { PersonalTodosCard } from './PersonalTodosCard';
 import { OnlineColleaguesCard } from '../online/OnlineColleaguesCard';
+import { NoticeBoard } from '../notices/NoticeBoard';
 import moment from 'moment-jalaali';
 import { JALALI_MONTHS, JALALI_WEEKDAYS } from '../../data/holidays';
 import { formatDate, toPersianDigits, todayJalali } from '../../lib/jalali';
@@ -150,6 +151,13 @@ export const DashboardModule: React.FC = () => {
       <div className="order-1">
         <FeatureIntroCard />
       </div>
+
+      {/* «تابلوی اعلانات»: short notices that are not news, in full, above the cards */}
+      {on('notices') && (
+        <div className="order-2">
+          <NoticeBoard />
+        </div>
+      )}
 
       {/* Organisation apps sit at the very top so they are reachable without scrolling */}
       {on('systems') && (
