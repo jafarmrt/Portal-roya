@@ -1,3 +1,4 @@
+import type { ReactionCount } from '../shared/reactions';
 import type { WishDesign, WishOccasion } from '../shared/celebrations';
 import type { FeatureKey } from '../shared/features';
 import type { SuggestionBoxNames } from '../shared/suggestions';
@@ -340,7 +341,10 @@ export interface NewColleagueWelcome {
   welcomeMessage: string;
   joinDate: string;
   createdAt: string;
-  wishes: { id: string; senderId: string; userName: string; message: string; time: string }[];
+  /** Colleagues' emoji under the introduction. */
+  reactions: ReactionCount[];
+  /** Each message can carry the new colleague's emoji. */
+  wishes: { id: string; senderId: string; userName: string; message: string; time: string; reactions: ReactionCount[] }[];
 }
 
 export interface BirthdayWish {
@@ -355,6 +359,8 @@ export interface BirthdayWish {
   isPrivate: boolean;
   /** The colleague's reaction to the card ('' = none yet). */
   reaction: string;
+  /** Other colleagues' emoji (cards that are not private). */
+  reactions: ReactionCount[];
   time: string;
 }
 

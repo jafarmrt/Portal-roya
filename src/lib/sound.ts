@@ -1,5 +1,6 @@
 /**
- * A short, soft chime for an emoji from a colleague. It is drawn with the browser's audio engine, so
+ * A short, soft chime for an emoji from a colleague (from «همکاران آنلاین», or a reaction to one's
+ * introduction, welcome message or greeting card). It is drawn with the browser's audio engine, so
  * there is no sound file to download. The switch is kept per device (a phone in a meeting may want
  * silence while the desk computer does not); it is on unless the person turns it off.
  */
@@ -85,6 +86,19 @@ export function playChime() {
     osc.stop(start + at + 0.45);
   });
   return true;
+}
+
+/** Chimes for a reaction that just arrived; with several tabs open, only one of them plays. */
+export function chimeNow() {
+  if (!kudosSoundOn()) return;
+  try {
+    const last = Number(localStorage.getItem(`${LAST_KEY}-at`) ?? 0);
+    if (Date.now() - last < 1500) return;
+    localStorage.setItem(`${LAST_KEY}-at`, String(Date.now()));
+  } catch {
+    // Without storage every tab may chime; harmless.
+  }
+  playChime();
 }
 
 /**

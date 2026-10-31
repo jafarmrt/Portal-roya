@@ -18,12 +18,10 @@ export const OnlineChoices: React.FC<{
       <input type="checkbox" checked={!me.acceptKudos} onChange={(e) => onChange({ acceptKudos: !e.target.checked })} className="accent-red-700" />
       همکاران برایم ایموجی نفرستند
     </label>
-    {me.acceptKudos && (
-      <label className="flex items-center gap-1.5 text-[11px] text-[#6E6A60] cursor-pointer">
-        <input type="checkbox" checked={!soundOn} onChange={(e) => setKudosSound(!e.target.checked)} className="accent-red-700" />
-        ایموجی تازه صدا نداشته باشد (روی همین دستگاه)
-      </label>
-    )}
+    <label className="flex items-center gap-1.5 text-[11px] text-[#6E6A60] cursor-pointer">
+      <input type="checkbox" checked={!soundOn} onChange={(e) => setKudosSound(!e.target.checked)} className="accent-red-700" />
+      ایموجی‌ها و واکنش‌های تازه صدا نداشته باشند (روی همین دستگاه)
+    </label>
   </div>
   );
 };

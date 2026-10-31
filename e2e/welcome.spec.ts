@@ -33,6 +33,10 @@ test('a new colleague’s introduction opens large from the dashboard', async ({
   await dialog.getByRole('textbox', { name: 'پیام خوش‌آمد برای رضا' }).fill('خوش آمدی!');
   await dialog.getByRole('button', { name: 'ارسال' }).click();
   await expect(dialog).toContainText('خوش آمدی!');
+  // An emoji for the introduction, with its count.
+  await dialog.getByRole('button', { name: 'واکنش با ایموجی (واکنش به معرفی رضا تازه‌وارد)' }).click();
+  await dialog.getByRole('button', { name: 'واکنش ❤️' }).click();
+  await expect(dialog.getByRole('group', { name: 'واکنش به معرفی رضا تازه‌وارد' }).getByRole('button', { name: '❤️ ۱، شما هم' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await context.close();

@@ -33,6 +33,8 @@ interface GreetingCardProps {
   onReact?: (reaction: string) => void;
   onDelete?: () => void;
   compact?: boolean;
+  /** Shown under the card, e.g. colleagues' emoji. */
+  extra?: React.ReactNode;
 }
 
 /** A greeting card a colleague sent for a birthday or a work anniversary. */
@@ -48,6 +50,7 @@ export const GreetingCard: React.FC<GreetingCardProps> = ({
   onReact,
   onDelete,
   compact,
+  extra,
 }) => {
   const look = CARD_DESIGNS[design] ?? CARD_DESIGNS.confetti;
   const [first = '', ...rest] = senderName.split(' ');
@@ -106,6 +109,7 @@ export const GreetingCard: React.FC<GreetingCardProps> = ({
             ))}
           </div>
         )}
+        {extra}
       </div>
     </figure>
   );

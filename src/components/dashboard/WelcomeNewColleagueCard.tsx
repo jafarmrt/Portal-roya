@@ -6,6 +6,7 @@ import { Modal } from '../common/Modal';
 import { formatDate, timeAgo, toPersianDigits } from '../../lib/jalali';
 import type { NewColleagueWelcome, UserProfile } from '../../types';
 import { IntroduceColleagueModal } from '../colleagues/IntroduceColleagueModal';
+import { ReactionBar } from '../common/ReactionBar';
 
 const DEFAULT_WISH = 'ورودتان به رویا طرح داخلی را صمیمانه تبریک می‌گوییم! 🎉';
 
@@ -22,7 +23,17 @@ const WishList: React.FC<{ nc: NewColleagueWelcome; tall?: boolean }> = ({ nc, t
       <div className={`${tall ? 'max-h-60' : 'max-h-36'} overflow-y-auto space-y-1.5 pl-1`}>
         {nc.wishes.map((w) => (
           <div key={w.id} className="p-2 bg-white rounded-lg border border-[#E6E0D5] text-[11px] flex justify-between gap-2">
-            <span><strong>{w.userName}:</strong> {w.message}</span>
+            <span className="space-y-1 min-w-0">
+              <span className="block"><strong>{w.userName}:</strong> {w.message}</span>
+              <ReactionBar
+                target="welcome"
+                id={w.id}
+                reactions={w.reactions ?? []}
+                canReact={currentUser?.id === nc.userId}
+                label={`واکنش به پیام ${w.userName}`}
+                small
+              />
+            </span>
             <span className="flex items-start gap-1.5 text-[10px] text-[#8C867A] whitespace-nowrap">
               {timeAgo(w.time)}
               {(w.senderId === currentUser?.id || can('comments.moderate')) && (
@@ -91,6 +102,7 @@ const WishForm: React.FC<{ nc: NewColleagueWelcome; colleague: UserProfile }> = 
 
 /** The introduction opened large: a big photo, the colleague's details, the message and the welcomes. */
 const ColleagueSpotlight: React.FC<{ nc: NewColleagueWelcome; colleague: UserProfile; onClose: () => void }> = ({ nc, colleague, onClose }) => {
+  const { currentUser, isGuest } = usePortal();
   const name = `${colleague.firstName} ${colleague.lastName}`;
   const contacts = [
     colleague.extension && { icon: Phone, label: 'داخلی', value: toPersianDigits(colleague.extension) },
@@ -140,6 +152,7 @@ const ColleagueSpotlight: React.FC<{ nc: NewColleagueWelcome; colleague: UserPro
         {nc.welcomeMessage && (
           <p className="text-sm text-[#2D2D2D] leading-relaxed bg-[#F9F7F4] p-4 rounded-2xl border border-[#E6E0D5]">"{nc.welcomeMessage}"</p>
         )}
+        <ReactionBar target="intro" id={nc.id} reactions={nc.reactions ?? []} canReact={!isGuest && !!currentUser} label={`واکنش به معرفی ${name}`} />
         <WishList nc={nc} tall />
         <WishForm nc={nc} colleague={colleague} />
       </div>
@@ -148,7 +161,7 @@ const ColleagueSpotlight: React.FC<{ nc: NewColleagueWelcome; colleague: UserPro
 };
 
 export const WelcomeNewColleagueCard: React.FC = () => {
-  const { newColleagues, employees, deleteIntroduction, can, isGuest } = usePortal();
+  const { newColleagues, employees, deleteIntroduction, can, isGuest, currentUser } = usePortal();
   const [editing, setEditing] = useState<NewColleagueWelcome | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const canManage = can('users.manage');
@@ -259,6 +272,7 @@ export const WelcomeNewColleagueCard: React.FC = () => {
               <p className="text-xs text-[#2D2D2D] leading-relaxed bg-white p-3.5 rounded-xl border border-[#E6E0D5]">
                 "{nc.welcomeMessage}"
               </p>
+              <ReactionBar target="intro" id={nc.id} reactions={nc.reactions ?? []} canReact={!isGuest && !!currentUser} label={`واکنش به معرفی ${name}`} />
 
               <WishList nc={nc} />
               <WishForm nc={nc} colleague={colleague} />
