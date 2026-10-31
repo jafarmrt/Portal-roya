@@ -57,6 +57,9 @@ export const config = {
   // Set to true only when the portal is served over HTTPS.
   cookieSecure: process.env.COOKIE_SECURE === 'true',
   trustProxy: process.env.TRUST_PROXY === 'true',
+  // Company addresses that internet visitors arrive from, e.g. a router that rewrites their source
+  // address to its own (192.168.0.100). Comma-separated addresses or ranges (192.168.5.0/24).
+  outsideAddresses: (process.env.OUTSIDE_ADDRESSES || '').split(',').map((a) => a.trim()).filter(Boolean),
   version: packageJson.version,
   uploadDir: path.resolve(process.env.UPLOAD_DIR || 'uploads'),
   // Nightly backups; next to the uploads folder unless set (e.g. a mounted network share).

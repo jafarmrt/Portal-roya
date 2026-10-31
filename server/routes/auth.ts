@@ -37,7 +37,7 @@ import {
   normalizeLoginName,
 } from '../ldap.js';
 import { fullName, serializeMe } from '../serializers.js';
-import { fromCompanyNetwork } from '../network.js';
+import { fromCompanyNetwork, visitorAddress } from '../network.js';
 import { ensureSettings, logoFile } from '../settings.js';
 import { createNotifications } from '../notify.js';
 import { ensureRoles, idsWithPermission } from '../roles.js';
@@ -71,6 +71,8 @@ authRouter.get(
       guestAccess: isSetupComplete && (await guestAllowed(req)),
       // Guests may only read from inside the company network; from the internet everyone signs in.
       companyNetwork: fromCompanyNetwork(req),
+      // The visitor's own address, so a manager can see why the portal thinks they are inside or outside.
+      visitorAddress: visitorAddress(req),
       directoryLogin: isDirectoryEnabled(),
       logoUrl: logo ? `/uploads/${logo}` : '',
     });
