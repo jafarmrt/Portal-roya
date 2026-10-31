@@ -681,6 +681,8 @@ export interface PersonalTodo {
   sourceType: TodoSourceType | null;
   sourceId: string | null;
   doneAt: string | null;
+  /** Set once the person moved the done note to «آرشیو»; such notes are not in the page's list. */
+  archivedAt: string | null;
   createdAt: string;
 }
 

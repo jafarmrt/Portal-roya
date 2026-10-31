@@ -1,0 +1,1 @@
+ALTER TABLE "personal_todos" ADD COLUMN "archived_at" timestamp with time zone;

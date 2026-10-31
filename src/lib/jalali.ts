@@ -61,7 +61,7 @@ export function formatFileSize(bytes: number): string {
   return decimal(bytes / 1024 ** 3, 'گیگابایت');
 }
 
-const WEEKDAY_NAMES = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
+export const WEEKDAY_NAMES = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
 
 /** "امروز", "فردا" or "شنبه ۱۰ آبان" for a day in the coming week (ISO or Jalali 'YYYY/MM/DD'). */
 export function dayLabel(value: string, now = moment()): string {

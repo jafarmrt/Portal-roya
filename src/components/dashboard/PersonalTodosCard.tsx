@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { CalendarClock, CheckCircle2, ChevronDown, Circle, ExternalLink, ListChecks, Lock, Maximize2, NotebookPen, Plus, Repeat, Star, X } from 'lucide-react';
+import { CalendarClock, CheckCircle2, ChevronDown, Circle, ExternalLink, ListChecks, Lock, Maximize2, NotebookPen, Pencil, Plus, Repeat, Star, X } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { inputClass } from '../common/Modal';
 import { TodoFormModal } from '../todos/TodoFormModal';
 import { DueDateField, QuickDueDates } from '../todos/DueDateField';
 import { useTickTodo } from '../todos/useTickTodo';
 import { featureInPreview } from '../../lib/features';
-import { isValidJalaliDate, toPersianDigits, todayJalali } from '../../lib/jalali';
+import { isValidJalaliDate, toJalali, toPersianDigits, todayJalali } from '../../lib/jalali';
 import { byImportanceAndDue, GROUP_STYLE, shortDue } from '../todos/todoText';
 import type { ActiveTab, PersonalTodo } from '../../types';
 import { TODO_GROUPS, TODO_TITLE_MAX, todoGroup, todoSource, type TodoGroup } from '../../../shared/todos';
@@ -20,7 +20,7 @@ const SHOWN = 5;
  * ask). Notes added from a news item, event, course or document link back to it.
  */
 export const PersonalTodosCard: React.FC = () => {
-  const { todos, addTodo, updateTodo, clearDoneTodos, setActiveTab, appSettings } = usePortal();
+  const { todos, addTodo, updateTodo, setActiveTab, appSettings } = usePortal();
   const tick = useTickTodo();
   const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -33,7 +33,8 @@ export const PersonalTodosCard: React.FC = () => {
 
   const today = todayJalali();
   const open = todos.filter((t) => !t.doneAt);
-  const done = todos.filter((t) => t.doneAt).sort((a, b) => b.doneAt!.localeCompare(a.doneAt!));
+  // Only what was ticked off today; earlier days are on the «یادداشت‌های من» page until archived.
+  const done = todos.filter((t) => t.doneAt && toJalali(t.doneAt) === today).sort((a, b) => b.doneAt!.localeCompare(a.doneAt!));
   const groups = TODO_GROUPS.map((g) => ({ ...g, items: open.filter((t) => todoGroup(t.dueDate, today) === g.id).sort(byImportanceAndDue) })).filter(
     (g) => g.items.length > 0,
   );
@@ -173,13 +174,8 @@ export const PersonalTodosCard: React.FC = () => {
               className="tap-area text-xs font-bold text-[#6E6A60] flex items-center gap-1"
             >
               <ChevronDown className={`w-4 h-4 transition-transform ${showDone ? 'rotate-180' : ''}`} />
-              انجام‌شده‌ها ({toPersianDigits(done.length)})
+              انجام‌شده‌های امروز ({toPersianDigits(done.length)})
             </button>
-            {showDone && (
-              <button type="button" onClick={() => clearDoneTodos()} className="tap-area text-[11px] text-red-700 hover:underline">
-                پاک کردن انجام‌شده‌ها
-              </button>
-            )}
           </div>
           {showDone && (
             <>
@@ -188,7 +184,13 @@ export const PersonalTodosCard: React.FC = () => {
                   <TodoRow key={t.id} todo={t} today={today} onToggle={() => void updateTodo(t.id, { done: false })} onEdit={() => setEditing(t)} onOpenSource={setActiveTab} />
                 ))}
               </ul>
-              <p className="text-[10px] text-[#8C867A]">انجام‌شده‌ها پس از ۳۰ روز خودبه‌خود پاک می‌شوند.</p>
+              <p className="text-[10px] text-[#8C867A]">
+                انجام‌شده‌های روزهای قبل در{' '}
+                <button type="button" onClick={() => setActiveTab('todos')} className="font-bold text-sky-800 hover:underline">
+                  صفحهٔ یادداشت‌ها
+                </button>{' '}
+                می‌مانند تا خودتان بایگانی‌شان کنید.
+              </p>
             </>
           )}
         </div>
@@ -249,7 +251,7 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, today, group, onToggle, onEdit,
           type="button"
           onClick={onEdit}
           className="flex-1 min-w-0 text-right flex items-center gap-1"
-          aria-label={`ویرایش ${todo.title}`}
+          aria-label={`باز کردن ${todo.title}`}
           title={todo.note ? `${todo.title}\n${todo.note}` : todo.title}
         >
           <span className={`truncate text-xs font-bold ${isDone ? 'line-through text-[#8C867A]' : 'text-[#2D2D2D]'}`}>{todo.title}</span>
@@ -260,6 +262,9 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, today, group, onToggle, onEdit,
               {toPersianDigits(`${stepsDone} از ${todo.steps.length}`)}
             </span>
           )}
+        </button>
+        <button type="button" onClick={onEdit} aria-label={`ویرایش ${todo.title}`} title="ویرایش" className={`${iconButton} hover:text-sky-800`}>
+          <Pencil className="w-3.5 h-3.5" />
         </button>
         {onStar && (
           <button

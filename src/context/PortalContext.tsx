@@ -219,12 +219,15 @@ interface PortalContextType {
       dueDate?: string;
       steps?: Pick<TodoStep, 'text' | 'done'>[];
       done?: boolean;
+      /** Puts a done note in «آرشیو», or (false) back on the page. */
+      archived?: boolean;
     },
   ) => Promise<boolean>;
   deleteTodo: (id: string) => Promise<boolean>;
   /** This person's open notes due on a Jalali day, for the calendar; none while the part is hidden. */
   myDueTodos: (date: string) => PersonalTodo[];
-  clearDoneTodos: () => Promise<boolean>;
+  /** Moves done notes from the page to «آرشیو»: all of them, or only those named (one day's card). */
+  archiveDoneTodos: (ids?: string[]) => Promise<boolean>;
   addPoll: (poll: PollInput) => Promise<boolean>;
   votePoll: (pollId: string, answers: PollAnswerInput[]) => Promise<boolean>;
   togglePollActiveStatus: (pollId: string) => Promise<void>;
@@ -680,7 +683,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const updateTodo: PortalContextType['updateTodo'] = async (id, changes) => {
     const updated = await attempt(() => api.patch<PersonalTodo>(`/api/todos/${id}`, changes));
-    if (updated) setTodos((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    // An archived note leaves the page; one taken out of the archive comes back to it.
+    if (updated) setTodos((prev) => (updated.archivedAt ? prev.filter((t) => t.id !== id) : [...prev.filter((t) => t.id !== id), updated]));
     // Ticking a repeating note off writes the next one, and un-ticking takes it back.
     if (updated && changes.done !== undefined && updated.repeat) void refresh('todos');
     return Boolean(updated);
@@ -695,10 +699,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const myDueTodos: PortalContextType['myDueTodos'] = (date) =>
     featureOn('todos') ? todos.filter((t) => !t.doneAt && t.dueDate === date) : [];
 
-  const clearDoneTodos: PortalContextType['clearDoneTodos'] = async () => {
-    const ok = await attempt(() => api.delete('/api/todos/done').then(() => true));
-    if (ok) setTodos((prev) => prev.filter((t) => !t.doneAt));
-    return Boolean(ok);
+  const archiveDoneTodos: PortalContextType['archiveDoneTodos'] = async (ids) => {
+    const result = await attempt(() => api.post<{ archived: number }>('/api/todos/archive', ids ? { ids } : {}), 'به آرشیو رفت.');
+    if (result) setTodos((prev) => prev.filter((t) => !t.doneAt || (ids && !ids.includes(t.id))));
+    return Boolean(result);
   };
 
   const replacePoll = (poll: Poll) => setPolls((prev) => prev.map((p) => (p.id === poll.id ? poll : p)));
@@ -1143,7 +1147,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updateTodo,
         deleteTodo,
         myDueTodos,
-        clearDoneTodos,
+        archiveDoneTodos,
         addPoll,
         votePoll,
         togglePollActiveStatus,

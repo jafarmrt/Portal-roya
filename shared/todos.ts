@@ -18,8 +18,8 @@ export const TODO_TITLE_MAX = 200;
 export const TODO_NOTE_MAX = 1000;
 /** Open notes one person may keep; enough for real use, small enough for a small server. */
 export const TODO_OPEN_LIMIT = 200;
-/** Done notes stay in «انجام‌شده‌ها» this long, then the nightly cleanup removes them. */
-export const TODO_KEEP_DONE_DAYS = 30;
+// Done notes are never removed by themselves: they stay on the page until the person archives them,
+// and in «آرشیو» until the person deletes them.
 /** Reminders go out from this hour (server local time). */
 export const TODO_REMIND_HOUR = 8;
 

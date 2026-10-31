@@ -77,7 +77,7 @@ test.describe('personal to-do notes', () => {
     await context.close();
   });
 
-  test('the «یادداشت‌های من» page shows every note as a card, with search, steps and the history', async ({ browser }) => {
+  test('the «یادداشت‌های من» page shows one card per day, with search, steps and the archive', async ({ browser }) => {
     const { context, page } = await asRole(browser, 'employee');
     const dueDate = moment().format('jYYYY/jMM/jDD');
     await page.goto('/#dashboard');
@@ -106,13 +106,28 @@ test.describe('personal to-do notes', () => {
     await expect(page.getByRole('listitem', { name: /کار شمارهٔ/ })).toHaveCount(1);
     await page.getByRole('searchbox', { name: 'جستجو در یادداشت‌ها' }).fill('');
 
-    // Done notes move to the history and can be brought back.
-    await page.getByRole('listitem', { name: 'کار شمارهٔ 7' }).getByRole('checkbox', { name: 'انجام شد: کار شمارهٔ 7' }).click();
-    await page.getByRole('button', { name: /انجام‌شده‌ها/ }).click();
-    const history = page.getByRole('region', { name: 'سوابق انجام‌شده‌ها' });
-    await expect(history.getByRole('listitem', { name: 'کار شمارهٔ 7' })).toContainText('انجام شد');
-    await history.getByRole('button', { name: 'برگرداندن کار شمارهٔ 7' }).click();
-    await expect(history.getByRole('listitem', { name: 'کار شمارهٔ 7' })).toHaveCount(0);
+    // All of today's notes are in one card; a done note stays there, struck through, until archived.
+    const day = page.getByRole('region', { name: /^کارهای امروز،/ });
+    await expect(day.getByRole('listitem', { name: /کار شمارهٔ/ })).toHaveCount(7);
+    await day.getByRole('checkbox', { name: 'انجام شد: کار شمارهٔ 7' }).click();
+    await expect(day.getByRole('listitem', { name: 'کار شمارهٔ 7' })).toContainText('انجام شد');
+    await day.getByRole('button', { name: 'بایگانی کار شمارهٔ 7' }).click();
+    await expect(day.getByRole('listitem', { name: /کار شمارهٔ/ })).toHaveCount(6);
+
+    // «آرشیو» keeps it, and it can come back to the page.
+    await page.getByRole('button', { name: 'آرشیو', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'آرشیو یادداشت‌ها' })).toBeVisible();
+    await page.getByRole('button', { name: 'برگرداندن کار شمارهٔ 7 از آرشیو' }).click();
+    await expect(page.getByRole('listitem', { name: 'کار شمارهٔ 7' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'بازگشت به یادداشت‌های من' }).click();
+    await expect(day.getByRole('listitem', { name: 'کار شمارهٔ 7' })).toContainText('انجام شد');
+
+    // The dashboard card shows what was done today, and each note can be edited from there.
+    await page.goto('/#dashboard');
+    await card.getByRole('button', { name: /انجام‌شده‌های امروز/ }).click();
+    await expect(card.getByRole('checkbox', { name: 'برگرداندن «کار شمارهٔ 7» به یادداشت‌های باز' })).toBeVisible();
+    await card.getByRole('button', { name: 'ویرایش کار شمارهٔ 2' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
     await context.close();
   });
 
