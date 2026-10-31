@@ -1,5 +1,6 @@
 import { can, type Employee, type SessionUser } from './auth.js';
 import { needsProfile } from '../shared/profile.js';
+import { aboutMeAnswers } from '../shared/aboutMe.js';
 import { toJalali } from '../shared/jalali.js';
 
 export function fullName(e: Pick<Employee, 'firstName' | 'lastName'>) {
@@ -43,6 +44,8 @@ export function serializeEmployee(e: Employee, viewer: Viewer | null, managersBy
     mobile: e.mobile,
     extension: e.extension,
     bio: e.bio,
+    // Only the answers that are filled in.
+    aboutMe: Object.fromEntries(aboutMeAnswers(e.aboutMe).map((a) => [a.key, a.answer])),
     location: e.location,
     avatar: e.avatarUrl,
     ...birthdayFields(e, viewer),
@@ -64,9 +67,9 @@ export function serializeEmployee(e: Employee, viewer: Viewer | null, managersBy
   };
 }
 
-/** What a visitor sees when the directory is open to guests: no login name or personal mobile. */
+/** What a visitor sees when the directory is open to guests: no login name, personal mobile or «دربارهٔ من». */
 export function serializeForGuest(e: Employee, managersById?: Map<string, Employee>) {
-  return { ...serializeEmployee(e, null, managersById), username: '', mobile: '' };
+  return { ...serializeEmployee(e, null, managersById), username: '', mobile: '', aboutMe: {} };
 }
 
 export function serializeMe(e: SessionUser) {

@@ -1,3 +1,4 @@
+import type { AboutMe } from '../shared/aboutMe';
 import type { ReactionCount } from '../shared/reactions';
 import type { WishDesign, WishOccasion } from '../shared/celebrations';
 import type { FeatureKey } from '../shared/features';
@@ -67,6 +68,8 @@ export interface UserProfile {
   /** The colleague chose not to be congratulated on their work anniversary in front of others. */
   hideAnniversary: boolean;
   bio: string;
+  /** Answers to the light «دربارهٔ من» questions (only the filled-in ones). */
+  aboutMe: AboutMe;
   avatar: string;
   location: string;
   directManagerId: string | null;

@@ -232,6 +232,13 @@
       "when": 1793437828380,
       "tag": "0032_notice_board",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793468980820,
+      "tag": "0033_about_me",
+      "breakpoints": true
     }
   ]
 }
