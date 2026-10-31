@@ -439,6 +439,22 @@ export const birthdayWishes = pgTable('birthday_wishes', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Colleagues' emoji reactions to a new colleague's introduction ('intro'), to a welcome message under
+// it ('welcome', only the new colleague) and to a greeting card that is not private ('greeting'). One
+// reaction per person and thing; target_id is the id of that introduction, message or card.
+export const reactions = pgTable(
+  'reactions',
+  {
+    id: serial('id').primaryKey(),
+    targetType: text('target_type').notNull(),
+    targetId: text('target_id').notNull(),
+    userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    emoji: text('emoji').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('reactions_one_per_person').on(t.targetType, t.targetId, t.userId)],
+);
+
 // One row per colleague and Jalali year once the birthday notification has gone out.
 export const birthdayAnnouncements = pgTable(
   'birthday_announcements',

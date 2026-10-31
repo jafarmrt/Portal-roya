@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { usePortal } from '../../context/PortalContext';
 import { ExternalLink, Plus, X, Save, Edit, Trash2, ChevronUp, ChevronDown, ImageOff } from 'lucide-react';
 import { ExternalSystem } from '../../types';
@@ -194,7 +195,7 @@ export const SystemsModule: React.FC = () => {
                     <div className="pt-3 border-t border-[#E6E0D5] grid grid-cols-2 sm:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-bold text-[#6E6A60] mb-1">آیکون</label>
-                        <select
+                        <SearchableSelect
                           value={system.iconName}
                           onChange={(e) => handleUpdateSystem(system.id, 'iconName', e.target.value)}
                           className="w-full px-3 py-2 text-xs bg-[#F5F2ED] border border-[#E6E0D5] rounded-lg outline-hidden"
@@ -202,11 +203,11 @@ export const SystemsModule: React.FC = () => {
                           {Object.keys(iconMap).map(iconName => (
                             <option key={iconName} value={iconName}>{iconLabels[iconName] ?? iconName}</option>
                           ))}
-                        </select>
+                        </SearchableSelect>
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-[#6E6A60] mb-1">رنگ‌بندی</label>
-                        <select
+                        <SearchableSelect
                           value={`${system.bgColor}|${system.textColor}`}
                           onChange={(e) => {
                             const [bg, text] = e.target.value.split('|');
@@ -218,11 +219,11 @@ export const SystemsModule: React.FC = () => {
                           {colorOptions.map(opt => (
                             <option key={opt.bg} value={`${opt.bg}|${opt.text}`}>{opt.label}</option>
                           ))}
-                        </select>
+                        </SearchableSelect>
                       </div>
                       <div className="col-span-2 sm:col-span-1">
                         <label htmlFor={`system-department-${system.id}`} className="block text-xs font-bold text-[#6E6A60] mb-1">واحد مسئول</label>
-                        <select
+                        <SearchableSelect
                           id={`system-department-${system.id}`}
                           value={system.department ?? ''}
                           onChange={(e) => handleUpdateSystem(system.id, 'department', e.target.value)}
@@ -232,7 +233,7 @@ export const SystemsModule: React.FC = () => {
                           {[...new Set([...(appSettings?.departments ?? []), ...(system.department ? [system.department] : [])])].map((d) => (
                             <option key={d} value={d}>{d}</option>
                           ))}
-                        </select>
+                        </SearchableSelect>
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">

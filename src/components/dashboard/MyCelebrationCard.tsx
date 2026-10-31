@@ -1,4 +1,5 @@
 import React from 'react';
+import { ReactionBar } from '../common/ReactionBar';
 import { Award, Cake, Sparkles } from 'lucide-react';
 import { CELEBRATION_DAYS, daysSinceYearly, type WishOccasion, yearsLabel, yearsSince } from '../../../shared/celebrations';
 import { usePortal } from '../../context/PortalContext';
@@ -88,6 +89,11 @@ export const MyCelebrationCard: React.FC = () => {
                       isPrivate={wish.isPrivate}
                       reaction={wish.reaction}
                       onReact={(reaction) => reactToWish(wish.id, reaction)}
+                      extra={
+                        !wish.isPrivate && (wish.reactions?.length ?? 0) > 0 && (
+                          <ReactionBar target="greeting" id={wish.id} reactions={wish.reactions} canReact={false} label="واکنش همکاران به این کارت" small />
+                        )
+                      }
                     />
                   ))}
                 </div>

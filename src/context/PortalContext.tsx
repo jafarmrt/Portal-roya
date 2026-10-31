@@ -1,4 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { chimeNow } from '../lib/sound';
+import type { ReactionTarget } from '../../shared/reactions';
 import toast from 'react-hot-toast';
 import { ApiError, api, errorMessage, setUnauthorizedHandler } from '../lib/api';
 import { buildSearchResults } from '../lib/search';
@@ -262,6 +264,8 @@ interface PortalContextType {
   updateTraining: (trainingId: string, training: TrainingInput, notifyEnrolled: boolean) => Promise<boolean>;
   sendBirthdayWish: (userId: string, card: GreetingCardInput) => Promise<boolean>;
   reactToWish: (wishId: string, reaction: string) => Promise<void>;
+  /** Gives, changes or ('' ) takes back one's emoji under an introduction, welcome message or greeting card. */
+  react: (target: ReactionTarget, id: string, emoji: string) => Promise<void>;
   sendWelcomeWish: (newColleagueId: string, message: string) => Promise<boolean>;
   deleteBirthdayWish: (wishId: string) => Promise<void>;
   deleteWelcomeWish: (wishId: string) => Promise<void>;
@@ -581,6 +585,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     });
     source.addEventListener('kudos', () => window.dispatchEvent(new Event(KUDOS_EVENT)));
+    // A colleague reacted with an emoji to something of this person's: a soft chime (the counts come with the refresh).
+    source.addEventListener('reaction', () => chimeNow());
     return () => {
       source.close();
       window.removeEventListener('online', refreshAll);
@@ -894,6 +900,11 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (ok !== undefined) await refresh('birthday_wishes');
   };
 
+  const react = async (target: ReactionTarget, id: string, emoji: string) => {
+    const ok = await attempt(() => api.put('/api/reactions', { target, id, emoji }));
+    if (ok !== undefined) await refresh(target === 'greeting' ? 'birthday_wishes' : 'new_colleagues');
+  };
+
   const sendWelcomeWish = async (newColleagueId: string, message: string) => {
     const ok = await attempt(() => api.post(`/api/new_colleagues/${newColleagueId}/wishes`, { message }), 'پیام خوش‌آمد ارسال شد.');
     if (ok) await refresh('new_colleagues');
@@ -1177,6 +1188,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updateTraining,
         sendBirthdayWish,
         reactToWish,
+        react,
         sendWelcomeWish,
         deleteBirthdayWish,
         deleteWelcomeWish,

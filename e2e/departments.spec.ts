@@ -50,7 +50,7 @@ test.describe('departments', () => {
     });
     const choice = dialog.getByLabel('واحد برای «کارگاه»');
     await expect(choice).toBeVisible();
-    await expect(choice).toHaveValue('کارگاه');
+    await expect(choice).toHaveText('ساخت واحد جدید «کارگاه»');
     await dialog.getByRole('button', { name: /ثبت ۱ ردیف/ }).click();
     await expect(page.getByText('کارکنان ثبت شدند')).toBeVisible();
     await expect(page.getByRole('dialog')).toContainText('کارگاه');

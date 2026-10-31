@@ -39,7 +39,8 @@ test.describe('first sign-in without a unit', () => {
     // A local account already has a name, so only the place in the organisation is asked.
     await expect(page.getByLabel('نام', { exact: true })).toHaveCount(0);
     // Not «فروش»: other tests count the people there.
-    await page.getByLabel('واحد').selectOption('فناوری اطلاعات');
+    await page.getByLabel('واحد').click();
+    await page.getByRole('option', { name: 'فناوری اطلاعات' }).click();
     await page.getByLabel('سمت').fill('پشتیبان شبکه');
     await page.getByRole('button', { name: 'ذخیره و ورود به پرتال' }).click();
 

@@ -20,8 +20,10 @@ test.describe('guides, department pages and search', () => {
     const dialog = page.getByRole('dialog', { name: 'نوشتن راهنما' });
     await dialog.locator('#guide-title').fill(GUIDE);
     await dialog.locator('#guide-category').fill('پرسش‌های رایج');
-    await dialog.locator('#guide-department').selectOption('فروش');
-    await dialog.locator('#guide-owner').selectOption({ label: 'مدیر سیستم · مدیر فناوری' });
+    await dialog.locator('#guide-department').click();
+    await page.getByRole('option', { name: 'فروش', exact: true }).click();
+    await dialog.locator('#guide-owner').click();
+    await page.getByRole('option', { name: 'مدیر سیستم · مدیر فناوری' }).click();
     await dialog.locator('#guide-summary').fill('درخواست را در سامانهٔ اتوماسیون ثبت کنید.');
     await dialog.getByRole('textbox', { name: 'متن کامل' }).fill('ابتدا فرم درخواست گواهی را پر کنید و برای امور اداری بفرستید.');
     await dialog.getByRole('button', { name: 'انتشار راهنما' }).click();
@@ -56,7 +58,8 @@ test.describe('guides, department pages and search', () => {
     await admin.page.getByRole('button', { name: /^فروش/ }).click();
     await admin.page.getByRole('button', { name: 'ویرایش صفحه' }).click();
     const dialog = admin.page.getByRole('dialog', { name: 'صفحهٔ واحد فروش' });
-    await dialog.locator('#department-head').selectOption({ label: 'سارا احمدی · کارشناس' });
+    await dialog.locator('#department-head').click();
+    await admin.page.getByRole('option', { name: 'سارا احمدی · کارشناس' }).click();
     await dialog.getByRole('textbox', { name: 'متن کامل' }).fill('پیش‌فاکتور، تخفیف و پیگیری سفارش مشتریان.');
     await dialog.getByRole('button', { name: 'ذخیره' }).click();
     await expect(dialog).toBeHidden();

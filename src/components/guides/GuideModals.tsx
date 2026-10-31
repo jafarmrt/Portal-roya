@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { CalendarCheck2, LifeBuoy, MessageCircleQuestion, Pencil, Phone, ThumbsDown, ThumbsUp, Trash2, UserRound } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { formatDate, toJalali, toPersianDigits } from '../../lib/jalali';
@@ -90,10 +91,10 @@ export const GuideFormModal: React.FC<{ guide?: Guide; onClose: () => void }> = 
           </div>
           <div>
             <label htmlFor="guide-department" className={labelClass}>واحد مربوط</label>
-            <select id="guide-department" value={form.department} disabled={!isManager} onChange={(e) => set('department', e.target.value)} className={inputClass}>
+            <SearchableSelect id="guide-department" value={form.department} disabled={!isManager} onChange={(e) => set('department', e.target.value)} className={inputClass}>
               <option value="">همهٔ واحدها</option>
               {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
+            </SearchableSelect>
           </div>
           <div>
             <label htmlFor="guide-owner" className={labelClass}>مسئول راهنما</label>

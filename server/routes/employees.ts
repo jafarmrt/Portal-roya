@@ -10,6 +10,8 @@ import { can, type Employee, hashPassword, isAdmin, requirePermission, type Sess
 import { db } from '../db/index.js';
 import { addDepartments, departmentList, requireDepartment, requireLocation } from '../departments.js';
 import { checkRows, type ImportRow, importRowsSchema, type ImportUpdate, MAX_IMPORT_ROWS, newDepartments, rowsToRecords } from '../employeeImport.js';
+import type { ReactionCount } from '../../shared/reactions.js';
+import { dropReactions, reactionCounts } from './reactions.js';
 import { birthdayWishes, colleagueWishes, departmentPages, employees, newColleagues, roles } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
@@ -598,6 +600,7 @@ employeesRouter.delete(
   route(async (req, res) => {
     const deleted = await db.delete(newColleagues).where(eq(newColleagues.id, req.params.id)).returning({ id: newColleagues.id });
     if (deleted.length === 0) throw new HttpError(404, 'کارت معرفی یافت نشد.');
+    await dropReactions('intro', [req.params.id]);
     broadcastChange('new_colleagues');
     res.status(204).end();
   }),
@@ -624,6 +627,9 @@ employeesRouter.get(
       .from(colleagueWishes)
       .innerJoin(employees, eq(employees.id, colleagueWishes.senderId))
       .orderBy(colleagueWishes.createdAt);
+    const viewerId = viewerOf(req)?.id ?? null;
+    const introReactions = await reactionCounts('intro', cards.map((c) => c.id), viewerId);
+    const wishReactions = await reactionCounts('welcome', wishes.map((w) => String(w.id)), viewerId);
     res.json(
       cards.map((c) => ({
         id: c.id,
@@ -631,9 +637,17 @@ employeesRouter.get(
         welcomeMessage: c.welcomeMessage,
         joinDate: c.joinDate,
         createdAt: c.createdAt.toISOString(),
+        reactions: introReactions.get(c.id) ?? [],
         wishes: wishes
           .filter((w) => w.newColleagueId === c.id)
-          .map((w) => ({ id: String(w.id), senderId: w.senderId, userName: fullName(w), message: w.message, time: w.createdAt.toISOString() })),
+          .map((w) => ({
+            id: String(w.id),
+            senderId: w.senderId,
+            userName: fullName(w),
+            message: w.message,
+            time: w.createdAt.toISOString(),
+            reactions: wishReactions.get(String(w.id)) ?? [],
+          })),
       })),
     );
   }),
@@ -696,8 +710,10 @@ employeesRouter.get(
         ),
       )
       .orderBy(birthdayWishes.createdAt);
-    const grouped: Record<string, ReturnType<typeof serializeWish>[]> = {};
-    for (const r of rows) (grouped[r.targetUserId] ??= []).push(serializeWish(r));
+    // Colleagues' reactions to the cards that are not private.
+    const counts = await reactionCounts('greeting', rows.filter((r) => !r.isPrivate).map((r) => String(r.id)), viewer.id);
+    const grouped: Record<string, (ReturnType<typeof serializeWish> & { reactions: ReactionCount[] })[]> = {};
+    for (const r of rows) (grouped[r.targetUserId] ??= []).push({ ...serializeWish(r), reactions: counts.get(String(r.id)) ?? [] });
     res.json(grouped);
   }),
 );
@@ -1031,6 +1047,7 @@ employeesRouter.delete(
     if (!wish) throw new HttpError(404, 'پیام یافت نشد.');
     assertMayRemoveWish(viewer, wish.senderId);
     await db.delete(colleagueWishes).where(eq(colleagueWishes.id, id));
+    await dropReactions('welcome', [String(id)]);
     if (wish.senderId !== viewer.id) {
       const [card] = await db.select({ userId: newColleagues.userId }).from(newColleagues).where(eq(newColleagues.id, wish.newColleagueId));
       await auditRemovedMessage(viewer, `خوش‌آمد به ${await personName(card?.userId ?? null)}`, wish.senderId, wish.message);
@@ -1049,6 +1066,7 @@ employeesRouter.delete(
     if (!wish) throw new HttpError(404, 'پیام یافت نشد.');
     assertMayRemoveWish(viewer, wish.senderId);
     await db.delete(birthdayWishes).where(eq(birthdayWishes.id, id));
+    await dropReactions('greeting', [String(id)]);
     if (wish.senderId !== viewer.id) await auditRemovedMessage(viewer, `تبریک تولد به ${await personName(wish.targetUserId)}`, wish.senderId, wish.text);
     broadcastChange('birthday_wishes');
     res.json({ success: true });

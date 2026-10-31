@@ -458,3 +458,11 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* The install invitation's icon gives a small hop now and then (not with reduced motion). */
+@keyframes install-nudge {
+  0%, 70%, 100% { transform: translateY(0) rotate(0); }
+  78% { transform: translateY(-4px) rotate(-6deg); }
+  86% { transform: translateY(0) rotate(4deg); }
+  92% { transform: translateY(-2px) rotate(0); }
+}

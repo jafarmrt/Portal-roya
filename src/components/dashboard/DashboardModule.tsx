@@ -3,6 +3,7 @@ import { usePortal } from '../../context/PortalContext';
 import { BirthdayCard } from './BirthdayCard';
 import { MyCelebrationCard } from './MyCelebrationCard';
 import { FeatureIntroCard } from './FeatureIntroCard';
+import { InstallInvite } from '../common/InstallApp';
 import { DayThemeBanner } from './DayThemeBanner';
 import { QuickSystemsWidget } from './QuickSystemsWidget';
 import { MoodTrackerWidget } from './MoodTrackerWidget';
@@ -138,6 +139,11 @@ export const DashboardModule: React.FC = () => {
       {/* Nowruz, the seasons, Yalda, the feasts and the founding day; quiet on days of mourning */}
       <div className="order-1">
         <DayThemeBanner />
+      </div>
+
+      {/* On a phone: an invitation to install the portal on the home screen */}
+      <div className="order-1">
+        <InstallInvite />
       </div>
 
       {/* Parts of the portal introduced in the last two weeks */}

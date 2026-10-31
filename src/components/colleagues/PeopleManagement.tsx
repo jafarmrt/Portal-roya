@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { Download, Edit3, Eye, FileSpreadsheet, KeyRound, Search, ShieldOff, UserCog, UserPlus, Users } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { toPersianDigits } from '../../lib/jalali';
@@ -133,10 +134,10 @@ export const PeopleManagement: React.FC = () => {
             />
             <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#8C867A]" />
           </div>
-          <select value={department} onChange={(e) => setDepartment(e.target.value)} aria-label="واحد" className={inputClass}>
+          <SearchableSelect value={department} onChange={(e) => setDepartment(e.target.value)} aria-label="واحد" className={inputClass}>
             <option value="">همه واحدها</option>
             {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
+          </SearchableSelect>
         </div>
         {view === 'incomplete' && (
           <p className="p-3 text-xs leading-relaxed text-amber-900 bg-amber-50 border border-amber-200 rounded-xl">

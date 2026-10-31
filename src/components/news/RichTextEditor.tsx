@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
@@ -100,7 +101,7 @@ const LinkForm: React.FC<{ editor: Editor; onDone: () => void }> = ({ editor, on
         <button type="button" onClick={onDone} className={secondaryButtonClass}>انصراف</button>
       </div>
       {documents.length + guides.length > 0 && (
-        <select aria-label="پیوند به سند یا راهنما" value="" onChange={(e) => e.target.value && apply(e.target.value)} className={inputClass}>
+        <SearchableSelect aria-label="پیوند به سند یا راهنما" value="" onChange={(e) => e.target.value && apply(e.target.value)} className={inputClass}>
           <option value="">یا پیوند به یکی از اسناد یا راهنماهای پرتال...</option>
           {documents.length > 0 && (
             <optgroup label="اسناد و فرم‌ها">
@@ -117,7 +118,7 @@ const LinkForm: React.FC<{ editor: Editor; onDone: () => void }> = ({ editor, on
               ))}
             </optgroup>
           )}
-        </select>
+        </SearchableSelect>
       )}
     </div>
   );

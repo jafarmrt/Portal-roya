@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { ChevronDown, ChevronLeft, Network } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { toPersianDigits } from '../../lib/jalali';
@@ -106,7 +107,7 @@ export const OrgChartModule: React.FC = () => {
             <p className="text-sm text-[#6E6A60]">بر اساس «مدیر مستقیم» هر همکار؛ اگر ثبت نشده باشد، مسئول واحدش</p>
           </div>
         </div>
-        <select
+        <SearchableSelect
           aria-label="واحد"
           value={department}
           onChange={(e) => setDepartment(e.target.value)}
@@ -114,7 +115,7 @@ export const OrgChartModule: React.FC = () => {
         >
           <option value="all">همهٔ واحدها</option>
           {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-        </select>
+        </SearchableSelect>
       </div>
 
       <div className="bg-[#FDFBF7] p-4 sm:p-6 rounded-3xl border border-[#E6E0D5] overflow-x-auto">

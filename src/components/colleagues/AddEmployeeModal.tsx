@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { CheckCircle2, UserPlus } from 'lucide-react';
 import { AccountCreatedNotice, AccountFields } from './AccountAccessModal';
 import { usePortal, type NewEmployeeInput } from '../../context/PortalContext';
@@ -137,9 +138,9 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
             </div>
             <div>
               <label htmlFor="emp-department" className={labelClass}>واحد *</label>
-              <select id="emp-department" value={form.department} onChange={(e) => set('department', e.target.value)} className={inputClass}>
+              <SearchableSelect id="emp-department" value={form.department} onChange={(e) => set('department', e.target.value)} className={inputClass}>
                 {appSettings?.departments.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
+              </SearchableSelect>
             </div>
             <div>
               <label htmlFor="emp-location" className={labelClass}>محل استقرار</label>
@@ -147,10 +148,10 @@ export const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onCl
             </div>
             <div>
               <label htmlFor="emp-manager" className={labelClass}>مدیر مستقیم</label>
-              <select id="emp-manager" value={form.directManagerId ?? ''} onChange={(e) => set('directManagerId', e.target.value || null)} className={inputClass}>
+              <SearchableSelect id="emp-manager" value={form.directManagerId ?? ''} onChange={(e) => set('directManagerId', e.target.value || null)} className={inputClass}>
                 <option value="">—</option>
                 {managers.map((m) => <option key={m.id} value={m.id}>{m.firstName} {m.lastName} ({m.position})</option>)}
-              </select>
+              </SearchableSelect>
             </div>
             <div>
               <label htmlFor="emp-hire" className={labelClass}>تاریخ استخدام</label>

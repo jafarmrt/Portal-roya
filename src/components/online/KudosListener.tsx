@@ -1,12 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import toast from 'react-hot-toast';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, Volume2, VolumeX, X } from 'lucide-react';
 import { KUDOS_EVENT } from '../../context/PortalContext';
 import { api, errorMessage } from '../../lib/api';
 import { type KudosEmoji, kudosEmojis } from '../../../shared/kudos';
 import { timeAgo, toPersianDigits } from '../../lib/jalali';
 import type { ReceivedKudos } from '../../types';
 import { Avatar } from '../common/Avatar';
+import { setTabExtra } from '../../lib/tabBadge';
+import { chimeForKudos, kudosSoundOn, setKudosSound, subscribeKudosSound } from '../../lib/sound';
 
 /** The page tells the server the person is there at most this often. */
 const ACTIVE_EVERY_MS = 60_000;
@@ -61,6 +63,20 @@ const KudosRow: React.FC<{
   </li>
 );
 
+/** Turns the chime for new emoji on or off on this device. */
+const SoundToggle: React.FC<{ on: boolean }> = ({ on }) => (
+  <button
+    type="button"
+    onClick={() => setKudosSound(!on)}
+    aria-pressed={!on}
+    aria-label={on ? 'بی‌صدا کردن ایموجی‌های تازه' : 'پخش صدا برای ایموجی‌های تازه'}
+    title={on ? 'بی‌صدا کردن' : 'پخش صدا'}
+    className="absolute top-2.5 left-2.5 p-1 rounded-lg text-[#8C867A] hover:bg-[#F5F2ED]"
+  >
+    {on ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+  </button>
+);
+
 /**
  * The emoji colleagues sent this person, in a small banner in the corner of every page. It stays until
  * closed with ×, also after a reload or on the next visit (for a day); several are gathered in one banner.
@@ -69,13 +85,33 @@ const KudosBanner: React.FC<{ emojis: KudosEmoji[] }> = ({ emojis }) => {
   const [items, setItems] = useState<ReceivedKudos[]>([]);
   const [open, setOpen] = useState(false);
 
-  const load = useCallback(() => api.get<ReceivedKudos[]>('/api/kudos/banner').then(setItems).catch(() => undefined), []);
+  // The newest emoji already known: the first load stays quiet, a newer one later chimes.
+  const newest = useRef<number | null>(null);
+  const soundOn = useSyncExternalStore(subscribeKudosSound, kudosSoundOn);
+
+  const load = useCallback(
+    () =>
+      api
+        .get<ReceivedKudos[]>('/api/kudos/banner')
+        .then((list) => {
+          const top = Math.max(0, ...list.map((i) => i.id));
+          if (newest.current !== null && top > newest.current) chimeForKudos(top);
+          newest.current = Math.max(newest.current ?? 0, top);
+          setItems(list);
+        })
+        .catch(() => undefined),
+    [],
+  );
   useEffect(() => {
     void load();
     // Also fired when the live connection comes back, as something may have arrived meanwhile.
     window.addEventListener(KUDOS_EVENT, load);
     return () => window.removeEventListener(KUDOS_EVENT, load);
   }, [load]);
+
+  // Emoji still waiting in the banner also count in the number on the browser tab.
+  useEffect(() => setTabExtra(items.length), [items.length]);
+  useEffect(() => () => setTabExtra(0), []);
 
   const dismiss = (ids?: number[]) => {
     setItems((list) => (ids ? list.filter((i) => !ids.includes(i.id)) : []));
@@ -103,8 +139,9 @@ const KudosBanner: React.FC<{ emojis: KudosEmoji[] }> = ({ emojis }) => {
       className="fixed z-40 left-2 right-2 bottom-[calc(76px+env(safe-area-inset-bottom))] sm:right-auto sm:w-80 lg:left-4 lg:bottom-4 max-h-[60vh] overflow-y-auto bg-white text-[#2D2D2D] border border-[#E6E0D5] rounded-2xl shadow-xl p-3 space-y-2"
       dir="rtl"
     >
+      <SoundToggle on={soundOn} />
       {several && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pl-6">
           <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex-1 min-w-0 flex items-center gap-2 text-right">
             <span className="text-lg leading-none shrink-0" aria-hidden>
               {[...new Set(items.map((i) => i.emoji))].slice(0, 3).join('')}
@@ -120,7 +157,7 @@ const KudosBanner: React.FC<{ emojis: KudosEmoji[] }> = ({ emojis }) => {
         </div>
       )}
       {shown.length > 0 && (
-        <ul className={`space-y-3 ${several ? 'pt-2 border-t border-[#E6E0D5]' : ''}`}>
+        <ul className={`space-y-3 ${several ? 'pt-2 border-t border-[#E6E0D5]' : 'pl-6'}`}>
           {shown.map((item) => (
             <KudosRow key={item.id} item={item} emojis={emojis} onReply={(i, e) => void reply(i, e)} onClose={(i) => dismiss([i.id])} />
           ))}

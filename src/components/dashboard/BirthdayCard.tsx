@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ReactionBar } from '../common/ReactionBar';
 import { usePortal } from '../../context/PortalContext';
 import { UserProfile } from '../../types';
 import { Award, Cake, ChevronDown, Mail } from 'lucide-react';
@@ -74,6 +75,18 @@ export const BirthdayCard: React.FC = () => {
             time={wish.time}
             isPrivate={wish.isPrivate}
             reaction={wish.reaction}
+            extra={
+              !wish.isPrivate && (
+                <ReactionBar
+                  target="greeting"
+                  id={wish.id}
+                  reactions={wish.reactions ?? []}
+                  canReact={!!currentUser && emp.id !== currentUser.id}
+                  label={`واکنش به کارت ${wish.senderName}`}
+                  small
+                />
+              )
+            }
             onDelete={wish.senderId === currentUser?.id || can('comments.moderate') ? () => deleteBirthdayWish(wish.id) : undefined}
           />
         ))}

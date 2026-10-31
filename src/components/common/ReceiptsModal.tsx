@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { SearchableSelect } from './SearchableSelect';
 import { AlarmClock, BarChart3, BellRing, Check, Copy, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { NewsItem, ReadReceipt } from '../../types';
@@ -187,12 +188,12 @@ export const ReceiptsModal: React.FC<{ item: ReceiptsSource; onClose: () => void
             </div>
             <div className="flex items-center gap-2">
               {locations.length > 1 && (
-                <select aria-label="محل استقرار" value={location} onChange={(e) => setLocation(e.target.value)} className="px-2.5 py-1.5 border border-[#D9D4CB] rounded-xl bg-white text-xs focus:border-red-600 outline-hidden">
+                <SearchableSelect aria-label="محل استقرار" value={location} onChange={(e) => setLocation(e.target.value)} className="px-2.5 py-1.5 border border-[#D9D4CB] rounded-xl bg-white text-xs focus:border-red-600 outline-hidden">
                   <option value={ALL}>همهٔ محل‌ها</option>
                   {locations.map((l) => (
                     <option key={l} value={l}>{l}</option>
                   ))}
-                </select>
+                </SearchableSelect>
               )}
               {tab === 'pending' && pending.length > 0 && (
                 <button onClick={copyPending} className={secondaryButtonClass}>

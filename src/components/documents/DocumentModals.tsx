@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { CalendarCheck2, Download, FilePlus2, History, Pencil, Trash2, Upload } from 'lucide-react';
 import type { Audience } from '../../../shared/audience';
 import { usePortal } from '../../context/PortalContext';
@@ -41,7 +42,7 @@ export const OwnerSelect: React.FC<{ id: string; value: string | null; onChange:
       .filter((g) => g.people.length > 0);
   }, [employees, appSettings]);
   return (
-    <select id={id} value={value ?? ''} disabled={disabled} onChange={(e) => onChange(e.target.value || null)} className={inputClass}>
+    <SearchableSelect id={id} value={value ?? ''} disabled={disabled} onChange={(e) => onChange(e.target.value || null)} className={inputClass}>
       <option value="">{emptyLabel}</option>
       {groups.map((g) => (
         <optgroup key={g.department} label={g.department}>
@@ -50,7 +51,7 @@ export const OwnerSelect: React.FC<{ id: string; value: string | null; onChange:
           ))}
         </optgroup>
       ))}
-    </select>
+    </SearchableSelect>
   );
 };
 
@@ -129,9 +130,9 @@ export const DocumentFormModal: React.FC<{ doc?: PortalDocument; onClose: () => 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor="doc-category" className={labelClass}>دسته‌بندی</label>
-            <select id="doc-category" value={form.category} onChange={(e) => set('category', e.target.value)} className={inputClass}>
+            <SearchableSelect id="doc-category" value={form.category} onChange={(e) => set('category', e.target.value)} className={inputClass}>
               {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            </SearchableSelect>
           </div>
           <div>
             <label htmlFor="doc-owner" className={labelClass}>مسئول سند</label>

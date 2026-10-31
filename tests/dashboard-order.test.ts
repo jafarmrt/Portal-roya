@@ -34,6 +34,10 @@ describe('each colleague’s own order of the dashboard cards', () => {
     expect(side.slice(0, 2)).toEqual(['myTasks', 'todos']);
     // On a phone: the apps, then «منتظر اقدام شما», the notes and the news.
     expect(dashboardOrder([]).slice(0, 5)).toEqual(['systems', 'myTasks', 'todos', 'anniversary', 'news']);
+    // New colleagues are welcomed before the calendar and the birthdays, on a phone and in the wide column.
+    const order = dashboardOrder([]);
+    expect(order.indexOf('welcome')).toBeLessThan(order.indexOf('calendar'));
+    expect(order.indexOf('welcome')).toBeLessThan(order.indexOf('birthdays'));
   });
 
   it('lets the administrator set the order for everyone who has not arranged their own', async () => {

@@ -49,6 +49,25 @@ test.describe('reports and the change history', () => {
     await admin.context.close();
   });
 
+  test('a long drop-down list can be searched', async ({ browser }) => {
+    const { context, page } = await asRole(browser, 'admin');
+    await page.goto('/#audit');
+    const section = page.getByRole('combobox', { name: 'بخش' });
+    await section.click();
+    // Arabic «ي» still finds «اطلاعیه».
+    await page.getByRole('searchbox', { name: 'جستجو در فهرست' }).fill('اطلاعي');
+    await expect(page.getByRole('option')).toHaveCount(2);
+    await page.getByRole('option', { name: 'اطلاعیه', exact: true }).click();
+    await expect(section).toHaveText('اطلاعیه');
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+    // The keyboard works too, and Escape closes only the list.
+    await section.press('ArrowDown');
+    await expect(page.getByRole('listbox')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+    await context.close();
+  });
+
   test('the admin finds the notice in the change history; a colleague cannot open it', async ({ browser }) => {
     const admin = await asRole(browser, 'admin');
     await admin.page.goto('/#audit');

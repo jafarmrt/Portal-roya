@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SearchableSelect } from './common/SearchableSelect';
 import toast from 'react-hot-toast';
 import { UserCheck } from 'lucide-react';
 import { type PhoneBookMatch, usePortal } from '../context/PortalContext';
@@ -129,10 +130,10 @@ export const CompleteProfilePage: React.FC = () => {
               {gaps.department && (
                 <div>
                   <label htmlFor="profile-department" className={labelClass}>واحد</label>
-                  <select id="profile-department" required value={department} onChange={(e) => setDepartment(e.target.value)} className={inputClass}>
+                  <SearchableSelect id="profile-department" required value={department} onChange={(e) => setDepartment(e.target.value)} className={inputClass}>
                     <option value="" disabled>انتخاب کنید</option>
                     {appSettings?.departments.map((d) => <option key={d} value={d}>{d}</option>)}
-                  </select>
+                  </SearchableSelect>
                 </div>
               )}
               {gaps.position && (

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { CheckCircle2, GraduationCap, Pencil } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import type { TrainingInput, TrainingProgram } from '../../types';
@@ -100,7 +101,7 @@ export const AddTrainingModal: React.FC<AddTrainingModalProps> = ({ training, on
           {textField('tr-instructor-role', 'سمت یا تخصص مدرس', 'instructorRole')}
           <div>
             <label htmlFor="tr-instructor-id" className={labelClass}>مدرس در پرتال</label>
-            <select
+            <SearchableSelect
               id="tr-instructor-id"
               value={form.instructorId ?? ''}
               onChange={(e) => {
@@ -117,14 +118,14 @@ export const AddTrainingModal: React.FC<AddTrainingModalProps> = ({ training, on
               {colleagues.map((c) => (
                 <option key={c.id} value={c.id}>{c.firstName} {c.lastName}{c.department ? ` (${c.department})` : ''}</option>
               ))}
-            </select>
+            </SearchableSelect>
             <p className="text-[11px] text-[#6E6A60] mt-1">مدرس همکار، حضور و غیاب را ثبت می‌کند، جزوه می‌گذارد و نظر شرکت‌کننده‌ها را می‌بیند.</p>
           </div>
           <div>
             <label htmlFor="tr-category" className={labelClass}>دسته‌بندی</label>
-            <select id="tr-category" value={form.category} onChange={(e) => set('category', e.target.value)} className={inputClass}>
+            <SearchableSelect id="tr-category" value={form.category} onChange={(e) => set('category', e.target.value)} className={inputClass}>
               {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            </SearchableSelect>
           </div>
           <div>
             <label htmlFor="tr-date" className={labelClass}>تاریخ برگزاری *</label>
