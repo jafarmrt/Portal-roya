@@ -134,6 +134,8 @@ export const employees = pgTable('employees', {
   showOnline: boolean('show_online').notNull().default(true),
   /** Colleagues may send them a ready-made emoji. */
   acceptKudos: boolean('accept_kudos').notNull().default(true),
+  /** Steps of «هفتهٔ اول من» the colleague ticked (and 'closed' once they closed the list). */
+  firstWeekDone: text('first_week_done').array().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -691,6 +693,8 @@ export const settings = pgTable('settings', {
   dashboardDefaultOrder: text('dashboard_default_order').array().notNull().default([]),
   // The emoji colleagues can send each other ([] = the built-in six, see shared/kudos.ts).
   kudosEmojis: jsonb('kudos_emojis').$type<KudosEmoji[]>().notNull().default([]),
+  // Steps the administrator adds to every new colleague's «هفتهٔ اول من» list.
+  firstWeekSteps: text('first_week_steps').array().notNull().default([]),
 });
 
 /** Who created, changed or deleted what in the portal's content, accounts and settings, for the admin. */

@@ -39,6 +39,7 @@ import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.j
 import { serverStatus } from '../maintenance.js';
 import { ensureSettings } from '../settings.js';
 import { jalaliDateValue, requiredText } from '../validation.js';
+import { FIRST_WEEK_EXTRA_LENGTH, FIRST_WEEK_EXTRA_MAX } from '../../shared/firstWeek.js';
 
 export const settingsRouter = Router();
 
@@ -73,6 +74,8 @@ export function publicSettings(row: typeof settings.$inferSelect, viewer: Sessio
     occasionEffects: viewer?.occasionEffects ?? true,
     // The colleague's own card order, only while the switch for it is on; otherwise the default order.
     dashboardOrder: viewer && features.dashboardLayout ? viewer.dashboardOrder : [],
+    // The steps of «هفتهٔ اول من» this colleague ticked.
+    firstWeekDone: viewer && features.firstWeek ? viewer.firstWeekDone : [],
   };
 }
 
@@ -146,6 +149,10 @@ const updateSchema = z
       .array(z.object({ id: requiredText(50), emoji: requiredText(16), label: requiredText(40) }))
       .max(KUDOS_EMOJI_MAX, `حداکثر ${KUDOS_EMOJI_MAX} ایموجی`)
       .refine((list) => new Set(list.map((e) => e.id)).size === list.length, 'ایموجی تکراری در فهرست است'),
+    // The administrator's own steps in every new colleague's «هفتهٔ اول من».
+    firstWeekSteps: z
+      .array(z.string().trim().min(1).max(FIRST_WEEK_EXTRA_LENGTH, `هر مرحله حداکثر ${FIRST_WEEK_EXTRA_LENGTH} حرف است`))
+      .max(FIRST_WEEK_EXTRA_MAX, `حداکثر ${FIRST_WEEK_EXTRA_MAX} مرحله`),
   })
   .partial();
 
@@ -165,6 +172,7 @@ const SETTING_LABELS: Record<keyof z.infer<typeof updateSchema>, string> = {
   suggestionBoxNames: 'نام صندوق‌های انتقادات و پیشنهادات',
   dashboardDefaultOrder: 'ترتیب پیش‌فرض کارت‌های داشبورد',
   kudosEmojis: 'ایموجی‌های همکاران آنلاین',
+  firstWeekSteps: 'مرحله‌های «هفتهٔ اول من»',
 };
 
 type SettingsRow = typeof settings.$inferSelect;
@@ -352,6 +360,7 @@ const FEATURE_RESOURCES: Record<FeatureKey, ResourceName[]> = {
   dashboardLayout: [],
   onlineColleagues: ['presence', 'notifications'],
   noticeBoard: ['notices', 'notifications'],
+  firstWeek: [],
 };
 
 function broadcastFeatures(keys: FeatureKey[]) {
@@ -501,6 +510,19 @@ settingsRouter.put(
     const { on } = parse(z.object({ on: z.boolean() }), req.body);
     await db.update(employees).set({ occasionEffects: on }).where(eq(employees.id, viewer.id));
     res.json(publicSettings(await ensureSettings(), { ...viewer, occasionEffects: on }));
+  }),
+);
+
+/** The steps of «هفتهٔ اول من» the colleague ticked ('closed' when they closed the list). */
+settingsRouter.put(
+  '/settings/first-week',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    if (!featureVisible(await featureConfig(), 'firstWeek', viewer)) throw new HttpError(404, 'مسیر یافت نشد.');
+    const { done } = parse(z.object({ done: z.array(z.string().trim().min(1).max(60)).max(40) }), req.body);
+    const saved = [...new Set(done)];
+    await db.update(employees).set({ firstWeekDone: saved }).where(eq(employees.id, viewer.id));
+    res.json(publicSettings(await ensureSettings(), { ...viewer, firstWeekDone: saved }));
   }),
 );
 

@@ -224,6 +224,8 @@ interface PortalContextType {
   setOccasionEffects: (on: boolean) => Promise<boolean>;
   /** Saves this person's order of the dashboard cards; an empty list puts the default order back. */
   setDashboardOrder: (order: string[]) => Promise<boolean>;
+  /** Saves the ticked steps of «هفتهٔ اول من» (shown at once; put back if saving fails). */
+  setFirstWeekDone: (done: string[]) => Promise<boolean>;
 
   // Actions
   updateSettings: (settings: Partial<AppSettings>) => Promise<boolean>;
@@ -723,6 +725,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       order.length === 0 ? 'چیدمان پیش‌فرض داشبورد برگشت.' : 'چیدمان داشبورد ذخیره شد.',
     );
     if (updated) setAppSettings(updated);
+    return Boolean(updated);
+  };
+
+  const setFirstWeekDone = async (done: string[]) => {
+    const before = appSettings;
+    setAppSettings((s) => (s ? { ...s, firstWeekDone: done } : s));
+    const updated = await attempt(() => api.put<AppSettings>('/api/settings/first-week', { done }));
+    setAppSettings(updated ?? before);
     return Boolean(updated);
   };
 
@@ -1265,6 +1275,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         markFeatureSeen,
         setOccasionEffects,
         setDashboardOrder,
+        setFirstWeekDone,
         updateSettings,
         setBanner,
         clearBanner,
