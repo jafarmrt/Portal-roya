@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { SearchableSelect } from './SearchableSelect';
 import { AlertTriangle, Megaphone, Pencil, X } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { formatDateTime, toPersianDigits } from '../../lib/jalali';
@@ -213,9 +214,9 @@ export const BannerEditorModal: React.FC<{ onClose: () => void }> = ({ onClose }
         </fieldset>
         <div>
           <label htmlFor="banner-duration" className={labelClass}>مدت نمایش</label>
-          <select id="banner-duration" value={duration} onChange={(e) => setDuration(e.target.value)} className={inputClass}>
+          <SearchableSelect id="banner-duration" value={duration} onChange={(e) => setDuration(e.target.value)} className={inputClass}>
             {DURATIONS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
-          </select>
+          </SearchableSelect>
           <p className="text-[11px] text-[#8C867A] mt-1">پس از این زمان پیام خودبه‌خود برداشته می‌شود.</p>
         </div>
       </form>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { Pencil, Plus } from 'lucide-react';
 import type { Audience } from '../../../shared/audience';
 import { usePortal } from '../../context/PortalContext';
@@ -77,12 +78,12 @@ export const EventFormModal: React.FC<{ event?: CalendarEvent; date?: string; on
           </div>
           <div>
             <label htmlFor="event-type" className={labelClass}>نوع رویداد</label>
-            <select id="event-type" value={type} onChange={(e) => setType(e.target.value as CalendarEvent['type'])} className={inputClass}>
+            <SearchableSelect id="event-type" value={type} onChange={(e) => setType(e.target.value as CalendarEvent['type'])} className={inputClass}>
               <option value="meeting">جلسه یا همایش کاری</option>
               <option value="event">رویداد سازمانی</option>
               <option value="training">دوره آموزشی</option>
               <option value="holiday">تعطیلی یا مرخصی سازمانی</option>
-            </select>
+            </SearchableSelect>
           </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

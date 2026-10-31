@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useSyncExternalStore } from 'react';
+import { kudosSoundOn, setKudosSound, subscribeKudosSound } from '../../lib/sound';
 import type { PresenceInfo } from '../../types';
 
-/** The two personal switches of «همکاران آنلاین», shown in the card and in the person's profile. */
+/** The personal switches of «همکاران آنلاین», shown in the card and in the person's profile. */
 export const OnlineChoices: React.FC<{
   me: PresenceInfo['me'];
   onChange: (choice: Partial<PresenceInfo['me']>) => void;
-}> = ({ me, onChange }) => (
+}> = ({ me, onChange }) => {
+  const soundOn = useSyncExternalStore(subscribeKudosSound, kudosSoundOn);
+  return (
   <div className="space-y-1">
     <label className="flex items-center gap-1.5 text-[11px] text-[#6E6A60] cursor-pointer">
       <input type="checkbox" checked={!me.showOnline} onChange={(e) => onChange({ showOnline: !e.target.checked })} className="accent-red-700" />
@@ -15,5 +18,12 @@ export const OnlineChoices: React.FC<{
       <input type="checkbox" checked={!me.acceptKudos} onChange={(e) => onChange({ acceptKudos: !e.target.checked })} className="accent-red-700" />
       همکاران برایم ایموجی نفرستند
     </label>
+    {me.acceptKudos && (
+      <label className="flex items-center gap-1.5 text-[11px] text-[#6E6A60] cursor-pointer">
+        <input type="checkbox" checked={!soundOn} onChange={(e) => setKudosSound(!e.target.checked)} className="accent-red-700" />
+        ایموجی تازه صدا نداشته باشد (روی همین دستگاه)
+      </label>
+    )}
   </div>
-);
+  );
+};

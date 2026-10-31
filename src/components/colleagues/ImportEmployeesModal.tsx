@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { AlertTriangle, Building2, CheckCircle2, Download, FileSpreadsheet, Loader2, Network, Printer, Upload, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, errorMessage } from '../../lib/api';
@@ -375,7 +376,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                       <strong>«{d.name}»</strong>
                       <span className="text-[#6E6A60]"> — ردیف {d.rows.map((r) => toPersianDigits(r)).join('، ')}</span>
                     </span>
-                    <select
+                    <SearchableSelect
                       aria-label={`واحد برای «${d.name}»`}
                       value={departmentChoices[d.name] ?? d.name}
                       onChange={(e) => setDepartmentChoices({ ...departmentChoices, [d.name]: e.target.value })}
@@ -385,7 +386,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                       {(appSettings?.departments ?? []).map((existing) => (
                         <option key={existing} value={existing}>قرار دادن در «{existing}»</option>
                       ))}
-                    </select>
+                    </SearchableSelect>
                   </div>
                 ))}
               </section>

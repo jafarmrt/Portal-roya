@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import {
   BarChart3,
   CalendarClock,
@@ -245,10 +246,10 @@ export const DocumentsModule: React.FC = () => {
               className={`${inputClass} pr-9`}
             />
           </div>
-          <select aria-label="دسته‌بندی" value={category} onChange={(e) => setCategory(e.target.value)} className={`${inputClass} sm:w-56`}>
+          <SearchableSelect aria-label="دسته‌بندی" value={category} onChange={(e) => setCategory(e.target.value)} className={`${inputClass} sm:w-56`}>
             <option value="all">همهٔ دسته‌ها</option>
             {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+          </SearchableSelect>
         </div>
         {filters.filter((f) => f.show).length > 1 && (
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="نمایش">

@@ -12,7 +12,7 @@ export const DASHBOARD_ZONE_LABELS: Record<DashboardZone, string> = {
 
 /**
  * The built-in order, which is also the order on a phone: the organisation's apps first, then what the
- * person has to do. On a computer the apps run across the top and «منتظر اقدام شما» and «یادداشت‌های من»
+ * person has to do. New colleagues are welcomed before the calendar and the birthdays. On a computer the apps run across the top and «منتظر اقدام شما» and «یادداشت‌های من»
  * open the side column (the left one, as the page reads right to left).
  */
 export const DASHBOARD_LAYOUT = [
@@ -21,10 +21,10 @@ export const DASHBOARD_LAYOUT = [
   { id: 'todos', label: 'یادداشت‌های من', zone: 'side' },
   { id: 'anniversary', label: 'تبریک تولد و سالگرد همکاری', zone: 'top' },
   { id: 'news', label: 'آخرین اخبار و اطلاعیه‌ها', zone: 'main' },
+  { id: 'welcome', label: 'خوش‌آمد همکاران جدید', zone: 'main' },
   { id: 'online', label: 'همکاران آنلاین', zone: 'side' },
   { id: 'calendar', label: 'تقویم', zone: 'main' },
   { id: 'birthdays', label: 'تولد همکاران', zone: 'side' },
-  { id: 'welcome', label: 'خوش‌آمد همکاران جدید', zone: 'main' },
   { id: 'poll', label: 'نظرسنجی ویژه', zone: 'main' },
   { id: 'training', label: 'دورهٔ آموزشی پیش‌رو', zone: 'main' },
   { id: 'mood', label: 'حال‌وهوای روزانه', zone: 'side' },

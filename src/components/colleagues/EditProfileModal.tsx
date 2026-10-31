@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { CheckCircle2, KeyRound, ShieldOff, User } from 'lucide-react';
 import { type ManagedProfileUpdate, usePortal, type ProfileUpdate } from '../../context/PortalContext';
 import { NO_DEPARTMENT, unitHeads } from '../../../shared/profile';
@@ -187,10 +188,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
             {adminField('edit-position', 'سمت *', 'position')}
             <div>
               <label htmlFor="edit-department" className={labelClass}>واحد *</label>
-              <select id="edit-department" required value={form.department} onChange={(e) => set('department', e.target.value)} disabled={!isAdmin} className={inputClass}>
+              <SearchableSelect id="edit-department" required value={form.department} onChange={(e) => set('department', e.target.value)} disabled={!isAdmin} className={inputClass}>
                 {!form.department && <option value="" disabled>{NO_DEPARTMENT} (انتخاب کنید)</option>}
                 {[...new Set([form.department, ...(appSettings?.departments ?? [])])].filter(Boolean).map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
+              </SearchableSelect>
             </div>
             <div>
               <label htmlFor="edit-location" className={labelClass}>محل استقرار</label>
@@ -200,12 +201,12 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
               <>
                 <div>
                   <label htmlFor="edit-manager" className={labelClass}>مدیر مستقیم</label>
-                  <select id="edit-manager" value={form.directManagerId ?? ''} onChange={(e) => set('directManagerId', e.target.value || null)} className={inputClass}>
+                  <SearchableSelect id="edit-manager" value={form.directManagerId ?? ''} onChange={(e) => set('directManagerId', e.target.value || null)} className={inputClass}>
                     <option value="">—</option>
                     {employees.filter((e) => e.id !== user.id && e.isActive).map((m) => (
                       <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>
                     ))}
-                  </select>
+                  </SearchableSelect>
                   {fallbackManager && (
                     <p className="mt-1 text-[11px] text-[#6E6A60]">
                       خالی یعنی مسئول واحد، {fallbackManager.firstName} {fallbackManager.lastName}، در چارت سازمانی مدیر او حساب می‌شود.

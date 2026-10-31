@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { History, Loader2, Search } from 'lucide-react';
 import { AUDIT_ACTION_LABELS, AUDIT_ACTIONS, AUDIT_ENTITIES, AUDIT_ENTITY_LABELS, type AuditAction, type AuditEntity } from '../../../shared/audit';
 import { usePortal } from '../../context/PortalContext';
@@ -110,18 +111,18 @@ export const AuditLogModule: React.FC = () => {
             className={`${inputClass} pr-9`}
           />
         </div>
-        <select value={entity} onChange={(e) => setEntity(e.target.value as AuditEntity | '')} aria-label="بخش" className={inputClass}>
+        <SearchableSelect value={entity} onChange={(e) => setEntity(e.target.value as AuditEntity | '')} aria-label="بخش" className={inputClass}>
           <option value="">همهٔ بخش‌ها</option>
           {AUDIT_ENTITIES.map((e) => (
             <option key={e} value={e}>{AUDIT_ENTITY_LABELS[e]}</option>
           ))}
-        </select>
-        <select value={action} onChange={(e) => setAction(e.target.value as AuditAction | '')} aria-label="نوع تغییر" className={inputClass}>
+        </SearchableSelect>
+        <SearchableSelect value={action} onChange={(e) => setAction(e.target.value as AuditAction | '')} aria-label="نوع تغییر" className={inputClass}>
           <option value="">همهٔ کارها</option>
           {AUDIT_ACTIONS.map((a) => (
             <option key={a} value={a}>{AUDIT_ACTION_LABELS[a]}</option>
           ))}
-        </select>
+        </SearchableSelect>
       </div>
 
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}

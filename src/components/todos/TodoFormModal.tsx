@@ -1,4 +1,5 @@
 import React, { useId, useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { ListPlus, Plus, Star, Trash2, X } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { Modal, inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
@@ -130,16 +131,16 @@ export const TodoFormModal: React.FC<TodoFormModalProps> = ({ todo, initial, onC
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label htmlFor={`${formId}-remind`} className={labelClass}>یادآوری (از ساعت {toPersianDigits(TODO_REMIND_HOUR)} صبح)</label>
-            <select id={`${formId}-remind`} value={remind} onChange={(e) => setRemind(e.target.value as TodoRemind)} className={inputClass}>
+            <SearchableSelect id={`${formId}-remind`} value={remind} onChange={(e) => setRemind(e.target.value as TodoRemind)} className={inputClass}>
               {TODO_REMINDERS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-            </select>
+            </SearchableSelect>
           </div>
           <div>
             <label htmlFor={`${formId}-repeat`} className={labelClass}>تکرار</label>
-            <select id={`${formId}-repeat`} value={repeat} onChange={(e) => setRepeat(e.target.value as TodoRepeat | '')} className={inputClass}>
+            <SearchableSelect id={`${formId}-repeat`} value={repeat} onChange={(e) => setRepeat(e.target.value as TodoRepeat | '')} className={inputClass}>
               <option value="">تکرار نمی‌شود</option>
               {TODO_REPEATS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-            </select>
+            </SearchableSelect>
           </div>
         </div>
         {repeat && <p className="-mt-2 text-[11px] text-[#6E6A60]">با تیک زدن این کار، نوبت بعدی‌اش خودش در فهرست نوشته می‌شود.</p>}

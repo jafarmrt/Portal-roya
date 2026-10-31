@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import {
   AlertTriangle,
   ArrowDown,
@@ -279,9 +280,9 @@ const ManagedListEditor: React.FC<{ settings: AppSettings; config: ManagedList }
               <div className="p-2 bg-white rounded-lg border border-amber-300 space-y-2 font-normal">
                 <p className="text-amber-900 leading-relaxed">این {noun} استفاده می‌شود ({describe(item)}). برای حذف، همه را به {noun} دیگری منتقل کنید:</p>
                 <div className="flex gap-2">
-                  <select aria-label={`${noun} مقصد برای ${item}`} value={merging.into} onChange={(e) => setMerging({ name: item, into: e.target.value })} className={inputClass}>
+                  <SearchableSelect aria-label={`${noun} مقصد برای ${item}`} value={merging.into} onChange={(e) => setMerging({ name: item, into: e.target.value })} className={inputClass}>
                     {list.filter((d) => d !== item).map((d) => <option key={d} value={d}>{d}</option>)}
-                  </select>
+                  </SearchableSelect>
                   <button type="button" disabled={busy || !merging.into} onClick={() => rename(item, merging.into)} className={primaryButtonClass}>انتقال و حذف</button>
                   <button type="button" onClick={() => setMerging(null)} className={secondaryButtonClass}>انصراف</button>
                 </div>

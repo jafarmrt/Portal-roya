@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { ArrowDown, ArrowUp, CheckCircle2, Lock, Pencil, Plus, Trash2, Vote, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usePortal } from '../../context/PortalContext';
@@ -53,7 +54,7 @@ const QuestionEditor: React.FC<{
             <Lock className="w-3.5 h-3.5" /> {typeLabel(draft.type)}
           </span>
         ) : (
-          <select
+          <SearchableSelect
             aria-label={`نوع سؤال ${n}`}
             value={draft.type}
             onChange={(e) => {
@@ -66,7 +67,7 @@ const QuestionEditor: React.FC<{
             {QUESTION_TYPES.map((t) => (
               <option key={t.type} value={t.type}>{t.label}</option>
             ))}
-          </select>
+          </SearchableSelect>
         )}
         <label className="flex items-center gap-1.5 text-xs font-bold text-[#4B4740] cursor-pointer">
           <input type="checkbox" checked={draft.required} onChange={(e) => onChange({ ...draft, required: e.target.checked })} className="accent-red-700" />

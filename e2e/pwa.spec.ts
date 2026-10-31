@@ -59,3 +59,25 @@ test('an Android phone sees only its own steps @mobile', async ({ page }) => {
   await expect(dialog.getByRole('heading', { name: 'اندروید' })).toBeVisible();
   await expect(dialog.getByRole('heading', { name: 'آیفون و آیپد' })).toHaveCount(0);
 });
+
+test('a phone is invited to install the portal; «بعداً» hides it on that phone @mobile', async ({ page }) => {
+  await page.goto('/#dashboard');
+  const invite = page.getByRole('region', { name: 'نصب پرتال روی گوشی' });
+  await expect(invite).toBeVisible();
+  await invite.getByRole('button', { name: 'نصب پرتال' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'اندروید' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'متوجه شدم' }).click();
+
+  await invite.getByRole('button', { name: 'بعداً' }).click();
+  await expect(invite).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('#main')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'نصب پرتال روی گوشی' })).toHaveCount(0);
+});
+
+test('a computer gets no install invitation on the dashboard', async ({ page }) => {
+  await page.goto('/#dashboard');
+  await expect(page.locator('#main')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'نصب پرتال روی گوشی' })).toHaveCount(0);
+});

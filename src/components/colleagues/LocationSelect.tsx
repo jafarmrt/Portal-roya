@@ -1,4 +1,5 @@
 import React from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { usePortal } from '../../context/PortalContext';
 import { inputClass } from '../common/Modal';
 
@@ -7,13 +8,13 @@ export const LocationSelect: React.FC<{ id: string; value: string; onChange: (va
   const { appSettings } = usePortal();
   const options = appSettings?.locations ?? [];
   return (
-    <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={inputClass}>
+    <SearchableSelect id={id} value={value} onChange={(e) => onChange(e.target.value)} className={inputClass}>
       <option value="">نامشخص</option>
       {options.map((l) => (
         <option key={l} value={l}>{l}</option>
       ))}
       {/* Kept until the list catches up (it is completed from colleagues' data when the server starts). */}
       {value && !options.includes(value) && <option value={value}>{value}</option>}
-    </select>
+    </SearchableSelect>
   );
 };

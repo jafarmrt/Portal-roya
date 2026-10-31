@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useState } from 'react';
+import { SearchableSelect } from '../common/SearchableSelect';
 import toast from 'react-hot-toast';
 import { CalendarClock, CheckCircle2, Eye, FileText, Image as ImageIcon, Newspaper, Paperclip, PenLine, Save, Trash2 } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
@@ -185,9 +186,9 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
           </div>
           <div>
             <label htmlFor="news-category" className={labelClass}>دسته‌بندی *</label>
-            <select id="news-category" value={form.category} onChange={(e) => set('category', e.target.value)} className={inputClass}>
+            <SearchableSelect id="news-category" value={form.category} onChange={(e) => set('category', e.target.value)} className={inputClass}>
               {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            </SearchableSelect>
           </div>
         </div>
 

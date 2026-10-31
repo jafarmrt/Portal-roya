@@ -11,9 +11,12 @@ import '@fontsource/vazirmatn/800.css';
 import '@fontsource/vazirmatn/900.css';
 import './index.css';
 import { setUpInstall } from './lib/pwa';
+import { unlockSound } from './lib/sound';
 
 // The service worker belongs to the built portal; in development Vite serves fresh files itself.
 if (import.meta.env.PROD) setUpInstall();
+// Lets an emoji from a colleague chime later (browsers allow sound only after the first click).
+unlockSound();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
