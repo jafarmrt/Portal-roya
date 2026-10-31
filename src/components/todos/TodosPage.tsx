@@ -162,7 +162,7 @@ const DaysView: React.FC<{ onArchive: () => void }> = ({ onArchive }) => {
               }`}
             >
               {f.label}
-              <span className={`text-xs ${filter === f.id ? 'text-sky-100' : 'text-faint'}`}>{toPersianDigits(counts[f.id])}</span>
+              <span className={`text-xs ${filter === f.id ? 'text-white/80' : 'text-faint'}`}>{toPersianDigits(counts[f.id])}</span>
             </button>
           ))}
           {listedDone.length > 0 && (

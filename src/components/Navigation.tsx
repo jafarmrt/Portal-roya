@@ -69,7 +69,7 @@ const desktopButtonClass = (isActive: boolean) =>
 
 const Badge: React.FC<{ item: NavItem; className: string }> = ({ item, className }) =>
   item.badge === undefined ? null : (
-    <span className={`${className} rounded-full font-bold ${item.badgeColor || 'bg-brand-deep text-line'}`}>{item.badge}</span>
+    <span className={`${className} rounded-full font-bold ${item.badgeColor || 'bg-brand-deep text-on-brand-muted'}`}>{item.badge}</span>
   );
 
 const groupItems = (entry: NavGroupEntry) => entry.sections.flatMap((section) => section.items);
@@ -247,7 +247,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
     label: 'نظرسنجی‌ها',
     icon: <Vote className="w-4 h-4" />,
     badge: activePollsCount > 0 ? `${toPersianDigits(activePollsCount)} جدید` : undefined,
-    badgeColor: 'bg-brand-strong/30 text-line'
+    badgeColor: 'bg-brand-strong/30 text-on-brand-muted'
   };
   const newsItem: NavItem = {
     id: 'news',
@@ -256,7 +256,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
     badge: pendingAckCount > 0
       ? `${toPersianDigits(pendingAckCount)} بخشنامه`
       : unreadNewsCount > 0 ? `${toPersianDigits(unreadNewsCount)} نخوانده` : undefined,
-    badgeColor: pendingAckCount > 0 ? 'bg-amber-400 text-amber-950' : 'bg-brand-strong/30 text-line'
+    badgeColor: pendingAckCount > 0 ? 'bg-amber-400 text-amber-950' : 'bg-brand-strong/30 text-on-brand-muted'
   };
   const documents: NavItem = {
     id: 'documents',
@@ -361,7 +361,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
   return (
     <>
       {/* Desktop Navigation Top Bar / Sub-header */}
-      <nav className="hidden lg:block bg-brand-deep text-line border-b border-brand-deep shadow-inner relative z-30" aria-label="منوی اصلی">
+      <nav className="hidden lg:block bg-brand-deep text-on-brand-muted border-b border-brand-deep shadow-inner relative z-30" aria-label="منوی اصلی">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div ref={rowRef} className="relative flex items-center gap-1 py-1.5">
             {desktopEntries.slice(0, fitting).map((entry) => {
@@ -421,17 +421,17 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
             onClick={onCloseMobileNav}
           />
 
-          <div className="relative flex-1 max-w-xs w-full h-full overflow-y-auto overscroll-contain bg-brand-deep text-line p-5 flex flex-col justify-between gap-4 shadow-2xl z-10 text-right" role="dialog" aria-modal="true" aria-label="منوی پرتال">
+          <div className="relative flex-1 max-w-xs w-full h-full overflow-y-auto overscroll-contain bg-brand-deep text-on-brand-muted p-5 flex flex-col justify-between gap-4 shadow-2xl z-10 text-right" role="dialog" aria-modal="true" aria-label="منوی پرتال">
             <div>
               <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/10">
                 <div className="flex flex-col">
                   <span className="text-sm font-black text-white">پرتال رویا طرح داخلی</span>
-                  <span className="text-xs text-line/80">ROYA Surface Center</span>
+                  <span className="text-xs text-on-brand-muted/80">ROYA Surface Center</span>
                 </div>
                 <button
                   onClick={onCloseMobileNav}
                   aria-label="بستن منو"
-                  className="p-2 rounded-lg text-line hover:text-white hover:bg-white/10"
+                  className="p-2 rounded-lg text-on-brand-muted hover:text-white hover:bg-white/10"
                 >
                   ✕
                 </button>
@@ -462,7 +462,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
                     <div className="text-xs font-bold text-white truncate">
                       {currentUser.firstName} {currentUser.lastName}
                     </div>
-                    <div className="text-xs text-line/80 truncate">
+                    <div className="text-xs text-on-brand-muted/80 truncate">
                       {currentUser.position}
                     </div>
                   </div>
@@ -472,7 +472,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
               {/* Navigation Items */}
               {mobileSections.map((section, index) => (
                 <div key={section.title ?? index} className={index > 0 ? 'mt-4 pt-4 border-t border-white/10' : ''}>
-                  {section.title && <div className="px-3.5 pb-2 text-xs font-bold text-line/70">{section.title}</div>}
+                  {section.title && <div className="px-3.5 pb-2 text-xs font-bold text-on-brand-muted/70">{section.title}</div>}
                   <div className="space-y-1">
                     {section.items.map((item) => {
                       const isActive = activeTab === item.id;
@@ -503,7 +503,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
               ))}
             </div>
 
-            <div className="pt-4 border-t border-white/10 text-xs text-line/80 text-center">
+            <div className="pt-4 border-t border-white/10 text-xs text-on-brand-muted/80 text-center">
               شرکت رویا طرح داخلی © {toPersianDigits(currentJalaliYear())}
             </div>
           </div>

@@ -816,7 +816,7 @@ export const AdminSettingsModule: React.FC = () => {
                     <span className="mt-0.5 shrink-0">{t.icon}</span>
                     <span>
                       <span className="block text-xs font-bold">{t.label}</span>
-                      <span className={`block text-xs leading-relaxed ${tab === t.id ? 'text-red-100' : 'text-faint'}`}>{t.hint}</span>
+                      <span className={`block text-xs leading-relaxed ${tab === t.id ? 'text-white/80' : 'text-faint'}`}>{t.hint}</span>
                     </span>
                   </button>
                 </li>

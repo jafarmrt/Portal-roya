@@ -18,6 +18,7 @@ import { currentJalaliYear, toPersianDigits } from './lib/jalali';
 import { useTabBadge } from './lib/tabBadge';
 import { tabOn } from './lib/features';
 import { KudosListener } from './components/online/KudosListener';
+import { useAppearance } from './lib/appearance';
 
 // Secondary modules load on demand to keep the first download small.
 const named = <T,>(loader: () => Promise<T>, key: keyof T) =>
@@ -194,11 +195,18 @@ const MainContent: React.FC = () => {
   );
 };
 
+/** Keeps the page's look in step with the person's choice (and the device, for «مثل دستگاه»). */
+const AppearanceSync: React.FC = () => {
+  useAppearance();
+  return null;
+};
+
 export default function App() {
   return (
     <ErrorBoundary fullScreen>
       <PortalProvider>
         <Toaster position="bottom-left" containerClassName="portal-toaster" toastOptions={{ style: { background: '#333', color: '#fff', fontFamily: 'inherit' } }} />
+        <AppearanceSync />
         <MainContent />
       </PortalProvider>
     </ErrorBoundary>
