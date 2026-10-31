@@ -35,7 +35,7 @@ const FEATURE_ROUTES: { key: FeatureKey; pattern: RegExp; emptyReads: Record<str
   { key: 'guides', pattern: /^\/guides(\/|$)/, emptyReads: { '/guides': [] } },
   { key: 'departmentPages', pattern: /^\/department_pages(\/|$)/, emptyReads: { '/department_pages': [] } },
   { key: 'mood', pattern: /^\/moods(\/|$)/, emptyReads: { '/moods/me': [] } },
-  { key: 'todos', pattern: /^\/todos(\/|$)/, emptyReads: { '/todos': [] } },
+  { key: 'todos', pattern: /^\/todos(\/|$)/, emptyReads: { '/todos': [], '/todos/archive': [] } },
   { key: 'onlineColleagues', pattern: /^\/(presence|kudos)(\/|$)/, emptyReads: {} },
 ];
 

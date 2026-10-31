@@ -745,6 +745,8 @@ export const personalTodos = pgTable(
     sourceType: text('source_type'),
     sourceId: text('source_id'),
     doneAt: timestamp('done_at', { withTimezone: true }),
+    // Done notes stay on the page until the person archives them; then they are only in «آرشیو».
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
     // The Jalali day the morning reminder went out, so it is sent once.
     remindedOn: text('reminded_on'),
     // The same for the reminder the morning before, when the person asked for it.

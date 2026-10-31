@@ -1,5 +1,5 @@
 import moment from 'moment-jalaali';
-import { JALALI_MONTH_NAMES, toPersianDigits } from '../../lib/jalali';
+import { JALALI_MONTH_NAMES, WEEKDAY_NAMES, toPersianDigits } from '../../lib/jalali';
 import type { PersonalTodo } from '../../types';
 import type { TodoGroup } from '../../../shared/todos';
 
@@ -29,3 +29,33 @@ export function shortDue(due: string, today: string) {
   return toPersianDigits(`${m.jDate()} ${JALALI_MONTH_NAMES[m.jMonth()]}`);
 }
 
+
+/**
+ * The heading of a day's card: "امروز", "فردا" or "دیروز" when it is one of those, and the day itself
+ * ("شنبه ۱۰ آبان", with the year when it is not this year's).
+ */
+export function dayTitle(date: string, today: string) {
+  const m = moment(date, 'jYYYY/jMM/jDD');
+  const days = m.diff(moment(today, 'jYYYY/jMM/jDD'), 'days');
+  const near = days === 0 ? 'امروز' : days === 1 ? 'فردا' : days === -1 ? 'دیروز' : null;
+  const year = date.slice(0, 4) === today.slice(0, 4) ? '' : ` ${m.jYear()}`;
+  return { near, day: toPersianDigits(`${WEEKDAY_NAMES[m.day()]} ${m.jDate()} ${JALALI_MONTH_NAMES[m.jMonth()]}${year}`) };
+}
+
+/** Open notes first (starred, then oldest), then the done ones in the order they were ticked off. */
+export const byOpenThenDone = (a: PersonalTodo, b: PersonalTodo) =>
+  Number(Boolean(a.doneAt)) - Number(Boolean(b.doneAt)) ||
+  (a.doneAt && b.doneAt ? a.doneAt.localeCompare(b.doneAt) : byImportanceAndDue(a, b));
+
+export interface TodoDay {
+  /** Jalali YYYY/MM/DD, or null for old notes that have no date. */
+  date: string | null;
+  items: PersonalTodo[];
+}
+
+/** One entry per due date, with the notes of that day in it. */
+export function byDay(items: PersonalTodo[]): TodoDay[] {
+  const days = new Map<string, PersonalTodo[]>();
+  for (const t of items) days.set(t.dueDate ?? '', [...(days.get(t.dueDate ?? '') ?? []), t]);
+  return [...days].map(([date, list]) => ({ date: date || null, items: list.sort(byOpenThenDone) }));
+}

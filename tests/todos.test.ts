@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { db, pool } from '../server/db/index';
 import { notifications, personalTodos } from '../server/db/schema';
-import { processTodoReminders, pruneDoneTodos } from '../server/routes/todos';
+import { processTodoReminders } from '../server/routes/todos';
 import { toJalali } from '../shared/jalali';
 import { nextDueDate, quickDueDates, todoGroup } from '../shared/todos';
 import { createEmployee, resetDatabase, setupAdmin } from './helpers';
@@ -197,7 +197,7 @@ describe('«یادداشت‌های من»: private to-do notes with a morning r
     await owner.agent.patch(`/api/todos/${first.id}`).send({ done: true }).expect(200);
     await owner.agent.post('/api/todos').send({ title: 'دوباره', dueDate: '1405/09/12', source }).expect(201);
 
-    await owner.agent.delete('/api/todos/done').expect(204);
+    await owner.agent.post('/api/todos/archive').send({}).expect(200);
     const left = (await owner.agent.get('/api/todos').expect(200)).body;
     expect(left).toHaveLength(1);
     expect(left[0].title).toBe('دوباره');
@@ -292,16 +292,51 @@ describe('«یادداشت‌های من»: private to-do notes with a morning r
     expect(row.remindedOn).toBeNull();
   });
 
-  it('removes notes done more than 30 days ago in the nightly cleanup', async () => {
+  it('keeps done notes on the page until the person archives them, and in the archive until deleted', async () => {
     await db.delete(personalTodos);
     const add = async (title: string) => (await owner.agent.post('/api/todos').send({ title, dueDate: '1405/09/10' }).expect(201)).body.id;
     const oldId = await add('قدیمی');
-    const recentId = await add('تازه');
+    const dayId = await add('همان روز');
     const openId = await add('باز');
-    await db.update(personalTodos).set({ doneAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000) }).where(eq(personalTodos.id, oldId));
-    await db.update(personalTodos).set({ doneAt: new Date() }).where(eq(personalTodos.id, recentId));
-    expect(await pruneDoneTodos()).toBe(1);
-    const left = (await owner.agent.get('/api/todos').expect(200)).body.map((t: { id: string }) => t.id).sort();
-    expect(left).toEqual([recentId, openId].sort());
+    const ids = async (path: string, who = owner) => (await who.agent.get(path).expect(200)).body.map((t: { id: string }) => t.id).sort();
+
+    // Long done, still on the page: nothing is removed by itself any more.
+    await db.update(personalTodos).set({ doneAt: new Date(Date.now() - 400 * 24 * 60 * 60 * 1000) }).where(eq(personalTodos.id, oldId));
+    expect(await ids('/api/todos')).toEqual([oldId, dayId, openId].sort());
+
+    // An open note cannot be archived, alone or with a day's card.
+    await owner.agent.patch(`/api/todos/${openId}`).send({ archived: true }).expect(400);
+    expect((await owner.agent.post('/api/todos/archive').send({ ids: [openId] }).expect(200)).body).toEqual({ archived: 0 });
+
+    // One note at a time, or a day's done notes by name.
+    const archived = (await owner.agent.patch(`/api/todos/${oldId}`).send({ archived: true }).expect(200)).body;
+    expect(archived.archivedAt).not.toBeNull();
+    await owner.agent.patch(`/api/todos/${dayId}`).send({ done: true }).expect(200);
+    expect((await owner.agent.post('/api/todos/archive').send({ ids: [dayId, openId] }).expect(200)).body).toEqual({ archived: 1 });
+    expect(await ids('/api/todos')).toEqual([openId]);
+    expect(await ids('/api/todos/archive')).toEqual([oldId, dayId].sort());
+    // Nobody else sees or touches it.
+    expect(await ids('/api/todos/archive', other)).toEqual([]);
+    await other.agent.patch(`/api/todos/${oldId}`).send({ archived: false }).expect(404);
+
+    // Out of the archive: back on the page, still done. Un-ticking an archived note brings it back open.
+    const restored = (await owner.agent.patch(`/api/todos/${oldId}`).send({ archived: false }).expect(200)).body;
+    expect(restored).toMatchObject({ archivedAt: null });
+    expect(restored.doneAt).not.toBeNull();
+    const reopened = (await owner.agent.patch(`/api/todos/${dayId}`).send({ done: false }).expect(200)).body;
+    expect(reopened).toMatchObject({ archivedAt: null, doneAt: null });
+    expect(await ids('/api/todos/archive')).toEqual([]);
+
+    // Emptying the archive deletes only what is in it.
+    await owner.agent.post('/api/todos/archive').send({}).expect(200);
+    expect(await ids('/api/todos/archive')).toEqual([oldId]);
+    await owner.agent.delete('/api/todos/archive').expect(204);
+    expect(await ids('/api/todos/archive')).toEqual([]);
+    expect(await ids('/api/todos')).toEqual([dayId, openId].sort());
+
+    // While the part is hidden the archive reads empty.
+    await setState('off');
+    expect((await owner.agent.get('/api/todos/archive').expect(200)).body).toEqual([]);
+    await setState('on');
   });
 });

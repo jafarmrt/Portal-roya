@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNotNull, isNull, lt, ne, or } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
 import { isValidJalaliDate, toJalali, toPersianDigits } from '../../shared/jalali.js';
@@ -7,7 +7,6 @@ import {
   addJalaliDays,
   dayOfMonth,
   nextDueDate,
-  TODO_KEEP_DONE_DAYS,
   TODO_NOTE_MAX,
   TODO_OPEN_LIMIT,
   TODO_REMIND_HOUR,
@@ -44,6 +43,7 @@ const serializeTodo = (t: TodoRow) => ({
   sourceType: t.sourceType,
   sourceId: t.sourceId,
   doneAt: t.doneAt?.toISOString() ?? null,
+  archivedAt: t.archivedAt?.toISOString() ?? null,
   createdAt: t.createdAt.toISOString(),
 });
 
@@ -84,7 +84,11 @@ const updateSchema = z.object({
   remind: remind.optional(),
   steps: steps.optional(),
   done: z.boolean().optional(),
+  // Only a done note can be archived; taking it out of the archive puts it back on the page, still done.
+  archived: z.boolean().optional(),
 });
+
+const archiveSchema = z.object({ ids: z.array(z.string().min(1).max(100)).max(1000).optional() });
 
 type TodoRepeatId = (typeof TODO_REPEATS)[number]['id'];
 
@@ -118,9 +122,47 @@ todosRouter.get(
     const rows = await db
       .select()
       .from(personalTodos)
-      .where(eq(personalTodos.userId, viewer.id))
+      .where(and(eq(personalTodos.userId, viewer.id), isNull(personalTodos.archivedAt)))
       .orderBy(asc(personalTodos.createdAt));
     res.json(rows.map(serializeTodo));
+  }),
+);
+
+// «آرشیو»: the done notes the person put away, newest first. Read only when the archive is opened.
+todosRouter.get(
+  '/todos/archive',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const rows = await db
+      .select()
+      .from(personalTodos)
+      .where(and(eq(personalTodos.userId, viewer.id), isNotNull(personalTodos.archivedAt)))
+      .orderBy(desc(personalTodos.archivedAt), desc(personalTodos.doneAt));
+    res.json(rows.map(serializeTodo));
+  }),
+);
+
+// Archives the person's done notes on the page: all of them, or only the ones named (a day's card).
+todosRouter.post(
+  '/todos/archive',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const input = parse(archiveSchema, req.body ?? {});
+    if (input.ids && input.ids.length === 0) return void res.json({ archived: 0 });
+    const archived = await db
+      .update(personalTodos)
+      .set({ archivedAt: new Date() })
+      .where(
+        and(
+          eq(personalTodos.userId, viewer.id),
+          isNotNull(personalTodos.doneAt),
+          isNull(personalTodos.archivedAt),
+          input.ids ? inArray(personalTodos.id, input.ids) : undefined,
+        ),
+      )
+      .returning({ id: personalTodos.id });
+    if (archived.length) signalUser(viewer.id, 'todos');
+    res.json({ archived: archived.length });
   }),
 );
 
@@ -211,7 +253,14 @@ todosRouter.patch(
     const ticked = input.done === true && !existing.doneAt;
     const unticked = input.done === false && Boolean(existing.doneAt);
     if (ticked) changes.doneAt = new Date();
-    if (unticked) changes.doneAt = null;
+    // A note brought back to open is on the page again, never left in the archive.
+    if (unticked) Object.assign(changes, { doneAt: null, archivedAt: null });
+    const doneAfter = ticked || (Boolean(existing.doneAt) && !unticked);
+    if (input.archived === true && !existing.archivedAt) {
+      if (!doneAfter) throw new HttpError(400, 'فقط یادداشت انجام‌شده بایگانی می‌شود.');
+      changes.archivedAt = new Date();
+    }
+    if (input.archived === false && existing.archivedAt && !unticked) changes.archivedAt = null;
     const row = await db.transaction(async (tx) => {
       const [updated] = Object.keys(changes).length
         ? await tx.update(personalTodos).set(changes).where(eq(personalTodos.id, existing.id)).returning()
@@ -255,12 +304,12 @@ todosRouter.patch(
   }),
 );
 
-// Clears «انجام‌شده‌ها» at once.
+// Empties «آرشیو» for good; notes on the page are not touched.
 todosRouter.delete(
-  '/todos/done',
+  '/todos/archive',
   route(async (req, res) => {
     const viewer = currentUser(req);
-    await db.delete(personalTodos).where(and(eq(personalTodos.userId, viewer.id), isNotNull(personalTodos.doneAt)));
+    await db.delete(personalTodos).where(and(eq(personalTodos.userId, viewer.id), isNotNull(personalTodos.archivedAt)));
     signalUser(viewer.id, 'todos');
     res.status(204).end();
   }),
@@ -350,14 +399,4 @@ export async function processTodoReminders(now = new Date()) {
     await createNotifications([userId], { title, message, type: 'todo', linkTab: 'dashboard' });
   }
   return byUser.size;
-}
-
-/** Done notes older than TODO_KEEP_DONE_DAYS are removed in the nightly cleanup. */
-export async function pruneDoneTodos(now = new Date()) {
-  const cutoff = new Date(now.getTime() - TODO_KEEP_DONE_DAYS * 24 * 60 * 60 * 1000);
-  const removed = await db
-    .delete(personalTodos)
-    .where(and(isNotNull(personalTodos.doneAt), lt(personalTodos.doneAt, cutoff)))
-    .returning({ id: personalTodos.id });
-  return removed.length;
 }
