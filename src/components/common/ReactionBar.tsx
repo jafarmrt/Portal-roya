@@ -1,8 +1,20 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SmilePlus } from 'lucide-react';
 import { REACTION_EMOJIS, type ReactionCount, type ReactionTarget } from '../../../shared/reactions';
 import { usePortal } from '../../context/PortalContext';
 import { toPersianDigits } from '../../lib/jalali';
+import { haptic, pop } from '../../lib/feedback';
+
+/** The counts as they will be once the person's own emoji is `emoji` ('' = none). */
+function withMine(list: ReactionCount[], emoji: string): ReactionCount[] {
+  const out = list
+    .map((r) => (r.mine ? { ...r, mine: false, count: r.count - 1 } : r))
+    .filter((r) => r.count > 0);
+  if (!emoji) return out;
+  const found = out.find((r) => r.emoji === emoji);
+  if (found) return out.map((r) => (r === found ? { ...r, mine: true, count: r.count + 1 } : r));
+  return [...out, { emoji, count: 1, mine: true, names: [] }];
+}
 
 /**
  * Colleagues' emoji under an introduction, a welcome message or a greeting card: each emoji with how
@@ -20,23 +32,33 @@ export const ReactionBar: React.FC<{
   const { react } = usePortal();
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
-  if (!canReact && reactions.length === 0) return null;
-  const mine = reactions.find((r) => r.mine)?.emoji ?? '';
+  // The person's choice shows at once; the server's answer replaces it when it arrives.
+  const [optimistic, setOptimistic] = useState<ReactionCount[] | null>(null);
+  const bar = useRef<HTMLDivElement>(null);
+  useEffect(() => setOptimistic(null), [reactions]);
+  const shown = optimistic ?? reactions;
+  if (!canReact && shown.length === 0) return null;
+  const mine = shown.find((r) => r.mine)?.emoji ?? '';
 
   const choose = async (emoji: string) => {
     if (busy) return;
+    const next = mine === emoji ? '' : emoji;
     setBusy(true);
     setPicking(false);
-    await react(target, id, mine === emoji ? '' : emoji);
+    setOptimistic(withMine(shown, next));
+    haptic();
+    if (next) requestAnimationFrame(() => pop(bar.current?.querySelector(`[data-emoji="${next}"]`)));
+    await react(target, id, next);
     setBusy(false);
   };
 
   const chip = small ? 'h-6 px-1.5 text-xs gap-0.5' : 'h-7 px-2 text-sm gap-1';
   return (
-    <div className="flex items-center flex-wrap gap-1" role="group" aria-label={label}>
-      {reactions.map((r) => (
+    <div ref={bar} className="flex items-center flex-wrap gap-1" role="group" aria-label={label}>
+      {shown.map((r) => (
         <button
           key={r.emoji}
+          data-emoji={r.emoji}
           type="button"
           disabled={!canReact || busy}
           onClick={() => void choose(r.emoji)}

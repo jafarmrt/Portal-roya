@@ -119,9 +119,7 @@ export const OnlineColleaguesCard: React.FC = () => {
               نشانم بده
             </button>
           </p>
-        ) : count === 0 ? (
-          <p className="text-xs text-faint">الان همکار دیگری پرتال را باز ندارد.</p>
-        ) : (
+        ) : count === 0 ? null : (
           <>
             {count > SEARCH_FROM && (
               <div className="relative">

@@ -17,21 +17,18 @@ import { MyTasksCard } from './MyTasksCard';
 import { PersonalTodosCard } from './PersonalTodosCard';
 import { OnlineColleaguesCard } from '../online/OnlineColleaguesCard';
 import { NoticeBoard } from '../notices/NoticeBoard';
-import moment from 'moment-jalaali';
-import { JALALI_MONTHS, JALALI_WEEKDAYS } from '../../data/holidays';
+import { WelcomeHero } from './WelcomeHero';
+import { EmptyState, SkeletonTiles } from '../common/Placeholder';
 import { formatDate, toPersianDigits, todayJalali } from '../../lib/jalali';
-import { dayOccasions, formatHijri } from '../../lib/occasions';
 import {
   Vote,
   Newspaper,
   GraduationCap,
   ChevronLeft,
-  Sparkles,
   Pin,
   FileCheck2,
   AlertTriangle,
-  CalendarDays,
-  LayoutDashboard
+  CalendarDays
 } from 'lucide-react';
 
 export const DashboardModule: React.FC = () => {
@@ -43,8 +40,8 @@ export const DashboardModule: React.FC = () => {
     trainings,
     setActiveTab,
     appSettings,
-    customHolidays,
     featureOn,
+    isLoaded,
   } = usePortal();
   const on = (id: Parameters<typeof isCardOn>[1]) => isCardOn(appSettings, id);
   const [arranging, setArranging] = useState(false);
@@ -60,84 +57,17 @@ export const DashboardModule: React.FC = () => {
   const publishedNews = news.filter(n => n.status === 'published');
   // Read and acknowledgement state is personal, so guests just see what is published.
   const pendingAcks = isGuest ? [] : publishedNews.filter(n => n.requiresAck && !n.acknowledgedAt);
-  const unreadCount = publishedNews.filter(n => !n.isRead).length;
-  const openPollsCount = polls.filter(p => p.isActive && (isGuest || p.forMe) && !p.hasVoted).length;
   const latestNews = publishedNews.filter(n => !pendingAcks.includes(n)).slice(0, 4);
   const today = todayJalali();
   const upcomingTraining = [...trainings].filter(t => t.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
-  const now = moment();
-  const todayDayIndex = (now.day() + 1) % 7; // JS Sunday-first to Saturday-first
-  const todayStr = toPersianDigits(`${JALALI_WEEKDAYS[todayDayIndex]}، ${now.jDate()} ${JALALI_MONTHS[now.jMonth()]} ${now.jYear()}`);
-  const todayHijri = formatHijri(now.jYear(), now.jMonth() + 1, now.jDate());
-  const todayOccasions = dayOccasions(customHolidays, now.jYear(), now.jMonth() + 1, now.jDate());
 
 
   // On phones the cards are one column; from lg the cards across the top come first, then the two
   // columns. Either way each card's place comes from the person's order. Wrappers of cards that render nothing are hidden.
   return (
     <div className="flex flex-col gap-6 [&>*:empty]:hidden">
-      {/* Hero Welcome Banner */}
-      <div className="bg-gradient-to-r from-brand-deep via-brand-strong to-red-500 rounded-3xl p-4 sm:p-6 text-white shadow-card relative overflow-hidden">
-        <div className="absolute top-0 left-0 -ml-12 -mt-12 w-64 h-64 rounded-full bg-brand/20 blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4">
-          <div className="space-y-2">
-            <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand/30 text-line text-xs font-semibold border border-brand/40">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>پرتال سازمانی رویا طرح داخلی | ROYA Surface Center</span>
-            </div>
-            <h1 className="text-xl sm:text-3xl font-black text-white">
-              {currentUser ? `سلام، ${currentUser.firstName} ${currentUser.lastName} عزیز 👋` : 'خوش آمدید 👋'}
-            </h1>
-            <p className="text-line text-xs sm:text-sm max-w-xl leading-relaxed">
-              امروز {todayStr} ({todayHijri}) است.
-              {todayOccasions && <span className="font-bold text-white"> {todayOccasions.title}{todayOccasions.isHoliday ? ' (تعطیل رسمی)' : ''}.</span>}
-              {isGuest
-                ? ' برای شرکت در نظرسنجی‌ها و ثبت تبریک و نظر، وارد حساب کاربری خود شوید.'
-                : unreadCount > 0 ? ` ${toPersianDigits(unreadCount)} خبر یا اطلاعیهٔ نخوانده دارید.` : ' همهٔ اخبار را خوانده‌اید.'}
-            </p>
-          </div>
-
-          {/* Quick Stat Pill Cards */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {featureOn('polls') && (
-              <button
-                onClick={() => setActiveTab('polls')}
-                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl border border-white/10 text-right transition-all"
-              >
-                <div className="text-xs text-line">نظرسنجی‌ها</div>
-                <div className="text-sm sm:text-base font-black text-white flex items-center gap-1.5">
-                  <Vote className="w-4 h-4 text-sage" />
-                  <span>{toPersianDigits(openPollsCount)} {isGuest ? 'در حال رأی‌گیری' : 'در انتظار رأی شما'}</span>
-                </div>
-              </button>
-            )}
-
-            <button
-              onClick={() => setActiveTab('news')}
-              className="px-3 py-2 sm:px-4 sm:py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl border border-white/10 text-right transition-all"
-            >
-              <div className="text-xs text-line">{isGuest ? 'اخبار و اطلاعیه‌ها' : 'اخبار نخوانده'}</div>
-              <div className="text-sm sm:text-base font-black text-white flex items-center gap-1.5">
-                <Newspaper className="w-4 h-4 text-line" />
-                <span>{toPersianDigits(isGuest ? publishedNews.length : unreadCount)} مورد</span>
-              </div>
-            </button>
-
-            {canArrange && (
-              <button
-                onClick={() => setArranging(true)}
-                aria-label="چیدمان داشبورد"
-                title="چیدمان داشبورد"
-                className="self-stretch px-3 py-2 sm:py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl border border-white/10 text-xs font-bold text-line flex items-center gap-1.5 transition-all"
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                <span className="hidden sm:inline">چیدمان داشبورد</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Greeting for the time of day, today's date and one line about the person's day */}
+      <WelcomeHero canArrange={canArrange} onArrange={() => setArranging(true)} />
 
       {/* Nowruz, the seasons, Yalda, the feasts and the founding day; quiet on days of mourning */}
       <div className="order-1">
@@ -214,7 +144,6 @@ export const DashboardModule: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-ink">آخرین اخبار و اطلاعیه‌ها</h3>
-                  <p className="text-xs text-muted">اطلاع‌رسانی‌های رسمی مدیریت و دپارتمان‌ها</p>
                 </div>
               </div>
               <button
@@ -226,8 +155,14 @@ export const DashboardModule: React.FC = () => {
               </button>
             </div>
 
-            {latestNews.length === 0 ? (
-              <p className="text-xs text-muted py-6 text-center">هنوز خبری منتشر نشده است.</p>
+            {!isLoaded('news') ? (
+              <SkeletonTiles count={4} />
+            ) : latestNews.length === 0 ? (
+              <EmptyState
+                icon={<Newspaper />}
+                title={pendingAcks.length > 0 ? 'خبر تازهٔ دیگری نیست' : 'هنوز خبری منتشر نشده است'}
+                hint="خبرها و اطلاعیه‌های تازه همین‌جا می‌آیند."
+              />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {latestNews.map((item) => (
@@ -281,8 +216,7 @@ export const DashboardModule: React.FC = () => {
                       <Vote className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-base font-black text-ink">نظرسنجی ویژه سازمان</h3>
-                      <p className="text-xs text-muted">نظرسنجی فعال جهت دریافت نظرات همکاران</p>
+                      <h3 className="text-base font-black text-ink">نظرسنجی باز</h3>
                     </div>
                   </div>
                   <span className="px-3 py-1 bg-warm text-white text-xs font-bold rounded-full">
@@ -297,7 +231,7 @@ export const DashboardModule: React.FC = () => {
 
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-xs text-muted font-medium">
-                    {toPersianDigits(activePoll.questions.length)} سؤال · تاکنون <strong>{toPersianDigits(activePoll.responseCount)} نفر</strong> پاسخ داده‌اند
+                    {toPersianDigits(activePoll.questions.length)} سؤال · {activePoll.responseCount > 0 ? <>تاکنون <strong>{toPersianDigits(activePoll.responseCount)} نفر</strong> پاسخ داده‌اند</> : 'اولین نفری باشید که نظر می‌دهد'}
                   </span>
                   <button
                     onClick={() => setActiveTab('polls', activePoll.id)}
@@ -328,7 +262,6 @@ export const DashboardModule: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-base font-black text-ink">کارگاه آموزشی پیش‌رو</h3>
-                      <p className="text-xs text-muted">برنامه آموزش سازمانی رویا</p>
                     </div>
                   </div>
                 </div>

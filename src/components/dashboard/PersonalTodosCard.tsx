@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { CalendarClock, CheckCircle2, ChevronDown, Circle, ExternalLink, ListChecks, Lock, Maximize2, NotebookPen, Pencil, Plus, Repeat, Star, X } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { inputClass } from '../common/Modal';
+import { EmptyState, SkeletonRows } from '../common/Placeholder';
 import { TodoFormModal } from '../todos/TodoFormModal';
 import { DueDateField, QuickDueDates } from '../todos/DueDateField';
 import { useTickTodo } from '../todos/useTickTodo';
 import { featureInPreview } from '../../lib/features';
+import { haptic, pop } from '../../lib/feedback';
 import { isValidJalaliDate, toJalali, toPersianDigits, todayJalali } from '../../lib/jalali';
 import { byImportanceAndDue, GROUP_STYLE, shortDue } from '../todos/todoText';
 import type { ActiveTab, PersonalTodo } from '../../types';
@@ -20,7 +22,7 @@ const SHOWN = 5;
  * ask). Notes added from a news item, event, course or document link back to it.
  */
 export const PersonalTodosCard: React.FC = () => {
-  const { todos, addTodo, updateTodo, setActiveTab, appSettings } = usePortal();
+  const { todos, addTodo, updateTodo, setActiveTab, appSettings, isLoaded } = usePortal();
   const tick = useTickTodo();
   const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -128,10 +130,15 @@ export const PersonalTodosCard: React.FC = () => {
         </form>
       )}
 
-      {open.length === 0 ? (
-        <p className="text-xs text-muted py-1 leading-relaxed">
-          یادداشت بازی ندارید. با «+» یادداشتی بنویسید، یا از هر خبر، رویداد، دوره و سند «افزودن به یادداشت‌های من» را بزنید.
-        </p>
+      {!isLoaded('todos') ? (
+        <SkeletonRows rows={3} />
+      ) : open.length === 0 ? (
+        <EmptyState
+          compact
+          icon={<NotebookPen />}
+          title={done.length > 0 ? 'همهٔ کارهای امروز انجام شد 👏' : 'یادداشت بازی ندارید'}
+          hint="با «+» یادداشتی بنویسید، یا از هر خبر، رویداد، دوره و سند «افزودن به یادداشت‌های من» را بزنید."
+        />
       ) : (
         <div className="space-y-2">
           {shownGroups.map((g) => (
@@ -229,8 +236,22 @@ const iconButton = 'p-1 rounded-lg shrink-0 text-faint hover:bg-white';
 
 const TodoRow: React.FC<TodoRowProps> = ({ todo, today, group, onToggle, onEdit, onStar, onDate, onOpenSource }) => {
   const [dating, setDating] = useState(false);
+  // Ticking off: the circle fills and a line is drawn through the title before the note leaves the list.
+  const [ticking, setTicking] = useState(false);
+  const check = useRef<HTMLSpanElement>(null);
   const isDone = Boolean(todo.doneAt);
+  const struck = isDone || ticking;
   const source = todoSource(todo.sourceType);
+  const toggle = () => {
+    haptic();
+    if (isDone) {
+      onToggle();
+      return;
+    }
+    setTicking(true);
+    pop(check.current);
+    window.setTimeout(onToggle, 420);
+  };
   const stepsDone = todo.steps.filter((s) => s.done).length;
   const late = group === 'overdue';
   const canPostpone = onDate && (group === 'overdue' || group === 'today' || group === 'none');
@@ -242,10 +263,13 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, today, group, onToggle, onEdit,
           role="checkbox"
           aria-checked={isDone}
           aria-label={isDone ? `برگرداندن «${todo.title}» به یادداشت‌های باز` : `انجام شد: ${todo.title}`}
-          onClick={onToggle}
+          onClick={toggle}
+          disabled={ticking && !isDone}
           className="p-1 rounded-lg hover:bg-white shrink-0"
         >
-          {isDone ? <CheckCircle2 className="w-[18px] h-[18px] text-emerald-600" /> : <Circle className="w-[18px] h-[18px] text-faint" />}
+          <span ref={check} className="block">
+            {struck ? <CheckCircle2 className="w-[18px] h-[18px] text-emerald-600" /> : <Circle className="w-[18px] h-[18px] text-faint" />}
+          </span>
         </button>
         <button
           type="button"
@@ -254,7 +278,7 @@ const TodoRow: React.FC<TodoRowProps> = ({ todo, today, group, onToggle, onEdit,
           aria-label={`باز کردن ${todo.title}`}
           title={todo.note ? `${todo.title}\n${todo.note}` : todo.title}
         >
-          <span className={`truncate text-xs font-bold ${isDone ? 'line-through text-faint' : 'text-ink'}`}>{todo.title}</span>
+          <span className={`truncate text-xs font-bold strike ${struck ? 'is-struck text-faint' : 'text-ink'}`}>{todo.title}</span>
           {todo.repeat && <Repeat className="w-3 h-3 text-sky-700 shrink-0" aria-label="تکراری" />}
           {todo.steps.length > 0 && (
             <span className="text-xs text-muted flex items-center gap-0.5 shrink-0" aria-label={`${toPersianDigits(stepsDone)} از ${toPersianDigits(todo.steps.length)} گام`}>

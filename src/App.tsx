@@ -141,7 +141,8 @@ const MainContent: React.FC = () => {
         <ErrorBoundary resetKey={activeTab}>
           <Suspense fallback={<div className="py-20 flex justify-center"><Loader2 className="w-8 h-8 text-red-600 animate-spin" /></div>}>
             {tabOn(appSettings, activeTab) ? (
-              <>
+              // Each part of the portal fades in softly when you move to it.
+              <div key={activeTab} className="page-enter">
                 {activeTab === 'dashboard' && <DashboardModule />}
                 {activeTab === 'polls' && <PollsModule />}
                 {activeTab === 'colleagues' && (directoryHidden ? <LoginRequired message={directoryNotice} /> : <ColleaguesDirectory />)}
@@ -164,7 +165,7 @@ const MainContent: React.FC = () => {
                 {activeTab === 'people' && can('users.manage') && <PeopleManagement />}
                 {activeTab === 'admin' && (isAdmin || can('settings.manage')) && <AdminSettingsModule />}
                 {activeTab === 'audit' && isAdmin && <AuditLogModule />}
-              </>
+              </div>
             ) : (
               <NotAvailable />
             )}

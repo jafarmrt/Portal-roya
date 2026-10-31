@@ -27,6 +27,7 @@ import {
   LogIn,
   MonitorSmartphone
 } from 'lucide-react';
+import { pop } from '../lib/feedback';
 
 // Header drop-downs: full width under the header on phones, anchored to their button from sm up.
 const popoverClass =
@@ -93,6 +94,13 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
   }, []);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
+  // The red count gives one small hop when a new notification arrives (instead of blinking all the time).
+  const badge = useRef<HTMLSpanElement>(null);
+  const lastUnread = useRef(unreadCount);
+  useEffect(() => {
+    if (unreadCount > lastUnread.current) pop(badge.current);
+    lastUnread.current = unreadCount;
+  }, [unreadCount]);
   const userNotifications = notifications.slice(0, 20);
 
   return (
@@ -207,7 +215,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                     >
                       <Bell className="w-5 h-5 text-ink-soft" />
                       {unreadCount > 0 && (
-                        <span className="absolute top-1 right-1 flex items-center justify-center min-w-4 h-4 px-1 text-[10px] font-bold text-white bg-brand rounded-full">
+                        <span ref={badge} className="absolute top-1 right-1 flex items-center justify-center min-w-4 h-4 px-1 text-[10px] font-bold text-white bg-brand rounded-full">
                           {toPersianDigits(unreadCount > 99 ? '99+' : unreadCount)}
                         </span>
                       )}

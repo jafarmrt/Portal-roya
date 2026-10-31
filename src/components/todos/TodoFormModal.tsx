@@ -29,7 +29,7 @@ interface TodoFormModalProps {
 
 /** Writes or edits a note in «یادداشت‌های من». */
 export const TodoFormModal: React.FC<TodoFormModalProps> = ({ todo, initial, onClose }) => {
-  const { addTodo, updateTodo, deleteTodo } = usePortal();
+  const { addTodo, updateTodo, deleteTodo, removeTodo } = usePortal();
   const formId = useId();
   const [title, setTitle] = useState(todo?.title ?? initial?.title ?? '');
   const [dueDate, setDueDate] = useState(todo?.dueDate ?? initial?.dueDate ?? '');
@@ -79,8 +79,14 @@ export const TodoFormModal: React.FC<TodoFormModalProps> = ({ todo, initial, onC
           {todo ? (
             <button
               type="button"
-              onClick={async () => {
-                if (await deleteTodo(todo.id)) onClose();
+              onClick={() => {
+                // An archived note is deleted for good from the archive page; an open one gets «برگرداندن».
+                if (todo.archivedAt) {
+                  void deleteTodo(todo.id).then((ok) => ok && onClose());
+                  return;
+                }
+                removeTodo(todo.id);
+                onClose();
               }}
               className={`${secondaryButtonClass} text-red-700`}
             >

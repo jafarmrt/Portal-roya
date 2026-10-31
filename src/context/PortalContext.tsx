@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { chimeNow } from '../lib/sound';
 import type { ReactionTarget } from '../../shared/reactions';
 import toast from 'react-hot-toast';
+import { deleteWithUndo } from '../components/common/UndoToast';
 import { ApiError, api, errorMessage, setUnauthorizedHandler } from '../lib/api';
 import { buildSearchResults } from '../lib/search';
 import { systemLink } from '../../shared/systemLinks';
@@ -60,6 +61,9 @@ const NETWORK_CHECK_MS = 3 * 60_000;
 
 /** How a colleague with portal access signs in: a portal password, or their Active Directory password. */
 export type SignInMethod = 'local' | 'ldap';
+
+/** The kinds of data the dashboard waits for before it may say "nothing here". */
+export type LoadedResource = 'news' | 'polls' | 'employees' | 'new_colleagues' | 'birthday_wishes' | 'trainings' | 'calendar' | 'notifications' | 'todos' | 'notices' | 'documents';
 
 export interface AccountInput {
   username: string;
@@ -172,6 +176,9 @@ interface PortalContextType {
 
   // Loading state for portal data
   isLoading: boolean;
+  /** Whether a kind of data has arrived since the page opened (or the person signed in), so a card can
+   *  show a placeholder instead of saying "nothing yet" while it is still on its way. */
+  isLoaded: (resource: LoadedResource) => boolean;
   error: string | null;
 
   // Navigation (mirrored in location.hash so items can be linked)
@@ -235,6 +242,8 @@ interface PortalContextType {
     },
   ) => Promise<boolean>;
   deleteTodo: (id: string) => Promise<boolean>;
+  /** Takes an open note off the page at once, with «برگرداندن» for a few seconds before it is deleted. */
+  removeTodo: (id: string) => void;
   /** This person's open notes due on a Jalali day, for the calendar; none while the part is hidden. */
   myDueTodos: (date: string) => PersonalTodo[];
   /** Moves done notes from the page to «آرشیو»: all of them, or only those named (one day's card). */
@@ -487,8 +496,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // --- Loaders ---
 
-  const loaders = useMemo(
-    () => ({
+  const [loadedResources, setLoadedResources] = useState<ReadonlySet<string>>(() => new Set());
+  const markLoaded = useCallback(
+    (resource: string) => setLoadedResources((prev) => (prev.has(resource) ? prev : new Set(prev).add(resource))),
+    [],
+  );
+
+  const loaders = useMemo(() => {
+    const raw = {
       settings: () => api.get<AppSettings>('/api/settings').then(setAppSettings),
       employees: () => api.get<UserProfile[]>('/api/employees').then(setEmployees),
       polls: () => api.get<Poll[]>('/api/polls').then(setPolls),
@@ -514,9 +529,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       roles: () => api.get<RoleInfo[]>('/api/roles').then(setRoles),
       // An admin may change this user's role or the role's permissions at any time.
       me: () => api.get<{ user: CurrentUser }>('/api/auth/me').then(({ user }) => setCurrentUser(user)),
-    }),
-    [],
-  );
+    };
+    // Each loader also notes that its data has arrived at least once.
+    return Object.fromEntries(
+      Object.entries(raw).map(([key, load]) => [key, () => load().then(() => markLoaded(key))]),
+    ) as { [K in keyof typeof raw]: () => Promise<void> };
+  }, [markLoaded]);
   type Resource = keyof typeof loaders;
 
   const refresh = useCallback(
@@ -530,6 +548,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!isReady) return;
     setIsLoading(true);
     setError(null);
+    // A new session (signing in, or out to the guest view) loads everything again.
+    setLoadedResources(new Set(['settings']));
     // Guests only load the shared, read-only content; personal data comes after sign-in.
     const { notifications: loadNotifications, moods: loadMoods, todos: loadTodos, me: loadMe, ...shared } = loaders;
     const toLoad = sessionKey ? [...Object.values(shared), loadNotifications, loadMoods, loadTodos, loadMe] : Object.values(shared);
@@ -735,12 +755,28 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateTodo: PortalContextType['updateTodo'] = async (id, changes) => {
+    // Ticking a note shows at once; the server's copy replaces it (or the list reloads if it failed).
+    if (changes.done !== undefined) {
+      const doneAt = changes.done ? new Date().toISOString() : null;
+      setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, doneAt } : t)));
+    }
     const updated = await attempt(() => api.patch<PersonalTodo>(`/api/todos/${id}`, changes));
+    if (!updated && changes.done !== undefined) void refresh('todos');
     // An archived note leaves the page; one taken out of the archive comes back to it.
     if (updated) setTodos((prev) => (updated.archivedAt ? prev.filter((t) => t.id !== id) : [...prev.filter((t) => t.id !== id), updated]));
     // Ticking a repeating note off writes the next one, and un-ticking takes it back.
     if (updated && changes.done !== undefined && updated.repeat) void refresh('todos');
     return Boolean(updated);
+  };
+
+  const removeTodo: PortalContextType['removeTodo'] = (id) => {
+    const todo = todos.find((t) => t.id === id);
+    deleteWithUndo({
+      message: todo ? `«${todo.title.length > 30 ? `${todo.title.slice(0, 30)}…` : todo.title}» پاک شد.` : 'یادداشت پاک شد.',
+      hide: () => setTodos((prev) => prev.filter((t) => t.id !== id)),
+      restore: () => void refresh('todos'),
+      commit: async () => Boolean(await attempt(() => api.delete(`/api/todos/${id}`).then(() => true))),
+    });
   };
 
   const deleteTodo: PortalContextType['deleteTodo'] = async (id) => {
@@ -878,8 +914,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const toggleLikeNews = async (newsId: string) => {
+    // The heart fills at once; the server's count follows.
+    const before = news.find((n) => n.id === newsId);
+    if (before && currentUser) {
+      replaceNews({ ...before, likedByMe: !before.likedByMe, likesCount: before.likesCount + (before.likedByMe ? -1 : 1) });
+    }
     const updated = await attempt(() => api.post<NewsItem>(`/api/news/${newsId}/like`));
     if (updated) replaceNews(updated);
+    else if (before) replaceNews(before);
   };
 
   const markNewsRead = async (newsId: string) => {
@@ -967,14 +1009,24 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return Boolean(ok);
   };
 
+  // One's own (or, for a moderator, anyone's) message leaves at once, with «برگرداندن» for a few seconds.
   const deleteBirthdayWish = async (wishId: string) => {
-    const ok = await attempt(() => api.delete(`/api/birthday_wishes/${wishId}`), 'پیام حذف شد.');
-    if (ok !== undefined) await refresh('birthday_wishes');
+    deleteWithUndo({
+      message: 'کارت تبریک حذف شد.',
+      hide: () =>
+        setBirthdayWishes((prev) => Object.fromEntries(Object.entries(prev).map(([k, list]) => [k, list.filter((w) => w.id !== wishId)]))),
+      restore: () => void refresh('birthday_wishes'),
+      commit: async () => (await attempt(() => api.delete(`/api/birthday_wishes/${wishId}`))) !== undefined,
+    });
   };
 
   const deleteWelcomeWish = async (wishId: string) => {
-    const ok = await attempt(() => api.delete(`/api/colleague_wishes/${wishId}`), 'پیام حذف شد.');
-    if (ok !== undefined) await refresh('new_colleagues');
+    deleteWithUndo({
+      message: 'پیام حذف شد.',
+      hide: () => setNewColleagues((prev) => prev.map((nc) => ({ ...nc, wishes: nc.wishes?.filter((w) => w.id !== wishId) }))),
+      restore: () => void refresh('new_colleagues'),
+      commit: async () => (await attempt(() => api.delete(`/api/colleague_wishes/${wishId}`))) !== undefined,
+    });
   };
 
   const introduceColleague: PortalContextType['introduceColleague'] = async (userId, input) => {
@@ -1178,6 +1230,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         changePassword,
         completeProfile,
         isLoading,
+        isLoaded: (resource: LoadedResource) => loadedResources.has(resource),
         error,
         activeTab,
         focusId,
@@ -1217,6 +1270,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addTodo,
         updateTodo,
         deleteTodo,
+        removeTodo,
         myDueTodos,
         archiveDoneTodos,
         addPoll,
