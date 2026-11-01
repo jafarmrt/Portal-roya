@@ -4,6 +4,8 @@ import { usePortal } from '../../context/PortalContext';
 import { inputClass } from '../common/Modal';
 import { EmptyState, SkeletonRows } from '../common/Placeholder';
 import { TodoFormModal } from '../todos/TodoFormModal';
+import { AssignedTasksStrip } from '../tasks/AssignedTasksStrip';
+import { taskOpen } from '../../../shared/tasks';
 import { DueDateField, QuickDueDates } from '../todos/DueDateField';
 import { useTickTodo } from '../todos/useTickTodo';
 import { featureInPreview } from '../../lib/features';
@@ -22,7 +24,7 @@ const SHOWN = 5;
  * ask). Notes added from a news item, event, course or document link back to it.
  */
 export const PersonalTodosCard: React.FC = () => {
-  const { todos, addTodo, updateTodo, setActiveTab, appSettings, isLoaded } = usePortal();
+  const { todos, addTodo, updateTodo, setActiveTab, appSettings, isLoaded, featureOn, tasks } = usePortal();
   const tick = useTickTodo();
   const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -34,6 +36,8 @@ export const PersonalTodosCard: React.FC = () => {
   const [showDone, setShowDone] = useState(false);
 
   const today = todayJalali();
+  // Work colleagues handed over shows above the notes (see AssignedTasksStrip); the empty state then shrinks.
+  const hasAssigned = featureOn('tasks') && tasks.mine.some((t) => taskOpen(t.status));
   const open = todos.filter((t) => !t.doneAt);
   // Only what was ticked off today; earlier days are on the «یادداشت‌های من» page until archived.
   const done = todos.filter((t) => t.doneAt && toJalali(t.doneAt) === today).sort((a, b) => b.doneAt!.localeCompare(a.doneAt!));
@@ -130,8 +134,12 @@ export const PersonalTodosCard: React.FC = () => {
         </form>
       )}
 
+      <AssignedTasksStrip />
+
       {!isLoaded('todos') ? (
         <SkeletonRows rows={3} />
+      ) : open.length === 0 && hasAssigned ? (
+        <p className="text-xs text-muted">یادداشت شخصی بازی ندارید.</p>
       ) : open.length === 0 ? (
         <EmptyState
           compact

@@ -356,6 +356,7 @@ const FEATURE_RESOURCES: Record<FeatureKey, ResourceName[]> = {
   departmentPages: ['department_pages'],
   mood: ['moods'],
   todos: ['todos', 'notifications'],
+  tasks: ['tasks', 'notifications'],
   occasionThemes: [],
   dashboardLayout: [],
   onlineColleagues: ['presence', 'notifications'],

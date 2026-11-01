@@ -27,6 +27,7 @@ import {
   Library,
   MessageSquareText,
   NotebookPen,
+  ClipboardList,
   Ellipsis,
 } from 'lucide-react';
 import { unreadTotal, useSuggestionSummary } from '../lib/suggestionSummary';
@@ -220,7 +221,7 @@ function useFittingCount(count: number, signature: string) {
 }
 
 export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onCloseMobileNav }) => {
-  const { activeTab, setActiveTab, currentUser, isGuest, requestLogin, appSettings, can, isAdmin, polls, news, documents: portalDocuments, todos, featureOn } = usePortal();
+  const { activeTab, setActiveTab, currentUser, isGuest, requestLogin, appSettings, can, isAdmin, polls, news, documents: portalDocuments, todos, tasks, featureOn } = usePortal();
   useEscapeKey(onCloseMobileNav, isMobileNavOpen);
 
   // Read/vote badges are personal, so guests don't get them.
@@ -272,6 +273,18 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
   const todosItem: NavItem[] = isGuest
     ? []
     : [{ id: 'todos', label: 'یادداشت‌های من', icon: <NotebookPen className="w-4 h-4" />, compact: true }];
+  // Work colleagues handed to this person that still waits for an answer.
+  const newTaskCount = isGuest ? 0 : tasks.mine.filter(t => t.status === 'new').length;
+  const tasksItem: NavItem[] = isGuest
+    ? []
+    : [{
+        id: 'tasks',
+        label: 'کارهای ارجاعی',
+        icon: <ClipboardList className="w-4 h-4" />,
+        badge: newTaskCount > 0 ? `${toPersianDigits(newTaskCount)} تازه` : undefined,
+        badgeColor: 'bg-amber-400 text-amber-950',
+        compact: true
+      }];
   // Guests can't send, so the boxes are only in the menu of signed-in colleagues.
   const suggestions: NavItem[] = isGuest
     ? []
@@ -326,6 +339,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
     ...shown([training]).map((item): NavEntry => ({ kind: 'item', item })),
     { kind: 'item', item: calendar },
     ...shown(todosItem).map((item): NavEntry => ({ kind: 'item', item })),
+    ...shown(tasksItem).map((item): NavEntry => ({ kind: 'item', item })),
     ...shown(suggestions).map((item): NavEntry => ({ kind: 'item', item })),
   ];
   // «مدیریت» always stays at the end of the bar; what does not fit goes into «بیشتر» just before it.
@@ -354,7 +368,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
 
   // The phone drawer has room for everything, with management pages under their own heading.
   const mobileSections: { title?: string; items: NavItem[] }[] = [
-    { items: shown([dashboard, systems, newsItem, pollsItem, documents, guides, ...colleagueItems, training, calendar, ...todosItem, ...suggestions]) },
+    { items: shown([dashboard, systems, newsItem, pollsItem, documents, guides, ...colleagueItems, training, calendar, ...todosItem, ...tasksItem, ...suggestions]) },
     ...(adminItems.length > 0 ? [{ title: 'مدیریت', items: adminItems }] : []),
   ];
 

@@ -8,6 +8,7 @@ import { buildSearchResults } from '../lib/search';
 import { systemLink } from '../../shared/systemLinks';
 import { type FeatureKey, featureOfTab } from '../../shared/features';
 import type { TodoStep } from '../../shared/todos';
+import type { TaskAnswer } from '../../shared/tasks';
 import { featureOn as isFeatureOn } from '../lib/features';
 import type {
   ExternalSystem,
@@ -33,6 +34,8 @@ import type {
   PollInput,
   Permission,
   PersonalTodo,
+  AssignedTask,
+  TaskLists,
   Notice,
   PortalDocument,
   DocumentDetails,
@@ -63,7 +66,7 @@ const NETWORK_CHECK_MS = 3 * 60_000;
 export type SignInMethod = 'local' | 'ldap';
 
 /** The kinds of data the dashboard waits for before it may say "nothing here". */
-export type LoadedResource = 'news' | 'polls' | 'employees' | 'new_colleagues' | 'birthday_wishes' | 'trainings' | 'calendar' | 'notifications' | 'todos' | 'notices' | 'documents';
+export type LoadedResource = 'news' | 'polls' | 'employees' | 'new_colleagues' | 'birthday_wishes' | 'trainings' | 'calendar' | 'notifications' | 'todos' | 'tasks' | 'notices' | 'documents';
 
 export interface AccountInput {
   username: string;
@@ -210,6 +213,16 @@ interface PortalContextType {
   todayMoodSubmitted: boolean;
   /** This person's own to-do notes (empty for guests and while the part is hidden). */
   todos: PersonalTodo[];
+  /** «کارهای ارجاعی»: tasks handed to this person and by this person (empty for guests and while the part is hidden). */
+  tasks: TaskLists;
+  /** Hands a task to colleagues; resolves to true when it went. */
+  assignTask: (input: { title: string; note: string; dueDate: string; assigneeIds: string[] }) => Promise<boolean>;
+  /** The colleague a task went to accepts, declines, works on or finishes it. */
+  answerTask: (id: string, status: TaskAnswer, reply?: string) => Promise<boolean>;
+  /** The one who handed a task over changes every unfinished copy of it. */
+  editTask: (groupId: string, changes: { title: string; note: string; dueDate: string }) => Promise<boolean>;
+  /** Takes a task off this person's list (the one who handed it over takes back an unfinished one). */
+  removeTask: (task: AssignedTask) => Promise<boolean>;
   /** Notices on «تابلوی اعلانات» for this person right now (guests: those for everyone). */
   notices: Notice[];
   /** «دیدم» folds a notice away on this person's dashboard; false opens it again. */
@@ -320,11 +333,13 @@ interface PortalContextType {
   deleteNotification: (id: string) => Promise<void>;
 }
 
+const NO_TASKS: TaskLists = { mine: [], given: [] };
+
 const PortalContext = createContext<PortalContextType | undefined>(undefined);
 
 const VALID_TABS: ActiveTab[] = [
   'dashboard', 'polls', 'colleagues', 'orgchart', 'departments', 'search', 'news', 'documents', 'guides',
-  'training', 'calendar', 'notifications', 'systems', 'reports', 'people', 'admin', 'audit', 'suggestions', 'todos',
+  'training', 'calendar', 'notifications', 'systems', 'reports', 'people', 'admin', 'audit', 'suggestions', 'todos', 'tasks',
 ];
 
 /** Ids in the address are encoded, since a department's page is named by the department. */
@@ -392,6 +407,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [userMoods, setUserMoods] = useState<UserMood[]>([]);
   const [todos, setTodos] = useState<PersonalTodo[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [tasks, setTasks] = useState<TaskLists>(NO_TASKS);
   const [roles, setRoles] = useState<RoleInfo[]>([]);
   const newsCount = useRef(NEWS_PAGE_SIZE);
 
@@ -529,6 +545,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       moods: () => api.get<UserMood[]>('/api/moods/me').then(setUserMoods),
       todos: () => api.get<PersonalTodo[]>('/api/todos').then(setTodos),
       notices: () => api.get<Notice[]>('/api/notices').then(setNotices),
+      tasks: () => api.get<TaskLists>('/api/tasks').then(setTasks),
       roles: () => api.get<RoleInfo[]>('/api/roles').then(setRoles),
       // An admin may change this user's role or the role's permissions at any time.
       me: () => api.get<{ user: CurrentUser }>('/api/auth/me').then(({ user }) => setCurrentUser(user)),
@@ -553,14 +570,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setError(null);
     // A new session (signing in, or out to the guest view) loads everything again.
     // A guest has no personal lists, so those count as loaded (and empty) at once.
-    setLoadedResources(new Set(sessionKey ? ['settings'] : ['settings', 'notifications', 'moods', 'todos', 'me']));
+    setLoadedResources(new Set(sessionKey ? ['settings'] : ['settings', 'notifications', 'moods', 'todos', 'tasks', 'me']));
     // Guests only load the shared, read-only content; personal data comes after sign-in.
-    const { notifications: loadNotifications, moods: loadMoods, todos: loadTodos, me: loadMe, ...shared } = loaders;
-    const toLoad = sessionKey ? [...Object.values(shared), loadNotifications, loadMoods, loadTodos, loadMe] : Object.values(shared);
+    const { notifications: loadNotifications, moods: loadMoods, todos: loadTodos, tasks: loadTasks, me: loadMe, ...shared } = loaders;
+    const toLoad = sessionKey ? [...Object.values(shared), loadNotifications, loadMoods, loadTodos, loadTasks, loadMe] : Object.values(shared);
     if (!sessionKey) {
       setNotifications([]);
       setUserMoods([]);
       setTodos([]);
+      setTasks(NO_TASKS);
     }
     Promise.all(toLoad.map((load) => load()))
       .catch((err) => setError(errorMessage(err)))
@@ -759,6 +777,30 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (result) setUserMoods((prev) => [result.mood, ...prev.filter((m) => m.date !== result.mood.date)]);
   };
   const todayMoodSubmitted = userMoods.some((m) => m.date === todayJalali());
+
+  const assignTask: PortalContextType['assignTask'] = async (input) => {
+    const created = await attempt(() => api.post<AssignedTask[]>('/api/tasks', input), 'کار سپرده شد.');
+    if (created) setTasks((prev) => ({ ...prev, given: [...prev.given, ...created] }));
+    return Boolean(created);
+  };
+  const answerTask: PortalContextType['answerTask'] = async (id, status, reply) => {
+    const updated = await attempt(() => api.post<AssignedTask>(`/api/tasks/${id}/status`, { status, reply }));
+    if (updated) setTasks((prev) => ({ ...prev, mine: prev.mine.map((t) => (t.id === id ? updated : t)) }));
+    return Boolean(updated);
+  };
+  const editTask: PortalContextType['editTask'] = async (groupId, changes) => {
+    const updated = await attempt(() => api.patch<AssignedTask[]>(`/api/tasks/groups/${groupId}`, changes), 'تغییرها ذخیره شد.');
+    if (updated) {
+      const byId = new Map(updated.map((t) => [t.id, t]));
+      setTasks((prev) => ({ ...prev, given: prev.given.map((t) => byId.get(t.id) ?? t) }));
+    }
+    return Boolean(updated);
+  };
+  const removeTask: PortalContextType['removeTask'] = async (task) => {
+    const ok = await attempt(() => api.delete(`/api/tasks/${task.id}`).then(() => true));
+    if (ok) setTasks((prev) => ({ mine: prev.mine.filter((t) => t.id !== task.id), given: prev.given.filter((t) => t.id !== task.id) }));
+    return Boolean(ok);
+  };
 
   const addTodo: PortalContextType['addTodo'] = async (input) => {
     const created = await attempt(() => api.post<PersonalTodo>('/api/todos', input), 'به یادداشت‌های شما اضافه شد.');
@@ -1268,6 +1310,11 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         userMoods,
         todayMoodSubmitted,
         todos,
+        tasks,
+        assignTask,
+        answerTask,
+        editTask,
+        removeTask,
         notices,
         setNoticeSeen,
         reloadNotices,
