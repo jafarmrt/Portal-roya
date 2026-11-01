@@ -20,6 +20,7 @@ export type ResourceName =
   | 'notifications'
   | 'moods'
   | 'todos'
+  | 'tasks'
   | 'notices'
   | 'presence';
 

@@ -16,6 +16,7 @@ import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
 import type { KudosEmoji } from '../../shared/kudos.js';
 import type { MonthlySummary } from '../../shared/reports.js';
 import type { SuggestionBoxNames } from '../../shared/suggestions.js';
+import type { TaskStatus } from '../../shared/tasks.js';
 import type { TodoRemind, TodoRepeat, TodoStep } from '../../shared/todos.js';
 
 export type { AuditAction, AuditEntity };
@@ -788,6 +789,35 @@ export const personalTodos = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('personal_todos_user_idx').on(t.userId)],
+);
+
+/**
+ * «کارهای ارجاعی»: work one colleague hands to another. One row per person it went to; a task sent to
+ * several colleagues at once shares a group id. Only the two people on a row ever read it.
+ */
+export const assignedTasks = pgTable(
+  'assigned_tasks',
+  {
+    id: text('id').primaryKey(),
+    groupId: text('group_id').notNull(),
+    assignerId: text('assigner_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    assigneeId: text('assignee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    note: text('note').notNull().default(''),
+    dueDate: text('due_date').notNull(), // Jalali YYYY/MM/DD
+    status: text('status').$type<TaskStatus>().notNull().default('new'),
+    // The short answer that came with the last status (why it was declined, what was done).
+    reply: text('reply').notNull().default(''),
+    statusAt: timestamp('status_at', { withTimezone: true }),
+    // The Jalali day the due-date reminder went out, so it is sent once.
+    remindedOn: text('reminded_on'),
+    // Each side takes a finished task off its own list; the row goes once both have.
+    assignerHiddenAt: timestamp('assigner_hidden_at', { withTimezone: true }),
+    assigneeHiddenAt: timestamp('assignee_hidden_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('assigned_tasks_assignee_idx').on(t.assigneeId), index('assigned_tasks_assigner_idx').on(t.assignerId)],
 );
 
 /** Ready-made emoji colleagues sent each other from «همکاران آنلاین». */

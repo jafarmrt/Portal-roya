@@ -26,6 +26,7 @@ import { reportsRouter } from './routes/reports.js';
 import { auditRouter } from './routes/audit.js';
 import { suggestionsRouter } from './routes/suggestions.js';
 import { todosRouter } from './routes/todos.js';
+import { tasksRouter } from './routes/tasks.js';
 import { kudosRouter } from './routes/kudos.js';
 import { reactionsRouter } from './routes/reactions.js';
 import { noticesRouter } from './routes/notices.js';
@@ -92,6 +93,7 @@ export function createApp() {
   api.use(auditRouter);
   api.use(suggestionsRouter);
   api.use(todosRouter);
+  api.use(tasksRouter);
   api.use(kudosRouter);
   api.use(reactionsRouter);
   api.use(noticesRouter);

@@ -37,8 +37,9 @@ describe('switching parts of the portal off until they are introduced', () => {
 
   it('shows every part, new ones included, to everyone until an administrator switches it off', async () => {
     const settings = (await colleague.agent.get('/api/settings').expect(200)).body;
-    expect(FEATURES.every((f) => f.defaultState === 'on')).toBe(true);
-    expect(Object.keys(settings.features).sort()).toEqual(FEATURES.map((f) => f.key).sort());
+    // «کارهای ارجاعی» alone starts in preview, to be tried with one unit first; colleagues do not see it.
+    expect(FEATURES.filter((f) => f.defaultState !== 'on').map((f) => f.key)).toEqual(['tasks']);
+    expect(Object.keys(settings.features).sort()).toEqual(FEATURES.map((f) => f.key).filter((k) => k !== 'tasks').sort());
     expect(Object.values(settings.features).every((s) => s === 'on')).toBe(true);
     // Parts that were never launched from the settings page carry no «جدید» badge or introduction card.
     expect(settings.featureNews).toEqual([]);

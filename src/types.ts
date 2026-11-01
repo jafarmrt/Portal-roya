@@ -4,6 +4,7 @@ import type { WishDesign, WishOccasion } from '../shared/celebrations';
 import type { FeatureKey } from '../shared/features';
 import type { SuggestionBoxNames } from '../shared/suggestions';
 import type { Permission } from '../shared/permissions';
+import type { TaskStatus } from '../shared/tasks';
 import type { TodoRemind, TodoRepeat, TodoSourceType, TodoStep } from '../shared/todos';
 import type { KudosEmoji } from '../shared/kudos';
 
@@ -515,7 +516,7 @@ export interface CalendarRsvpRow {
   respondedAt: string | null;
 }
 
-export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system' | 'suggestion' | 'todo' | 'kudos' | 'notice';
+export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system' | 'suggestion' | 'todo' | 'kudos' | 'notice' | 'task';
 
 export interface NotificationItem {
   id: string;
@@ -657,7 +658,8 @@ export type ActiveTab =
   | 'admin'
   | 'audit'
   | 'suggestions'
-  | 'todos';
+  | 'todos'
+  | 'tasks';
 
 export interface SearchResultItem {
   id: string;
@@ -693,6 +695,41 @@ export interface PersonalTodo {
   /** Set once the person moved the done note to «آرشیو»; such notes are not in the page's list. */
   archivedAt: string | null;
   createdAt: string;
+}
+
+/** Someone on a task of «کارهای ارجاعی». */
+export interface TaskPerson {
+  id: string;
+  name: string;
+  avatarUrl: string;
+  position: string;
+  department: string;
+}
+
+/** One colleague's copy of a task handed to them in «کارهای ارجاعی»; only the two people on it see it. */
+export interface AssignedTask {
+  id: string;
+  /** Shared by the copies of a task handed to several colleagues at once. */
+  groupId: string;
+  title: string;
+  note: string;
+  /** Jalali YYYY/MM/DD. */
+  dueDate: string;
+  status: TaskStatus;
+  /** The short answer that came with the last status, e.g. why it was declined. */
+  reply: string;
+  statusAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  from: TaskPerson;
+  to: TaskPerson;
+}
+
+export interface TaskLists {
+  /** Handed to this person. */
+  mine: AssignedTask[];
+  /** Handed out by this person. */
+  given: AssignedTask[];
 }
 
 export interface TodoInput {
