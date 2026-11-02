@@ -453,6 +453,8 @@
 .rich-text th, .rich-text td { border: 1px solid var(--color-line-strong); padding: 0.4em 0.7em; text-align: right; vertical-align: top; min-width: 4em; }
 .rich-text th { background: var(--color-surface); font-weight: 800; }
 .rich-text td > p, .rich-text th > p { margin: 0; }
+.department-about h2, .department-about h3 { scroll-margin-top: 9rem; }
+.rich-text .search-hit { background: color-mix(in srgb, #f59e0b 22%, transparent); border-radius: 0.5rem; outline: 4px solid color-mix(in srgb, #f59e0b 22%, transparent); transition: background 0.6s; }
 .rich-text .selectedCell { background: #FEE2E2; }
 .rich-text-editor .ProseMirror { outline: none; min-height: 14rem; padding: 0.75rem 1rem; }
 .rich-text-editor .ProseMirror p.is-editor-empty:first-child::before {

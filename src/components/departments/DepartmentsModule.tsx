@@ -1,14 +1,14 @@
-import React, { lazy, Suspense, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Building2, ChevronLeft, ExternalLink, FileText, LifeBuoy, Newspaper, Pencil, Phone, Search, Users } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { formatDate, toPersianDigits } from '../../lib/jalali';
+import { aboutHits, aboutSummary, aboutTopics } from '../../lib/departmentAbout';
 import { htmlToText, matches } from '../../lib/search';
 import type { DepartmentPage, UserProfile } from '../../types';
 import { Avatar } from '../common/Avatar';
 import { loadModule } from '../common/ErrorBoundary';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { OwnerSelect } from '../documents/DocumentModals';
-import { NewsContent } from '../news/NewsBody';
 import { SystemIcon } from '../systems/SystemIcon';
 
 const RichTextEditor = lazy(loadModule(() => import('../news/RichTextEditor')));
@@ -73,6 +73,71 @@ const EditPageModal: React.FC<{ department: string; page?: DepartmentPage; onClo
         </div>
       </form>
     </Modal>
+  );
+};
+
+/** What was searched on the list when a department was opened from it, to point at the matching line on its page. */
+let openedWithQuery = { department: '', query: '', at: 0 };
+
+/**
+ * The department's own text with a row of its topics to jump to, so a long page (like HR's)
+ * reads as sections; opened from a search, the first matching line is shown and marked.
+ */
+const AboutContent: React.FC<{ department: string; html: string }> = ({ department, html }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [topics, setTopics] = useState<{ id: string; text: string }[]>([]);
+
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    // Filled here rather than by React, so the topic ids and the search mark below are not undone by a re-render.
+    // The text is cleaned on the server when it is saved, as for news.
+    root.innerHTML = html;
+    const small = root.querySelectorAll<HTMLElement>('h3');
+    const headings = small.length > 0 ? small : root.querySelectorAll<HTMLElement>('h2');
+    const found = [...headings]
+      .map((h, i) => {
+        h.id = `department-topic-${i}`;
+        return { id: h.id, text: (h.textContent ?? '').trim() };
+      })
+      .filter((t) => t.text);
+    setTopics(found.length >= 3 ? found : []);
+
+    // The page can mount more than once while it opens, so the search is kept for a few seconds rather than used up.
+    const opened = openedWithQuery;
+    const query = opened.department === department && Date.now() - opened.at < 5000 ? opened.query : '';
+    if (query.trim().length < 2) return;
+    const hit = [...root.querySelectorAll<HTMLElement>('li, p, td')].find(
+      (el) => !el.querySelector('li, p') && matches(query, el.textContent),
+    );
+    if (!hit) return;
+    const mark = hit.closest('li') ?? hit;
+    mark.classList.add('search-hit');
+    mark.scrollIntoView({ block: 'center' });
+    const timer = window.setTimeout(() => mark.classList.remove('search-hit'), 6000);
+    return () => window.clearTimeout(timer);
+  }, [department, html]);
+
+  const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  return (
+    <>
+      {topics.length > 0 && (
+        <nav aria-label="موضوع‌های این صفحه" className="-mx-1 px-1 flex gap-2 overflow-x-auto no-scrollbar sm:flex-wrap">
+          {topics.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => jump(t.id)}
+              className="shrink-0 px-3 py-1.5 rounded-full border border-line bg-surface-soft text-xs font-bold text-ink-soft hover:border-red-300 hover:text-red-700 whitespace-nowrap"
+            >
+              {t.text}
+            </button>
+          ))}
+        </nav>
+      )}
+      <div ref={ref} className="rich-text text-sm department-about" />
+    </>
   );
 };
 
@@ -157,7 +222,7 @@ const DepartmentView: React.FC<{ department: string }> = ({ department }) => {
             <SectionTitle icon={<Building2 className="w-4 h-4" />}>برای چه کارهایی به ما مراجعه کنید</SectionTitle>
             {page?.about ? (
               <>
-                <NewsContent content={page.about} format="html" className="text-sm" />
+                <AboutContent department={department} html={page.about} />
                 <p className="text-xs text-faint">به‌روز شده {formatDate(page.updatedAt)}{page.updatedBy && ` · ${page.updatedBy}`}</p>
               </>
             ) : (
@@ -264,6 +329,11 @@ export const DepartmentsModule: React.FC = () => {
   const [query, setQuery] = useState('');
   const departments = appSettings?.departments ?? [];
   const abouts = useMemo(() => new Map(departmentPages.map((p) => [p.department, htmlToText(p.about)])), [departmentPages]);
+  const previews = useMemo(
+    () => new Map(departmentPages.map((p) => [p.department, { summary: aboutSummary(p.about), topics: aboutTopics(p.about) }])),
+    [departmentPages],
+  );
+  const searching = query.trim().length >= 2;
 
   if (focusId && departments.includes(focusId)) return <DepartmentView key={focusId} department={focusId} />;
 
@@ -307,20 +377,46 @@ export const DepartmentsModule: React.FC = () => {
             const head = page?.headId ? employees.find((e) => e.id === page.headId) : undefined;
             const count = employees.filter((e) => e.isActive && e.department === d).length;
             const guideCount = guides.filter((g) => g.department === d).length;
-            const about = abouts.get(d) ?? '';
+            const { summary, topics } = previews.get(d) ?? { summary: '', topics: [] };
+            const hits = searching && page ? aboutHits(page.about, query) : [];
+            const shownTopics = topics.slice(0, 4);
             return (
               <li key={d}>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('departments', d)}
+                  onClick={() => {
+                    openedWithQuery = { department: d, query: hits.length > 0 ? query : '', at: Date.now() };
+                    setActiveTab('departments', d);
+                  }}
                   className="w-full h-full text-right bg-white p-5 rounded-3xl border border-line/70 shadow-card hover:border-red-400 hover:shadow-md transition-all flex flex-col gap-3"
                 >
                   <span className="flex items-center justify-between gap-2">
                     <span className="text-base font-black text-ink">{d}</span>
                     <ChevronLeft className="w-4 h-4 text-faint" />
                   </span>
-                  {about && <span className="block text-xs text-ink-soft leading-relaxed line-clamp-2">{about}</span>}
-                  <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                  {summary && <span className="text-xs text-ink-soft leading-relaxed line-clamp-3">{summary}</span>}
+                  {hits.length > 0 ? (
+                    <span className="flex flex-col gap-1.5" aria-label="یافته در صفحهٔ واحد">
+                      {hits.map((h) => (
+                        <span key={h.text} className="block p-2 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950 leading-relaxed">
+                          {h.text}
+                          {h.topic && <span className="block text-amber-800/80 mt-0.5">در «{h.topic}»</span>}
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    shownTopics.length > 0 && (
+                      <span className="flex flex-wrap gap-1.5" aria-label="موضوع‌ها">
+                        {shownTopics.map((t) => (
+                          <span key={t} className="px-2 py-0.5 rounded-full bg-surface text-xs text-ink-soft max-w-full truncate">{t}</span>
+                        ))}
+                        {topics.length > shownTopics.length && (
+                          <span className="px-2 py-0.5 text-xs text-muted">و {toPersianDigits(topics.length - shownTopics.length)} موضوع دیگر</span>
+                        )}
+                      </span>
+                    )
+                  )}
+                  <span className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                     {head && <span>مسئول: <strong className="text-ink">{head.firstName} {head.lastName}</strong></span>}
                     <span>{toPersianDigits(count)} همکار</span>
                     {guideCount > 0 && <span>{toPersianDigits(guideCount)} راهنما</span>}
