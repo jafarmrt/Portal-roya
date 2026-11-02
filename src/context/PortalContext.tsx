@@ -10,6 +10,7 @@ import { type FeatureKey, featureOfTab } from '../../shared/features';
 import type { TodoStep } from '../../shared/todos';
 import type { TaskAnswer } from '../../shared/tasks';
 import { featureOn as isFeatureOn } from '../lib/features';
+import { disablePushHere, showLocal } from '../lib/push';
 import type {
   ExternalSystem,
   ActiveTab,
@@ -464,6 +465,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const logout = async () => {
+    // A shared computer must not show the next person's colleague notifications of this one.
+    await disablePushHere();
     await api.post('/api/auth/logout').catch(() => undefined);
     setCurrentUser(null);
     toast.success('از حساب کاربری خود خارج شدید');
@@ -498,6 +501,19 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCurrentUser(user);
   };
 
+  // A click on a device notification while the portal is open: go to its page here.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string; url?: string } | null;
+      if (data?.type !== 'open-link' || !data.url) return;
+      const url = new URL(data.url, window.location.origin);
+      if (url.origin === window.location.origin && url.hash) window.location.hash = url.hash;
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, []);
+
   // --- Navigation ---
 
   useEffect(() => {
@@ -516,6 +532,21 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // --- Loaders ---
 
   const [loadedResources, setLoadedResources] = useState<ReadonlySet<string>>(() => new Set());
+
+  // New notifications also go to the device while the portal is open in the background (no internet needed).
+  const knownNotificationIds = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!currentUser) {
+      knownNotificationIds.current = null;
+      return;
+    }
+    if (!loadedResources.has('notifications')) return;
+    const known = knownNotificationIds.current;
+    knownNotificationIds.current = new Set(notifications.map((n) => n.id));
+    // The first list after sign-in is old news.
+    if (known) void showLocal(notifications.filter((n) => !n.isRead && !known.has(n.id)));
+  }, [notifications, currentUser, loadedResources]);
+
   const markLoaded = useCallback(
     (resource: string) => setLoadedResources((prev) => (prev.has(resource) ? prev : new Set(prev).add(resource))),
     [],

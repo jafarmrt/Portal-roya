@@ -24,7 +24,7 @@ import { audit } from '../audit.js';
 import { claimPhoneBookEntry, phoneBookMatches } from '../claim.js';
 import { config } from '../config.js';
 import { db } from '../db/index.js';
-import { employees } from '../db/schema.js';
+import { employees, pushSubscriptions } from '../db/schema.js';
 import { departmentList, ensureDepartment, requireDepartment } from '../departments.js';
 import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, newId, parse, route } from '../http.js';
@@ -349,6 +349,8 @@ authRouter.post(
   route(async (req, res) => {
     const user = currentUser(req);
     await db.update(employees).set({ sessionVersion: sql`${employees.sessionVersion} + 1` }).where(eq(employees.id, user.id));
+    // A lost phone must not keep showing their notifications either.
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, user.id));
     clearSession(res);
     res.json({ success: true });
   }),

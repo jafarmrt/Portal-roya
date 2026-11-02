@@ -4,6 +4,7 @@ import { db } from './db/index.js';
 import { employees, notifications } from './db/schema.js';
 import { notifyUsers } from './events.js';
 import { sendMail } from './mailer.js';
+import { pushToUsers } from './push.js';
 import { type Audience, EVERYONE, inAudience } from '../shared/audience.js';
 
 export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system' | 'suggestion' | 'todo' | 'kudos' | 'notice' | 'task';
@@ -50,6 +51,8 @@ export async function createNotifications(requested: string[], input: Notificati
     })),
   );
   notifyUsers(userIds);
+  // Phones and computers too; slow push services never hold up the bell.
+  void pushToUsers(userIds, input);
 
   if (options.email) {
     const recipients = await db

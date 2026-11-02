@@ -49,7 +49,8 @@ export const settingsRouter = Router();
  * newly introduced ones they have not opened yet. The pilot group is only for the settings page.
  */
 export function publicSettings(row: typeof settings.$inferSelect, viewer: SessionUser | null) {
-  const { features: states, featureLaunches, pilotRoles, pilotUserIds, ...rest } = row;
+  // The push keys never leave the server (the public half is served by /push to those who use it).
+  const { features: states, featureLaunches, pilotRoles, pilotUserIds, vapidPublicKey: _vapidPublic, vapidPrivateKey: _vapidPrivate, ...rest } = row;
   const banner = rest.banner && new Date(rest.banner.expiresAt) > new Date() ? rest.banner : null;
   const config = { states, pilotRoles, pilotUserIds };
   const features: Partial<Record<FeatureKey, 'preview' | 'on'>> = {};
@@ -362,6 +363,7 @@ const FEATURE_RESOURCES: Record<FeatureKey, ResourceName[]> = {
   onlineColleagues: ['presence', 'notifications'],
   noticeBoard: ['notices', 'notifications'],
   firstWeek: [],
+  pushNotifications: [],
 };
 
 function broadcastFeatures(keys: FeatureKey[]) {

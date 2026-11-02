@@ -137,6 +137,8 @@ export const employees = pgTable('employees', {
   acceptKudos: boolean('accept_kudos').notNull().default(true),
   /** Steps of «هفتهٔ اول من» the colleague ticked (and 'closed' once they closed the list). */
   firstWeekDone: text('first_week_done').array().notNull().default([]),
+  /** Kinds of notification (shared/push.ts) the colleague does not want on their phone or computer; [] = all of them. */
+  pushMuted: text('push_muted').array().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -545,6 +547,23 @@ export const notifications = pgTable(
   (t) => [index('notifications_user_idx').on(t.userId, t.createdAt)],
 );
 
+/** A phone or computer browser that shows the colleague's notifications outside the portal (Web Push). */
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    // The browser's push address is unique to that browser; signing in as someone else moves it to them.
+    endpoint: text('endpoint').primaryKey(),
+    userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    // A short device name for the colleague's list, e.g. «Chrome روی اندروید».
+    device: text('device').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastSentAt: timestamp('last_sent_at', { withTimezone: true }),
+  },
+  (t) => [index('push_subscriptions_user_idx').on(t.userId)],
+);
+
 export const documents = pgTable('documents', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
@@ -696,6 +715,9 @@ export const settings = pgTable('settings', {
   kudosEmojis: jsonb('kudos_emojis').$type<KudosEmoji[]>().notNull().default([]),
   // Steps the administrator adds to every new colleague's «هفتهٔ اول من» list.
   firstWeekSteps: text('first_week_steps').array().notNull().default([]),
+  // The portal's own key pair for notifications on phones and computers (Web Push, VAPID); made on first start.
+  vapidPublicKey: text('vapid_public_key').notNull().default(''),
+  vapidPrivateKey: text('vapid_private_key').notNull().default(''),
 });
 
 /** Who created, changed or deleted what in the portal's content, accounts and settings, for the admin. */
