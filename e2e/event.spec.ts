@@ -247,4 +247,31 @@ test.describe('special event', () => {
     await page.getByRole('tab', { name: 'تنظیمات' }).click();
     await page.getByLabel('امتحان صفحه در مرحلهٔ').selectOption('');
   });
+  test('the night: a schedule, a fal for oneself and one for the hall', async ({ page }) => {
+    await page.goto('/#event');
+    const schedule = page.locator('#event-schedule');
+    await schedule.getByRole('button', { name: 'نوشتن برنامه' }).click();
+    await schedule.getByRole('button', { name: 'بخش تازه' }).click();
+    await schedule.getByLabel('ساعت بخش ۱').fill('۱۸:۰۰');
+    await schedule.getByLabel('عنوان بخش ۱').fill('شام');
+    await schedule.getByRole('button', { name: 'بخش تازه' }).click();
+    await schedule.getByLabel('ساعت بخش ۲').fill('15:00');
+    await schedule.getByLabel('عنوان بخش ۲').fill('خوش‌آمد');
+    await schedule.getByRole('button', { name: 'ذخیرهٔ برنامه' }).click();
+    // Kept in time order.
+    await expect(schedule.getByRole('listitem').first()).toContainText('۱۵:۰۰خوش‌آمد');
+    await expect(schedule.getByRole('listitem').nth(1)).toContainText('شام');
+
+    await page.getByRole('tab', { name: 'آهنگ‌ها و ایده‌ها' }).click();
+    const fal = page.getByRole('region', { name: 'فال حافظ' });
+    await fal.getByRole('button', { name: 'نیت کردم، فال بگیر' }).click();
+    await expect(fal.getByRole('button', { name: 'نیت کردم، فال بگیر' })).toBeHidden();
+    await expect(fal).toContainText('۱ نفر فال گرفته‌اند');
+
+    await page.getByRole('tab', { name: 'ریموت صفحهٔ بزرگ' }).click();
+    await page.getByRole('button', { name: 'فال حافظ' }).click();
+    await expect(page.getByRole('button', { name: 'فال حافظ', pressed: true })).toBeVisible();
+    await page.getByRole('button', { name: 'برنامهٔ امشب' }).click();
+    await expect(page.getByRole('button', { name: 'برنامهٔ امشب', pressed: true })).toBeVisible();
+  });
 });

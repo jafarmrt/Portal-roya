@@ -831,3 +831,13 @@ html[data-text-size='larger'] {
   font-size: 125%;
 }
 
+
+/* «پاکت انتخاب‌ها» and «فال حافظ» on the big screen: the opened card grows out of the envelope. */
+@keyframes envelope-open {
+  0% { opacity: 0; transform: scale(0.6) translateY(4vw); }
+  60% { opacity: 1; transform: scale(1.06) translateY(0); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*='envelope-open'] { animation: none !important; }
+}

@@ -7,6 +7,7 @@ import type {
   Format,
   IdeaKind,
   RankBy,
+  ScheduleItem,
   Scoring,
   ScreenState,
   StagePolicy,
@@ -46,6 +47,8 @@ export interface EventInfo {
   juryPhotos: Record<string, string>;
   /** «چند دانه؟»: empty when the event has no such game. */
   guessQuestion: string;
+  /** «برنامهٔ امشب», in time order. */
+  schedule: ScheduleItem[];
   /** Only for organizers and jurors. */
   screen: ScreenState | null;
 }
@@ -238,6 +241,8 @@ export interface EventView {
   ideas: EventIdea[];
   predictions: EventPredictions;
   guess: EventGuess | null;
+  /** «فال حافظ»: this viewer's verse (an index in HAFEZ_FAL), once drawn. */
+  fal: { mine: number | null; count: number; open: boolean };
   serverNow: string;
 }
 

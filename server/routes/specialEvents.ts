@@ -31,6 +31,7 @@ import {
   RESULT_UNDO_MS,
   SCORINGS,
   SCREEN_CODE_MINUTES,
+  HAFEZ_FAL,
   SCREEN_SCENES,
   SCREEN_SESSION_HOURS,
   type ScreenState,
@@ -376,6 +377,7 @@ export async function eventView(ev: EventRow, viewer: Viewer) {
       juryHeadId: ev.juryHeadId,
       juryPhotos: ev.juryPhotos,
       guessQuestion: ev.guessQuestion,
+      schedule: [...ev.schedule].sort((a, b) => a.time.localeCompare(b.time)),
       screen: roles.referee ? (ev.screen ?? DEFAULT_SCREEN) : null,
     },
     me: roles,
@@ -436,6 +438,7 @@ export async function eventView(ev: EventRow, viewer: Viewer) {
     ideas: funPart.ideas,
     predictions: gamesPart.predictions,
     guess: gamesPart.guess,
+    fal: gamesPart.fal,
     serverNow: now.toISOString(),
   };
 }
@@ -1752,6 +1755,8 @@ const screenSchema = z.object({
   competitionId: z.string().nullable().optional(),
   matchId: z.string().nullable().optional(),
   caption: z.string().trim().max(120).optional(),
+  awardId: z.string().max(100).nullable().optional(),
+  falIndex: z.number().int().min(0).max(HAFEZ_FAL.length - 1).nullable().optional(),
 });
 
 export async function saveScreen(ev: EventRow, screen: ScreenState) {
@@ -1773,6 +1778,8 @@ specialEventsRouter.put(
       competitionId: input.competitionId ?? null,
       matchId: input.matchId ?? null,
       caption: input.caption ?? '',
+      awardId: input.awardId ?? null,
+      falIndex: input.falIndex ?? null,
       version: current.version + 1,
     };
     await saveScreen(ev, screen);

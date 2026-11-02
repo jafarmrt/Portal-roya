@@ -15,7 +15,7 @@ import type { AuditAction, AuditEntity } from '../../shared/audit.js';
 import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
 import type { KudosEmoji } from '../../shared/kudos.js';
 import type { MonthlySummary } from '../../shared/reports.js';
-import type { EntryKind, EventPhase, EventStatus, EventTheme, Format, IdeaKind, RankBy, Scoring, ScreenState, StagePolicy, TieRule } from '../../shared/specialEvents.js';
+import type { EntryKind, EventPhase, EventStatus, EventTheme, Format, IdeaKind, RankBy, ScheduleItem, Scoring, ScreenState, StagePolicy, TieRule } from '../../shared/specialEvents.js';
 import type { SuggestionBoxNames } from '../../shared/suggestions.js';
 import type { TaskStatus } from '../../shared/tasks.js';
 import type { TodoRemind, TodoRepeat, TodoStep } from '../../shared/todos.js';
@@ -947,6 +947,8 @@ export const specialEvents = pgTable('special_events', {
   guessQuestion: text('guess_question').notNull().default(''),
   guessAnswer: integer('guess_answer'),
   guessRevealedAt: timestamp('guess_revealed_at', { withTimezone: true }),
+  // «برنامهٔ امشب»: what happens when on the night, shown on the page and the big screen.
+  schedule: jsonb('schedule').$type<ScheduleItem[]>().notNull().default([]),
   activatedAt: timestamp('activated_at', { withTimezone: true }),
   createdById: text('created_by_id').references(() => employees.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -1268,6 +1270,18 @@ export const eventGuesses = pgTable(
     value: integer('value').notNull(),
     // The last change: of two equally close guesses, the earlier one wins.
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.eventId, t.employeeId] })],
+);
+
+/** «فال حافظ»: the one verse each colleague drew on an event (one fal a night). */
+export const eventFals = pgTable(
+  'event_fals',
+  {
+    eventId: text('event_id').notNull().references(() => specialEvents.id, { onDelete: 'cascade' }),
+    employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    verse: integer('verse').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.eventId, t.employeeId] })],
 );
