@@ -5,7 +5,8 @@ import { CompetitionBoard } from './Standings';
 import { JuryStrip, countdownText } from './EventParts';
 import { EntryPicture, PersonAvatar, YALDA, entryName, heroStyle, isReady, performanceLine, scoreLine, sidesLine } from './eventUi';
 import { playChime } from '../../lib/sound';
-import { programStart, rankingTable, timerLeft, type ScreenState } from '../../../shared/specialEvents';
+import { HAFEZ_FAL, programStart, rankingTable, timerLeft, type ScreenState } from '../../../shared/specialEvents';
+import { Couplet, useScheduleNow } from './NightSection';
 import { toPersianDigits } from '../../lib/jalali';
 import type { EventCompetition, EventView } from './types';
 
@@ -153,6 +154,98 @@ const PredictionLine: React.FC<{ view: EventView; competition: EventCompetition;
     </p>
   );
 };
+
+/** «برنامهٔ امشب»: the evening's items, the one on now lit up. */
+const ScheduleScene: React.FC<{ view: EventView; offset: number }> = ({ view, offset }) => {
+  const { ordered, current, next } = useScheduleNow(view, offset);
+  return (
+    <Big className="justify-start pt-[3vw]">
+      <h2 className="text-[4vw] font-black">برنامهٔ امشب</h2>
+      <ol className="w-full max-w-[70vw] space-y-[0.7vw] text-right">
+        {ordered.map((item) => {
+          const now = current?.id === item.id;
+          const past = Boolean(current && item.time < current.time);
+          return (
+            <li
+              key={item.id}
+              className={`rounded-[1.4vw] px-[1.8vw] py-[0.8vw] flex items-center gap-[2vw] text-[2.3vw] ${now ? 'bg-white/20 ring-[0.3vw] ring-amber-300' : 'bg-white/5'} ${past ? 'opacity-45' : ''}`}
+            >
+              <span className="w-[8vw] shrink-0 font-black tabular-nums" style={{ color: YALDA.gold }}>
+                {toPersianDigits(item.time)}
+              </span>
+              <span className={`flex-1 min-w-0 truncate ${now ? 'font-black' : 'font-bold'}`}>{item.title}</span>
+              {now && <span className="text-[1.6vw] font-black px-[1vw] py-[0.2vw] rounded-full bg-amber-300 text-amber-950">الان</span>}
+              {next?.id === item.id && <span className="text-[1.6vw] font-bold opacity-80">بعدی</span>}
+            </li>
+          );
+        })}
+      </ol>
+    </Big>
+  );
+};
+
+/** «پاکت انتخاب‌ها»: the sealed envelope with the shortlist, then the winner once it is opened. */
+const EnvelopeScene: React.FC<{ view: EventView; awardId: string | null | undefined }> = ({ view, awardId }) => {
+  const award = view.awards.find((a) => a.id === awardId);
+  if (!award) return <Big><p className="text-[4vw] font-black">پاکت بعدی به‌زودی…</p></Big>;
+  const winner = award.stage === 'revealed' && award.winnerId ? view.people[award.winnerId] : null;
+  const photo = (p: EventView['people'][string] | undefined) => (p?.avatarUrl ? fileUrl(p.avatarUrl) : undefined);
+  return (
+    <Big>
+      <p className="text-[2.6vw] font-bold" style={{ color: YALDA.gold }}>
+        {award.icon} {award.title}
+      </p>
+      {award.stage === 'revealed' ? (
+        winner ? (
+          <div key="open" className="flex flex-col items-center gap-[1.5vw] animate-[envelope-open_900ms_ease-out]">
+            <p className="text-[5vw] leading-none" aria-hidden>
+              ✉️🎉✨
+            </p>
+            <PersonAvatar person={winner} src={photo(winner)} className="w-[22vw] h-[22vw] rounded-full text-[8vw] object-cover ring-[0.6vw] ring-amber-300" />
+            <p className="text-[5.5vw] font-black leading-tight">{winner.name}</p>
+            {winner.position && <p className="text-[2vw] opacity-75">{winner.position}</p>}
+          </div>
+        ) : (
+          <p className="text-[4vw] font-black">این بخش امسال برنده‌ای نداشت.</p>
+        )
+      ) : (
+        <>
+          <p className="text-[16vw] leading-none animate-pulse" aria-hidden>
+            ✉️
+          </p>
+          <p className="text-[2.6vw] font-bold">و برنده کیست…؟</p>
+          {award.nominees.length > 0 && (
+            <ul className="flex flex-wrap justify-center gap-[3vw]">
+              {award.nominees.map((n) => (
+                <li key={n.id} className="flex flex-col items-center gap-[0.6vw]">
+                  <PersonAvatar person={view.people[n.id]} src={photo(view.people[n.id])} className="w-[9vw] h-[9vw] rounded-full text-[3.4vw] object-cover" />
+                  <span className="text-[1.9vw] font-bold">{view.people[n.id]?.name ?? 'همکار'}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </Big>
+  );
+};
+
+/** «فال حافظ» for the whole hall. */
+const FalScene: React.FC<{ index: number | null | undefined }> = ({ index }) => (
+  <Big>
+    <h2 className="text-[3vw] font-black" style={{ color: YALDA.gold }}>
+      فال حافظ
+    </h2>
+    {index !== null && index !== undefined && HAFEZ_FAL[index] ? (
+      <div key={index} className="space-y-[2vw] animate-[envelope-open_700ms_ease-out]">
+        <Couplet index={index} className="text-[4.2vw] leading-[1.9]" />
+        <p className="text-[2.1vw] opacity-80 max-w-[70vw] mx-auto leading-relaxed">{HAFEZ_FAL[index].reading}</p>
+      </div>
+    ) : (
+      <p className="text-[3vw]">نیت کنید…</p>
+    )}
+  </Big>
+);
 
 /** «بهترین پیش‌بین‌ها»: who guessed the most winners. */
 const Predictors: React.FC<{ view: EventView }> = ({ view }) => {
@@ -316,6 +409,12 @@ const Scene: React.FC<{ view: EventView; screen: ScreenState; offset: number; ti
       return <StageMatch view={view} competition={competition} matchId={screen.matchId} />;
     case 'today':
       return <Today view={view} />;
+    case 'schedule':
+      return <ScheduleScene view={view} offset={offset} />;
+    case 'envelope':
+      return <EnvelopeScene view={view} awardId={screen.awardId} />;
+    case 'fal':
+      return <FalScene index={screen.falIndex} />;
     case 'predictors':
       return <Predictors view={view} />;
     case 'guess':

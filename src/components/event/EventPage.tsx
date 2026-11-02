@@ -9,6 +9,7 @@ import { CompetitionFormModal } from './CompetitionFormModal';
 import { AwardsSection } from './AwardsSection';
 import { FunSection } from './FunSection';
 import { GuessCard, PredictionsSection } from './GamesSection';
+import { FalCard, ScheduleCard } from './NightSection';
 import { Countdown, JuryStrip, NowCard } from './EventParts';
 import { CreateEventForm, EventSettings } from './EventSettings';
 import { OrganizerConsole } from './OrganizerConsole';
@@ -35,6 +36,7 @@ const FOCUS_IDS: Record<string, string> = {
   fun: 'event-fun',
   predict: 'event-predict',
   guess: 'event-guess',
+  schedule: 'event-schedule',
 };
 
 const Hero: React.FC<{ view: EventView }> = ({ view }) => {
@@ -90,7 +92,7 @@ export const EventPage: React.FC = () => {
     if (!focusId || !loaded) return undefined;
     if (focusId === 'objections') setSection('console');
     if (focusId === 'fun') setSection('fun');
-    if (focusId === 'predict' || focusId === 'guess') setSection('competitions');
+    if (focusId === 'predict' || focusId === 'guess' || focusId === 'schedule') setSection('competitions');
     const timer = window.setTimeout(
       () =>
         document
@@ -174,6 +176,7 @@ export const EventPage: React.FC = () => {
       {current === 'competitions' && (
         <div className="space-y-4">
           {juryShown && <JuryStrip view={view} />}
+          <ScheduleCard view={view} />
           <PredictionsSection view={view} />
           <GuessCard key={view.guess ? 'on' : 'off'} view={view} />
           {view.competitions.length === 0 ? (
@@ -194,7 +197,12 @@ export const EventPage: React.FC = () => {
           <AwardsSection view={view} />
         </div>
       )}
-      {current === 'fun' && <FunSection view={view} />}
+      {current === 'fun' && (
+        <div className="space-y-4">
+          <FalCard view={view} />
+          <FunSection view={view} />
+        </div>
+      )}
       {current === 'console' && <OrganizerConsole view={view} />}
       {current === 'remote' && <RemotePanel view={view} />}
       {current === 'settings' && <EventSettings view={view} />}

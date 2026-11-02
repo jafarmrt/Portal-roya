@@ -525,6 +525,9 @@ export const SCREEN_SCENES = [
   { id: 'match', label: 'بازی روی صحنه' },
   { id: 'today', label: 'بازی‌های امروز' },
   { id: 'champion', label: 'قهرمان' },
+  { id: 'schedule', label: 'برنامهٔ امشب' },
+  { id: 'envelope', label: 'پاکت انتخاب‌ها' },
+  { id: 'fal', label: 'فال حافظ' },
   { id: 'predictors', label: 'بهترین پیش‌بین‌ها' },
   { id: 'guess', label: 'چند دانه؟' },
   { id: 'break', label: 'استراحت' },
@@ -549,6 +552,10 @@ export interface ScreenState {
   timer: ScreenTimer;
   /** The song playing now, shown in a strip at the bottom of every scene (absent in older saved states). */
   songId?: string | null;
+  /** The award whose envelope is on the screen (scene «envelope»). */
+  awardId?: string | null;
+  /** The verse of «فال حافظ» on the screen (an index in HAFEZ_FAL). */
+  falIndex?: number | null;
   /** Changes with every switch, so a screen knows to play the switch sound. */
   version: number;
 }
@@ -560,6 +567,8 @@ export const DEFAULT_SCREEN: ScreenState = {
   caption: '',
   timer: { durationSec: 120, endsAt: null, remainingSec: 120 },
   songId: null,
+  awardId: null,
+  falIndex: null,
   version: 0,
 };
 
@@ -748,3 +757,55 @@ export function guessOrder(guesses: Guess[], answer: number) {
     .map((g) => ({ ...g, diff: Math.abs(g.value - answer) }))
     .sort((a, b) => a.diff - b.diff || a.at.localeCompare(b.at) || a.employeeId.localeCompare(b.employeeId));
 }
+
+// ─── «برنامهٔ امشب» ────────────────────────────────────────────────────────────
+
+export const SCHEDULE_MAX = 30;
+export const SCHEDULE_TITLE_MAX = 80;
+
+export interface ScheduleItem {
+  id: string;
+  /** «۱۵:۳۰», on the day of the program. */
+  time: string;
+  title: string;
+}
+
+/** The items in time order, and which one is on now (the last that has started) and which comes next. */
+export function scheduleNow(items: ScheduleItem[], programDate: string, now: Date, toJalaliDay: (d: Date) => string, toClock: (d: Date) => string) {
+  const ordered = [...items].sort((a, b) => a.time.localeCompare(b.time));
+  if (toJalaliDay(now) !== programDate) return { ordered, current: null as ScheduleItem | null, next: null as ScheduleItem | null };
+  const clock = toClock(now);
+  const started = ordered.filter((i) => i.time <= clock);
+  const current = started.at(-1) ?? null;
+  const next = ordered.find((i) => i.time > clock) ?? null;
+  return { ordered, current, next };
+}
+
+// ─── «فال حافظ» ───────────────────────────────────────────────────────────────
+
+/** Opening couplets of Hafez's ghazals, each with a short, light reading for the night. */
+export const HAFEZ_FAL: { verse: [string, string]; reading: string }[] = [
+  { verse: ['یوسف گم‌گشته بازآید به کنعان غم مخور', 'کلبهٔ احزان شود روزی گلستان غم مخور'], reading: 'چیزی که از دست رفته به نظر می‌رسد برمی‌گردد. صبور باشید؛ روزهای روشن نزدیک است.' },
+  { verse: ['مژده ای دل که مسیحانفسی می‌آید', 'که ز انفاس خوشش بوی کسی می‌آید'], reading: 'خبر خوش در راه است. کسی یا چیزی می‌آید که حال و هوایتان را تازه می‌کند.' },
+  { verse: ['روز هجران و شب فرقت یار آخر شد', 'زدم این فال و گذشت اختر و کار آخر شد'], reading: 'دوری و انتظار به پایان رسیده است. کاری که مدت‌ها طول کشیده به سرانجام می‌رسد.' },
+  { verse: ['ستاره‌ای بدرخشید و ماه مجلس شد', 'دل رمیدهٔ ما را انیس و مونس شد'], reading: 'آشنایی تازه یا همراهی خوب، جمع شما را گرم می‌کند. قدرش را بدانید.' },
+  { verse: ['نفس باد صبا مشک‌فشان خواهد شد', 'عالم پیر دگرباره جوان خواهد شد'], reading: 'فصل تازه‌ای در راه است. انرژی و امید دوباره برمی‌گردد؛ برای شروع‌های نو آماده باشید.' },
+  { verse: ['رونق عهد شباب است دگر بستان را', 'می‌رسد مژدهٔ گل بلبل خوش‌الحان را'], reading: 'دوران شکوفایی است. تلاش‌هایتان دارد ثمر می‌دهد و خبر خوبش به‌زودی می‌رسد.' },
+  { verse: ['هر آن کو خاطر مجموع و یار نازنین دارد', 'سعادت همدم او گشت و دولت همنشین دارد'], reading: 'آرامش خاطر و دوستان خوب بزرگ‌ترین سرمایهٔ شماست. خوشبختی از همین‌جا شروع می‌شود.' },
+  { verse: ['دلا بسوز که سوز تو کارها بکند', 'نیاز نیم‌شبی دفع صد بلا بکند'], reading: 'دل‌سوزی و پشتکارتان بی‌اثر نمی‌ماند. یک خواستهٔ صادقانه گره‌های زیادی را باز می‌کند.' },
+  { verse: ['سال‌ها دل طلب جام جم از ما می‌کرد', 'وان چه خود داشت ز بیگانه تمنا می‌کرد'], reading: 'آنچه دنبالش می‌گردید همین نزدیکی است. به توانایی‌های خودتان بیشتر اعتماد کنید.' },
+  { verse: ['صبا به لطف بگو آن غزال رعنا را', 'که سر به کوه و بیابان تو داده‌ای ما را'], reading: 'با مهربانی، حرف دلتان را بزنید. پیامی که با لطف گفته شود، به مقصد می‌رسد.' },
+  { verse: ['سحر بلبل حکایت با صبا کرد', 'که عشق روی گل با ما چه‌ها کرد'], reading: 'دلبستگی‌ها شما را به حرکت درمی‌آورند. از چیزی که دوستش دارید انرژی بگیرید.' },
+  { verse: ['گفتم غم تو دارم گفتا غمت سرآید', 'گفتم که ماه من شو گفتا اگر برآید'], reading: 'غصه‌ها رفتنی‌اند. آرزویتان دور نیست؛ اگر زمانش برسد، خودش از راه می‌رسد.' },
+  { verse: ['مرا عهدیست با جانان که تا جان در بدن دارم', 'هواداران کویش را چو جان خویشتن دارم'], reading: 'وفاداری‌تان به آدم‌ها و آرمان‌هایتان دیده می‌شود. کسانی که دوستشان دارید کنارتان می‌مانند.' },
+  { verse: ['در ازل پرتو حسنت ز تجلی دم زد', 'عشق پیدا شد و آتش به همه عالم زد'], reading: 'شوقی که در دل دارید بزرگ است. آن را دنبال کنید؛ اطرافیانتان را هم گرم می‌کند.' },
+  { verse: ['دیدی ای دل که غم عشق دگربار چه کرد', 'چون بشد دلبر و با یار وفادار چه کرد'], reading: 'از تجربه‌های گذشته درس گرفته‌اید. این بار با دلی پخته‌تر تصمیم می‌گیرید.' },
+  { verse: ['حسب حالی ننوشتی و شد ایامی چند', 'محرمی کو که فرستم به تو پیغامی چند'], reading: 'وقت آن است که از کسی که مدتی بی‌خبرید حالی بپرسید. یک پیام کوتاه، دلی را شاد می‌کند.' },
+  { verse: ['ای پادشه خوبان داد از غم تنهایی', 'دل بی تو به جان آمد وقت است که بازآیی'], reading: 'دلتنگی به پایان نزدیک است. دیداری که منتظرش هستید به‌زودی پیش می‌آید.' },
+  { verse: ['دل می‌رود ز دستم صاحب‌دلان خدا را', 'دردا که راز پنهان خواهد شد آشکارا'], reading: 'چیزی که در دل نگه داشته‌اید دیگر پنهان نمی‌ماند. شاید وقت گفتنش رسیده باشد.' },
+  { verse: ['سینه مالامال درد است ای دریغا مرهمی', 'دل ز تنهایی به جان آمد خدا را همدمی'], reading: 'تنها نمانید؛ همکاران و دوستانتان آماده‌اند کمک کنند. کافی است بخواهید.' },
+  { verse: ['خوشا شیراز و وضع بی‌مثالش', 'خداوندا نگه دار از زوالش'], reading: 'قدر جایی که هستید و آدم‌های دوروبرتان را بدانید. خوشی‌های امروز را جشن بگیرید.' },
+];
+
+/** A verse for one colleague's fal (a random one of the list). */
+export const randomFal = (random = Math.random) => Math.floor(random() * HAFEZ_FAL.length);

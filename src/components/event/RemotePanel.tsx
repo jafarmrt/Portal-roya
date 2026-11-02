@@ -3,9 +3,10 @@ import { Check, Eye, EyeOff, Link2, Monitor, Music, Square, Pause, Play, RotateC
 import { inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { ResultModal } from './ResultModal';
 import { GuessReveal } from './GamesSection';
+import { EnvelopePanel } from './NightSection';
 import { EntryPicture, Stepper, api, entryName, isReady, sidesLine, useEventAction } from './eventUi';
 import { countdownText } from './EventParts';
-import { SCREEN_SCENES, timerLeft, type ScreenScene, type ScreenState } from '../../../shared/specialEvents';
+import { SCREEN_SCENES, randomFal, timerLeft, type ScreenScene, type ScreenState } from '../../../shared/specialEvents';
 import { toPersianDigits } from '../../lib/jalali';
 import type { EventCompetition, EventView } from './types';
 
@@ -269,13 +270,15 @@ export const RemotePanel: React.FC<{ view: EventView }> = ({ view }) => {
   // A ranking by time is entered at the end; a score moves live.
   const counts = competition ? (ranking ? competition.rankBy === 'high' : competition.scoring !== 'winner') : false;
 
-  const show = (scene: ScreenScene, extra: Partial<Pick<ScreenState, 'competitionId' | 'matchId' | 'caption'>> = {}) =>
+  const show = (scene: ScreenScene, extra: Partial<Pick<ScreenState, 'competitionId' | 'matchId' | 'caption' | 'awardId' | 'falIndex'>> = {}) =>
     run(() =>
       api.put(`/api/special_events/${event.id}/screen`, {
         scene,
         competitionId: extra.competitionId !== undefined ? extra.competitionId : competitionId || null,
         matchId: extra.matchId !== undefined ? extra.matchId : screen.matchId,
         caption: extra.caption !== undefined ? extra.caption : caption.trim(),
+        awardId: extra.awardId ?? null,
+        falIndex: extra.falIndex ?? null,
       }),
     );
 
@@ -308,11 +311,12 @@ export const RemotePanel: React.FC<{ view: EventView }> = ({ view }) => {
           </select>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {SCREEN_SCENES.filter((s) => s.id !== 'match' && (s.id !== 'guess' || view.guess)).map((s) => (
+          {SCREEN_SCENES.filter((s) => s.id !== 'match' && s.id !== 'envelope' && (s.id !== 'guess' || view.guess) && (s.id !== 'schedule' || event.schedule.length > 0)).map((s) => (
             <button
               key={s.id}
               type="button"
-              onClick={() => void show(s.id)}
+              // «فال حافظ» draws a new verse for the hall at each tap.
+              onClick={() => void show(s.id, s.id === 'fal' ? { falIndex: randomFal() } : {})}
               aria-pressed={screen.scene === s.id}
               className={`p-3 rounded-2xl text-sm font-bold border-2 ${screen.scene === s.id ? 'border-red-700 bg-red-50 text-red-900' : 'border-line bg-white text-ink'}`}
             >
@@ -407,6 +411,7 @@ export const RemotePanel: React.FC<{ view: EventView }> = ({ view }) => {
 
       <NowPlaying view={view} />
       <GuessReveal view={view} onShow={() => void show('guess')} />
+      <EnvelopePanel view={view} onShow={(awardId) => void show('envelope', { awardId })} />
       <PairScreen eventId={event.id} />
 
       {finishing && stageMatch && competition && (

@@ -1,8 +1,10 @@
 import { and, asc, eq, inArray, isNotNull } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
-import { jalaliToDate, toJalali, toPersianDigits } from '../../shared/jalali.js';
+import { jalaliToDate, TIME_RE, toJalali, toPersianDigits } from '../../shared/jalali.js';
 import {
+  SCHEDULE_MAX,
+  SCHEDULE_TITLE_MAX,
   GUESS_MAX,
   GUESS_QUESTION_MAX,
   PREDICT_DRAW,
@@ -10,11 +12,12 @@ import {
   guessOrder,
   predictionRight,
   programStart,
+  randomFal,
 } from '../../shared/specialEvents.js';
 import type { SessionUser } from '../auth.js';
 import { db } from '../db/index.js';
-import { eventAwards, eventCompetitions, eventEntryMembers, eventGuesses, eventMatches, eventPredictions, specialEvents } from '../db/schema.js';
-import { HttpError, currentUser, parse, route, viewerOf } from '../http.js';
+import { eventAwards, eventCompetitions, eventEntryMembers, eventFals, eventGuesses, eventMatches, eventPredictions, specialEvents } from '../db/schema.js';
+import { HttpError, currentUser, newId, parse, route, viewerOf } from '../http.js';
 import { createNotifications } from '../notify.js';
 import { guestSettings } from '../settings.js';
 import { type EventRow, type Viewer, announceChange, championInfo, eventOf, eventView, logAction, phaseOf, requireReferee, rolesOf } from './specialEvents.js';
@@ -71,9 +74,10 @@ export async function gamesView(ev: EventRow, viewer: Viewer, { competitions, ma
     return c && c.format !== 'ranking' && (c.publishedAt || roles.referee) && !m.bye && m.entryA && m.entryB;
   });
   const ids = predictable.map((m) => m.id);
-  const [picks, guesses] = await Promise.all([
+  const [picks, guesses, fals] = await Promise.all([
     ids.length ? db.select().from(eventPredictions).where(inArray(eventPredictions.matchId, ids)) : Promise.resolve([]),
     db.select().from(eventGuesses).where(eq(eventGuesses.eventId, ev.id)).orderBy(asc(eventGuesses.updatedAt)),
+    db.select({ employeeId: eventFals.employeeId, verse: eventFals.verse }).from(eventFals).where(eq(eventFals.eventId, ev.id)),
   ]);
   const takingPart = Boolean(viewer && (ev.status === 'active' || roles.referee) && !roles.isJuror);
 
@@ -158,6 +162,11 @@ export async function gamesView(ev: EventRow, viewer: Viewer, { competitions, ma
       me: viewer ? { ...(score.get(viewer.id) ?? { correct: 0, total: 0 }), waiting: waiting.length } : null,
     },
     guess,
+    fal: {
+      mine: viewer ? (fals.find((f) => f.employeeId === viewer.id)?.verse ?? null) : null,
+      count: fals.length,
+      open: falOpen(ev, phase) && Boolean(viewer) && (ev.status === 'active' || roles.referee),
+    },
     peopleIds: [...leaders.slice(0, 10).map((l) => l.employeeId), ...(guess?.winners.map((w) => w.employeeId) ?? [])],
   };
 }
@@ -274,6 +283,56 @@ eventGamesRouter.post(
       }
     }
     announceChange(ev);
+    res.json(await freshView(ev.id, viewer));
+  }),
+);
+
+// ─── «برنامهٔ امشب» ────────────────────────────────────────────────────────────
+
+const scheduleSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        id: z.string().max(100).optional(),
+        time: z.string().regex(TIME_RE, 'ساعت را به شکل ۱۵:۰۰ وارد کنید.'),
+        title: z.string().trim().min(1, 'عنوان هر بخش را بنویسید.').max(SCHEDULE_TITLE_MAX),
+      }),
+    )
+    .max(SCHEDULE_MAX, `برنامه حداکثر ${toPersianDigits(SCHEDULE_MAX)} بخش دارد.`),
+});
+
+/** The organizers write what happens when on the night. */
+eventGamesRouter.put(
+  '/special_events/:id/schedule',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const ev = await eventOf(req.params.id);
+    if (!rolesOf(ev, viewer).isOrganizer) throw new HttpError(403, 'این کار با برگزارکنندگان رویداد است.');
+    const { items } = parse(scheduleSchema, req.body);
+    const schedule = items
+      .map((i) => ({ id: i.id && /^[\w-]+$/.test(i.id) ? i.id : newId('slot'), time: i.time, title: i.title }))
+      .sort((a, b) => a.time.localeCompare(b.time));
+    await db.update(specialEvents).set({ schedule, updatedAt: new Date() }).where(eq(specialEvents.id, ev.id));
+    await logAction(ev, viewer.id, 'برنامهٔ امشب به‌روز شد', `${toPersianDigits(schedule.length)} بخش`);
+    announceChange(ev);
+    res.json(await freshView(ev.id, viewer));
+  }),
+);
+
+// ─── «فال حافظ» ───────────────────────────────────────────────────────────────
+
+/** A fal from the event's page opens with it and stays until the page goes away after the program. */
+const falOpen = (ev: EventRow, phase = phaseOf(ev)) => phase !== 'ended';
+
+/** One fal a night: the verse is drawn once and stays the same when the page is opened again. */
+eventGamesRouter.post(
+  '/special_events/:id/fal',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const ev = await eventOf(req.params.id);
+    if (ev.status !== 'active' && !rolesOf(ev, viewer).referee) throw new HttpError(400, 'رویداد هنوز شروع نشده است.');
+    if (!falOpen(ev)) throw new HttpError(400, 'وقت فال این رویداد گذشته است.');
+    await db.insert(eventFals).values({ eventId: ev.id, employeeId: viewer.id, verse: randomFal() }).onConflictDoNothing();
     res.json(await freshView(ev.id, viewer));
   }),
 );

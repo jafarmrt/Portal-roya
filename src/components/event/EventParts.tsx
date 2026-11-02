@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Gavel, Lightbulb, Scale } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { entryName, isReady, matchWhen, myEntries, nextMatchOf, PersonAvatar } from './eventUi';
-import { programStart } from '../../../shared/specialEvents';
-import { toPersianDigits } from '../../lib/jalali';
+import { programStart, scheduleNow } from '../../../shared/specialEvents';
+import { toJalali, toPersianDigits } from '../../lib/jalali';
 import type { EventView } from './types';
 
 /** Seconds until a moment, ticking every second (or every minute when it is far away). */
@@ -84,6 +84,15 @@ function nowLines(view: EventView, userId: string | undefined, isGuest: boolean)
 
   // Everyone, players or not: a song for the night.
   if (phase === 'signup' && !view.songs.some((s) => s.mine)) lines.push({ text: 'آهنگی برای شب یلدا پیشنهاد بدهید یا به آهنگ همکاران «من هم» بدهید 🎵', target: 'fun' });
+  if (phase === 'live' || phase === 'matchday') {
+    const { current, next } = scheduleNow(event.schedule, event.programDate, new Date(), (d) => toJalali(d), (d) => toJalali(d, 'HH:mm'));
+    if (current || next) {
+      lines.push({
+        text: [current && `الان: ${current.title}`, next && `بعدی ساعت ${toPersianDigits(next.time)}: ${next.title}`].filter(Boolean).join(' · '),
+        target: 'schedule',
+      });
+    }
+  }
   const waiting = view.predictions.me?.waiting ?? 0;
   if (waiting > 0) lines.push({ text: `${toPersianDigits(waiting)} بازی منتظر پیش‌بینی شماست؛ حدس بزنید چه کسی می‌برد 🔮`, target: 'predict' });
   if (view.guess?.canGuess && view.guess.mine === null) lines.push({ text: `«${view.guess.question}» حدستان را تا شروع برنامه بنویسید 🎯`, target: 'guess' });
