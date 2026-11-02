@@ -13,6 +13,8 @@ import {
   eventFals,
   eventGuesses,
   eventIdeas,
+  eventKidGuesses,
+  eventKidPhotos,
   eventMatches,
   eventNominations,
   eventAwards,
@@ -30,7 +32,7 @@ import { type EventRow, type Viewer, announceChange, eventOf, eventView, logActi
 // «آرزوهای یلدا»: colleagues write a short wish for the new year; once an organizer approves it, it goes
 // on the wall of the page and the big screen (with the name, or without it when sent anonymously).
 // «گردونهٔ شانس»: on the night the wheel picks a name from everyone who took part in something on the
-// page (a team, a prediction, a fal, a quiz answer, a wish…). The organizers who spin it are not in it.
+// page (a team, a prediction, a fal, a quiz answer, a wish, a childhood photo…). The organizers who spin it are not in it.
 
 export const eventWishesRouter = Router();
 
@@ -71,6 +73,12 @@ export async function wheelPool(ev: EventRow) {
     songIds.length ? db.select({ id: eventSongVotes.employeeId }).from(eventSongVotes).where(inArray(eventSongVotes.songId, songIds)) : none,
     db.select({ id: eventIdeas.byId }).from(eventIdeas).where(eq(eventIdeas.eventId, ev.id)),
     awardIds.length ? db.select({ id: eventNominations.nominatorId }).from(eventNominations).where(inArray(eventNominations.awardId, awardIds)) : none,
+    db.select({ id: eventKidPhotos.employeeId }).from(eventKidPhotos).where(eq(eventKidPhotos.eventId, ev.id)),
+    db
+      .select({ id: eventKidGuesses.employeeId })
+      .from(eventKidGuesses)
+      .innerJoin(eventKidPhotos, eq(eventKidPhotos.id, eventKidGuesses.photoId))
+      .where(eq(eventKidPhotos.eventId, ev.id)),
   ]);
   const out = new Set(ev.organizerIds);
   return [...new Set(lists.flat().map((r) => r.id))].filter((id) => !out.has(id)).sort();
