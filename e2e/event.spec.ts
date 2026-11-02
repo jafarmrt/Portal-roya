@@ -274,4 +274,34 @@ test.describe('special event', () => {
     await page.getByRole('button', { name: 'برنامهٔ امشب' }).click();
     await expect(page.getByRole('button', { name: 'برنامهٔ امشب', pressed: true })).toBeVisible();
   });
+  test('the quiz everyone answers: written at the desk, run from the remote', async ({ page }) => {
+    page.on('dialog', (dialog) => void dialog.accept());
+    await page.goto('/#event');
+    await page.getByRole('tab', { name: 'میز برگزارکننده' }).click();
+    await page.getByRole('button', { name: 'نوشتن سؤال‌ها' }).click();
+    await page.getByLabel('متن سؤال ۱').fill('بلندترین شب سال؟');
+    await page.getByLabel('سؤال ۱، گزینهٔ الف').fill('یلدا');
+    await page.getByLabel('سؤال ۱، گزینهٔ ب').fill('نوروز');
+    await page.getByRole('button', { name: 'ذخیرهٔ سؤال‌ها' }).click();
+    await expect(page.getByText(/^۱ سؤال ·/)).toBeVisible();
+
+    await page.getByRole('tab', { name: 'تنظیمات' }).click();
+    await page.getByLabel('امتحان صفحه در مرحلهٔ').selectOption('live');
+    await page.getByRole('tab', { name: 'ریموت صفحهٔ بزرگ' }).click();
+    await page.getByRole('button', { name: 'شروع: سؤال اول' }).click();
+    // On every phone, above everything: the question and its options.
+    const card = page.locator('#event-quiz');
+    await expect(card).toContainText('بلندترین شب سال؟');
+    await expect(card).toContainText('برگزارکنندگان که سؤال‌ها را نوشته‌اند جواب نمی‌دهند.');
+    await expect(page.getByRole('button', { name: 'سؤال مسابقهٔ همه', pressed: true })).toBeVisible();
+    await page.getByRole('button', { name: 'نمایش جواب' }).click();
+    await expect(page.getByText('جواب درست: یلدا')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'همهٔ سؤال‌ها پرسیده شد' })).toBeDisabled();
+
+    await page.getByRole('tab', { name: 'میز برگزارکننده' }).click();
+    await page.getByRole('button', { name: /از اول/ }).click();
+    await expect(card).toBeHidden();
+    await page.getByRole('tab', { name: 'تنظیمات' }).click();
+    await page.getByLabel('امتحان صفحه در مرحلهٔ').selectOption('');
+  });
 });

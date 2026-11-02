@@ -41,7 +41,7 @@ const FEATURE_ROUTES: { key: FeatureKey; pattern: RegExp; emptyReads: Record<str
   { key: 'noticeBoard', pattern: /^\/notices(\/|$)/, emptyReads: { '/notices': [], '/notices/manage': [] } },
   {
     key: 'specialEvents',
-    pattern: /^\/(special_events|event_competitions|event_entries|event_matches|event_objections|event_awards|event_nominations|event_songs|event_ideas|event_badges)(\/|$)/,
+    pattern: /^\/(special_events|event_competitions|event_entries|event_matches|event_objections|event_awards|event_nominations|event_songs|event_ideas|event_badges|event_quiz)(\/|$)/,
     emptyReads: { '/special_events/current': { event: null, canManage: false }, '/event_badges': {} },
   },
   { key: 'pushNotifications', pattern: /^\/push(\/|$)/, emptyReads: {} },

@@ -35,6 +35,7 @@ import { specialEventsRouter } from './routes/specialEvents.js';
 import { eventAwardsRouter } from './routes/eventAwards.js';
 import { eventSongsRouter } from './routes/eventSongs.js';
 import { eventGamesRouter } from './routes/eventGames.js';
+import { eventQuizRouter } from './routes/eventQuiz.js';
 import { eventScreenRouter } from './routes/eventScreen.js';
 import { buildInfo, changelog } from './version.js';
 
@@ -110,6 +111,7 @@ export function createApp() {
   api.use(eventAwardsRouter);
   api.use(eventSongsRouter);
   api.use(eventGamesRouter);
+  api.use(eventQuizRouter);
   api.use(uploadsRouter);
   api.use((_req, res) => res.status(404).json({ error: 'مسیر یافت نشد.' }));
 

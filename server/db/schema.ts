@@ -15,7 +15,7 @@ import type { AuditAction, AuditEntity } from '../../shared/audit.js';
 import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
 import type { KudosEmoji } from '../../shared/kudos.js';
 import type { MonthlySummary } from '../../shared/reports.js';
-import type { EntryKind, EventPhase, EventStatus, EventTheme, Format, IdeaKind, RankBy, ScheduleItem, Scoring, ScreenState, StagePolicy, TieRule } from '../../shared/specialEvents.js';
+import type { EntryKind, EventPhase, EventStatus, EventTheme, Format, IdeaKind, QuizState, RankBy, ScheduleItem, Scoring, ScreenState, StagePolicy, TieRule } from '../../shared/specialEvents.js';
 import type { SuggestionBoxNames } from '../../shared/suggestions.js';
 import type { TaskStatus } from '../../shared/tasks.js';
 import type { TodoRemind, TodoRepeat, TodoStep } from '../../shared/todos.js';
@@ -949,6 +949,8 @@ export const specialEvents = pgTable('special_events', {
   guessRevealedAt: timestamp('guess_revealed_at', { withTimezone: true }),
   // «برنامهٔ امشب»: what happens when on the night, shown on the page and the big screen.
   schedule: jsonb('schedule').$type<ScheduleItem[]>().notNull().default([]),
+  // «مسابقهٔ همه‌با‌هم»: the question on now, when it closes and whether its answer is shown.
+  quizState: jsonb('quiz_state').$type<QuizState>(),
   activatedAt: timestamp('activated_at', { withTimezone: true }),
   createdById: text('created_by_id').references(() => employees.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -1284,4 +1286,33 @@ export const eventFals = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.eventId, t.employeeId] })],
+);
+
+/** A question of the event's «مسابقهٔ همه‌با‌هم», written by the organizers before the night. */
+export const eventQuizQuestions = pgTable(
+  'event_quiz_questions',
+  {
+    id: text('id').primaryKey(),
+    eventId: text('event_id').notNull().references(() => specialEvents.id, { onDelete: 'cascade' }),
+    sortOrder: integer('sort_order').notNull().default(0),
+    text: text('text').notNull(),
+    options: text('options').array().notNull(),
+    correct: integer('correct').notNull(),
+    seconds: integer('seconds').notNull().default(20),
+    askedAt: timestamp('asked_at', { withTimezone: true }),
+  },
+  (t) => [index('event_quiz_questions_event_idx').on(t.eventId)],
+);
+
+/** One colleague's answer to one question, with how long it took (for the speed points). */
+export const eventQuizAnswers = pgTable(
+  'event_quiz_answers',
+  {
+    questionId: text('question_id').notNull().references(() => eventQuizQuestions.id, { onDelete: 'cascade' }),
+    employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    choice: integer('choice').notNull(),
+    ms: integer('ms').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.questionId, t.employeeId] })],
 );

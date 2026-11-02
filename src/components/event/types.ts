@@ -243,6 +243,7 @@ export interface EventView {
   guess: EventGuess | null;
   /** «فال حافظ»: this viewer's verse (an index in HAFEZ_FAL), once drawn. */
   fal: { mine: number | null; count: number; open: boolean };
+  quiz: EventQuiz;
   serverNow: string;
 }
 
@@ -291,3 +292,33 @@ export type SpecialEventPayload =
   | (EventView & { canManage: boolean });
 
 export const hasEvent = (p: SpecialEventPayload | null): p is EventView & { canManage: boolean } => Boolean(p?.event);
+
+/** «مسابقهٔ همه‌با‌هم» as this viewer sees it. */
+export interface EventQuiz {
+  count: number;
+  asked: number;
+  /** Only for organizers. */
+  questions: { id: string; text: string; options: string[]; correct: number; seconds: number; asked: boolean }[];
+  current: {
+    id: string;
+    index: number;
+    text: string;
+    options: string[];
+    seconds: number;
+    openedAt: string;
+    closesAt: string;
+    open: boolean;
+    revealed: boolean;
+    /** Once revealed (organizers always). */
+    correct: number | null;
+    answered: number;
+    counts: number[] | null;
+    myChoice: number | null;
+    myPoints: number | null;
+  } | null;
+  leaders: { employeeId: string; points: number; correct: number; rank: number }[];
+  me: { points: number; correct: number; rank: number } | null;
+  canPlay: boolean;
+  /** The program has started (or its rehearsal): questions can be opened. */
+  live: boolean;
+}

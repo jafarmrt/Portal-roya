@@ -93,6 +93,8 @@ function nowLines(view: EventView, userId: string | undefined, isGuest: boolean)
       });
     }
   }
+  const q = view.quiz.current;
+  if (q && view.quiz.live && view.quiz.canPlay && q.open && q.myChoice === null) lines.push({ text: `سؤال ${toPersianDigits(q.index)} مسابقهٔ همه باز است؛ زود جواب بدهید! ⏱️`, target: 'quiz' });
   const waiting = view.predictions.me?.waiting ?? 0;
   if (waiting > 0) lines.push({ text: `${toPersianDigits(waiting)} بازی منتظر پیش‌بینی شماست؛ حدس بزنید چه کسی می‌برد 🔮`, target: 'predict' });
   if (view.guess?.canGuess && view.guess.mine === null) lines.push({ text: `«${view.guess.question}» حدستان را تا شروع برنامه بنویسید 🎯`, target: 'guess' });

@@ -7,6 +7,7 @@ import { EntryPicture, PersonAvatar, YALDA, entryName, heroStyle, isReady, perfo
 import { playChime } from '../../lib/sound';
 import { HAFEZ_FAL, programStart, rankingTable, timerLeft, type ScreenState } from '../../../shared/specialEvents';
 import { Couplet, useScheduleNow } from './NightSection';
+import { QuizOptions, useQuizLeft } from './QuizSection';
 import { toPersianDigits } from '../../lib/jalali';
 import type { EventCompetition, EventView } from './types';
 
@@ -247,6 +248,55 @@ const FalScene: React.FC<{ index: number | null | undefined }> = ({ index }) => 
   </Big>
 );
 
+/** «مسابقهٔ همه»: the question with its colored options and clock; then the right one and how the hall answered. */
+const QuizScene: React.FC<{ view: EventView; offset: number }> = ({ view, offset }) => {
+  const current = view.quiz.current;
+  const left = useQuizLeft(current, offset);
+  if (!current) return <Big><p className="text-[4vw] font-black">مسابقهٔ همه: گوشی‌ها آماده! 📱</p></Big>;
+  return (
+    <Big className="justify-start pt-[2.5vw] gap-[2vw]">
+      <div className="w-full flex items-center gap-[2vw]">
+        <p className="text-[2vw] font-bold" style={{ color: YALDA.gold }}>
+          سؤال {toPersianDigits(current.index)} از {toPersianDigits(view.quiz.count)}
+        </p>
+        <p className="ms-auto text-[2vw] opacity-85">{toPersianDigits(current.answered)} جواب</p>
+        {!current.revealed && (
+          <p className={`text-[6vw] font-black leading-none tabular-nums ${left <= 5 ? 'text-red-400' : ''}`}>{toPersianDigits(left)}</p>
+        )}
+      </div>
+      <h2 className="text-[3.8vw] font-black leading-tight">{current.text}</h2>
+      <div className="w-full">
+        <QuizOptions current={{ ...current, myChoice: null }} big />
+      </div>
+    </Big>
+  );
+};
+
+/** «جدول مسابقهٔ همه». */
+const QuizBoard: React.FC<{ view: EventView }> = ({ view }) => {
+  const leaders = view.quiz.leaders.slice(0, 8);
+  return (
+    <Big className="justify-start pt-[3vw]">
+      <h2 className="text-[4vw] font-black">🏅 جدول مسابقهٔ همه</h2>
+      <ol className="w-full max-w-[70vw] space-y-[0.8vw] text-right">
+        {leaders.map((l) => {
+          const person = view.people[l.employeeId];
+          return (
+            <li key={l.employeeId} className="bg-white/10 rounded-[1.4vw] px-[1.6vw] py-[0.8vw] flex items-center gap-[1.4vw] text-[2.2vw]">
+              <span className="w-[4vw] text-center font-black tabular-nums" style={{ color: YALDA.gold }}>
+                {l.rank <= 3 ? ['🥇', '🥈', '🥉'][l.rank - 1] : toPersianDigits(l.rank)}
+              </span>
+              <PersonAvatar person={person} src={person?.avatarUrl ? fileUrl(person.avatarUrl) : undefined} className="w-[4vw] h-[4vw] rounded-full text-[1.6vw] object-cover" />
+              <span className="flex-1 min-w-0 truncate font-black">{person?.name ?? 'همکار'}</span>
+              <span className="font-bold tabular-nums">{toPersianDigits(l.points)}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </Big>
+  );
+};
+
 /** «بهترین پیش‌بین‌ها»: who guessed the most winners. */
 const Predictors: React.FC<{ view: EventView }> = ({ view }) => {
   const leaders = view.predictions.leaders.slice(0, 8);
@@ -415,6 +465,10 @@ const Scene: React.FC<{ view: EventView; screen: ScreenState; offset: number; ti
       return <EnvelopeScene view={view} awardId={screen.awardId} />;
     case 'fal':
       return <FalScene index={screen.falIndex} />;
+    case 'quiz':
+      return <QuizScene view={view} offset={offset} />;
+    case 'quizboard':
+      return <QuizBoard view={view} />;
     case 'predictors':
       return <Predictors view={view} />;
     case 'guess':

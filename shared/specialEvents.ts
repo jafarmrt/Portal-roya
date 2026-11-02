@@ -528,6 +528,8 @@ export const SCREEN_SCENES = [
   { id: 'schedule', label: 'برنامهٔ امشب' },
   { id: 'envelope', label: 'پاکت انتخاب‌ها' },
   { id: 'fal', label: 'فال حافظ' },
+  { id: 'quiz', label: 'سؤال مسابقهٔ همه' },
+  { id: 'quizboard', label: 'جدول مسابقهٔ همه' },
   { id: 'predictors', label: 'بهترین پیش‌بین‌ها' },
   { id: 'guess', label: 'چند دانه؟' },
   { id: 'break', label: 'استراحت' },
@@ -809,3 +811,36 @@ export const HAFEZ_FAL: { verse: [string, string]; reading: string }[] = [
 
 /** A verse for one colleague's fal (a random one of the list). */
 export const randomFal = (random = Math.random) => Math.floor(random() * HAFEZ_FAL.length);
+
+// ─── «مسابقهٔ همه‌با‌هم»: a quiz everyone in the hall answers on their phone ────────────
+
+export const QUIZ_MAX = 30;
+export const QUIZ_TEXT_MAX = 200;
+export const QUIZ_OPTION_MAX = 80;
+export const QUIZ_SECONDS = { min: 5, max: 90, default: 20 };
+/** A right answer earns 500, and up to 500 more the faster it came. */
+export const QUIZ_POINTS = { base: 500, speed: 500 };
+/** Answers a moment after the clock ran out still count (a phone's tap on the way). */
+export const QUIZ_GRACE_MS = 1500;
+/** The colors and letters of the (up to four) options, the same on the phones and the big screen. */
+export const QUIZ_COLORS = [
+  { letter: 'الف', bg: '#dc2626' },
+  { letter: 'ب', bg: '#2563eb' },
+  { letter: 'ج', bg: '#d97706' },
+  { letter: 'د', bg: '#059669' },
+] as const;
+
+export interface QuizState {
+  questionId: string;
+  openedAt: string;
+  closesAt: string;
+  /** Once the answer is shown (answering is over too). */
+  revealedAt: string | null;
+}
+
+/** Points for one answer: none when wrong, more the faster when right. */
+export function quizPoints(right: boolean, ms: number, seconds: number) {
+  if (!right) return 0;
+  const left = Math.min(1, Math.max(0, 1 - ms / (seconds * 1000)));
+  return Math.round(QUIZ_POINTS.base + QUIZ_POINTS.speed * left);
+}
