@@ -7,6 +7,7 @@ import { primaryButtonClass } from '../common/Modal';
 import { CompetitionCard } from './CompetitionCard';
 import { CompetitionFormModal } from './CompetitionFormModal';
 import { AwardsSection } from './AwardsSection';
+import { FunSection } from './FunSection';
 import { Countdown, JuryStrip, NowCard } from './EventParts';
 import { CreateEventForm, EventSettings } from './EventSettings';
 import { OrganizerConsole } from './OrganizerConsole';
@@ -16,10 +17,11 @@ import { COMPETITIONS_MAX } from '../../../shared/specialEvents';
 import { toPersianDigits } from '../../lib/jalali';
 import { hasEvent, type EventView } from './types';
 
-type Section = 'competitions' | 'console' | 'remote' | 'settings';
+type Section = 'competitions' | 'fun' | 'console' | 'remote' | 'settings';
 
 const SECTIONS: { id: Section; label: string }[] = [
   { id: 'competitions', label: 'مسابقه‌ها' },
+  { id: 'fun', label: 'آهنگ‌ها و ایده‌ها' },
   { id: 'console', label: 'میز برگزارکننده' },
   { id: 'remote', label: 'ریموت صفحهٔ بزرگ' },
   { id: 'settings', label: 'تنظیمات' },
@@ -77,8 +79,12 @@ export const EventPage: React.FC = () => {
   useEffect(() => {
     if (!focusId || !loaded) return undefined;
     if (focusId === 'objections') setSection('console');
+    if (focusId === 'fun') setSection('fun');
     const timer = window.setTimeout(
-      () => document.getElementById(focusId === 'objections' ? 'event-objections' : focusId === 'awards' ? 'event-awards' : `competition-${focusId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      () =>
+        document
+          .getElementById(focusId === 'objections' ? 'event-objections' : focusId === 'awards' ? 'event-awards' : focusId === 'fun' ? 'event-fun' : `competition-${focusId}`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
       150,
     );
     return () => window.clearTimeout(timer);
@@ -120,6 +126,10 @@ export const EventPage: React.FC = () => {
     if (target === 'console' || target === 'objections') {
       setSection('console');
       if (target === 'objections') window.setTimeout(() => document.getElementById('event-objections')?.scrollIntoView({ behavior: 'smooth' }), 100);
+      return;
+    }
+    if (target === 'fun') {
+      setSection('fun');
       return;
     }
     setSection('competitions');
@@ -171,6 +181,7 @@ export const EventPage: React.FC = () => {
           <AwardsSection view={view} />
         </div>
       )}
+      {current === 'fun' && <FunSection view={view} />}
       {current === 'console' && <OrganizerConsole view={view} />}
       {current === 'remote' && <RemotePanel view={view} />}
       {current === 'settings' && <EventSettings view={view} />}

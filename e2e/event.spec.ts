@@ -187,4 +187,38 @@ test.describe('special event', () => {
     await expect(rows.nth(1)).toContainText('۱');
     await expect(chess).toContainText('رتبهٔ اول مساوی شد');
   });
+
+  test('songs for the night and ideas for the program', async ({ page }) => {
+    page.on('dialog', (dialog) => void dialog.accept());
+    await page.goto('/#event');
+    await page.getByRole('tab', { name: 'آهنگ‌ها و ایده‌ها' }).click();
+    await page.getByLabel('نام آهنگ').fill('گل سنگم');
+    await page.getByLabel('خواننده').fill('بنان');
+    await page.getByRole('button', { name: 'پیشنهاد آهنگ' }).click();
+    const songs = page.getByRole('list', { name: /فهرست آهنگ‌ها/ });
+    await expect(songs).toContainText('گل سنگم');
+    // The same song written another way is caught.
+    await page.getByLabel('نام آهنگ').fill('گلِ‌سنگم');
+    await page.getByLabel('خواننده').fill('بنان');
+    await page.getByRole('button', { name: 'پیشنهاد آهنگ' }).click();
+    await expect(page.getByText(/قبلاً پیشنهاد شده است/)).toBeVisible();
+    await expect(songs.getByRole('listitem')).toHaveCount(1);
+
+    await page.getByRole('button', { name: /خوراکی/ }).click();
+    await page.getByLabel('ایدهٔ شما').fill('آش رشته برای همه');
+    await page.getByRole('button', { name: 'ثبت ایده' }).click();
+    await expect(page.getByText('آش رشته برای همه')).toBeVisible();
+    await page.getByRole('button', { name: 'پاسخ برگزارکننده' }).click();
+    await page.getByLabel('پاسخ به ایده').fill('از ساعت ۱۶');
+    await page.getByRole('button', { name: 'انجام می‌دهیم' }).click();
+    await expect(page.getByText(/انجام می‌دهیم: از ساعت ۱۶/)).toBeVisible();
+
+    // The music lead puts it on the big screen as playing now.
+    await page.getByRole('tab', { name: 'ریموت صفحهٔ بزرگ' }).click();
+    await page.getByRole('button', { name: 'پخش گل سنگم' }).click();
+    const playing = page.getByRole('region', { name: 'در حال پخش' });
+    await expect(playing).toContainText('🎵 گل سنگم');
+    await playing.getByRole('button', { name: 'قطع' }).click();
+    await expect(playing).toContainText('آهنگی روی صفحهٔ بزرگ نیست');
+  });
 });

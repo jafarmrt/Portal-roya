@@ -346,6 +346,18 @@ export const EventScreen: React.FC = () => {
               {countdownText(timer) || toPersianDigits('00:00:00')}
             </div>
           )}
+          {(() => {
+            // The song playing now, in a thin strip at the bottom of every scene.
+            const song = answer.screen.songId ? answer.songs.find((s) => s.id === answer.screen.songId) : undefined;
+            return song ? (
+              <p className="shrink-0 flex items-center justify-center gap-[1vw] text-[1.8vw] font-bold py-[0.8vw] bg-black/40" aria-label="در حال پخش">
+                <span aria-hidden>🎵</span>
+                <span>{song.title}</span>
+                {song.artist && <span className="opacity-70">· {song.artist}</span>}
+                {song.byId && answer.people[song.byId] && <span className="opacity-60 text-[1.4vw]">(پیشنهاد {answer.people[song.byId].name})</span>}
+              </p>
+            ) : null;
+          })()}
           {answer.screen.caption && (
             <p className="shrink-0 text-center text-[2.4vw] font-bold py-[1.4vw] bg-black/30" style={{ color: YALDA.gold }}>
               {answer.screen.caption}

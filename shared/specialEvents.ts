@@ -545,6 +545,8 @@ export interface ScreenState {
   /** A short line under the scene, e.g. «۱۰ دقیقه استراحت». */
   caption: string;
   timer: ScreenTimer;
+  /** The song playing now, shown in a strip at the bottom of every scene (absent in older saved states). */
+  songId?: string | null;
   /** Changes with every switch, so a screen knows to play the switch sound. */
   version: number;
 }
@@ -555,6 +557,7 @@ export const DEFAULT_SCREEN: ScreenState = {
   matchId: null,
   caption: '',
   timer: { durationSec: 120, endsAt: null, remainingSec: 120 },
+  songId: null,
   version: 0,
 };
 
@@ -673,4 +676,46 @@ export function countAwards(awards: AwardCount[], headId: string | null): AwardO
     outcomes.push({ id: award.id, winner, tie: [], waiting: false });
   }
   return outcomes;
+}
+
+// ─── Songs and ideas: everyone takes part ────────────────────────────────────
+
+/** Songs each colleague may suggest for the night; the others say «من هم». */
+export const SONGS_PER_PERSON = 3;
+export const SONG_TITLE_MAX = 80;
+export const SONG_ARTIST_MAX = 60;
+export const SONG_NOTE_MAX = 100;
+
+/** «امسال چه کنیم؟»: ideas for the program, liked by the others and answered by the organizers. */
+export const IDEAS_PER_PERSON = 5;
+export const IDEA_MAX = 300;
+export const IDEA_REPLY_MAX = 200;
+export const IDEA_KINDS = [
+  { id: 'game', label: 'بازی', icon: '🎲' },
+  { id: 'food', label: 'خوراکی', icon: '🍉' },
+  { id: 'decor', label: 'دکور', icon: '🕯️' },
+  { id: 'show', label: 'اجرا', icon: '🎤' },
+  { id: 'other', label: 'دیگر', icon: '💡' },
+] as const;
+export type IdeaKind = (typeof IDEA_KINDS)[number]['id'];
+
+/** Songs may be suggested from signup until the program ends; ideas only before the program. */
+export const songsOpen = (phase: EventPhase) => phase === 'signup' || phase === 'brackets' || phase === 'matchday' || phase === 'live';
+export const ideasOpen = (phase: EventPhase) => phase === 'signup' || phase === 'brackets';
+
+/**
+ * The same song written another way: Arabic and Persian letters, half-spaces, punctuation and spaces
+ * do not count, nor upper and lower case («Gole Sangam»، «گل سنگم»، «گل‌ سنگم!»).
+ */
+export function songKey(title: string, artist: string) {
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[يى]/g, 'ی')
+      .replace(/ك/g, 'ک')
+      .replace(/[ۀة]/g, 'ه')
+      .replace(/[أإآ]/g, 'ا')
+      .replace(/[ً-ْٰ]/g, '')
+      .replace(/[\s‌‏\p{P}\p{S}]+/gu, '');
+  return `${norm(title)}|${norm(artist)}`;
 }
