@@ -253,6 +253,13 @@
       "when": 1793543491185,
       "tag": "0035_assigned_tasks",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793615545039,
+      "tag": "0036_push_notifications",
+      "breakpoints": true
     }
   ]
 }

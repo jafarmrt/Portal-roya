@@ -1,7 +1,7 @@
 {
   "name": "roya-portal",
   "private": true,
-  "version": "2.56.0",
+  "version": "2.57.0",
   "type": "module",
   "scripts": {
     "dev": "tsx watch --clear-screen=false --ignore 'src/**' server/index.ts",
@@ -43,6 +43,7 @@
     "recharts": "^3.10.1",
     "sanitize-html": "^2.18.1",
     "unpdf": "^1.9.1",
+    "web-push": "^3.6.7",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -62,6 +63,7 @@
     "@types/react-dom": "^19.3.0",
     "@types/sanitize-html": "^2.16.2",
     "@types/supertest": "^7.2.1",
+    "@types/web-push": "^3.6.4",
     "@vitejs/plugin-react": "^5.0.4",
     "drizzle-kit": "^0.31.10",
     "esbuild": "^0.25.0",

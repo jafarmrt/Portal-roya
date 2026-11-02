@@ -20,6 +20,7 @@ import { PageHeader } from '../common/PageHeader';
 import { secondaryButtonClass } from '../common/Modal';
 import { EmptyState, SkeletonRows } from '../common/Placeholder';
 import { groupByDay, plainTitle } from './notificationList';
+import { PushSettingsPanel } from './DevicePush';
 
 export const NotificationsInbox: React.FC = () => {
   const {
@@ -75,6 +76,8 @@ export const NotificationsInbox: React.FC = () => {
           <span>خواندن همه</span>
         </button>
       </PageHeader>
+
+      <PushSettingsPanel />
 
       {/* Filter Bar */}
       <div className="bg-white p-4 rounded-2xl border border-line shadow-xs flex items-center gap-1.5 overflow-x-auto no-scrollbar">

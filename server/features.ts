@@ -39,6 +39,7 @@ const FEATURE_ROUTES: { key: FeatureKey; pattern: RegExp; emptyReads: Record<str
   { key: 'tasks', pattern: /^\/tasks(\/|$)/, emptyReads: { '/tasks': { mine: [], given: [] } } },
   { key: 'onlineColleagues', pattern: /^\/(presence|kudos)(\/|$)/, emptyReads: {} },
   { key: 'noticeBoard', pattern: /^\/notices(\/|$)/, emptyReads: { '/notices': [], '/notices/manage': [] } },
+  { key: 'pushNotifications', pattern: /^\/push(\/|$)/, emptyReads: {} },
 ];
 
 /** Keeps a hidden part out of reach even for someone who types its address. */
