@@ -9,6 +9,7 @@ import { systemLink } from '../../shared/systemLinks';
 import { type FeatureKey, featureOfTab } from '../../shared/features';
 import type { TodoStep } from '../../shared/todos';
 import type { TaskAnswer } from '../../shared/tasks';
+import type { SpecialEventPayload } from '../components/event/types';
 import { featureOn as isFeatureOn } from '../lib/features';
 import { announcePushChange, disablePushHere, showLocal } from '../lib/push';
 import type {
@@ -216,6 +217,12 @@ interface PortalContextType {
   todos: PersonalTodo[];
   /** «کارهای ارجاعی»: tasks handed to this person and by this person (empty for guests and while the part is hidden). */
   tasks: TaskLists;
+  /** «رویداد ویژه» (e.g. Yalda night) this person sees, with everything on its page; null until loaded. */
+  specialEvent: SpecialEventPayload | null;
+  /** Puts an answer of the event's API on screen at once (the live signal refetches it for everyone else). */
+  setSpecialEvent: (payload: SpecialEventPayload) => void;
+  /** Fetches the event page again. */
+  reloadSpecialEvent: () => Promise<void>;
   /** Hands a task to colleagues; resolves to true when it went. */
   assignTask: (input: { title: string; note: string; dueDate: string; assigneeIds: string[] }) => Promise<boolean>;
   /** The colleague a task went to accepts, declines, works on or finishes it. */
@@ -342,7 +349,7 @@ const PortalContext = createContext<PortalContextType | undefined>(undefined);
 
 const VALID_TABS: ActiveTab[] = [
   'dashboard', 'polls', 'colleagues', 'orgchart', 'departments', 'search', 'news', 'documents', 'guides',
-  'training', 'calendar', 'notifications', 'systems', 'reports', 'people', 'admin', 'audit', 'suggestions', 'todos', 'tasks',
+  'training', 'calendar', 'notifications', 'systems', 'reports', 'people', 'admin', 'audit', 'suggestions', 'todos', 'tasks', 'event',
 ];
 
 /** Ids in the address are encoded, since a department's page is named by the department. */
@@ -411,6 +418,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [todos, setTodos] = useState<PersonalTodo[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [tasks, setTasks] = useState<TaskLists>(NO_TASKS);
+  const [specialEvent, setSpecialEventState] = useState<SpecialEventPayload | null>(null);
   const [roles, setRoles] = useState<RoleInfo[]>([]);
   const newsCount = useRef(NEWS_PAGE_SIZE);
 
@@ -581,6 +589,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       todos: () => api.get<PersonalTodo[]>('/api/todos').then(setTodos),
       notices: () => api.get<Notice[]>('/api/notices').then(setNotices),
       tasks: () => api.get<TaskLists>('/api/tasks').then(setTasks),
+      special_event: () => api.get<SpecialEventPayload>('/api/special_events/current').then(setSpecialEventState),
       roles: () => api.get<RoleInfo[]>('/api/roles').then(setRoles),
       // An admin may change this user's role or the role's permissions at any time.
       me: () => api.get<{ user: CurrentUser }>('/api/auth/me').then(({ user }) => setCurrentUser(user)),
@@ -819,6 +828,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (result) setUserMoods((prev) => [result.mood, ...prev.filter((m) => m.date !== result.mood.date)]);
   };
   const todayMoodSubmitted = userMoods.some((m) => m.date === todayJalali());
+
+  // A guest sees the event only while the phone book is open to guests; the API says so.
+  const setSpecialEvent = useCallback((payload: SpecialEventPayload) => setSpecialEventState(payload), []);
+  const reloadSpecialEvent = useCallback(() => refresh('special_event'), [refresh]);
 
   const assignTask: PortalContextType['assignTask'] = async (input) => {
     const created = await attempt(() => api.post<AssignedTask[]>('/api/tasks', input), 'کار سپرده شد.');
@@ -1366,6 +1379,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         todayMoodSubmitted,
         todos,
         tasks,
+        specialEvent,
+        setSpecialEvent,
+        reloadSpecialEvent,
         assignTask,
         answerTask,
         editTask,

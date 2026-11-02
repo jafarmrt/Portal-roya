@@ -15,6 +15,7 @@ import type { AuditAction, AuditEntity } from '../../shared/audit.js';
 import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
 import type { KudosEmoji } from '../../shared/kudos.js';
 import type { MonthlySummary } from '../../shared/reports.js';
+import type { EntryKind, EventPhase, EventStatus, EventTheme, Scoring, ScreenState, StagePolicy, TieRule } from '../../shared/specialEvents.js';
 import type { SuggestionBoxNames } from '../../shared/suggestions.js';
 import type { TaskStatus } from '../../shared/tasks.js';
 import type { TodoRemind, TodoRepeat, TodoStep } from '../../shared/todos.js';
@@ -910,3 +911,179 @@ export const noticeDismissals = pgTable(
   },
   (t) => [primaryKey({ columns: [t.noticeId, t.employeeId] })],
 );
+
+/**
+ * «رویداد ویژه» (e.g. Yalda night): one page a year with competitions, a jury and a big screen.
+ * Nobody but its organizers sees a draft; the administrator switches it on («فعال کن») when it should open.
+ */
+export const specialEvents = pgTable('special_events', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  theme: text('theme').$type<EventTheme>().notNull().default('yalda'),
+  intro: text('intro').notNull().default(''),
+  status: text('status').$type<EventStatus>().notNull().default('draft'),
+  programDate: text('program_date').notNull(), // Jalali YYYY/MM/DD
+  programTime: text('program_time').notNull().default('15:00'),
+  programPlace: text('program_place').notNull().default(''),
+  signupEnd: text('signup_end').notNull(), // Jalali, last day of signup
+  showUntil: text('show_until').notNull(), // Jalali, last day in the menu
+  // While a draft, organizers may look at the page as it will be in another phase (the rehearsal).
+  testPhase: text('test_phase').$type<EventPhase>(),
+  organizerIds: text('organizer_ids').array().notNull().default([]),
+  // The jury of every competition: 3 or 5 colleagues, one of them its head. Jurors take part in nothing.
+  juryIds: text('jury_ids').array().notNull().default([]),
+  juryHeadId: text('jury_head_id'),
+  // A photo chosen for a juror instead of their profile photo.
+  juryPhotos: jsonb('jury_photos').$type<Record<string, string>>().notNull().default({}),
+  screen: jsonb('screen').$type<ScreenState>(),
+  // Reminders that went out once («signup», «program»), so they are not sent again.
+  sentReminders: text('sent_reminders').array().notNull().default([]),
+  activatedAt: timestamp('activated_at', { withTimezone: true }),
+  createdById: text('created_by_id').references(() => employees.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** One competition of an event (FIFA, pantomime…), built from a form; release 1 plays them as a knockout. */
+export const eventCompetitions = pgTable(
+  'event_competitions',
+  {
+    id: text('id').primaryKey(),
+    eventId: text('event_id').notNull().references(() => specialEvents.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    icon: text('icon').notNull().default('🏆'),
+    rules: text('rules').notNull().default(''),
+    kind: text('kind').$type<EntryKind>().notNull().default('individual'),
+    teamMin: integer('team_min').notNull().default(1),
+    teamMax: integer('team_max').notNull().default(1),
+    // Entries (people or teams) that play; more go on the waiting list.
+    capacity: integer('capacity').notNull().default(8),
+    scoring: text('scoring').$type<Scoring>().notNull().default('points'),
+    tieRule: text('tie_rule').$type<TieRule>().notNull().default('organizer'),
+    thirdPlace: boolean('third_place').notNull().default(false),
+    stagePolicy: text('stage_policy').$type<StagePolicy>().notNull().default('final'),
+    // Where and from when daytime matches are played, and how long each takes.
+    dayPlace: text('day_place').notNull().default(''),
+    dayStart: text('day_start').notNull().default('10:00'),
+    slotMinutes: integer('slot_minutes').notNull().default(20),
+    sortOrder: integer('sort_order').notNull().default(0),
+    drawnAt: timestamp('drawn_at', { withTimezone: true }),
+    // Everyone sees the bracket from here on (before it, only organizers and the jury).
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    championAnnouncedAt: timestamp('champion_announced_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('event_competitions_event_idx').on(t.eventId)],
+);
+
+/** A person or a team signed up for a competition. Over capacity, it waits («waitlist») in order of signing up. */
+export const eventEntries = pgTable(
+  'event_entries',
+  {
+    id: text('id').primaryKey(),
+    competitionId: text('competition_id').notNull().references(() => eventCompetitions.id, { onDelete: 'cascade' }),
+    name: text('name').notNull().default(''),
+    // A ready-made badge («emoji:🍉») or an uploaded picture.
+    image: text('image').notNull().default(''),
+    captainId: text('captain_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    status: text('status').$type<'in' | 'waitlist'>().notNull().default('in'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('event_entries_competition_idx').on(t.competitionId)],
+);
+
+/** Who is in an entry; one place per person in each competition. */
+export const eventEntryMembers = pgTable(
+  'event_entry_members',
+  {
+    competitionId: text('competition_id').notNull().references(() => eventCompetitions.id, { onDelete: 'cascade' }),
+    employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    entryId: text('entry_id').notNull().references(() => eventEntries.id, { onDelete: 'cascade' }),
+    joinedAt: timestamp('joined_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.competitionId, t.employeeId] }), index('event_entry_members_entry_idx').on(t.entryId)],
+);
+
+/** A match of a knockout bracket; later rounds are filled in as winners go through (shared/specialEvents.ts). */
+export const eventMatches = pgTable(
+  'event_matches',
+  {
+    id: text('id').primaryKey(),
+    competitionId: text('competition_id').notNull().references(() => eventCompetitions.id, { onDelete: 'cascade' }),
+    round: integer('round').notNull(),
+    slot: integer('slot').notNull(),
+    third: boolean('third').notNull().default(false),
+    entryA: text('entry_a').references(() => eventEntries.id, { onDelete: 'set null' }),
+    entryB: text('entry_b').references(() => eventEntries.id, { onDelete: 'set null' }),
+    scoreA: integer('score_a'),
+    scoreB: integer('score_b'),
+    // Penalties (or another tie-break) when the scores were level.
+    tieA: integer('tie_a'),
+    tieB: integer('tie_b'),
+    winnerId: text('winner_id'),
+    bye: boolean('bye').notNull().default(false),
+    // Won because the other side did not come («برد فنی»).
+    walkover: boolean('walkover').notNull().default(false),
+    // Being played on stage now; the remote moves the score.
+    live: boolean('live').notNull().default(false),
+    onStage: boolean('on_stage').notNull().default(false),
+    day: text('day').notNull().default(''), // Jalali
+    time: text('time').notNull().default(''), // HH:MM
+    place: text('place').notNull().default(''),
+    resultById: text('result_by_id'),
+    resultAt: timestamp('result_at', { withTimezone: true }),
+    remindedAt: timestamp('reminded_at', { withTimezone: true }),
+    overdueRemindedAt: timestamp('overdue_reminded_at', { withTimezone: true }),
+    // The pair the players were last told about, so «حریف شما» goes once per pairing.
+    announcedPair: text('announced_pair'),
+  },
+  (t) => [index('event_matches_competition_idx').on(t.competitionId)],
+);
+
+/** «اعتراض به نتیجه»: a player asks the jury to look at a result again. */
+export const eventObjections = pgTable(
+  'event_objections',
+  {
+    id: text('id').primaryKey(),
+    eventId: text('event_id').notNull().references(() => specialEvents.id, { onDelete: 'cascade' }),
+    matchId: text('match_id').notNull().references(() => eventMatches.id, { onDelete: 'cascade' }),
+    byId: text('by_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    text: text('text').notNull(),
+    status: text('status').$type<'open' | 'accepted' | 'rejected'>().notNull().default('open'),
+    decidedById: text('decided_by_id'),
+    decision: text('decision').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+  },
+  (t) => [index('event_objections_event_idx').on(t.eventId)],
+);
+
+/** What organizers and jurors changed (results, corrections, draws), with the reason they gave. */
+export const eventLog = pgTable(
+  'event_log',
+  {
+    id: serial('id').primaryKey(),
+    eventId: text('event_id').notNull().references(() => specialEvents.id, { onDelete: 'cascade' }),
+    matchId: text('match_id'),
+    byId: text('by_id'),
+    action: text('action').notNull(),
+    detail: text('detail').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('event_log_event_idx').on(t.eventId)],
+);
+
+/**
+ * A big screen in the hall. It has no account: it shows a 4-digit code, an organizer types the code on
+ * their phone, and from then on the screen only displays the event (it can change nothing).
+ */
+export const eventScreens = pgTable('event_screens', {
+  id: text('id').primaryKey(),
+  tokenHash: text('token_hash').notNull().unique(),
+  code: text('code').notNull(),
+  eventId: text('event_id').references(() => specialEvents.id, { onDelete: 'cascade' }),
+  pairedById: text('paired_by_id'),
+  pairedAt: timestamp('paired_at', { withTimezone: true }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});

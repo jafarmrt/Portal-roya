@@ -267,6 +267,13 @@
       "when": 1793624719913,
       "tag": "0037_tasks_overdue_todo_archive",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793628716480,
+      "tag": "0038_special_events",
+      "breakpoints": true
     }
   ]
 }

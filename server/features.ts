@@ -39,6 +39,11 @@ const FEATURE_ROUTES: { key: FeatureKey; pattern: RegExp; emptyReads: Record<str
   { key: 'tasks', pattern: /^\/tasks(\/|$)/, emptyReads: { '/tasks': { mine: [], given: [], recipients: [] } } },
   { key: 'onlineColleagues', pattern: /^\/(presence|kudos)(\/|$)/, emptyReads: {} },
   { key: 'noticeBoard', pattern: /^\/notices(\/|$)/, emptyReads: { '/notices': [], '/notices/manage': [] } },
+  {
+    key: 'specialEvents',
+    pattern: /^\/(special_events|event_competitions|event_entries|event_matches|event_objections)(\/|$)/,
+    emptyReads: { '/special_events/current': { event: null, canManage: false } },
+  },
   { key: 'pushNotifications', pattern: /^\/push(\/|$)/, emptyReads: {} },
 ];
 

@@ -1,4 +1,4 @@
-import {StrictMode} from 'react';
+import {StrictMode, lazy, Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App';
 // The font is bundled with the app so the portal works without internet access.
@@ -18,8 +18,18 @@ if (import.meta.env.PROD) setUpInstall();
 // Lets an emoji from a colleague chime later (browsers allow sound only after the first click).
 unlockSound();
 
+// The big screen in the hall opens the portal at #screen: no account, no menus, just the event.
+const EventScreen = lazy(() => import('./components/event/EventScreen').then((m) => ({ default: m.EventScreen })));
+const isScreen = window.location.hash === '#screen';
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    {isScreen ? (
+      <Suspense fallback={null}>
+        <EventScreen />
+      </Suspense>
+    ) : (
+      <App />
+    )}
   </StrictMode>,
 );

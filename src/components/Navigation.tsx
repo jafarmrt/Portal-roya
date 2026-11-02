@@ -28,6 +28,7 @@ import {
   MessageSquareText,
   NotebookPen,
   ClipboardList,
+  Sparkles,
   Ellipsis,
 } from 'lucide-react';
 import { unreadTotal, useSuggestionSummary } from '../lib/suggestionSummary';
@@ -221,7 +222,7 @@ function useFittingCount(count: number, signature: string) {
 }
 
 export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onCloseMobileNav }) => {
-  const { activeTab, setActiveTab, currentUser, isGuest, requestLogin, appSettings, can, isAdmin, polls, news, documents: portalDocuments, todos, tasks, featureOn } = usePortal();
+  const { activeTab, setActiveTab, currentUser, isGuest, requestLogin, appSettings, can, isAdmin, polls, news, documents: portalDocuments, todos, tasks, specialEvent, featureOn } = usePortal();
   useEscapeKey(onCloseMobileNav, isMobileNavOpen);
 
   // Read/vote badges are personal, so guests don't get them.
@@ -285,6 +286,19 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
         badgeColor: 'bg-amber-400 text-amber-950',
         compact: true
       }];
+  // «رویداد ویژه» (e.g. Yalda night): right after the dashboard while it is on; for those who manage events
+  // with nothing set up yet, at the end of the menu so they can start one.
+  const eventInfo = specialEvent?.event ?? null;
+  const eventItem: NavItem[] = eventInfo || specialEvent?.canManage
+    ? [{
+        id: 'event',
+        label: eventInfo?.title ?? 'رویداد ویژه',
+        icon: <Sparkles className="w-4 h-4" />,
+        badge: eventInfo?.status === 'draft' ? 'پیش‌نویس' : eventInfo?.phase === 'live' ? 'زنده' : undefined,
+        badgeColor: eventInfo?.phase === 'live' ? 'bg-amber-400 text-amber-950' : 'bg-brand-strong/30 text-on-brand-muted',
+      }]
+    : [];
+  const eventFirst = Boolean(eventInfo && eventInfo.status === 'active');
   // Guests can't send, so the boxes are only in the menu of signed-in colleagues.
   const suggestions: NavItem[] = isGuest
     ? []
@@ -332,6 +346,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
     items.length === 0 ? [] : items.length === 1 ? [{ kind: 'item', item: items[0] }] : [{ kind: 'group', id, label, icon, sections: [{ items }] }];
   const desktopEntries: NavEntry[] = [
     { kind: 'item', item: dashboard },
+    ...shown(eventFirst ? eventItem : []).map((item): NavEntry => ({ kind: 'item', item })),
     { kind: 'item', item: newsItem },
     ...shown([pollsItem]).map((item): NavEntry => ({ kind: 'item', item })),
     ...groupOrItem('library', 'اسناد و راهنماها', <Library className="w-4 h-4" />, shown([documents, guides])),
@@ -341,6 +356,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
     ...shown(todosItem).map((item): NavEntry => ({ kind: 'item', item })),
     ...shown(tasksItem).map((item): NavEntry => ({ kind: 'item', item })),
     ...shown(suggestions).map((item): NavEntry => ({ kind: 'item', item })),
+    ...shown(eventFirst ? [] : eventItem).map((item): NavEntry => ({ kind: 'item', item })),
   ];
   // «مدیریت» always stays at the end of the bar; what does not fit goes into «بیشتر» just before it.
   const pinnedEntries = groupOrItem('admin', 'مدیریت', <ShieldCheck className="w-4 h-4" />, adminItems);
@@ -368,7 +384,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
 
   // The phone drawer has room for everything, with management pages under their own heading.
   const mobileSections: { title?: string; items: NavItem[] }[] = [
-    { items: shown([dashboard, systems, newsItem, pollsItem, documents, guides, ...colleagueItems, training, calendar, ...todosItem, ...tasksItem, ...suggestions]) },
+    { items: shown([dashboard, ...(eventFirst ? eventItem : []), systems, newsItem, pollsItem, documents, guides, ...colleagueItems, training, calendar, ...todosItem, ...tasksItem, ...suggestions, ...(eventFirst ? [] : eventItem)]) },
     ...(adminItems.length > 0 ? [{ title: 'مدیریت', items: adminItems }] : []),
   ];
 

@@ -7,7 +7,7 @@ const COMMON_TABS = [
   'dashboard', 'news', 'polls', 'colleagues', 'orgchart', 'departments', 'departments/فروش', 'search', 'documents', 'guides', 'training', 'calendar', 'systems',
 ];
 const TABS: Record<Role, string[]> = {
-  admin: [...COMMON_TABS, 'notifications', 'todos', 'tasks', 'suggestions', 'suggestions/management', 'suggestions/hr', 'reports', 'people', 'admin', 'admin/general', 'admin/access', 'admin/features', 'admin/lists', 'admin/server', 'audit'],
+  admin: [...COMMON_TABS, 'notifications', 'todos', 'tasks', 'event', 'suggestions', 'suggestions/management', 'suggestions/hr', 'reports', 'people', 'admin', 'admin/general', 'admin/access', 'admin/features', 'admin/lists', 'admin/server', 'audit'],
   employee: [...COMMON_TABS, 'notifications', 'todos', 'suggestions', 'suggestions/mine', 'suggestions/track'],
   guest: [...COMMON_TABS, 'notifications'],
 };
@@ -68,6 +68,18 @@ for (const role of ['admin', 'employee', 'guest'] as const) {
     });
   });
 }
+
+test.describe('the big screen of an event', () => {
+  useRole('guest');
+
+  test('shows a code to pair it, without an account', async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.goto('/#screen');
+    await expect(page.getByText('و این کد را وارد کنید:')).toBeVisible();
+    await expect(page.getByText(/^[۰-۹]{4}$/)).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});
 
 test.describe('after an update', () => {
   useRole('employee');

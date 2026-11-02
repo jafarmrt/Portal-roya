@@ -7,7 +7,7 @@ import { sendMail } from './mailer.js';
 import { pushToUsers } from './push.js';
 import { type Audience, EVERYONE, inAudience } from '../shared/audience.js';
 
-export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system' | 'suggestion' | 'todo' | 'kudos' | 'notice' | 'task';
+export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system' | 'suggestion' | 'todo' | 'kudos' | 'notice' | 'task' | 'event';
 
 export interface NotificationInput {
   title: string;

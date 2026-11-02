@@ -7,7 +7,7 @@ const COMMON_TABS = [
   'dashboard', 'news', 'polls', 'colleagues', 'orgchart', 'departments', 'departments/فروش', 'search', 'documents', 'guides', 'training', 'calendar', 'systems', 'notifications',
 ];
 const TABS = {
-  admin: [...COMMON_TABS, 'suggestions', 'suggestions/management', 'suggestions/hr', 'reports', 'people', 'admin', 'audit'],
+  admin: [...COMMON_TABS, 'event', 'suggestions', 'suggestions/management', 'suggestions/hr', 'reports', 'people', 'admin', 'audit'],
   employee: [...COMMON_TABS, 'suggestions', 'suggestions/mine', 'suggestions/track'],
   guest: COMMON_TABS,
 };
