@@ -533,6 +533,7 @@ export const SCREEN_SCENES = [
   { id: 'predictors', label: 'بهترین پیش‌بین‌ها' },
   { id: 'wishes', label: 'آرزوهای یلدا' },
   { id: 'wheel', label: 'گردونهٔ شانس' },
+  { id: 'kid', label: 'این بچه کیه؟' },
   { id: 'guess', label: 'چند دانه؟' },
   { id: 'break', label: 'استراحت' },
 ] as const;
@@ -560,6 +561,8 @@ export interface ScreenState {
   awardId?: string | null;
   /** The verse of «فال حافظ» on the screen (an index in HAFEZ_FAL). */
   falIndex?: number | null;
+  /** The childhood photo of «این بچه کیه؟» on the screen. */
+  kidPhotoId?: string | null;
   /** Changes with every switch, so a screen knows to play the switch sound. */
   version: number;
 }
@@ -573,6 +576,7 @@ export const DEFAULT_SCREEN: ScreenState = {
   songId: null,
   awardId: null,
   falIndex: null,
+  kidPhotoId: null,
   version: 0,
 };
 
@@ -870,3 +874,10 @@ export function wheelPosition(elapsed: number, length: number) {
   const eased = 1 - (1 - t) ** 3;
   return Math.floor(eased * (length - 1));
 }
+
+// ─── «این بچه کیه؟» ───────────────────────────────────────────────────────────
+
+/** Names offered on the phones for each childhood photo (the right one among them). */
+export const KID_OPTIONS = 4;
+/** Uploaded photos must be one of the portal's own image files. */
+export const KID_PHOTO_RE = /^\/uploads\/[\w-]+\.(jpe?g|png|webp|gif)$/i;

@@ -334,4 +334,41 @@ test.describe('special event', () => {
     await page.getByRole('tab', { name: 'تنظیمات' }).click();
     await page.getByLabel('امتحان صفحه در مرحلهٔ').selectOption('');
   });
+  test('«این بچه کیه؟» on the night, and the closing news draft', async ({ page }) => {
+    // A 1×1 PNG stands in for a childhood photo.
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    await page.goto('/#event');
+    await page.getByRole('tab', { name: 'فال، آرزو، آهنگ' }).click();
+    const kid = page.locator('#event-kid');
+    await kid.locator('input[type=file]').setInputFiles({ name: 'kid.png', mimeType: 'image/png', buffer: png });
+    await expect(kid).toContainText('عکس شما رسیده');
+
+    await page.getByRole('tab', { name: 'تنظیمات' }).click();
+    await page.getByLabel('امتحان صفحه در مرحلهٔ').selectOption('live');
+    await page.getByRole('tab', { name: 'ریموت صفحهٔ بزرگ' }).click();
+    const remote = page.getByRole('region', { name: /این بچه کیه؟ ۱ عکس/ });
+    await remote.getByRole('button', { name: 'روی صفحه' }).click();
+    await expect(remote.getByRole('button', { name: 'روی صفحه است' })).toBeVisible();
+    // On top of the page, for the phones: one's own photo is not guessed.
+    const guess = page.locator('#event-kid-guess');
+    await expect(guess).toContainText('این عکس خود شماست');
+    await remote.getByRole('button', { name: 'بگو کیست' }).click();
+    await expect(remote).toContainText('جواب اعلام شد');
+    await expect(guess.getByRole('button', { name: /جواب درست/ })).toBeVisible();
+
+    await page.getByRole('tab', { name: 'میز برگزارکننده' }).click();
+    await page.getByRole('button', { name: 'ساختن پیش‌نویس خبر پایانی' }).click();
+    await expect(page.getByRole('button', { name: 'به‌روز کردن پیش‌نویس' })).toBeVisible();
+    await page.getByRole('button', { name: 'دیدن پیش‌نویس در اخبار' }).click();
+    const article = page.getByRole('dialog');
+    await expect(article.getByRole('heading', { name: /^گزارش / })).toBeVisible();
+    await expect(article).toContainText('این بچه کیه؟');
+    // The draft goes, so the news tests that count drafts start from none.
+    const current = (await (await page.request.get('/api/special_events/current')).json()) as { event: { closingNewsId: string } };
+    expect((await page.request.delete(`/api/news/${current.event.closingNewsId}`)).ok()).toBe(true);
+
+    await page.goto('/#event');
+    await page.getByRole('tab', { name: 'تنظیمات' }).click();
+    await page.getByLabel('امتحان صفحه در مرحلهٔ').selectOption('');
+  });
 });

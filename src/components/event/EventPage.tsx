@@ -12,6 +12,7 @@ import { GuessCard, PredictionsSection } from './GamesSection';
 import { FalCard, ScheduleCard } from './NightSection';
 import { QuizEditor, QuizPlayCard } from './QuizSection';
 import { WheelCard, WishesCard, WishesModeration } from './WishesSection';
+import { ClosingNewsCard, KidGuessCard, KidPhotoCard } from './KidSection';
 import { Countdown, JuryStrip, NowCard } from './EventParts';
 import { CreateEventForm, EventSettings } from './EventSettings';
 import { OrganizerConsole } from './OrganizerConsole';
@@ -42,6 +43,7 @@ const FOCUS_IDS: Record<string, string> = {
   quiz: 'event-quiz',
   wishes: 'event-wishes',
   wheel: 'event-wheel',
+  kid: 'event-kid',
 };
 
 const Hero: React.FC<{ view: EventView }> = ({ view }) => {
@@ -96,7 +98,7 @@ export const EventPage: React.FC = () => {
   useEffect(() => {
     if (!focusId || !loaded) return undefined;
     if (focusId === 'objections') setSection('console');
-    if (focusId === 'fun' || focusId === 'wishes' || focusId === 'wheel') setSection('fun');
+    if (focusId === 'fun' || focusId === 'wishes' || focusId === 'wheel' || focusId === 'kid') setSection('fun');
     if (focusId === 'predict' || focusId === 'guess' || focusId === 'schedule') setSection('competitions');
     const timer = window.setTimeout(
       () =>
@@ -146,7 +148,7 @@ export const EventPage: React.FC = () => {
       if (target === 'objections') window.setTimeout(() => document.getElementById('event-objections')?.scrollIntoView({ behavior: 'smooth' }), 100);
       return;
     }
-    if (target === 'fun' || target === 'wishes' || target === 'wheel') {
+    if (target === 'fun' || target === 'wishes' || target === 'wheel' || target === 'kid') {
       setSection('fun');
       if (target !== 'fun') window.setTimeout(() => document.getElementById(FOCUS_IDS[target])?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
       return;
@@ -160,6 +162,7 @@ export const EventPage: React.FC = () => {
     <div className="space-y-4 sm:space-y-5">
       <Hero view={view} />
       <QuizPlayCard view={view} />
+      <KidGuessCard view={view} />
       <NowCard view={view} onJump={jump} />
 
       {sections.length > 1 && (
@@ -212,12 +215,14 @@ export const EventPage: React.FC = () => {
             <WheelCard view={view} />
           </div>
           <WishesCard view={view} />
+          <KidPhotoCard view={view} />
           <FunSection view={view} />
         </div>
       )}
       {current === 'console' && (
         <div className="space-y-4">
           <OrganizerConsole view={view} />
+          <ClosingNewsCard view={view} />
           <WishesModeration view={view} />
           <QuizEditor view={view} />
         </div>

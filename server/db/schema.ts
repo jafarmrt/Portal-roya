@@ -951,6 +951,8 @@ export const specialEvents = pgTable('special_events', {
   schedule: jsonb('schedule').$type<ScheduleItem[]>().notNull().default([]),
   // «مسابقهٔ همه‌با‌هم»: the question on now, when it closes and whether its answer is shown.
   quizState: jsonb('quiz_state').$type<QuizState>(),
+  // The news draft of the closing report, made from the event's page (kept to refresh it, not make another).
+  closingNewsId: text('closing_news_id'),
   activatedAt: timestamp('activated_at', { withTimezone: true }),
   createdById: text('created_by_id').references(() => employees.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -1349,4 +1351,36 @@ export const eventWheelSpins = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('event_wheel_spins_event_idx').on(t.eventId)],
+);
+
+/**
+ * «این بچه کیه؟»: a volunteer's childhood photo. Only the organizers see it until it is shown on the big
+ * screen; the rows and the files are deleted once the event's page closes.
+ */
+export const eventKidPhotos = pgTable(
+  'event_kid_photos',
+  {
+    id: text('id').primaryKey(),
+    eventId: text('event_id').notNull().references(() => specialEvents.id, { onDelete: 'cascade' }),
+    employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    url: text('url').notNull(),
+    // The names offered on the phones, fixed when the photo is first shown.
+    options: text('options').array().notNull().default([]),
+    shownAt: timestamp('shown_at', { withTimezone: true }),
+    revealedAt: timestamp('revealed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('event_kid_photos_person_idx').on(t.eventId, t.employeeId)],
+);
+
+/** One colleague's guess of whose childhood photo it is (changeable until the answer is shown). */
+export const eventKidGuesses = pgTable(
+  'event_kid_guesses',
+  {
+    photoId: text('photo_id').notNull().references(() => eventKidPhotos.id, { onDelete: 'cascade' }),
+    employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    pick: text('pick').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.photoId, t.employeeId] })],
 );

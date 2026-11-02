@@ -6,6 +6,7 @@ import { GuessReveal } from './GamesSection';
 import { EnvelopePanel } from './NightSection';
 import { QuizRemote } from './QuizSection';
 import { WheelRemote } from './WishesSection';
+import { KidRemote } from './KidSection';
 import { EntryPicture, Stepper, api, entryName, isReady, sidesLine, useEventAction } from './eventUi';
 import { countdownText } from './EventParts';
 import { SCREEN_SCENES, randomFal, timerLeft, type ScreenScene, type ScreenState } from '../../../shared/specialEvents';
@@ -313,7 +314,7 @@ export const RemotePanel: React.FC<{ view: EventView }> = ({ view }) => {
           </select>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {SCREEN_SCENES.filter((s) => s.id !== 'match' && s.id !== 'envelope' && (s.id !== 'guess' || view.guess) && (s.id !== 'schedule' || event.schedule.length > 0) && ((s.id !== 'quiz' && s.id !== 'quizboard') || view.quiz.count > 0)).map((s) => (
+          {SCREEN_SCENES.filter((s) => s.id !== 'match' && s.id !== 'envelope' && s.id !== 'kid' && (s.id !== 'guess' || view.guess) && (s.id !== 'schedule' || event.schedule.length > 0) && ((s.id !== 'quiz' && s.id !== 'quizboard') || view.quiz.count > 0)).map((s) => (
             <button
               key={s.id}
               type="button"
@@ -414,6 +415,7 @@ export const RemotePanel: React.FC<{ view: EventView }> = ({ view }) => {
       <NowPlaying view={view} />
       <QuizRemote view={view} onBoard={() => void show('quizboard')} />
       <WheelRemote view={view} />
+      <KidRemote view={view} />
       <GuessReveal view={view} onShow={() => void show('guess')} />
       <EnvelopePanel view={view} onShow={(awardId) => void show('envelope', { awardId })} />
       <PairScreen eventId={event.id} />

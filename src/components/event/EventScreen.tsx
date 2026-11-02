@@ -390,7 +390,7 @@ const WishesScene: React.FC<{ view: EventView }> = ({ view }) => {
       {wall.length === 0 ? (
         <p className="text-[2.6vw] opacity-85">آرزویتان را در پرتال، صفحهٔ رویداد بنویسید تا اینجا بیاید.</p>
       ) : (
-        <ul key={page} className="w-full grid grid-cols-2 gap-[1.6vw] text-right animate-[page-enter_0.8s_ease-out]">
+        <ul key={page} className="w-full grid grid-cols-2 gap-[1.6vw] text-right">
           {shown.map((w) => (
             <li key={w.id} className="rounded-[1.6vw] px-[2vw] py-[1.4vw] space-y-[0.6vw]" style={{ background: 'rgba(255,255,255,0.12)' }}>
               <p className="text-[2.2vw] font-bold leading-relaxed">«{w.text}»</p>
@@ -468,6 +468,44 @@ const WheelScene: React.FC<{ view: EventView; offset: number; started: boolean }
         </p>
       )}
       {spin.absent && <p className="text-[2vw] opacity-75">در سالن نبود؛ گردونه دوباره می‌چرخد.</p>}
+    </Big>
+  );
+};
+
+/** «این بچه کیه؟»: the childhood photo and how many guessed; then today's face and name beside it. */
+const KidScene: React.FC<{ view: EventView }> = ({ view }) => {
+  const current = view.kid.current;
+  if (!current) {
+    const leaders = view.kid.leaders.filter((l) => l.rank <= 3);
+    return (
+      <Big>
+        <p className="text-[10vw] leading-none" aria-hidden>
+          👶❓
+        </p>
+        <h2 className="text-[5vw] font-black">این بچه کیه؟</h2>
+        {leaders.length > 0 && (
+          <p className="text-[2.4vw] font-bold" style={{ color: YALDA.gold }}>
+            بهترین حدس‌ها: {leaders.map((l) => `${view.people[l.employeeId]?.name ?? 'همکار'} (${toPersianDigits(l.correct)})`).join('، ')}
+          </p>
+        )}
+      </Big>
+    );
+  }
+  const owner = current.revealed && current.ownerId ? view.people[current.ownerId] : undefined;
+  return (
+    <Big>
+      <h2 className="text-[4vw] font-black">{current.revealed ? `${owner?.name ?? 'همکار'} 🎉` : 'این بچه کیه؟'}</h2>
+      <div className="flex items-center justify-center gap-[4vw]">
+        <img src={fileUrl(current.url)} alt="" className="h-[55vh] max-w-[45vw] rounded-[2vw] object-contain shadow-2xl" />
+        {owner && (
+          <PersonAvatar person={owner} src={owner.avatarUrl ? fileUrl(owner.avatarUrl) : undefined} className="w-[22vw] h-[22vw] rounded-full text-[8vw] object-cover ring-[0.6vw] ring-amber-300 animate-[pop_0.6s_ease-out]" />
+        )}
+      </div>
+      <p className="text-[2.6vw] font-bold" style={{ color: YALDA.gold }}>
+        {current.revealed
+          ? `${toPersianDigits(current.right ?? 0)} نفر از ${toPersianDigits(current.guessed)} نفر درست گفتند`
+          : `${toPersianDigits(current.guessed)} نفر حدس زده‌اند؛ روی گوشی انتخاب کنید`}
+      </p>
     </Big>
   );
 };
@@ -578,6 +616,8 @@ const Scene: React.FC<{ view: EventView; screen: ScreenState; offset: number; ti
       return <WishesScene view={view} />;
     case 'wheel':
       return <WheelScene view={view} offset={offset} started={started} />;
+    case 'kid':
+      return <KidScene view={view} />;
     case 'champion':
       return <Champion view={view} competition={screen.competitionId ? competition : undefined} />;
     case 'break':

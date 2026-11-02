@@ -81,6 +81,7 @@ import { awardsView, processAwards } from './eventAwards.js';
 import { gamesView } from './eventGames.js';
 import { quizView } from './eventQuiz.js';
 import { wishesView } from './eventWishes.js';
+import { clearKidPhotos, kidView } from './eventKids.js';
 import { songsView } from './eventSongs.js';
 
 // «رویداد ویژه»: the page of a company occasion (Yalda night). Who may do what:
@@ -323,12 +324,14 @@ export async function eventView(ev: EventRow, viewer: Viewer) {
   const gamesPart = await gamesView(ev, viewer, { competitions, matches, membersOf });
   const quizPart = await quizView(ev, viewer);
   const wishesPart = await wishesView(ev, viewer);
+  const kidPart = await kidView(ev, viewer);
   const people = await peopleById([
     ...awardsPart.peopleIds,
     ...funPart.peopleIds,
     ...gamesPart.peopleIds,
     ...quizPart.peopleIds,
     ...wishesPart.peopleIds,
+    ...kidPart.peopleIds,
     ...ev.juryIds,
     ...ev.organizerIds,
     ...members.map((m) => m.employeeId),
@@ -383,6 +386,7 @@ export async function eventView(ev: EventRow, viewer: Viewer) {
       juryHeadId: ev.juryHeadId,
       juryPhotos: ev.juryPhotos,
       guessQuestion: ev.guessQuestion,
+      closingNewsId: roles.isOrganizer ? ev.closingNewsId : null,
       schedule: [...ev.schedule].sort((a, b) => a.time.localeCompare(b.time)),
       screen: roles.referee ? (ev.screen ?? DEFAULT_SCREEN) : null,
     },
@@ -448,6 +452,7 @@ export async function eventView(ev: EventRow, viewer: Viewer) {
     quiz: quizPart.quiz,
     wishes: wishesPart.wishes,
     wheel: wishesPart.wheel,
+    kid: kidPart.kid,
     serverNow: now.toISOString(),
   };
 }
@@ -1870,7 +1875,11 @@ export async function processSpecialEvents(now = new Date()) {
   let changed = false;
   for (const ev of events) {
     const phase = eventPhase(ev, now);
-    if (phase === 'ended') continue;
+    if (phase === 'ended') {
+      // The childhood photos were only for the night (and the days after it).
+      if (await clearKidPhotos(ev)) changed = true;
+      continue;
+    }
     await processAwards(ev, now);
     const today = toJalali(now);
     const hour = now.getHours();

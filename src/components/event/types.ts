@@ -48,6 +48,8 @@ export interface EventInfo {
   juryPhotos: Record<string, string>;
   /** «چند دانه؟»: empty when the event has no such game. */
   guessQuestion: string;
+  /** Only for organizers: the news draft of the closing report, once made. */
+  closingNewsId: string | null;
   /** «برنامهٔ امشب», in time order. */
   schedule: ScheduleItem[];
   /** Only for organizers and jurors. */
@@ -247,6 +249,7 @@ export interface EventView {
   quiz: EventQuiz;
   wishes: EventWishes;
   wheel: EventWheel;
+  kid: EventKid;
   serverNow: string;
 }
 
@@ -344,5 +347,33 @@ export interface EventWheel {
   inIt: boolean;
   /** This viewer runs the event (organizers are not in the wheel). */
   organizer: boolean;
+  live: boolean;
+}
+
+/** «این بچه کیه؟»: childhood photos guessed on the night. */
+export interface EventKid {
+  count: number;
+  mine: { id: string; url: string; shown: boolean } | null;
+  canSend: boolean;
+  /** Only for organizers and jurors: every photo with whose it is. */
+  photos: { id: string; url: string; employeeId: string; shown: boolean; revealed: boolean; guessed: number }[];
+  /** The photo on the big screen. */
+  current: {
+    id: string;
+    url: string;
+    options: string[];
+    revealed: boolean;
+    /** Once revealed (organizers and jurors always). */
+    ownerId: string | null;
+    guessed: number;
+    right: number | null;
+    counts: number[] | null;
+    myPick: string | null;
+    canGuess: boolean;
+    isMine: boolean;
+  } | null;
+  gallery: { id: string; url: string; employeeId: string }[];
+  leaders: { employeeId: string; correct: number; rank: number }[];
+  me: { correct: number; rank: number } | null;
   live: boolean;
 }

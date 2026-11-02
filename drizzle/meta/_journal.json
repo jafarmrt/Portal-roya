@@ -323,6 +323,13 @@
       "when": 1793639445592,
       "tag": "0045_event_wishes_wheel",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1793640616020,
+      "tag": "0046_event_kid_photos",
+      "breakpoints": true
     }
   ]
 }
