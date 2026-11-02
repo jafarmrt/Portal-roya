@@ -10,6 +10,7 @@ import { AwardsSection } from './AwardsSection';
 import { FunSection } from './FunSection';
 import { GuessCard, PredictionsSection } from './GamesSection';
 import { FalCard, ScheduleCard } from './NightSection';
+import { QuizEditor, QuizPlayCard } from './QuizSection';
 import { Countdown, JuryStrip, NowCard } from './EventParts';
 import { CreateEventForm, EventSettings } from './EventSettings';
 import { OrganizerConsole } from './OrganizerConsole';
@@ -37,6 +38,7 @@ const FOCUS_IDS: Record<string, string> = {
   predict: 'event-predict',
   guess: 'event-guess',
   schedule: 'event-schedule',
+  quiz: 'event-quiz',
 };
 
 const Hero: React.FC<{ view: EventView }> = ({ view }) => {
@@ -153,6 +155,7 @@ export const EventPage: React.FC = () => {
   return (
     <div className="space-y-4 sm:space-y-5">
       <Hero view={view} />
+      <QuizPlayCard view={view} />
       <NowCard view={view} onJump={jump} />
 
       {sections.length > 1 && (
@@ -203,7 +206,12 @@ export const EventPage: React.FC = () => {
           <FunSection view={view} />
         </div>
       )}
-      {current === 'console' && <OrganizerConsole view={view} />}
+      {current === 'console' && (
+        <div className="space-y-4">
+          <OrganizerConsole view={view} />
+          <QuizEditor view={view} />
+        </div>
+      )}
       {current === 'remote' && <RemotePanel view={view} />}
       {current === 'settings' && <EventSettings view={view} />}
 

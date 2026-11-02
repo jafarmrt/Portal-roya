@@ -79,6 +79,7 @@ import { fullName } from '../serializers.js';
 import { guestSettings } from '../settings.js';
 import { awardsView, processAwards } from './eventAwards.js';
 import { gamesView } from './eventGames.js';
+import { quizView } from './eventQuiz.js';
 import { songsView } from './eventSongs.js';
 
 // «رویداد ویژه»: the page of a company occasion (Yalda night). Who may do what:
@@ -319,10 +320,12 @@ export async function eventView(ev: EventRow, viewer: Viewer) {
   const awardsPart = await awardsView(ev, viewer);
   const funPart = await songsView(ev, viewer);
   const gamesPart = await gamesView(ev, viewer, { competitions, matches, membersOf });
+  const quizPart = await quizView(ev, viewer);
   const people = await peopleById([
     ...awardsPart.peopleIds,
     ...funPart.peopleIds,
     ...gamesPart.peopleIds,
+    ...quizPart.peopleIds,
     ...ev.juryIds,
     ...ev.organizerIds,
     ...members.map((m) => m.employeeId),
@@ -439,6 +442,7 @@ export async function eventView(ev: EventRow, viewer: Viewer) {
     predictions: gamesPart.predictions,
     guess: gamesPart.guess,
     fal: gamesPart.fal,
+    quiz: quizPart.quiz,
     serverNow: now.toISOString(),
   };
 }
