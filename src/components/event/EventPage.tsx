@@ -6,6 +6,7 @@ import { EmptyState } from '../common/Placeholder';
 import { primaryButtonClass } from '../common/Modal';
 import { CompetitionCard } from './CompetitionCard';
 import { CompetitionFormModal } from './CompetitionFormModal';
+import { AwardsSection } from './AwardsSection';
 import { Countdown, JuryStrip, NowCard } from './EventParts';
 import { CreateEventForm, EventSettings } from './EventSettings';
 import { OrganizerConsole } from './OrganizerConsole';
@@ -77,7 +78,7 @@ export const EventPage: React.FC = () => {
     if (!focusId || !loaded) return undefined;
     if (focusId === 'objections') setSection('console');
     const timer = window.setTimeout(
-      () => document.getElementById(focusId === 'objections' ? 'event-objections' : `competition-${focusId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      () => document.getElementById(focusId === 'objections' ? 'event-objections' : focusId === 'awards' ? 'event-awards' : `competition-${focusId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
       150,
     );
     return () => window.clearTimeout(timer);
@@ -122,7 +123,8 @@ export const EventPage: React.FC = () => {
       return;
     }
     setSection('competitions');
-    window.setTimeout(() => document.getElementById(`competition-${target}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    const id = target === 'awards' ? 'event-awards' : `competition-${target}`;
+    window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
   return (
@@ -166,6 +168,7 @@ export const EventPage: React.FC = () => {
             </button>
           )}
           {isGuest && <p className="text-xs text-muted text-center">برای ثبت‌نام در مسابقه‌ها وارد حساب کاربری شوید.</p>}
+          <AwardsSection view={view} />
         </div>
       )}
       {current === 'console' && <OrganizerConsole view={view} />}

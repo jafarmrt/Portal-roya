@@ -361,3 +361,101 @@ export const RESULT_OVERDUE_MINUTES = 10;
 export const PROGRAM_REMIND_MINUTES = 15;
 /** A result just entered can be taken back this long by the one who entered it. */
 export const RESULT_UNDO_MS = 10_000;
+
+// ─── «انتخاب‌های یلدا»: nominations and the jury's choice ─────────────────────
+//
+// Each category (خوش‌تیپ‌ترین، همیشه پایه…) is nominated by colleagues during signup; the three most
+// nominated make its shortlist the morning after signup closes, and each of them may step down that day.
+// The shortlist is shown to everyone the next day, the jury votes in secret until noon of the program
+// day, and nobody (the portal's administrator included) sees a winner until it is opened on stage.
+
+export const AWARDS_MAX = 12;
+export const AWARD_TITLE_MAX = 60;
+export const NOMINATION_REASON_MAX = 200;
+export const AWARD_NOTE_MAX = 200;
+/** Colleagues on each category's shortlist (the most nominated). */
+export const SHORTLIST_SIZE = 3;
+export const AWARD_ICONS = ['🏅', '😎', '😄', '🤝', '🌅', '☕', '💡', '🎨', '🧹', '📚', '🎤', '🌟'] as const;
+
+export interface AwardTimes {
+  /** The shortlist is made and its colleagues are told (they may step down until it is published). */
+  shortlistAt: Date;
+  /** Everyone sees the shortlist; the jury votes from now. */
+  publishAt: Date;
+  /** The jury's votes close and the winners are worked out. */
+  voteDeadline: Date;
+}
+
+/** When each step of the nominations happens, from the event's dates. */
+export function awardTimes(dates: Pick<EventDates, 'signupEnd' | 'programDate' | 'programTime'>): AwardTimes {
+  const day1 = addJalaliDays(dates.signupEnd, 1);
+  const shortlistAt = jalaliToDate(day1, '08:00') ?? new Date(NaN);
+  const publishAt =
+    day1 >= dates.programDate ? new Date(shortlistAt.getTime() + 2 * 3600_000) : (jalaliToDate(addJalaliDays(day1, 1), '00:00') ?? new Date(NaN));
+  const noon = jalaliToDate(dates.programDate, '12:00') ?? new Date(NaN);
+  const start = programStart(dates);
+  const voteDeadline = noon.getTime() > publishAt.getTime() ? noon : start.getTime() > publishAt.getTime() ? start : new Date(publishAt.getTime() + 2 * 3600_000);
+  return { shortlistAt, publishAt, voteDeadline };
+}
+
+export type AwardStage = 'nominating' | 'shortlisting' | 'voting' | 'counting' | 'decided' | 'revealed';
+
+export const AWARD_STAGE_LABEL: Record<AwardStage, string> = {
+  nominating: 'معرفی نامزد',
+  shortlisting: 'فهرست نامزدها آماده می‌شود',
+  voting: 'رأی داوران',
+  counting: 'منتظر تصمیم رئیس هیئت',
+  decided: 'برنده معلوم شده؛ روی صحنه اعلام می‌شود',
+  revealed: 'اعلام شد',
+};
+
+/**
+ * Picks the winners of the categories in order. Each colleague wins at most one title: one who already
+ * won an earlier category is passed over. The most votes win; a tie goes to the head of the jury's vote
+ * when it is one of the tied, else the head decides (`tie`). A category waiting for that decision holds
+ * back the ones after it, since its winner may be on their shortlists too.
+ */
+export interface AwardCount {
+  id: string;
+  /** Colleagues still on the shortlist, in its order. */
+  nominees: string[];
+  /** The vote of each juror: juror → nominee. */
+  votes: Record<string, string>;
+  /** Already picked by the head after a tie. */
+  picked: string | null;
+}
+
+/** `waiting`: held back by a tie in an earlier category; `tie`: the head of the jury picks among these. */
+export type AwardOutcome = { id: string; winner: string | null; tie: string[]; waiting: boolean };
+
+export function countAwards(awards: AwardCount[], headId: string | null): AwardOutcome[] {
+  const won = new Set<string>();
+  const outcomes: AwardOutcome[] = [];
+  for (const award of awards) {
+    const candidates = award.nominees.filter((n) => !won.has(n));
+    if (candidates.length === 0) {
+      outcomes.push({ id: award.id, winner: null, tie: [], waiting: false });
+      continue;
+    }
+    if (award.picked && candidates.includes(award.picked)) {
+      won.add(award.picked);
+      outcomes.push({ id: award.id, winner: award.picked, tie: [], waiting: false });
+      continue;
+    }
+    const counts = new Map(candidates.map((c) => [c, 0]));
+    for (const nominee of Object.values(award.votes)) if (counts.has(nominee)) counts.set(nominee, counts.get(nominee)! + 1);
+    const top = Math.max(...counts.values());
+    const tied = candidates.filter((c) => counts.get(c) === top);
+    const headVote = headId ? award.votes[headId] : undefined;
+    const winner = tied.length === 1 ? tied[0] : headVote && tied.includes(headVote) ? headVote : null;
+    if (!winner) {
+      outcomes.push({ id: award.id, winner: null, tie: tied, waiting: false });
+      // The ones after it wait: its winner might be on their shortlists.
+      for (const rest of awards.slice(awards.indexOf(award) + 1)) outcomes.push({ id: rest.id, winner: null, tie: [], waiting: true });
+      return outcomes;
+    }
+    won.add(winner);
+    outcomes.push({ id: award.id, winner, tie: [], waiting: false });
+  }
+  return outcomes;
+}
