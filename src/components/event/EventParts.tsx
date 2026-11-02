@@ -84,6 +84,9 @@ function nowLines(view: EventView, userId: string | undefined, isGuest: boolean)
 
   // Everyone, players or not: a song for the night.
   if (phase === 'signup' && !view.songs.some((s) => s.mine)) lines.push({ text: 'آهنگی برای شب یلدا پیشنهاد بدهید یا به آهنگ همکاران «من هم» بدهید 🎵', target: 'fun' });
+  const waiting = view.predictions.me?.waiting ?? 0;
+  if (waiting > 0) lines.push({ text: `${toPersianDigits(waiting)} بازی منتظر پیش‌بینی شماست؛ حدس بزنید چه کسی می‌برد 🔮`, target: 'predict' });
+  if (view.guess?.canGuess && view.guess.mine === null) lines.push({ text: `«${view.guess.question}» حدستان را تا شروع برنامه بنویسید 🎯`, target: 'guess' });
 
   if (userId && event.juryIds.includes(userId)) {
     lines.push({ text: 'شما داور رویداد هستید: نتیجه‌ها، اصلاح‌ها و اعتراض‌ها با هیئت داوران است و در هیچ مسابقه‌ای شرکت نمی‌کنید.' });

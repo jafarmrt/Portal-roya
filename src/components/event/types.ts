@@ -44,6 +44,8 @@ export interface EventInfo {
   juryIds: string[];
   juryHeadId: string | null;
   juryPhotos: Record<string, string>;
+  /** «چند دانه؟»: empty when the event has no such game. */
+  guessQuestion: string;
   /** Only for organizers and jurors. */
   screen: ScreenState | null;
 }
@@ -234,7 +236,48 @@ export interface EventView {
   awardsInfo: AwardsInfo;
   songs: EventSong[];
   ideas: EventIdea[];
+  predictions: EventPredictions;
+  guess: EventGuess | null;
   serverNow: string;
+}
+
+/** «پیش‌بینی برنده» of one match, as this viewer sees it. */
+export interface MatchPrediction {
+  open: boolean;
+  closesAt: string | null;
+  /** Open, and this viewer is neither playing it nor a juror. */
+  canPick: boolean;
+  /** An entry id, or «draw» in a points table. */
+  mine: string | null;
+  /** How everyone picked: shown once one has picked, or once picking is over. */
+  counts: { a: number; b: number; draw: number; total: number } | null;
+}
+
+export interface PredictionLeader {
+  employeeId: string;
+  correct: number;
+  total: number;
+  rank: number;
+}
+
+export interface EventPredictions {
+  matches: Record<string, MatchPrediction>;
+  leaders: PredictionLeader[];
+  me: { correct: number; total: number; waiting: number } | null;
+}
+
+/** «چند دانه؟»: one number everyone guesses before the program, opened on stage. */
+export interface EventGuess {
+  question: string;
+  open: boolean;
+  closesAt: string;
+  canGuess: boolean;
+  count: number;
+  mine: number | null;
+  revealed: boolean;
+  answer: number | null;
+  winners: { employeeId: string; value: number; diff: number }[];
+  myRank: number | null;
 }
 
 /** The answer of /api/special_events/current: no event, or one with everything on its page. */

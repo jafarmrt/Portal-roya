@@ -2,6 +2,7 @@ import React, { useEffect, useId, useState } from 'react';
 import { Check, Eye, EyeOff, Link2, Monitor, Music, Square, Pause, Play, RotateCcw, Send, SkipForward, WholeWord } from 'lucide-react';
 import { inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { ResultModal } from './ResultModal';
+import { GuessReveal } from './GamesSection';
 import { EntryPicture, Stepper, api, entryName, isReady, sidesLine, useEventAction } from './eventUi';
 import { countdownText } from './EventParts';
 import { SCREEN_SCENES, timerLeft, type ScreenScene, type ScreenState } from '../../../shared/specialEvents';
@@ -307,7 +308,7 @@ export const RemotePanel: React.FC<{ view: EventView }> = ({ view }) => {
           </select>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {SCREEN_SCENES.filter((s) => s.id !== 'match').map((s) => (
+          {SCREEN_SCENES.filter((s) => s.id !== 'match' && (s.id !== 'guess' || view.guess)).map((s) => (
             <button
               key={s.id}
               type="button"
@@ -405,6 +406,7 @@ export const RemotePanel: React.FC<{ view: EventView }> = ({ view }) => {
       </section>
 
       <NowPlaying view={view} />
+      <GuessReveal view={view} onShow={() => void show('guess')} />
       <PairScreen eventId={event.id} />
 
       {finishing && stageMatch && competition && (

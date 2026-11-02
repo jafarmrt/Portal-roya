@@ -30,6 +30,7 @@ import { telHref } from '../../lib/phone';
 import { secondaryButtonClass } from '../common/Modal';
 import { TaskFormModal } from '../tasks/TaskFormModal';
 import { useCanHandTask } from '../tasks/canHandTask';
+import { useEventBadges } from '../event/useEventBadges';
 
 export const ColleaguesDirectory: React.FC = () => {
   const { employees, can, appSettings, departmentPages, focusId, setActiveTab, currentUser, featureOn } = usePortal();
@@ -37,6 +38,7 @@ export const ColleaguesDirectory: React.FC = () => {
   // for a viewer who shows themselves too; the server decides).
   const { data: presence } = usePresence(!!currentUser && featureOn('onlineColleagues'));
   const onlineIds = new Set((presence?.online ?? []).map((p) => p.id));
+  const badges = useEventBadges(featureOn('specialEvents'));
   const isManager = can('users.manage');
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -200,6 +202,11 @@ export const ColleaguesDirectory: React.FC = () => {
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-bold text-ink group-hover:text-brand transition-colors truncate">
                       {emp.firstName} {emp.lastName}
+                      {badges[emp.id]?.length ? (
+                        <span className="ms-1" title={badges[emp.id].map((b) => b.label).join('، ')} aria-label={badges[emp.id].map((b) => b.label).join('، ')} role="img">
+                          {badges[emp.id][0].icon}
+                        </span>
+                      ) : null}
                     </h3>
                     <p className="text-xs font-semibold text-muted truncate mt-0.5">
                       {emp.position || NO_POSITION}

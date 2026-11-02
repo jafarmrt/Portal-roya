@@ -525,6 +525,8 @@ export const SCREEN_SCENES = [
   { id: 'match', label: 'بازی روی صحنه' },
   { id: 'today', label: 'بازی‌های امروز' },
   { id: 'champion', label: 'قهرمان' },
+  { id: 'predictors', label: 'بهترین پیش‌بین‌ها' },
+  { id: 'guess', label: 'چند دانه؟' },
   { id: 'break', label: 'استراحت' },
 ] as const;
 export type ScreenScene = (typeof SCREEN_SCENES)[number]['id'];
@@ -718,4 +720,31 @@ export function songKey(title: string, artist: string) {
       .replace(/[ً-ْٰ]/g, '')
       .replace(/[\s‌‏\p{P}\p{S}]+/gu, '');
   return `${norm(title)}|${norm(artist)}`;
+}
+
+// ─── «پیش‌بینی برنده» and «چند دانه؟» ─────────────────────────────────────────────
+
+/** The pick of one who thinks a match of a points table ends level. */
+export const PREDICT_DRAW = 'draw';
+
+/** Whether a prediction came true: the winner, or a draw of a points table (a walkover is no draw). */
+export const predictionRight = (pick: string, m: { done: boolean; winnerId: string | null; walkover: boolean }) =>
+  m.done && (m.winnerId ? pick === m.winnerId : pick === PREDICT_DRAW && !m.walkover);
+
+export const GUESS_QUESTION_MAX = 120;
+export const GUESS_MAX = 1_000_000;
+export const DEFAULT_GUESS_QUESTION = 'انار روی میز چند دانه دارد؟';
+
+export interface Guess {
+  employeeId: string;
+  value: number;
+  /** When it was last changed (ISO): of two equally close guesses, the earlier wins. */
+  at: string;
+}
+
+/** The guesses by how close they came to the answer, the earlier first when two are as close. */
+export function guessOrder(guesses: Guess[], answer: number) {
+  return guesses
+    .map((g) => ({ ...g, diff: Math.abs(g.value - answer) }))
+    .sort((a, b) => a.diff - b.diff || a.at.localeCompare(b.at) || a.employeeId.localeCompare(b.employeeId));
 }

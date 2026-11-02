@@ -942,6 +942,11 @@ export const specialEvents = pgTable('special_events', {
   awardsShortlistedAt: timestamp('awards_shortlisted_at', { withTimezone: true }),
   awardsPublishedAt: timestamp('awards_published_at', { withTimezone: true }),
   awardsClosedAt: timestamp('awards_closed_at', { withTimezone: true }),
+  // «چند دانه؟»: a number everyone guesses before the program (empty question = no game); the answer is
+  // written only when it is opened on stage.
+  guessQuestion: text('guess_question').notNull().default(''),
+  guessAnswer: integer('guess_answer'),
+  guessRevealedAt: timestamp('guess_revealed_at', { withTimezone: true }),
   activatedAt: timestamp('activated_at', { withTimezone: true }),
   createdById: text('created_by_id').references(() => employees.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -1240,4 +1245,29 @@ export const eventIdeaLikes = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.ideaId, t.employeeId] })],
+);
+
+/** «پیش‌بینی برنده»: who a colleague thinks wins a match (an entry, or «draw» in a points table). */
+export const eventPredictions = pgTable(
+  'event_predictions',
+  {
+    matchId: text('match_id').notNull().references(() => eventMatches.id, { onDelete: 'cascade' }),
+    employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    pick: text('pick').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.matchId, t.employeeId] })],
+);
+
+/** One colleague's guess for the event's «چند دانه؟» game; changeable until the program starts. */
+export const eventGuesses = pgTable(
+  'event_guesses',
+  {
+    eventId: text('event_id').notNull().references(() => specialEvents.id, { onDelete: 'cascade' }),
+    employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    value: integer('value').notNull(),
+    // The last change: of two equally close guesses, the earlier one wins.
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.eventId, t.employeeId] })],
 );
