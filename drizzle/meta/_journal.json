@@ -316,6 +316,13 @@
       "when": 1793638832774,
       "tag": "0044_event_quiz",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1793639445592,
+      "tag": "0045_event_wishes_wheel",
+      "breakpoints": true
     }
   ]
 }

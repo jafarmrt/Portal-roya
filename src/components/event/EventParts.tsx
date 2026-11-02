@@ -95,6 +95,14 @@ function nowLines(view: EventView, userId: string | undefined, isGuest: boolean)
   }
   const q = view.quiz.current;
   if (q && view.quiz.live && view.quiz.canPlay && q.open && q.myChoice === null) lines.push({ text: `سؤال ${toPersianDigits(q.index)} مسابقهٔ همه باز است؛ زود جواب بدهید! ⏱️`, target: 'quiz' });
+  const pendingWishes = view.wishes.waiting.filter((w) => w.status === 'pending').length;
+  if (me.isOrganizer && pendingWishes > 0) lines.push({ text: `${toPersianDigits(pendingWishes)} آرزوی یلدا منتظر تأیید شماست.`, target: 'console' });
+  if ((phase === 'matchday' || phase === 'live') && view.wishes.canWrite && view.wishes.mine.length === 0 && userId) {
+    lines.push({ text: 'یک آرزوی کوتاه برای سال تازه بنویسید؛ امشب روی صفحهٔ بزرگ می‌آید 🕯️', target: 'wishes' });
+  }
+  if (phase === 'live' && userId && !view.wheel.inIt && !view.wheel.organizer) {
+    lines.push({ text: 'اسم شما هنوز در گردونهٔ شانس نیست؛ با یک فال، پیش‌بینی یا آرزو اسمتان به گردونه می‌رود 🎡', target: 'wheel' });
+  }
   const waiting = view.predictions.me?.waiting ?? 0;
   if (waiting > 0) lines.push({ text: `${toPersianDigits(waiting)} بازی منتظر پیش‌بینی شماست؛ حدس بزنید چه کسی می‌برد 🔮`, target: 'predict' });
   if (view.guess?.canGuess && view.guess.mine === null) lines.push({ text: `«${view.guess.question}» حدستان را تا شروع برنامه بنویسید 🎯`, target: 'guess' });

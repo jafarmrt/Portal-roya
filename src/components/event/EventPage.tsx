@@ -11,6 +11,7 @@ import { FunSection } from './FunSection';
 import { GuessCard, PredictionsSection } from './GamesSection';
 import { FalCard, ScheduleCard } from './NightSection';
 import { QuizEditor, QuizPlayCard } from './QuizSection';
+import { WheelCard, WishesCard, WishesModeration } from './WishesSection';
 import { Countdown, JuryStrip, NowCard } from './EventParts';
 import { CreateEventForm, EventSettings } from './EventSettings';
 import { OrganizerConsole } from './OrganizerConsole';
@@ -24,7 +25,7 @@ type Section = 'competitions' | 'fun' | 'console' | 'remote' | 'settings';
 
 const SECTIONS: { id: Section; label: string }[] = [
   { id: 'competitions', label: 'مسابقه‌ها' },
-  { id: 'fun', label: 'آهنگ‌ها و ایده‌ها' },
+  { id: 'fun', label: 'فال، آرزو، آهنگ' },
   { id: 'console', label: 'میز برگزارکننده' },
   { id: 'remote', label: 'ریموت صفحهٔ بزرگ' },
   { id: 'settings', label: 'تنظیمات' },
@@ -39,6 +40,8 @@ const FOCUS_IDS: Record<string, string> = {
   guess: 'event-guess',
   schedule: 'event-schedule',
   quiz: 'event-quiz',
+  wishes: 'event-wishes',
+  wheel: 'event-wheel',
 };
 
 const Hero: React.FC<{ view: EventView }> = ({ view }) => {
@@ -93,7 +96,7 @@ export const EventPage: React.FC = () => {
   useEffect(() => {
     if (!focusId || !loaded) return undefined;
     if (focusId === 'objections') setSection('console');
-    if (focusId === 'fun') setSection('fun');
+    if (focusId === 'fun' || focusId === 'wishes' || focusId === 'wheel') setSection('fun');
     if (focusId === 'predict' || focusId === 'guess' || focusId === 'schedule') setSection('competitions');
     const timer = window.setTimeout(
       () =>
@@ -143,8 +146,9 @@ export const EventPage: React.FC = () => {
       if (target === 'objections') window.setTimeout(() => document.getElementById('event-objections')?.scrollIntoView({ behavior: 'smooth' }), 100);
       return;
     }
-    if (target === 'fun') {
+    if (target === 'fun' || target === 'wishes' || target === 'wheel') {
       setSection('fun');
+      if (target !== 'fun') window.setTimeout(() => document.getElementById(FOCUS_IDS[target])?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
       return;
     }
     setSection('competitions');
@@ -171,6 +175,7 @@ export const EventPage: React.FC = () => {
             >
               {s.label}
               {s.id === 'console' && view.objections.some((o) => o.status === 'open') && <span className="ms-1.5 inline-block w-2 h-2 rounded-full bg-amber-400 align-middle" aria-label="اعتراض باز" />}
+              {s.id === 'console' && view.wishes.waiting.some((w) => w.status === 'pending') && <span className="ms-1.5 inline-block w-2 h-2 rounded-full bg-red-400 align-middle" aria-label="آرزوی منتظر تأیید" />}
             </button>
           ))}
         </div>
@@ -202,13 +207,18 @@ export const EventPage: React.FC = () => {
       )}
       {current === 'fun' && (
         <div className="space-y-4">
-          <FalCard view={view} />
+          <div className="grid lg:grid-cols-2 gap-4 items-start">
+            <FalCard view={view} />
+            <WheelCard view={view} />
+          </div>
+          <WishesCard view={view} />
           <FunSection view={view} />
         </div>
       )}
       {current === 'console' && (
         <div className="space-y-4">
           <OrganizerConsole view={view} />
+          <WishesModeration view={view} />
           <QuizEditor view={view} />
         </div>
       )}

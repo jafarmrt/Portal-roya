@@ -531,6 +531,8 @@ export const SCREEN_SCENES = [
   { id: 'quiz', label: 'سؤال مسابقهٔ همه' },
   { id: 'quizboard', label: 'جدول مسابقهٔ همه' },
   { id: 'predictors', label: 'بهترین پیش‌بین‌ها' },
+  { id: 'wishes', label: 'آرزوهای یلدا' },
+  { id: 'wheel', label: 'گردونهٔ شانس' },
   { id: 'guess', label: 'چند دانه؟' },
   { id: 'break', label: 'استراحت' },
 ] as const;
@@ -843,4 +845,28 @@ export function quizPoints(right: boolean, ms: number, seconds: number) {
   if (!right) return 0;
   const left = Math.min(1, Math.max(0, 1 - ms / (seconds * 1000)));
   return Math.round(QUIZ_POINTS.base + QUIZ_POINTS.speed * left);
+}
+
+// ─── «آرزوهای یلدا» and «گردونهٔ شانس» ──────────────────────────────────────────
+
+/** A wish is short, like a line on a card; each colleague may write a few. */
+export const WISH_MAX = 140;
+export const WISHES_PER_PERSON = 3;
+export type WishStatus = 'pending' | 'approved' | 'hidden';
+
+/** How long the names run on the big screen before the wheel stops on one. */
+export const WHEEL_SPIN_MS = 7000;
+/** Names that pass on the screen before the winner (the reel). */
+export const WHEEL_REEL = 36;
+export const WHEEL_PRIZE_MAX = 80;
+
+/**
+ * Where the reel is after `elapsed` ms: a position from 0 to `length - 1`, fast at first and slowing
+ * down to stop on the last name (the winner) at WHEEL_SPIN_MS.
+ */
+export function wheelPosition(elapsed: number, length: number) {
+  if (length <= 1) return 0;
+  const t = Math.min(1, Math.max(0, elapsed / WHEEL_SPIN_MS));
+  const eased = 1 - (1 - t) ** 3;
+  return Math.floor(eased * (length - 1));
 }

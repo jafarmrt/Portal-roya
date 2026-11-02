@@ -10,6 +10,7 @@ import type {
   ScheduleItem,
   Scoring,
   ScreenState,
+  WishStatus,
   StagePolicy,
   TieRule,
 } from '../../../shared/specialEvents';
@@ -244,6 +245,8 @@ export interface EventView {
   /** «فال حافظ»: this viewer's verse (an index in HAFEZ_FAL), once drawn. */
   fal: { mine: number | null; count: number; open: boolean };
   quiz: EventQuiz;
+  wishes: EventWishes;
+  wheel: EventWheel;
   serverNow: string;
 }
 
@@ -320,5 +323,26 @@ export interface EventQuiz {
   me: { points: number; correct: number; rank: number } | null;
   canPlay: boolean;
   /** The program has started (or its rehearsal): questions can be opened. */
+  live: boolean;
+}
+
+/** «آرزوهای یلدا»: the wall everyone sees, this viewer's own wishes and (for organizers) those waiting. */
+export interface EventWishes {
+  wall: { id: string; text: string; byId: string | null; at: string }[];
+  mine: { id: string; text: string; anonymous: boolean; status: WishStatus }[];
+  /** Only for organizers: wishes not on the wall yet (or kept off it), with who wrote them. */
+  waiting: { id: string; text: string; byId: string; anonymous: boolean; status: WishStatus }[];
+  open: boolean;
+  canWrite: boolean;
+}
+
+/** «گردونهٔ شانس»: the turns so far (the last is the one on the big screen). */
+export interface EventWheel {
+  spins: { id: string; winnerId: string; prize: string; absent: boolean; reel: string[]; at: string }[];
+  left: number;
+  /** This viewer took part in something, so their name is in it. */
+  inIt: boolean;
+  /** This viewer runs the event (organizers are not in the wheel). */
+  organizer: boolean;
   live: boolean;
 }

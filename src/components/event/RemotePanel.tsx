@@ -5,6 +5,7 @@ import { ResultModal } from './ResultModal';
 import { GuessReveal } from './GamesSection';
 import { EnvelopePanel } from './NightSection';
 import { QuizRemote } from './QuizSection';
+import { WheelRemote } from './WishesSection';
 import { EntryPicture, Stepper, api, entryName, isReady, sidesLine, useEventAction } from './eventUi';
 import { countdownText } from './EventParts';
 import { SCREEN_SCENES, randomFal, timerLeft, type ScreenScene, type ScreenState } from '../../../shared/specialEvents';
@@ -412,6 +413,7 @@ export const RemotePanel: React.FC<{ view: EventView }> = ({ view }) => {
 
       <NowPlaying view={view} />
       <QuizRemote view={view} onBoard={() => void show('quizboard')} />
+      <WheelRemote view={view} />
       <GuessReveal view={view} onShow={() => void show('guess')} />
       <EnvelopePanel view={view} onShow={(awardId) => void show('envelope', { awardId })} />
       <PairScreen eventId={event.id} />
