@@ -46,8 +46,8 @@ self.addEventListener('fetch', (event) => {
 });
 
 // --- Notifications on the phone or computer (Web Push) ---
-// The server sends { title, body, url, tag }; a message with the same tag replaces the older one,
-// and the open portal page shows the same tag for its own (no-internet) notifications.
+// The server sends { title, body, url, tag }; the tag is that of the bell notification, and the open
+// portal page shows the same tag for its own (no-internet) notifications, so none shows twice.
 self.addEventListener('push', (event) => {
   let data = {};
   try {
@@ -91,9 +91,11 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil(
     (async () => {
+      // Some browsers hand over only the new address, some only the old one (then it is renewed here).
       const key = event.oldSubscription && event.oldSubscription.options.applicationServerKey;
-      if (!key) return;
-      const sub = event.newSubscription || (await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }));
+      const sub = event.newSubscription || (key ? await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }) : null);
+      // Neither: the open portal subscribes again by itself the next time it is opened.
+      if (!sub) return;
       await fetch('/api/push/subscribe', {
         method: 'POST',
         credentials: 'same-origin',

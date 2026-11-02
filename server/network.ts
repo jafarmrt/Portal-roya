@@ -24,7 +24,8 @@ export function outsideList(entries: string[]) {
   for (const entry of entries) {
     const [ip, bits] = entry.split('/');
     const family = isIP(ip ?? '');
-    const prefix = bits === undefined ? undefined : Number(bits);
+    // «192.168.0.100/» is a mistake, not the whole internet (Number('') would be 0).
+    const prefix = bits === undefined ? undefined : /^\d{1,3}$/.test(bits) ? Number(bits) : NaN;
     if (!family || (prefix !== undefined && !(Number.isInteger(prefix) && prefix >= 0 && prefix <= (family === 4 ? 32 : 128)))) {
       console.warn(`OUTSIDE_ADDRESSES: «${entry}» is not an address or range and is ignored.`);
       continue;

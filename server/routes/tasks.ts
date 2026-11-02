@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { Router } from 'express';
 import { z } from 'zod';
@@ -12,12 +12,13 @@ import {
   TASK_REMIND_HOUR,
   TASK_REPLY_MAX,
   TASK_TITLE_MAX,
+  TASK_UNDO_MS,
   taskOpen,
   type TaskAnswer,
 } from '../../shared/tasks.js';
 import { db } from '../db/index.js';
-import { assignedTasks, employees } from '../db/schema.js';
-import { signalUser } from '../events.js';
+import { assignedTasks, employees, notifications } from '../db/schema.js';
+import { notifyUsers, signalUser } from '../events.js';
 import { featureConfig } from '../features.js';
 import { HttpError, currentUser, newId, parse, route } from '../http.js';
 import { createNotifications } from '../notify.js';
@@ -99,6 +100,30 @@ const answerSchema = z.object({
 
 const shorten = (text: string, max = 60) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 
+/** «عنوان، توضیح و موعد»: Persian lists end with «و». */
+const joinFa = (items: string[]) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join('، ')} و ${items.at(-1)}`);
+
+/**
+ * The reminder day to store with a due date set now: a task due today whose reminder hour has passed (or
+ * one already late) needs no reminder, since the colleague is being told about it right now.
+ */
+function remindedOnFor(dueDate: string, now = new Date()) {
+  const today = toJalali(now);
+  return dueDate < today || (dueDate === today && now.getHours() >= TASK_REMIND_HOUR) ? today : null;
+}
+
+const refusePast = (dueDate: string) => {
+  if (dueDate < toJalali(new Date())) throw new HttpError(400, 'موعد کار نمی‌تواند روزی گذشته باشد.');
+};
+
+/** What the one who handed the task over is told when the colleague answers it. */
+const ANSWER_VERBS: Partial<Record<TaskAnswer, string>> = {
+  accepted: 'را پذیرفت',
+  declined: 'را رد کرد',
+  done: 'را انجام داد',
+};
+const answerTitle = (who: string, taskTitle: string, verb: string) => `${who} کار «${shorten(taskTitle, 50)}» ${verb}`;
+
 /** Lets both people on a task know their lists changed. */
 const signalBoth = (t: Pick<TaskRow, 'assignerId' | 'assigneeId'>) => {
   signalUser(t.assignerId, 'tasks');
@@ -148,11 +173,10 @@ tasksRouter.post(
     if (open.length + ids.length > TASK_OPEN_GIVEN_LIMIT) {
       throw new HttpError(400, `بیش از ${toPersianDigits(TASK_OPEN_GIVEN_LIMIT)} کار باز سپرده‌شده نمی‌توان داشت.`);
     }
+    refusePast(input.dueDate);
     const groupId = newId('taskgroup');
     // A task due today whose reminder hour has passed needs no reminder: it was just handed over.
-    const now = new Date();
-    const today = toJalali(now);
-    const remindedOn = input.dueDate < today || (input.dueDate === today && now.getHours() >= TASK_REMIND_HOUR) ? today : null;
+    const remindedOn = remindedOnFor(input.dueDate);
     await db.insert(assignedTasks).values(
       ids.map((assigneeId) => ({
         id: newId('task'),
@@ -170,6 +194,8 @@ tasksRouter.post(
       message: 'برای دیدن جزئیات، پذیرفتن یا رد کردن آن، «کارهای ارجاعی» را باز کنید.',
       type: 'task',
       linkTab: 'tasks',
+      // Every notification of a task opens that task (each side finds its own copy by the group).
+      linkId: groupId,
     });
     for (const id of [viewer.id, ...ids]) signalUser(id, 'tasks');
     res.status(201).json(await readTasks(eq(assignedTasks.groupId, groupId)));
@@ -194,17 +220,21 @@ tasksRouter.patch(
     if (input.title !== undefined && input.title !== sample.title) changes.title = input.title;
     if (input.note !== undefined && input.note !== sample.note) changes.note = input.note;
     if (input.dueDate !== undefined && input.dueDate !== sample.dueDate) {
+      refusePast(input.dueDate);
       changes.dueDate = input.dueDate;
-      changes.remindedOn = null;
+      // Moved to today after the morning reminder: the change notification below is the reminder.
+      changes.remindedOn = remindedOnFor(input.dueDate);
     }
     if (Object.keys(changes).length > 0) {
       await db
         .update(assignedTasks)
         .set({ ...changes, updatedAt: new Date() })
         .where(inArray(assignedTasks.id, open.map((r) => r.id)));
-      const what = [changes.title !== undefined && 'عنوان', changes.note !== undefined && 'توضیح', changes.dueDate !== undefined && 'موعد']
-        .filter(Boolean)
-        .join('، ');
+      const what = joinFa(
+        [changes.title !== undefined && 'عنوان', changes.note !== undefined && 'توضیح', changes.dueDate !== undefined && 'موعد'].filter(
+          (w): w is string => Boolean(w),
+        ),
+      );
       await createNotifications(
         open.map((r) => r.assigneeId),
         {
@@ -212,6 +242,7 @@ tasksRouter.patch(
           message: `${fullName(viewer)} ${what} کار را عوض کرد.`,
           type: 'task',
           linkTab: 'tasks',
+          linkId: req.params.groupId,
         },
       );
       for (const r of open) signalBoth(r);
@@ -219,6 +250,41 @@ tasksRouter.patch(
     res.json(await readTasks(eq(assignedTasks.groupId, req.params.groupId)));
   }),
 );
+
+/**
+ * Removes the unread notification the last answer («انجام داد» or «رد کرد») sent to the one who handed the
+ * task over; true when there was one to remove.
+ */
+async function takeBackAnswer(task: TaskRow, who: string) {
+  const verb = ANSWER_VERBS[task.status as TaskAnswer];
+  if (!verb || !task.statusAt) return false;
+  const removed = await db
+    .delete(notifications)
+    .where(
+      and(
+        eq(notifications.userId, task.assignerId),
+        eq(notifications.type, 'task'),
+        eq(notifications.isRead, false),
+        eq(notifications.title, answerTitle(who, task.title, verb)),
+        // The database and the server may disagree on the clock by a moment.
+        gte(notifications.createdAt, new Date(task.statusAt.getTime() - 5000)),
+      ),
+    )
+    .returning({ id: notifications.id });
+  if (removed.length === 0) return false;
+  notifyUsers([task.assignerId]);
+  return true;
+}
+
+/** Whether the one who handed the task over already has this notification about it. */
+async function toldAlready(task: TaskRow, title: string) {
+  const [row] = await db
+    .select({ id: notifications.id })
+    .from(notifications)
+    .where(and(eq(notifications.userId, task.assignerId), eq(notifications.type, 'task'), eq(notifications.title, title)))
+    .limit(1);
+  return Boolean(row);
+}
 
 /** The person the task went to answers it: accepts, declines, is working on it, or has done it. */
 tasksRouter.post(
@@ -236,19 +302,27 @@ tasksRouter.post(
       .set({ status: input.status, reply, statusAt: now, updatedAt: now, assigneeHiddenAt: null })
       .where(eq(assignedTasks.id, task.id));
     // The one who handed it over hears about answers that matter; «در حال انجام» only shows on their list.
-    const heading: Partial<Record<TaskAnswer, string>> = {
-      accepted: 'را پذیرفت',
-      declined: 'را رد کرد',
-      done: 'را انجام داد',
-    };
     const reopened = (task.status === 'done' || task.status === 'declined') && taskOpen(input.status);
-    const verb = reopened ? 'را دوباره باز کرد' : task.status !== input.status ? heading[input.status] : undefined;
+    // «برگردان» right after a wrong tap: the answer they have not read yet is taken back from their bell
+    // instead of a second «دوباره باز کرد» after it.
+    const undone = reopened && task.statusAt !== null && now.getTime() - task.statusAt.getTime() < TASK_UNDO_MS && (await takeBackAnswer(task, fullName(viewer)));
+    // After an undo they still hear «پذیرفت» if they never did (a decline from «منتظر پاسخ» taken back).
+    const verb = undone
+      ? input.status === 'accepted' && !(await toldAlready(task, answerTitle(fullName(viewer), task.title, ANSWER_VERBS.accepted!)))
+        ? ANSWER_VERBS.accepted
+        : undefined
+      : reopened
+        ? 'را دوباره باز کرد'
+        : task.status !== input.status
+          ? ANSWER_VERBS[input.status]
+          : undefined;
     if (verb) {
       await createNotifications([task.assignerId], {
-        title: `${fullName(viewer)} کار «${shorten(task.title, 50)}» ${verb}`,
+        title: answerTitle(fullName(viewer), task.title, verb),
         message: reply || 'وضعیت کار در «کارهای ارجاعی» آمده است.',
         type: 'task',
         linkTab: 'tasks',
+        linkId: task.groupId,
       });
     }
     // A task brought back while the other side had already taken it off their list comes back there too.
@@ -319,15 +393,17 @@ export async function processTaskReminders(now = new Date()) {
     .update(assignedTasks)
     .set({ remindedOn: today })
     .where(and(inArray(assignedTasks.id, visible.map((t) => t.id)), isNull(assignedTasks.remindedOn)))
-    .returning({ userId: assignedTasks.assigneeId, title: assignedTasks.title });
-  const byUser = new Map<string, string[]>();
-  for (const t of claimed) byUser.set(t.userId, [...(byUser.get(t.userId) ?? []), t.title]);
-  for (const [userId, titles] of byUser) {
+    .returning({ userId: assignedTasks.assigneeId, title: assignedTasks.title, groupId: assignedTasks.groupId });
+  const byUser = new Map<string, { title: string; groupId: string }[]>();
+  for (const t of claimed) byUser.set(t.userId, [...(byUser.get(t.userId) ?? []), t]);
+  for (const [userId, due] of byUser) {
+    const one = due.length === 1 ? due[0] : null;
     await createNotifications([userId], {
-      title: titles.length === 1 ? `موعد کار ارجاعی امروز است: ${shorten(titles[0])}` : `موعد ${toPersianDigits(titles.length)} کار ارجاعی امروز است`,
-      message: titles.length === 1 ? 'این کار را به شما سپرده‌اند و امروز موعد آن است.' : titles.map((t) => shorten(t, 40)).join('، '),
+      title: one ? `موعد کار ارجاعی امروز است: ${shorten(one.title)}` : `موعد ${toPersianDigits(due.length)} کار ارجاعی امروز است`,
+      message: one ? 'این کار را به شما سپرده‌اند و امروز موعد آن است.' : due.map((t) => shorten(t.title, 40)).join('، '),
       type: 'task',
       linkTab: 'tasks',
+      ...(one ? { linkId: one.groupId } : {}),
     });
   }
   return byUser.size;

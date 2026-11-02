@@ -14,7 +14,10 @@ import {
   User,
   FileText,
   ServerCog,
-  Heart
+  Heart,
+  ClipboardList,
+  NotebookPen,
+  Megaphone
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { secondaryButtonClass } from '../common/Modal';
@@ -29,7 +32,8 @@ export const NotificationsInbox: React.FC = () => {
     markAllNotificationsRead,
     deleteNotification,
     setActiveTab,
-    isLoaded
+    isLoaded,
+    featureOn
   } = usePortal();
 
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -62,6 +66,12 @@ export const NotificationsInbox: React.FC = () => {
         return <Heart className="w-4 h-4 text-rose-600" />;
       case 'system':
         return <ServerCog className="w-4 h-4 text-amber-700" />;
+      case 'task':
+        return <ClipboardList className="w-4 h-4 text-violet-700" />;
+      case 'todo':
+        return <NotebookPen className="w-4 h-4 text-teal-700" />;
+      case 'notice':
+        return <Megaphone className="w-4 h-4 text-amber-700" />;
       default:
         return <Newspaper className="w-4 h-4 text-red-600" />;
     }
@@ -102,6 +112,19 @@ export const NotificationsInbox: React.FC = () => {
         >
           خوانده نشده ({toPersianDigits(userNotifs.filter(n => !n.isRead).length)})
         </button>
+
+        {featureOn('tasks') && (
+          <button
+            onClick={() => setTypeFilter('task')}
+            className={`px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${
+              typeFilter === 'task'
+                ? 'bg-brand-strong text-white shadow-xs'
+                : 'bg-surface hover:bg-line text-ink'
+            }`}
+          >
+            کارهای ارجاعی
+          </button>
+        )}
 
         <button
           onClick={() => setTypeFilter('poll')}

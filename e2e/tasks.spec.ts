@@ -38,7 +38,9 @@ test.describe('assigned tasks', () => {
     await strip.getByRole('button', { name: 'پذیرفتن گزارش فروش آبان' }).click();
     await expect(strip.getByRole('checkbox', { name: 'انجام شد: گزارش فروش آبان' })).toBeVisible();
 
-    await page.goto('/#tasks');
+    // Tapping the title opens that task on the page.
+    await strip.getByRole('button', { name: /^گزارش فروش آبان/ }).click();
+    await expect(page).toHaveURL(/#tasks\//);
     const mine = page.getByRole('article', { name: 'گزارش فروش آبان' });
     await expect(mine).toContainText('نسخهٔ اکسل لازم است');
     await expect(mine).toContainText('پذیرفته شد');
@@ -46,6 +48,13 @@ test.describe('assigned tasks', () => {
     await mine.getByLabel('توضیح کوتاه').fill('فایل را ایمیل کردم');
     await mine.getByRole('button', { name: 'ثبت «انجام شد»' }).click();
     await expect(mine).toContainText('انجام شد');
+    // A wrong tap is put back from the toast, then finished for real.
+    await page.getByRole('button', { name: 'برگردان' }).click();
+    await expect(mine.getByRole('button', { name: 'انجام شد' })).toBeVisible();
+    await mine.getByRole('button', { name: 'انجام شد' }).click();
+    await mine.getByLabel('توضیح کوتاه').fill('فایل را ایمیل کردم');
+    await mine.getByRole('button', { name: 'ثبت «انجام شد»' }).click();
+    await expect(mine.getByRole('button', { name: 'انجام شد' })).toBeHidden();
     await context.close();
 
     await expect(given).toContainText('انجام شد');

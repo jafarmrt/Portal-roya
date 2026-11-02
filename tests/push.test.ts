@@ -1,11 +1,11 @@
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { db, pool } from '../server/db/index';
-import { pushSubscriptions, settings } from '../server/db/schema';
+import { notifications, pushSubscriptions, settings } from '../server/db/schema';
 import { createNotifications } from '../server/notify';
 import { setPushSender, wantsPush } from '../server/push';
 import { isPushEndpoint } from '../server/routes/push';
-import { pushCategoryOf, pushUrl } from '../shared/push';
+import { pushCategoryOf, pushTag, pushUrl } from '../shared/push';
 import { createEmployee, resetDatabase, setupAdmin } from './helpers';
 
 type Agent = Awaited<ReturnType<typeof setupAdmin>>;
@@ -75,13 +75,24 @@ describe('notifications on phones and computers (Web Push)', () => {
     await createNotifications([adminId], { title: 'کار تازه', message: 'گزارش را ببینید', type: 'task', linkTab: 'tasks', linkId: 't1' });
     await settle();
     expect(sentTo('a1')).toHaveLength(1);
-    expect(sentTo('a1')[0].payload).toEqual({ title: 'کار تازه', body: 'گزارش را ببینید', url: '/#tasks/t1', tag: 'task:tasks:t1' });
+    const [bell] = await db.select().from(notifications).where(eq(notifications.userId, adminId)).orderBy(desc(notifications.id)).limit(1);
+    // The device notification carries the tag of its own bell notification (the page's own layer uses the same).
+    expect(sentTo('a1')[0].payload).toEqual({ title: 'کار تازه', body: 'گزارش را ببینید', url: '/#tasks/t1', tag: pushTag(bell.id) });
+    expect(pushTag(bell.id)).toBe(`portal-${bell.id}`);
+
+    // Two notifications of one kind (two colleagues handing over work) never replace each other on the device.
+    await createNotifications([adminId], { title: 'کار دوم', message: 'x', type: 'task', linkTab: 'tasks' });
+    await createNotifications([adminId], { title: 'کار سوم', message: 'y', type: 'task', linkTab: 'tasks' });
+    await settle();
+    const tags = sentTo('a1').map((s) => s.payload.tag);
+    expect(new Set(tags).size).toBe(3);
+    sent.splice(0, sent.length);
 
     await admin.put('/api/push/me').send({ muted: ['polls', 'not-a-kind'] }).expect(200, { muted: ['polls'] });
     await createNotifications([adminId], { title: 'نظرسنجی', message: 'شرکت کنید', type: 'poll', linkTab: 'polls' });
     await createNotifications([adminId], { title: 'خبر', message: 'تازه', type: 'announcement', linkTab: 'news' });
     await settle();
-    expect(sentTo('a1').map((s) => s.payload.title)).toEqual(['کار تازه', 'خبر']);
+    expect(sentTo('a1').map((s) => s.payload.title)).toEqual(['خبر']);
     await admin.put('/api/push/me').send({ muted: [] }).expect(200);
   });
 
@@ -118,6 +129,27 @@ describe('notifications on phones and computers (Web Push)', () => {
     await colleague.agent.post('/api/push/subscribe').send(device('c3')).expect(200);
     await colleague.agent.post('/api/auth/logout-everywhere').expect(200);
     expect(await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, colleague.id))).toHaveLength(0);
+  });
+
+  it('forgets every device of someone whose sign-ins are ended: new password, reset, account taken away or switched off', async () => {
+    const devicesOf = async (id: string) => (await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, id))).length;
+    const person = await createEmployee(admin, { username: 'push.lost.phone' });
+    await person.agent.post('/api/push/subscribe').send(device('p1')).expect(200);
+    await person.agent.post('/api/push/subscribe').send(device('p2')).expect(200);
+    // The colleague changes their own password: the other devices (a lost phone) go quiet.
+    await person.agent.post('/api/auth/change-password').send({ currentPassword: person.password, newPassword: 'Another-pass-123' }).expect(200);
+    expect(await devicesOf(person.id)).toBe(0);
+    // This device subscribes again by itself; then the administrator resets the password.
+    await person.agent.post('/api/push/subscribe').send(device('p1')).expect(200);
+    await admin.post(`/api/employees/${person.id}/reset-password`).expect(200);
+    expect(await devicesOf(person.id)).toBe(0);
+    await db.insert(pushSubscriptions).values({ endpoint: device('p3').endpoint, userId: person.id, p256dh: 'k', auth: 'a' });
+    await admin.patch(`/api/employees/${person.id}`).send({ isActive: false }).expect(200);
+    expect(await devicesOf(person.id)).toBe(0);
+    await admin.patch(`/api/employees/${person.id}`).send({ isActive: true }).expect(200);
+    await db.insert(pushSubscriptions).values({ endpoint: device('p4').endpoint, userId: person.id, p256dh: 'k', auth: 'a' });
+    await admin.delete(`/api/employees/${person.id}/account`).expect(200);
+    expect(await devicesOf(person.id)).toBe(0);
   });
 
   it('never sends to a colleague who left', async () => {

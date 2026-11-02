@@ -4,7 +4,7 @@ import { usePortal } from '../../context/PortalContext';
 import { Modal, inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { Avatar } from '../common/Avatar';
 import { DueDateField } from '../todos/DueDateField';
-import { isValidJalaliDate, toPersianDigits } from '../../lib/jalali';
+import { isValidJalaliDate, toPersianDigits, todayJalali } from '../../lib/jalali';
 import { normalizeForSearch } from '../../../shared/search';
 import { TASK_ASSIGNEES_MAX, TASK_NOTE_MAX, TASK_TITLE_MAX } from '../../../shared/tasks';
 import type { AssignedTask } from '../../types';
@@ -45,11 +45,18 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ task, initialAssig
           })
           .slice(0, 8);
   const full = assigneeIds.length >= TASK_ASSIGNEES_MAX;
-  const ready = Boolean(title.trim()) && isValidJalaliDate(dueDate) && (task || assigneeIds.length > 0);
+  // A day already gone is refused (the server says so too); an old task keeps its date until it changes.
+  const past = isValidJalaliDate(dueDate) && dueDate < todayJalali() && dueDate !== task?.dueDate;
+  const ready = Boolean(title.trim()) && isValidJalaliDate(dueDate) && !past && (task || assigneeIds.length > 0);
+
+  const pick = (id: string) => {
+    setAssigneeIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
+    setQuery('');
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ready) return;
+    if (!ready || saving) return;
     setSaving(true);
     const values = { title: title.trim(), note: note.trim(), dueDate };
     const ok = task ? await editTask(task.groupId, values) : await assignTask({ ...values, assigneeIds });
@@ -102,6 +109,12 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ task, initialAssig
                   id={`${formId}-person`}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Enter in the search picks the first match; it never sends the half-filled form.
+                    if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
+                    e.preventDefault();
+                    if (matches[0]) pick(matches[0].id);
+                  }}
                   placeholder="نام همکار را بنویسید"
                   autoComplete="off"
                   className={`${inputClass} pr-9`}
@@ -115,10 +128,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ task, initialAssig
                   <li key={p.id}>
                     <button
                       type="button"
-                      onClick={() => {
-                        setAssigneeIds([...assigneeIds, p.id]);
-                        setQuery('');
-                      }}
+                      onClick={() => pick(p.id)}
                       className="w-full text-right px-3 py-2 hover:bg-surface-soft flex items-center gap-2"
                     >
                       <Avatar src={p.avatar} firstName={p.firstName} lastName={p.lastName} className="w-7 h-7 rounded-full text-xs" />
@@ -154,6 +164,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ task, initialAssig
         <div>
           <label htmlFor={`${formId}-due`} className={labelClass}>موعد</label>
           <DueDateField id={`${formId}-due`} value={dueDate} onChange={setDueDate} />
+          {past && <p role="alert" className="mt-1 text-xs font-bold text-red-700">این روز گذشته است؛ امروز یا روزی بعد را انتخاب کنید.</p>}
         </div>
         <div>
           <label htmlFor={`${formId}-note`} className={labelClass}>توضیح (اختیاری)</label>

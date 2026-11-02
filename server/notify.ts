@@ -40,19 +40,23 @@ export async function createNotifications(requested: string[], input: Notificati
     .where(and(inArray(employees.id, requested), eq(employees.hasAccount, true)));
   const userIds = withAccount.map((r) => r.id);
   if (userIds.length === 0) return;
-  await db.insert(notifications).values(
-    userIds.map((userId) => ({
-      userId,
-      title: input.title,
-      message: input.message,
-      type: input.type,
-      linkTab: input.linkTab ?? null,
-      linkId: input.linkId ?? null,
-    })),
-  );
+  const created = await db
+    .insert(notifications)
+    .values(
+      userIds.map((userId) => ({
+        userId,
+        title: input.title,
+        message: input.message,
+        type: input.type,
+        linkTab: input.linkTab ?? null,
+        linkId: input.linkId ?? null,
+      })),
+    )
+    .returning({ id: notifications.id, userId: notifications.userId });
   notifyUsers(userIds);
-  // Phones and computers too; slow push services never hold up the bell.
-  void pushToUsers(userIds, input);
+  // Phones and computers too; slow push services never hold up the bell. Each person's copy keeps its
+  // own id, so it never replaces another notification on the device.
+  void pushToUsers(created, input);
 
   if (options.email) {
     const recipients = await db

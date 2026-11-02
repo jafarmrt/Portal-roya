@@ -7,7 +7,7 @@
  * Both use the same tag, so one notification never shows twice.
  */
 import { api } from './api';
-import { pushCategoryOf, pushUrl } from '../../shared/push';
+import { pushCategoryOf, pushTag, pushUrl } from '../../shared/push';
 import { isIos, isStandalone } from './pwa';
 
 export interface PushInfo {
@@ -49,12 +49,21 @@ export function deviceName() {
 }
 
 async function registration() {
-  // The worker is registered at start-up (lib/pwa.ts); wait for it, but not forever.
+  // The worker is registered at start-up (lib/pwa.ts). Without one (it failed, or a development build)
+  // there is nothing to wait for; otherwise wait for it, but not forever.
+  if (!(await navigator.serviceWorker.getRegistration().catch(() => undefined))) return null;
   return Promise.race([
     navigator.serviceWorker.ready,
     new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
   ]);
 }
+
+/**
+ * Something changed the push state of this device outside the one-time question: it was switched on or
+ * off on «اعلان‌های من», or a new password removed the colleague's devices on the server.
+ */
+export const PUSH_CHANGED_EVENT = 'roya-push-changed';
+export const announcePushChange = () => window.dispatchEvent(new Event(PUSH_CHANGED_EVENT));
 
 export async function currentSubscription() {
   if (pushSupport() !== 'ok') return null;
@@ -131,7 +140,7 @@ export async function showLocal(items: { id: string; title: string; message: str
       badge: '/icon-192.png',
       dir: 'rtl',
       lang: 'fa',
-      tag: `${item.type}:${item.linkTab ?? ''}:${item.linkId ?? ''}`,
+      tag: pushTag(item.id),
       data: { url: pushUrl(item.linkTab, item.linkId) },
     };
     try {

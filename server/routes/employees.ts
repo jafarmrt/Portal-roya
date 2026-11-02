@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto';
 import { ABOUT_ME_KEYS, ABOUT_ME_MAX } from '../../shared/aboutMe.js';
-import { and, desc, eq, ne, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
@@ -18,6 +18,7 @@ import { broadcastChange } from '../events.js';
 import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
 import { canListDirectory, DIRECTORY_PASSWORD_MESSAGE, DirectoryUnavailableError, isDirectoryEnabled, listDirectoryUsers } from '../ldap.js';
 import { audienceIds, createNotifications } from '../notify.js';
+import { forgetPushDevices } from '../push.js';
 import { fullName, serializeEmployee, serializeForGuest } from '../serializers.js';
 import { guestSettings } from '../settings.js';
 import { readSpreadsheet, SpreadsheetError } from '../spreadsheet.js';
@@ -349,6 +350,7 @@ employeesRouter.delete(
       .where(eq(employees.id, target.id))
       .returning();
     await audit(viewer, { action: 'update', entity: 'employee', id: updated.id, title: fullName(updated), detail: 'حساب پرتال برداشته شد' });
+    await forgetPushDevices(target.id);
     // A unit head needs an account (to keep the unit's page current).
     await clearUnitHead(viewer, target.id);
     broadcastChange('employees');
@@ -435,6 +437,8 @@ employeesRouter.patch(
       const detail = await recordChanges(target, updated);
       if (detail) await audit(viewer, { action: 'update', entity: 'employee', id: updated.id, title: fullName(updated), detail });
     }
+    // Switched off: their phones and computers stop getting the portal's notifications too.
+    if (target.isActive && !updated.isActive) await forgetPushDevices(updated.id);
     // A unit's head is one of its people: moving to another unit, leaving or losing the account ends it.
     if (!updated.isActive || !updated.hasAccount) await clearUnitHead(viewer, updated.id);
     else if (updated.department !== target.department && target.department) await clearUnitHead(viewer, updated.id, target.department);
@@ -472,6 +476,8 @@ employeesRouter.post(
       })
       .where(eq(employees.id, target.id));
     await audit(currentUser(req), { action: 'update', entity: 'employee', id: target.id, title: fullName(target), detail: 'رمز عبور بازنشانی شد' });
+    // E.g. for a lost phone: it is signed out above and gets no more notifications either.
+    await forgetPushDevices(target.id);
     res.json({ temporaryPassword: temp });
   }),
 );
@@ -621,7 +627,8 @@ employeesRouter.get(
       return;
     }
     const cards = await db.select().from(newColleagues).orderBy(desc(newColleagues.createdAt)).limit(20);
-    const wishes = await db
+    // Only the messages on the cards shown, not every welcome ever written.
+    const wishes = cards.length === 0 ? [] : await db
       .select({
         id: colleagueWishes.id,
         newColleagueId: colleagueWishes.newColleagueId,
@@ -633,6 +640,7 @@ employeesRouter.get(
       })
       .from(colleagueWishes)
       .innerJoin(employees, eq(employees.id, colleagueWishes.senderId))
+      .where(inArray(colleagueWishes.newColleagueId, cards.map((c) => c.id)))
       .orderBy(colleagueWishes.createdAt);
     const viewerId = viewerOf(req)?.id ?? null;
     const introReactions = await reactionCounts('intro', cards.map((c) => c.id), viewerId);

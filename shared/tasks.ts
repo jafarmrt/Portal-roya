@@ -12,6 +12,11 @@ export const TASK_ASSIGNEES_MAX = 20;
 export const TASK_OPEN_GIVEN_LIMIT = 300;
 /** The morning reminder of the due date goes out from this hour (server local time). */
 export const TASK_REMIND_HOUR = 8;
+/**
+ * «برگردان» after «انجام شد» or «رد می‌کنم»: within this time the answer is quietly taken back from the
+ * bell of the one who handed the task over (if still unread), instead of a second «دوباره باز کرد».
+ */
+export const TASK_UNDO_MS = 2 * 60 * 1000;
 
 export const TASK_STATUSES = [
   { id: 'new', label: 'منتظر پاسخ', tone: 'bg-amber-100 text-amber-900' },

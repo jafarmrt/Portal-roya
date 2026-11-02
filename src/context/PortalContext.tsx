@@ -10,7 +10,7 @@ import { type FeatureKey, featureOfTab } from '../../shared/features';
 import type { TodoStep } from '../../shared/todos';
 import type { TaskAnswer } from '../../shared/tasks';
 import { featureOn as isFeatureOn } from '../lib/features';
-import { disablePushHere, showLocal } from '../lib/push';
+import { announcePushChange, disablePushHere, showLocal } from '../lib/push';
 import type {
   ExternalSystem,
   ActiveTab,
@@ -300,7 +300,7 @@ interface PortalContextType {
   sendBirthdayWish: (userId: string, card: GreetingCardInput) => Promise<boolean>;
   reactToWish: (wishId: string, reaction: string) => Promise<void>;
   /** Gives, changes or ('' ) takes back one's emoji under an introduction, welcome message or greeting card. */
-  react: (target: ReactionTarget, id: string, emoji: string) => Promise<void>;
+  react: (target: ReactionTarget, id: string, emoji: string) => Promise<boolean>;
   sendWelcomeWish: (newColleagueId: string, message: string) => Promise<boolean>;
   deleteBirthdayWish: (wishId: string) => Promise<void>;
   deleteWelcomeWish: (wishId: string) => Promise<void>;
@@ -487,6 +487,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const changePassword = async (currentPassword: string, newPassword: string) => {
     const { user } = await api.post<{ user: CurrentUser }>('/api/auth/change-password', { currentPassword, newPassword });
     setCurrentUser(user);
+    // The new password took every device off the server's list; this one goes back on at once.
+    announcePushChange();
   };
 
   const completeProfile = async (profile: FirstProfile) => {
@@ -601,6 +603,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setError(null);
     // A new session (signing in, or out to the guest view) loads everything again.
     // A guest has no personal lists, so those count as loaded (and empty) at once.
+    // The notifications already there when the session's list arrives are old news, not new ones for the device.
+    knownNotificationIds.current = null;
     setLoadedResources(new Set(sessionKey ? ['settings'] : ['settings', 'notifications', 'moods', 'todos', 'tasks', 'me']));
     // Guests only load the shared, read-only content; personal data comes after sign-in.
     const { notifications: loadNotifications, moods: loadMoods, todos: loadTodos, tasks: loadTasks, me: loadMe, ...shared } = loaders;
@@ -688,7 +692,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     if (!isSetupComplete) return;
     let stopped = false;
+    // Coming back to the tab fires both «visibilitychange» and «focus»: one question is enough.
+    let lastAsked = 0;
     const check = async () => {
+      const now = Date.now();
+      if (now - lastAsked < 2000) return;
+      lastAsked = now;
       try {
         const status = await api.get<{ companyNetwork?: boolean; visitorAddress?: string }>('/api/system/status');
         if (stopped) return;
@@ -1085,7 +1094,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const react = async (target: ReactionTarget, id: string, emoji: string) => {
     const ok = await attempt(() => api.put('/api/reactions', { target, id, emoji }));
-    if (ok !== undefined) await refresh(target === 'greeting' ? 'birthday_wishes' : 'new_colleagues');
+    if (ok === undefined) return false;
+    await refresh(target === 'greeting' ? 'birthday_wishes' : 'new_colleagues');
+    return true;
   };
 
   const sendWelcomeWish = async (newColleagueId: string, message: string) => {
