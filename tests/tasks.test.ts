@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { db, pool } from '../server/db/index';
 import { assignedTasks, notifications } from '../server/db/schema';
@@ -14,8 +14,9 @@ const SOON = day(10);
 const LATER = day(20);
 type Person = Awaited<ReturnType<typeof createEmployee>>;
 
+// In the order they were sent: after a delete, PostgreSQL may hand rows back in another order.
 const taskNotifications = (userId: string) =>
-  db.select().from(notifications).where(and(eq(notifications.userId, userId), eq(notifications.type, 'task')));
+  db.select().from(notifications).where(and(eq(notifications.userId, userId), eq(notifications.type, 'task'))).orderBy(asc(notifications.id));
 
 describe('«کارهای ارجاعی»: handing work to colleagues', () => {
   let admin: Agent;
