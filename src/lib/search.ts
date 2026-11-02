@@ -1,6 +1,7 @@
 import type { CalendarEvent, DepartmentPage, Guide, NewsItem, Poll, PortalDocument, SearchResultItem, TrainingProgram, UserProfile } from '../types';
 import { normalizeForSearch } from '../../shared/search';
 import { formatDate, toPersianDigits } from './jalali';
+import { aboutHits, aboutSummary } from './departmentAbout';
 
 interface SearchSources {
   employees: UserProfile[];
@@ -155,7 +156,7 @@ export function buildSearchResults(query: string, s: SearchSources): SearchResul
       type: 'واحد',
       title: department,
       subtitle: 'صفحهٔ واحد',
-      snippet: about.slice(0, 200),
+      snippet: (page && aboutHits(page.about, query, 1)[0]?.text) || (page ? aboutSummary(page.about) : ''),
       targetTab: 'departments',
       targetId: department,
       badgeColor: 'bg-orange-100 text-orange-800 border-orange-300',

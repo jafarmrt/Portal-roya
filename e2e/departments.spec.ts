@@ -58,4 +58,35 @@ test.describe('departments', () => {
     await page.goto('/#colleagues');
     await expect(page.getByRole('button', { name: /^کارگاه/ })).toBeVisible();
   });
+
+  test('a long department page shows a short card, its topics, and the line a search is about', async ({ page }) => {
+    const about = [
+      '<h2>واحد تولید؛ از سفارش تا تحویل</h2>',
+      '<p>واحد تولید سفارش‌های تأییدشده را می‌سازد و برای هر پرسشی دربارهٔ زمان ساخت و کیفیت کار در کنار شماست.</p>',
+      '<h3>سفارش و زمان‌بندی</h3><ul><li><p>اعلام زمان تقریبی ساخت سفارش</p></li></ul>',
+      '<h3>کیفیت</h3><ul><li><p>بررسی ایراد کار ساخته‌شده و نمونهٔ رنگ</p></li></ul>',
+      '<h3>ابزار و مواد</h3><ul><li><p>درخواست امانت ابزار کارگاه</p></li></ul>',
+    ].join('');
+    const saved = await page.request.put(`/api/department_pages/${encodeURIComponent('تولید')}`, { data: { about } });
+    expect(saved.ok()).toBeTruthy();
+
+    await page.goto('/#departments');
+    const card = page.getByRole('button', { name: /^تولید/ });
+    await expect(card).toContainText('واحد تولید سفارش‌های تأییدشده را می‌سازد');
+    // The card shows the topics, not every line of the page.
+    await expect(card.getByLabel('موضوع‌ها')).toContainText('کیفیت');
+    await expect(card).not.toContainText('درخواست امانت ابزار');
+
+    await page.getByRole('searchbox', { name: 'جستجو در واحدها' }).fill('امانت ابزار');
+    await expect(card.getByLabel('یافته در صفحهٔ واحد')).toContainText('درخواست امانت ابزار کارگاه');
+    await expect(card.getByLabel('یافته در صفحهٔ واحد')).toContainText('ابزار و مواد');
+    await card.click();
+
+    await expect(page.getByRole('heading', { name: 'تولید', exact: true })).toBeVisible();
+    const topics = page.getByRole('navigation', { name: 'موضوع‌های این صفحه' });
+    await expect(topics.getByRole('button')).toHaveText(['سفارش و زمان‌بندی', 'کیفیت', 'ابزار و مواد']);
+    await expect(page.locator('.search-hit')).toHaveText('درخواست امانت ابزار کارگاه');
+    await topics.getByRole('button', { name: 'کیفیت' }).click();
+    await expect(page.getByRole('heading', { name: 'کیفیت', level: 3 })).toBeInViewport();
+  });
 });
