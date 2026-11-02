@@ -5,6 +5,7 @@ import type {
   EventStatus,
   EventTheme,
   Format,
+  IdeaKind,
   RankBy,
   Scoring,
   ScreenState,
@@ -190,6 +191,37 @@ export interface AwardsInfo {
   onShortlist: string[];
 }
 
+export interface EventSong {
+  id: string;
+  title: string;
+  artist: string;
+  note: string;
+  /** null when sent without a name. */
+  byId: string | null;
+  mine: boolean;
+  anonymous: boolean;
+  hidden: boolean;
+  playedAt: string | null;
+  votes: number;
+  myVote: boolean;
+  createdAt: string;
+}
+
+export interface EventIdea {
+  id: string;
+  kind: IdeaKind;
+  text: string;
+  byId: string | null;
+  mine: boolean;
+  anonymous: boolean;
+  hidden: boolean;
+  doing: boolean;
+  reply: string;
+  likes: number;
+  myLike: boolean;
+  createdAt: string;
+}
+
 export interface EventView {
   event: EventInfo;
   me: EventRoles;
@@ -200,6 +232,8 @@ export interface EventView {
   log: EventLogItem[];
   awards: EventAward[];
   awardsInfo: AwardsInfo;
+  songs: EventSong[];
+  ideas: EventIdea[];
   serverNow: string;
 }
 

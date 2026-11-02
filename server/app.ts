@@ -33,6 +33,7 @@ import { noticesRouter } from './routes/notices.js';
 import { pushRouter } from './routes/push.js';
 import { specialEventsRouter } from './routes/specialEvents.js';
 import { eventAwardsRouter } from './routes/eventAwards.js';
+import { eventSongsRouter } from './routes/eventSongs.js';
 import { eventScreenRouter } from './routes/eventScreen.js';
 import { buildInfo, changelog } from './version.js';
 
@@ -106,6 +107,7 @@ export function createApp() {
   api.use(pushRouter);
   api.use(specialEventsRouter);
   api.use(eventAwardsRouter);
+  api.use(eventSongsRouter);
   api.use(uploadsRouter);
   api.use((_req, res) => res.status(404).json({ error: 'مسیر یافت نشد.' }));
 

@@ -82,6 +82,9 @@ function nowLines(view: EventView, userId: string | undefined, isGuest: boolean)
     if (left > 0) lines.push({ text: `در ${toPersianDigits(left)} بخش «انتخاب‌ها» هنوز کسی را معرفی نکرده‌اید.`, target: 'awards' });
   }
 
+  // Everyone, players or not: a song for the night.
+  if (phase === 'signup' && !view.songs.some((s) => s.mine)) lines.push({ text: 'آهنگی برای شب یلدا پیشنهاد بدهید یا به آهنگ همکاران «من هم» بدهید 🎵', target: 'fun' });
+
   if (userId && event.juryIds.includes(userId)) {
     lines.push({ text: 'شما داور رویداد هستید: نتیجه‌ها، اصلاح‌ها و اعتراض‌ها با هیئت داوران است و در هیچ مسابقه‌ای شرکت نمی‌کنید.' });
     return lines;

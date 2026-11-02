@@ -77,6 +77,7 @@ import { audienceIds, createNotifications } from '../notify.js';
 import { fullName } from '../serializers.js';
 import { guestSettings } from '../settings.js';
 import { awardsView, processAwards } from './eventAwards.js';
+import { songsView } from './eventSongs.js';
 
 // «رویداد ویژه»: the page of a company occasion (Yalda night). Who may do what:
 // - those with «مدیریت رویدادهای ویژه» create the event, set its dates, organizers and jury, and switch it on;
@@ -169,7 +170,7 @@ export function requireOrganizer(ev: EventRow, viewer: SessionUser) {
   if (!rolesOf(ev, viewer).isOrganizer) throw new HttpError(403, 'این کار با برگزارکنندگان رویداد است.');
 }
 
-function requireReferee(ev: EventRow, viewer: SessionUser) {
+export function requireReferee(ev: EventRow, viewer: SessionUser) {
   if (!rolesOf(ev, viewer).referee) throw new HttpError(403, 'ثبت و اصلاح نتیجه با برگزارکنندگان و داوران است.');
 }
 
@@ -314,8 +315,10 @@ export async function eventView(ev: EventRow, viewer: Viewer) {
     : [];
 
   const awardsPart = await awardsView(ev, viewer);
+  const funPart = await songsView(ev, viewer);
   const people = await peopleById([
     ...awardsPart.peopleIds,
+    ...funPart.peopleIds,
     ...ev.juryIds,
     ...ev.organizerIds,
     ...members.map((m) => m.employeeId),
@@ -425,6 +428,8 @@ export async function eventView(ev: EventRow, viewer: Viewer) {
     log: log.map((l) => ({ id: l.id, matchId: l.matchId, byId: l.byId, action: l.action, detail: l.detail, createdAt: l.createdAt.toISOString() })),
     awards: awardsPart.awards,
     awardsInfo: awardsPart.awardsInfo,
+    songs: funPart.songs,
+    ideas: funPart.ideas,
     serverNow: now.toISOString(),
   };
 }
@@ -1743,7 +1748,7 @@ const screenSchema = z.object({
   caption: z.string().trim().max(120).optional(),
 });
 
-async function saveScreen(ev: EventRow, screen: ScreenState) {
+export async function saveScreen(ev: EventRow, screen: ScreenState) {
   await db.update(specialEvents).set({ screen }).where(eq(specialEvents.id, ev.id));
   for (const id of new Set([...ev.organizerIds, ...ev.juryIds])) signalUser(id, 'special_event');
 }

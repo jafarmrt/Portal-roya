@@ -288,6 +288,13 @@
       "when": 1793634050355,
       "tag": "0040_competition_formats",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793635243521,
+      "tag": "0041_event_songs_ideas",
+      "breakpoints": true
     }
   ]
 }

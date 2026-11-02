@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useState } from 'react';
-import { Check, Eye, EyeOff, Link2, Monitor, Pause, Play, RotateCcw, Send, SkipForward, WholeWord } from 'lucide-react';
+import { Check, Eye, EyeOff, Link2, Monitor, Music, Square, Pause, Play, RotateCcw, Send, SkipForward, WholeWord } from 'lucide-react';
 import { inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { ResultModal } from './ResultModal';
 import { EntryPicture, Stepper, api, entryName, isReady, sidesLine, useEventAction } from './eventUi';
@@ -96,6 +96,66 @@ const TimerControls: React.FC<{ eventId: string; screen: ScreenState }> = ({ eve
         ))}
       </div>
     </div>
+  );
+};
+
+/** «در حال پخش»: the music lead picks the song playing now; the big screen shows it at the bottom. */
+const NowPlaying: React.FC<{ view: EventView }> = ({ view }) => {
+  const run = useEventAction();
+  const [all, setAll] = useState(false);
+  const playing = view.event.screen?.songId ?? null;
+  const songs = view.songs.filter((s) => !s.hidden);
+  const shown = all ? songs : songs.slice(0, 8);
+  const current = songs.find((s) => s.id === playing);
+  const play = (songId: string | null) => run(() => api.post(`/api/special_events/${view.event.id}/now_playing`, { songId }));
+  return (
+    <section className={card} aria-labelledby="remote-music-title">
+      <h2 id="remote-music-title" className="text-sm font-black text-ink flex items-center gap-1.5">
+        <Music className="w-4 h-4 text-red-700" /> در حال پخش
+      </h2>
+      {current ? (
+        <div className="flex items-center gap-2 p-2.5 rounded-2xl bg-amber-50 border border-amber-200">
+          <span className="flex-1 min-w-0 truncate text-xs font-black">
+            🎵 {current.title}
+            {current.artist && <span className="font-bold text-muted"> · {current.artist}</span>}
+          </span>
+          <button type="button" onClick={() => void play(null)} className={secondaryButtonClass}>
+            <Square className="w-3.5 h-3.5" /> قطع
+          </button>
+        </div>
+      ) : (
+        <p className="text-xs text-muted">آهنگی روی صفحهٔ بزرگ نیست. با «پخش» نامش پایین صفحهٔ بزرگ می‌آید.</p>
+      )}
+      {songs.length === 0 ? (
+        <p className="text-xs text-muted">همکاران هنوز آهنگی پیشنهاد نداده‌اند.</p>
+      ) : (
+        <ol className="space-y-1">
+          {shown.map((s) => (
+            <li key={s.id} className="flex items-center gap-2 text-xs">
+              <span className={`flex-1 min-w-0 truncate font-bold ${s.playedAt && s.id !== playing ? 'text-muted' : 'text-ink'}`}>
+                {s.title}
+                {s.artist && <span className="font-normal text-muted"> · {s.artist}</span>}
+              </span>
+              <span className="text-[11px] text-muted tabular-nums shrink-0">♥ {toPersianDigits(s.votes)}</span>
+              <button
+                type="button"
+                disabled={s.id === playing}
+                onClick={() => void play(s.id)}
+                className={`${secondaryButtonClass} px-2.5 py-1`}
+                aria-label={`پخش ${s.title}`}
+              >
+                <Play className="w-3.5 h-3.5" /> {s.playedAt && s.id !== playing ? 'دوباره' : 'پخش'}
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+      {songs.length > 8 && (
+        <button type="button" onClick={() => setAll((v) => !v)} className="text-[11px] font-bold text-red-700">
+          {all ? 'فقط ۸ تای اول' : `همهٔ ${toPersianDigits(songs.length)} آهنگ`}
+        </button>
+      )}
+    </section>
   );
 };
 
@@ -344,9 +404,8 @@ export const RemotePanel: React.FC<{ view: EventView }> = ({ view }) => {
         )}
       </section>
 
-      <div className="lg:col-span-2">
-        <PairScreen eventId={event.id} />
-      </div>
+      <NowPlaying view={view} />
+      <PairScreen eventId={event.id} />
 
       {finishing && stageMatch && competition && (
         <ResultModal view={view} competition={competition} match={stageMatch} initialScores={{ a: shownA, b: shownB }} onClose={() => setFinishing(false)} />

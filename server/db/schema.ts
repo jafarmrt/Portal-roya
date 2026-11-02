@@ -15,7 +15,7 @@ import type { AuditAction, AuditEntity } from '../../shared/audit.js';
 import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
 import type { KudosEmoji } from '../../shared/kudos.js';
 import type { MonthlySummary } from '../../shared/reports.js';
-import type { EntryKind, EventPhase, EventStatus, EventTheme, Format, RankBy, Scoring, ScreenState, StagePolicy, TieRule } from '../../shared/specialEvents.js';
+import type { EntryKind, EventPhase, EventStatus, EventTheme, Format, IdeaKind, RankBy, Scoring, ScreenState, StagePolicy, TieRule } from '../../shared/specialEvents.js';
 import type { SuggestionBoxNames } from '../../shared/suggestions.js';
 import type { TaskStatus } from '../../shared/tasks.js';
 import type { TodoRemind, TodoRepeat, TodoStep } from '../../shared/todos.js';
@@ -1180,4 +1180,64 @@ export const eventAwardOptOuts = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.eventId, t.employeeId] })],
+);
+
+/** A song suggested for the night; others vote «من هم». The same song twice is caught by `key`. */
+export const eventSongs = pgTable(
+  'event_songs',
+  {
+    id: text('id').primaryKey(),
+    eventId: text('event_id').notNull().references(() => specialEvents.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    artist: text('artist').notNull().default(''),
+    note: text('note').notNull().default(''),
+    key: text('key').notNull(),
+    byId: text('by_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    // Shown without the name of whoever suggested it.
+    anonymous: boolean('anonymous').notNull().default(false),
+    hidden: boolean('hidden').notNull().default(false),
+    playedAt: timestamp('played_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('event_songs_key_idx').on(t.eventId, t.key)],
+);
+
+export const eventSongVotes = pgTable(
+  'event_song_votes',
+  {
+    songId: text('song_id').notNull().references(() => eventSongs.id, { onDelete: 'cascade' }),
+    employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.songId, t.employeeId] })],
+);
+
+/** «امسال چه کنیم؟»: an idea for the program, liked by others, answered by the organizers. */
+export const eventIdeas = pgTable(
+  'event_ideas',
+  {
+    id: text('id').primaryKey(),
+    eventId: text('event_id').notNull().references(() => specialEvents.id, { onDelete: 'cascade' }),
+    kind: text('kind').$type<IdeaKind>().notNull().default('other'),
+    text: text('text').notNull(),
+    byId: text('by_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    anonymous: boolean('anonymous').notNull().default(false),
+    hidden: boolean('hidden').notNull().default(false),
+    // «انجام می‌دهیم», with an optional line from the organizers.
+    doing: boolean('doing').notNull().default(false),
+    reply: text('reply').notNull().default(''),
+    repliedById: text('replied_by_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('event_ideas_event_idx').on(t.eventId)],
+);
+
+export const eventIdeaLikes = pgTable(
+  'event_idea_likes',
+  {
+    ideaId: text('idea_id').notNull().references(() => eventIdeas.id, { onDelete: 'cascade' }),
+    employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.ideaId, t.employeeId] })],
 );

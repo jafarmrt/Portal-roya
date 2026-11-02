@@ -5,6 +5,7 @@ import { MyCelebrationCard } from './MyCelebrationCard';
 import { FeatureIntroCard } from './FeatureIntroCard';
 import { InstallInvite } from '../common/InstallApp';
 import { DayThemeBanner } from './DayThemeBanner';
+import { EventStrip } from './EventStrip';
 import { QuickSystemsWidget } from './QuickSystemsWidget';
 import { MoodTrackerWidget } from './MoodTrackerWidget';
 import { WelcomeNewColleagueCard } from './WelcomeNewColleagueCard';
@@ -74,6 +75,11 @@ export const DashboardModule: React.FC = () => {
       {/* Nowruz, the seasons, Yalda, the feasts and the founding day; quiet on days of mourning */}
       <div className="order-1">
         <DayThemeBanner />
+      </div>
+
+      {/* A special event (Yalda night) while it is on: the countdown and one tap to its page */}
+      <div className="order-1">
+        <EventStrip />
       </div>
 
       {/* On a phone: an invitation to install the portal on the home screen */}
