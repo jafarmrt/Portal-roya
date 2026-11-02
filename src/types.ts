@@ -719,6 +719,8 @@ export interface AssignedTask {
   /** The short answer that came with the last status, e.g. why it was declined. */
   reply: string;
   statusAt: string | null;
+  /** A declined copy the one who handed it over passed on: the id of the new copy. */
+  reassignedTo: string | null;
   createdAt: string;
   updatedAt: string;
   from: TaskPerson;
@@ -730,6 +732,8 @@ export interface TaskLists {
   mine: AssignedTask[];
   /** Handed out by this person. */
   given: AssignedTask[];
+  /** Colleagues work can be handed to (while the part is in preview, only the pilot group); null until loaded. */
+  recipients: string[] | null;
 }
 
 export interface TodoInput {

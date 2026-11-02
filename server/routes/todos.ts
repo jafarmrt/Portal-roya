@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, ne, or } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
 import { isValidJalaliDate, toJalali, toPersianDigits } from '../../shared/jalali.js';
@@ -7,6 +7,7 @@ import {
   addJalaliDays,
   dayOfMonth,
   nextDueDate,
+  TODO_AUTO_ARCHIVE_DAYS,
   TODO_NOTE_MAX,
   TODO_OPEN_LIMIT,
   TODO_REMIND_HOUR,
@@ -260,7 +261,8 @@ todosRouter.patch(
       if (!doneAfter) throw new HttpError(400, 'فقط یادداشت انجام‌شده بایگانی می‌شود.');
       changes.archivedAt = new Date();
     }
-    if (input.archived === false && existing.archivedAt && !unticked) changes.archivedAt = null;
+    // Brought back by hand: the automatic archiving counts its days again from now.
+    if (input.archived === false && existing.archivedAt && !unticked) Object.assign(changes, { archivedAt: null, restoredAt: new Date() });
     const row = await db.transaction(async (tx) => {
       const [updated] = Object.keys(changes).length
         ? await tx.update(personalTodos).set(changes).where(eq(personalTodos.id, existing.id)).returning()
@@ -399,4 +401,29 @@ export async function processTodoReminders(now = new Date()) {
     await createNotifications([userId], { title, message, type: 'todo', linkTab: 'dashboard' });
   }
   return byUser.size;
+}
+
+/**
+ * Nightly: notes done more than TODO_AUTO_ARCHIVE_DAYS ago go to «آرشیو» by themselves, so the page and
+ * the dashboard do not carry years of finished notes. Nothing is deleted; each can be brought back, and
+ * then stays out of the archive for that many days again.
+ * Returns how many notes were archived.
+ */
+export async function archiveOldTodos(now = new Date()) {
+  const before = new Date(now.getTime() - TODO_AUTO_ARCHIVE_DAYS * 24 * 60 * 60 * 1000);
+  const archived = await db
+    .update(personalTodos)
+    .set({ archivedAt: now })
+    .where(
+      and(
+        isNotNull(personalTodos.doneAt),
+        lt(personalTodos.doneAt, before),
+        isNull(personalTodos.archivedAt),
+        // One the person brought back from the archive stays out for as long again.
+        or(isNull(personalTodos.restoredAt), lt(personalTodos.restoredAt, before)),
+      ),
+    )
+    .returning({ userId: personalTodos.userId });
+  for (const userId of new Set(archived.map((r) => r.userId))) signalUser(userId, 'todos');
+  return archived.length;
 }

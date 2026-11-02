@@ -13,6 +13,10 @@ export interface TodayFacts {
   dueNotes: number;
   /** Circulars waiting for the person's confirmation. */
   pendingAcks: number;
+  /** «کارهای ارجاعی» handed to the person and not answered yet (0 when the part is hidden). */
+  tasksWaiting?: number;
+  /** Accepted tasks due today or earlier and not finished. */
+  tasksDue?: number;
   /** Today's events for the person: title and time ('' when all day). */
   eventsToday: { title: string; time: string }[];
   /** Colleagues (not the person) whose birthday is today. */
@@ -29,6 +33,12 @@ const first = (names: string[]) => (names.length === 1 ? names[0] : `${names[0]}
 export function todaySummary(f: TodayFacts): string[] {
   const parts: string[] = [];
   if (f.pendingAcks) parts.push(`${toPersianDigits(f.pendingAcks)} بخشنامه منتظر تأیید شما`);
+  // Work handed over is one part, so it never pushes the rest of the day out of the line.
+  const waiting = f.tasksWaiting ?? 0;
+  const due = f.tasksDue ?? 0;
+  if (waiting && due) parts.push(`${toPersianDigits(waiting)} کار ارجاعی منتظر پاسخ و ${toPersianDigits(due)} کار برای امروز`);
+  else if (waiting) parts.push(`${toPersianDigits(waiting)} کار ارجاعی منتظر پاسخ شما`);
+  else if (due) parts.push(`${toPersianDigits(due)} کار ارجاعی برای امروز`);
   if (f.eventsToday.length === 1) {
     const e = f.eventsToday[0];
     parts.push(`${e.title}${e.time ? ` ساعت ${toPersianDigits(e.time)}` : ''}`);

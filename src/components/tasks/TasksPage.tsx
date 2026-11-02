@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, CheckCircle2, ClipboardList, Lock, Pencil, PlayCircle, RotateCcw, Send, Trash2, Undo2, X, XCircle } from 'lucide-react';
+import { Check, CheckCircle2, ClipboardList, Forward, Lock, Pencil, PlayCircle, RotateCcw, Send, Trash2, Undo2, X, XCircle } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { PageHeader } from '../common/PageHeader';
 import { EmptyState } from '../common/Placeholder';
@@ -334,9 +334,12 @@ const GivenView: React.FC<{ onAssign: () => void }> = ({ onAssign }) => {
 const GivenCard: React.FC<{ copies: AssignedTask[] }> = ({ copies }) => {
   const { removeTask, focusId } = usePortal();
   const [editing, setEditing] = useState(false);
+  const [passing, setPassing] = useState<AssignedTask | null>(null);
   const first = current(copies);
   const anyOpen = copies.some((t) => taskOpen(t.status));
-  const done = copies.filter((t) => t.status === 'done').length;
+  // A declined copy passed on to someone else is not counted: the new copy stands for it.
+  const counted = copies.filter((t) => !t.reassignedTo);
+  const done = counted.filter((t) => t.status === 'done').length;
 
   const takeBack = (task: AssignedTask) => {
     if (taskOpen(task.status) && !window.confirm(`کار «${task.title}» از ${task.to.name} پس گرفته شود؟ به او خبر داده می‌شود.`)) return;
@@ -350,9 +353,9 @@ const GivenCard: React.FC<{ copies: AssignedTask[] }> = ({ copies }) => {
     <article id={`task-${first.groupId}`} aria-label={first.title} className={cardClass + focusRing(focusId === first.groupId)}>
       <div className="flex items-start gap-2">
         <h3 className="flex-1 min-w-0 text-sm font-black text-ink break-words">{first.title}</h3>
-        {copies.length > 1 && (
+        {counted.length > 1 && (
           <span className="text-xs font-bold text-muted whitespace-nowrap">
-            {toPersianDigits(done)} از {toPersianDigits(copies.length)} انجام شد
+            {toPersianDigits(done)} از {toPersianDigits(counted.length)} انجام شد
           </span>
         )}
         {anyOpen && (
@@ -387,10 +390,26 @@ const GivenCard: React.FC<{ copies: AssignedTask[] }> = ({ copies }) => {
               )}
             </div>
             {t.reply && <p className="ps-7 text-xs text-muted">«{t.reply}»</p>}
+            {t.status === 'declined' &&
+              (t.reassignedTo ? (
+                <p className="ps-7 text-xs text-muted flex items-center gap-1">
+                  <Forward className="w-3.5 h-3.5 shrink-0" />
+                  به {copies.find((c) => c.id === t.reassignedTo)?.to.name ?? 'همکار دیگری'} سپرده شد
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setPassing(t)}
+                  className="ms-7 tap-area text-xs font-bold text-violet-800 hover:underline flex items-center gap-1"
+                >
+                  <Forward className="w-3.5 h-3.5" /> سپردن به همکار دیگر
+                </button>
+              ))}
           </li>
         ))}
       </ul>
       {editing && <TaskFormModal task={first} onClose={() => setEditing(false)} />}
+      {passing && <TaskFormModal reassign={passing} onClose={() => setPassing(null)} />}
     </article>
   );
 };

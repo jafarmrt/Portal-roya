@@ -2,7 +2,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { db, pool } from '../server/db/index';
 import { assignedTasks, notifications } from '../server/db/schema';
-import { processTaskReminders } from '../server/routes/tasks';
+import { processTaskOverdue, processTaskReminders } from '../server/routes/tasks';
 import { toJalali } from '../shared/jalali';
 import { createEmployee, resetDatabase, setupAdmin } from './helpers';
 
@@ -37,7 +37,7 @@ describe('«کارهای ارجاعی»: handing work to colleagues', () => {
 
   it('starts in preview: only the administrator and the pilot group reach it, and work only goes to them', async () => {
     expect((await boss.agent.get('/api/settings').expect(200)).body.features).not.toHaveProperty('tasks');
-    expect((await boss.agent.get('/api/tasks').expect(200)).body).toEqual({ mine: [], given: [] });
+    expect((await boss.agent.get('/api/tasks').expect(200)).body).toEqual({ mine: [], given: [], recipients: [] });
     await boss.agent.post('/api/tasks').send({ title: 'کار', dueDate: SOON, assigneeIds: [ali.id] }).expect(404);
 
     await admin.put('/api/settings/pilot').send({ roles: [], userIds: [boss.id, ali.id, sara.id] }).expect(200);
@@ -72,7 +72,7 @@ describe('«کارهای ارجاعی»: handing work to colleagues', () => {
     expect(aliView.given).toEqual([]);
     expect((await boss.agent.get('/api/tasks').expect(200)).body.given).toHaveLength(2);
     // Nobody else, the administrator included, sees or touches it.
-    expect((await admin.get('/api/tasks').expect(200)).body).toEqual({ mine: [], given: [] });
+    expect((await admin.get('/api/tasks').expect(200)).body).toMatchObject({ mine: [], given: [] });
     const aliTask = aliView.mine[0];
     await sara.agent.post(`/api/tasks/${aliTask.id}/status`).send({ status: 'done' }).expect(404);
     await admin.delete(`/api/tasks/${aliTask.id}`).expect(404);
@@ -206,5 +206,100 @@ describe('«کارهای ارجاعی»: handing work to colleagues', () => {
     const reminders = (await taskNotifications(ali.id)).slice(before);
     expect(reminders).toHaveLength(1);
     expect(reminders[0].title).toContain('تمدید قرارداد');
+  });
+
+  it('tells the form and the phone book who can be handed work: the pilot group, not oneself', async () => {
+    const { recipients } = (await boss.agent.get('/api/tasks').expect(200)).body;
+    expect(recipients).toEqual(expect.arrayContaining([ali.id, sara.id]));
+    expect(recipients).not.toContain(boss.id);
+    expect(recipients).not.toContain(outsider.id);
+  });
+
+  it('passes a declined task on to another colleague, once', async () => {
+    const [copy] = (
+      await boss.agent.post('/api/tasks').send({ title: 'بررسی فاکتورها', note: 'سه فاکتور آبان', dueDate: SOON, assigneeIds: [ali.id] }).expect(201)
+    ).body;
+    const pass = (who: Person, body: object) => who.agent.post(`/api/tasks/${copy.id}/reassign`).send(body);
+    // Only a declined copy, and only by the one who handed it over.
+    await pass(boss, { assigneeId: sara.id }).expect(400);
+    await ali.agent.post(`/api/tasks/${copy.id}/status`).send({ status: 'declined', reply: 'این هفته مرخصی هستم' }).expect(200);
+    await pass(sara, { assigneeId: sara.id }).expect(404);
+    await pass(ali, { assigneeId: sara.id }).expect(404);
+    // Not back to the one who declined, not to oneself, nobody outside the pilot group, no day gone by.
+    await pass(boss, { assigneeId: ali.id }).expect(400);
+    await pass(boss, { assigneeId: boss.id }).expect(400);
+    await pass(boss, { assigneeId: outsider.id }).expect(400);
+    await pass(boss, { assigneeId: sara.id, dueDate: day(-1) }).expect(400);
+
+    const before = (await taskNotifications(sara.id)).length;
+    const copies = (await pass(boss, { assigneeId: sara.id }).expect(201)).body as { id: string; to: { id: string }; reassignedTo: string | null }[];
+    expect(copies).toHaveLength(2);
+    const fresh = copies.find((c) => c.to.id === sara.id)!;
+    expect(fresh).toMatchObject({ groupId: copy.groupId, title: 'بررسی فاکتورها', note: 'سه فاکتور آبان', dueDate: SOON, status: 'new' });
+    expect(copies.find((c) => c.id === copy.id)!.reassignedTo).toBe(fresh.id);
+    const told = (await taskNotifications(sara.id)).slice(before);
+    expect(told).toHaveLength(1);
+    expect(told[0]).toMatchObject({ linkTab: 'tasks', linkId: copy.groupId });
+    expect(told[0].title).toContain('بررسی فاکتورها');
+    expect((await sara.agent.get('/api/tasks').expect(200)).body.mine.map((t: { id: string }) => t.id)).toContain(fresh.id);
+    // Passed on once; taking the new copy back lets it be passed on again.
+    await pass(boss, { assigneeId: sara.id }).expect(400);
+    await boss.agent.delete(`/api/tasks/${fresh.id}`).expect(204);
+    const given = (await boss.agent.get('/api/tasks').expect(200)).body.given as { id: string; reassignedTo: string | null }[];
+    expect(given.find((t) => t.id === copy.id)!.reassignedTo).toBeNull();
+  });
+
+  it('asks for a new date when the declined task has gone past its own', async () => {
+    await db.insert(assignedTasks).values({
+      id: 'declined-late',
+      groupId: 'g-declined-late',
+      assignerId: boss.id,
+      assigneeId: ali.id,
+      title: 'تمدید بیمه',
+      dueDate: day(-2),
+      status: 'declined',
+    });
+    const refused = await boss.agent.post('/api/tasks/declined-late/reassign').send({ assigneeId: sara.id }).expect(400);
+    expect(refused.body.error).toContain('موعد تازه');
+    const copies = (await boss.agent.post('/api/tasks/declined-late/reassign').send({ assigneeId: sara.id, dueDate: LATER }).expect(201)).body;
+    expect(copies.find((c: { to: { id: string } }) => c.to.id === sara.id).dueDate).toBe(LATER);
+  });
+
+  it('reminds both sides once, the morning after the due date', async () => {
+    const morning = new Date();
+    morning.setHours(9, 0, 0, 0);
+    const back = (days: number) => toJalali(new Date(morning.getTime() - days * 24 * 60 * 60 * 1000));
+    await db.insert(assignedTasks).values([
+      { id: 'late-ali', groupId: 'g-late', assignerId: boss.id, assigneeId: ali.id, title: 'تحویل نقشه‌ها', dueDate: back(1), status: 'accepted' },
+      { id: 'late-sara', groupId: 'g-late', assignerId: boss.id, assigneeId: sara.id, title: 'تحویل نقشه‌ها', dueDate: back(1) },
+      { id: 'late-done', groupId: 'g-late-done', assignerId: boss.id, assigneeId: ali.id, title: 'تمام‌شده', dueDate: back(1), status: 'done' },
+      { id: 'late-old', groupId: 'g-late-old', assignerId: boss.id, assigneeId: ali.id, title: 'خیلی قدیمی', dueDate: back(30), status: 'accepted' },
+    ]);
+    const count = async (p: Person) => (await taskNotifications(p.id)).length;
+    const before = { boss: await count(boss), ali: await count(ali), sara: await count(sara) };
+    const early = new Date(morning);
+    early.setHours(7);
+    expect(await processTaskOverdue(early)).toBe(0);
+    // Ali and Sara, and the boss once for the task (not once per colleague).
+    expect(await processTaskOverdue(morning)).toBe(3);
+    expect(await processTaskOverdue(morning)).toBe(0);
+
+    const aliTold = (await taskNotifications(ali.id)).slice(before.ali);
+    expect(aliTold).toHaveLength(1);
+    expect(aliTold[0].title).toContain('تحویل نقشه‌ها');
+    expect(aliTold[0].linkId).toBe('g-late');
+    expect((await taskNotifications(sara.id)).slice(before.sara)).toHaveLength(1);
+    const bossTold = (await taskNotifications(boss.id)).slice(before.boss);
+    expect(bossTold).toHaveLength(1);
+    expect(bossTold[0].title).toContain('تحویل نقشه‌ها');
+    expect(bossTold[0].message).toContain('۲ همکار');
+    expect(bossTold[0].linkId).toBe('g-late');
+    const [old] = await db.select().from(assignedTasks).where(eq(assignedTasks.id, 'late-old'));
+    expect(old.overdueRemindedOn).toBeNull();
+
+    // A new due date gets a reminder of its own if it passes too.
+    await boss.agent.patch('/api/tasks/groups/g-late').send({ dueDate: SOON }).expect(200);
+    const moved = await db.select().from(assignedTasks).where(eq(assignedTasks.groupId, 'g-late'));
+    expect(moved.map((t) => t.overdueRemindedOn)).toEqual([null, null]);
   });
 });

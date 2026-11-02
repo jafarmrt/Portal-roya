@@ -12,7 +12,7 @@ import { processPollDeadlines } from './routes/polls.js';
 import { processEventReminders } from './routes/calendar.js';
 import { processTrainingReminders } from './routes/trainings.js';
 import { processTodoReminders } from './routes/todos.js';
-import { processTaskReminders } from './routes/tasks.js';
+import { processTaskOverdue, processTaskReminders } from './routes/tasks.js';
 import { startDueNotices } from './routes/notices.js';
 import { releaseAnonymousSuggestions } from './routes/suggestions.js';
 import { indexMissingDocumentTexts } from './textExtract.js';
@@ -154,6 +154,7 @@ export function startScheduler() {
     processTrainingReminders().catch((err) => console.error('Training reminder error:', err));
     processTodoReminders().catch((err) => console.error('To-do reminder error:', err));
     processTaskReminders().catch((err) => console.error('Task reminder error:', err));
+    processTaskOverdue().catch((err) => console.error('Task overdue reminder error:', err));
     startDueNotices().catch((err) => console.error('Notice board error:', err));
     releaseAnonymousSuggestions().catch((err) => console.error('Suggestion release error:', err));
     processMonthlySummary().catch((err) => console.error('Monthly summary error:', err));

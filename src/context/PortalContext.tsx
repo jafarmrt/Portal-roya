@@ -224,6 +224,8 @@ interface PortalContextType {
   editTask: (groupId: string, changes: { title: string; note: string; dueDate: string }) => Promise<boolean>;
   /** Takes a task off this person's list (the one who handed it over takes back an unfinished one). */
   removeTask: (task: AssignedTask) => Promise<boolean>;
+  /** Passes a declined copy on to another colleague, with the old due date or a new one. */
+  reassignTask: (task: AssignedTask, assigneeId: string, dueDate: string) => Promise<boolean>;
   /** Notices on «تابلوی اعلانات» for this person right now (guests: those for everyone). */
   notices: Notice[];
   /** «دیدم» folds a notice away on this person's dashboard; false opens it again. */
@@ -334,7 +336,7 @@ interface PortalContextType {
   deleteNotification: (id: string) => Promise<void>;
 }
 
-const NO_TASKS: TaskLists = { mine: [], given: [] };
+const NO_TASKS: TaskLists = { mine: [], given: [], recipients: null };
 
 const PortalContext = createContext<PortalContextType | undefined>(undefined);
 
@@ -838,8 +840,19 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
   const removeTask: PortalContextType['removeTask'] = async (task) => {
     const ok = await attempt(() => api.delete(`/api/tasks/${task.id}`).then(() => true));
-    if (ok) setTasks((prev) => ({ mine: prev.mine.filter((t) => t.id !== task.id), given: prev.given.filter((t) => t.id !== task.id) }));
+    if (ok) setTasks((prev) => ({ ...prev, mine: prev.mine.filter((t) => t.id !== task.id), given: prev.given.filter((t) => t.id !== task.id) }));
     return Boolean(ok);
+  };
+  const reassignTask: PortalContextType['reassignTask'] = async (task, assigneeId, dueDate) => {
+    const copies = await attempt(() => api.post<AssignedTask[]>(`/api/tasks/${task.id}/reassign`, { assigneeId, dueDate }), 'کار به همکار دیگر سپرده شد.');
+    if (copies) {
+      const fresh = new Map(copies.map((t) => [t.id, t]));
+      setTasks((prev) => ({
+        ...prev,
+        given: [...prev.given.map((t) => fresh.get(t.id) ?? t), ...copies.filter((t) => !prev.given.some((g) => g.id === t.id))],
+      }));
+    }
+    return Boolean(copies);
   };
 
   const addTodo: PortalContextType['addTodo'] = async (input) => {
@@ -1357,6 +1370,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         answerTask,
         editTask,
         removeTask,
+        reassignTask,
         notices,
         setNoticeSeen,
         reloadNotices,

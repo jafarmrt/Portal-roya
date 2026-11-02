@@ -11,12 +11,12 @@ const pillClass = 'px-3 py-2 sm:px-4 sm:py-2.5 bg-white/10 hover:bg-white/20 rou
 
 /**
  * The red welcome at the top of the dashboard: a greeting for the time of day, today's date and
- * occasion, and one line about the person's day (circulars, today's events, notes due, polls,
+ * occasion, and one line about the person's day (circulars, work handed to them, today's events, notes due, polls,
  * colleagues' birthdays, unread news). Counts that are zero are not shown at all; on a quiet day the
  * card simply wishes a good day.
  */
 export const WelcomeHero: React.FC<{ canArrange: boolean; onArrange: () => void }> = ({ canArrange, onArrange }) => {
-  const { currentUser, isGuest, news, polls, todos, calendarEvents, employees, customHolidays, featureOn, setActiveTab, isLoaded } = usePortal();
+  const { currentUser, isGuest, news, polls, todos, tasks, calendarEvents, employees, customHolidays, featureOn, setActiveTab, isLoaded } = usePortal();
   // The greeting follows the clock if the page stays open.
   const [hour, setHour] = useState(() => new Date().getHours());
   useEffect(() => {
@@ -40,6 +40,10 @@ export const WelcomeHero: React.FC<{ canArrange: boolean; onArrange: () => void 
   const parts = currentUser && ready
     ? todaySummary({
         pendingAcks: published.filter((n) => n.requiresAck && !n.acknowledgedAt).length,
+        tasksWaiting: featureOn('tasks') ? tasks.mine.filter((t) => t.status === 'new').length : 0,
+        tasksDue: featureOn('tasks')
+          ? tasks.mine.filter((t) => (t.status === 'accepted' || t.status === 'in_progress') && t.dueDate <= today).length
+          : 0,
         eventsToday: calendarEvents
           .filter((e) => e.forMe && e.date === today && !e.trainingId)
           .map((e) => ({ title: e.title, time: e.time ?? '' })),

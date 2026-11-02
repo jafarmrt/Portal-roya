@@ -26,7 +26,7 @@ import { inputClass, primaryButtonClass } from '../common/Modal';
 import { featureInPreview } from '../../lib/features';
 import { formatDate, toPersianDigits, todayJalali } from '../../lib/jalali';
 import type { PersonalTodo } from '../../types';
-import { TODO_REPEATS, todoGroup, todoSource, type TodoGroup } from '../../../shared/todos';
+import { TODO_AUTO_ARCHIVE_DAYS, TODO_REPEATS, todoGroup, todoSource, type TodoGroup } from '../../../shared/todos';
 import { QuickDueDates } from './DueDateField';
 import { TodoFormModal } from './TodoFormModal';
 import { useTickTodo } from './useTickTodo';
@@ -83,7 +83,7 @@ const SearchBox: React.FC<{ value: string; onChange: (value: string) => void; la
 
 /**
  * «یادداشت‌های من»: one card for each day, with every note due that day in it, open and done. Done
- * notes stay on their day until the person archives them; «آرشیو» keeps them after that.
+ * notes stay on their day until the person archives them (or TODO_AUTO_ARCHIVE_DAYS pass); «آرشیو» keeps them after that.
  */
 export const TodosPage: React.FC = () => {
   const [view, setView] = useState<'page' | 'archive'>('page');
@@ -183,7 +183,7 @@ const DaysView: React.FC<{ onArchive: () => void }> = ({ onArchive }) => {
           {searching
             ? 'یادداشتی با این جستجو پیدا نشد.'
             : filter === 'done'
-              ? 'یادداشت انجام‌شده‌ای در این صفحه نیست. انجام‌شده‌هایی که بایگانی کرده‌اید در «آرشیو» هستند.'
+              ? `یادداشت انجام‌شده‌ای در این صفحه نیست. انجام‌شده‌هایی که بایگانی کرده‌اید یا ${toPersianDigits(TODO_AUTO_ARCHIVE_DAYS)} روز از انجامشان گذشته، در «آرشیو» هستند.`
               : todos.length === 0
                 ? 'یادداشتی ندارید. با «یادداشت تازه» شروع کنید، یا از هر خبر، رویداد، دوره و سند «افزودن به یادداشت‌های من» را بزنید.'
                 : 'در این دسته یادداشتی نیست.'}
@@ -258,6 +258,9 @@ const ArchiveView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             <span className="flex items-center gap-1 whitespace-nowrap"><Lock className="w-3.5 h-3.5" /> فقط خودتان می‌بینید</span>
             {items && <span className="whitespace-nowrap">· {toPersianDigits(items.length)} یادداشت</span>}
           </p>
+          <p className="text-xs text-faint mt-0.5">
+            یادداشت‌های انجام‌شده {toPersianDigits(TODO_AUTO_ARCHIVE_DAYS)} روز پس از انجام، خودشان به آرشیو می‌آیند. چیزی خودبه‌خود پاک نمی‌شود.
+          </p>
         </div>
         {items && items.length > 0 && (
           <button type="button" onClick={() => void emptyArchive()} className="tap-area text-xs font-bold text-red-700 hover:underline flex items-center gap-1">
@@ -274,7 +277,9 @@ const ArchiveView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <p className="py-12 flex justify-center text-faint"><Loader2 className="w-5 h-5 animate-spin" aria-label="در حال بارگذاری" /></p>
       ) : listed.length === 0 ? (
         <p className="py-12 text-center text-sm text-muted">
-          {searching ? 'یادداشتی با این جستجو در آرشیو نیست.' : 'آرشیو خالی است. یادداشت‌های انجام‌شده را در صفحهٔ یادداشت‌ها با «بایگانی» به این‌جا بفرستید.'}
+          {searching
+            ? 'یادداشتی با این جستجو در آرشیو نیست.'
+            : `آرشیو خالی است. یادداشت‌های انجام‌شده را در صفحهٔ یادداشت‌ها با «بایگانی» به این‌جا بفرستید؛ ${toPersianDigits(TODO_AUTO_ARCHIVE_DAYS)} روز پس از انجام هم خودشان می‌آیند.`}
         </p>
       ) : (
         <DayGrid days={days} today={today} archived onChanged={() => void load()} />

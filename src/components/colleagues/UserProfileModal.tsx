@@ -11,6 +11,8 @@ import { OnlineDot } from '../common/OnlineDot';
 import { telHref } from '../../lib/phone';
 import { AboutMeList } from './AboutMeList';
 import { aboutMeAnswers } from '../../../shared/aboutMe';
+import { TaskFormModal } from '../tasks/TaskFormModal';
+import { useCanHandTask } from '../tasks/canHandTask';
 import {
   X,
   Phone,
@@ -30,7 +32,8 @@ import {
   Sparkles,
   Trash2,
   UserPlus,
-  Smile
+  Smile,
+  Send,
 } from 'lucide-react';
 import { featureOn, tabOn } from '../../lib/features';
 
@@ -48,6 +51,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
   const fallback = user.directManagerId ? null : managerOf(user, unitHeads(departmentPages));
   const unitHead = fallback ? employees.find((e) => e.id === fallback.id && e.isActive) : undefined;
   const [introducing, setIntroducing] = useState(false);
+  const [handing, setHanding] = useState(false);
+  const canHandTask = useCanHandTask()(user);
   const introduction = newColleagues.find((nc) => nc.userId === user.id);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -186,8 +191,18 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
             </div>
 
             {/* Quick contact: the extension copies, the mobile calls (and copies); empty ones are left out. */}
-            {(user.extension || user.mobile) && (
+            {(user.extension || user.mobile || canHandTask) && (
               <div className="flex flex-wrap items-center gap-2">
+                {canHandTask && (
+                  <button
+                    type="button"
+                    onClick={() => setHanding(true)}
+                    className="px-3 py-2 bg-violet-50 hover:bg-violet-100 text-violet-800 rounded-xl text-xs font-bold border border-violet-200 flex items-center gap-1.5 transition-colors"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>سپردن کار</span>
+                  </button>
+                )}
                 {user.extension && (
                   <button
                     onClick={() => copyToClipboard(user.extension, 'داخلی')}
@@ -232,6 +247,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
             </div>
           )}
           {introducing && <IntroduceColleagueModal colleague={user} card={introduction} onClose={() => setIntroducing(false)} />}
+          {handing && <TaskFormModal initialAssigneeIds={[user.id]} onClose={() => setHanding(false)} />}
 
           {/* Email, birthday and manager; a box with nothing in it is left out. */}
           {(() => {

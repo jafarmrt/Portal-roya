@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { db, pool } from '../server/db/index';
 import { notifications, personalTodos } from '../server/db/schema';
-import { processTodoReminders } from '../server/routes/todos';
+import { archiveOldTodos, processTodoReminders } from '../server/routes/todos';
 import { toJalali } from '../shared/jalali';
 import { nextDueDate, quickDueDates, todoGroup } from '../shared/todos';
 import { createEmployee, resetDatabase, setupAdmin } from './helpers';
@@ -338,5 +338,31 @@ describe('«یادداشت‌های من»: private to-do notes with a morning r
     await setState('off');
     expect((await owner.agent.get('/api/todos/archive').expect(200)).body).toEqual([]);
     await setState('on');
+  });
+
+  it('moves notes done 60 days ago to the archive by itself, never deleting them', async () => {
+    await db.delete(personalTodos);
+    const add = async (title: string) => (await owner.agent.post('/api/todos').send({ title, dueDate: '1405/09/10' }).expect(201)).body.id;
+    const oldId = await add('انجام‌شده خیلی قبل');
+    const recentId = await add('انجام‌شده همین ماه');
+    const openId = await add('هنوز باز');
+    const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    await db.update(personalTodos).set({ doneAt: daysAgo(61) }).where(eq(personalTodos.id, oldId));
+    await db.update(personalTodos).set({ doneAt: daysAgo(20) }).where(eq(personalTodos.id, recentId));
+    await db.update(personalTodos).set({ createdAt: daysAgo(400) }).where(eq(personalTodos.id, openId));
+    const ids = async (path: string) => (await owner.agent.get(path).expect(200)).body.map((t: { id: string }) => t.id).sort();
+
+    expect(await archiveOldTodos()).toBe(1);
+    expect(await ids('/api/todos')).toEqual([recentId, openId].sort());
+    expect(await ids('/api/todos/archive')).toEqual([oldId]);
+    expect(await archiveOldTodos()).toBe(0);
+
+    // Brought back by hand, it stays on the page for another 60 days.
+    await owner.agent.patch(`/api/todos/${oldId}`).send({ archived: false }).expect(200);
+    expect(await archiveOldTodos()).toBe(0);
+    expect(await ids('/api/todos')).toEqual([oldId, recentId, openId].sort());
+    expect(await archiveOldTodos(new Date(Date.now() + 61 * 24 * 60 * 60 * 1000))).toBe(2);
+    expect(await ids('/api/todos/archive')).toEqual([oldId, recentId].sort());
+    expect((await db.select().from(personalTodos)).length).toBe(3);
   });
 });
