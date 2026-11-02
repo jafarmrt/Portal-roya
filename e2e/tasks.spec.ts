@@ -15,6 +15,14 @@ test.describe('assigned tasks', () => {
     const sara = people.find((p) => p.username === 'sara')!;
     expect((await admin.page.request.put('/api/settings/pilot', { data: { roles: [], userIds: [sara.id] } })).ok()).toBe(true);
 
+    // From the phone book: «سپردن کار» on her card opens the form with her already chosen.
+    await admin.page.goto('/#colleagues');
+    await admin.page.getByRole('button', { name: 'سپردن کار به سارا احمدی', exact: true }).click();
+    const fromCard = admin.page.getByRole('dialog', { name: 'سپردن کار به همکار' });
+    await expect(fromCard.getByRole('button', { name: 'حذف سارا احمدی' })).toBeVisible();
+    await fromCard.getByRole('button', { name: 'انصراف' }).click();
+    await expect(fromCard).toBeHidden();
+
     await admin.page.goto('/#tasks');
     await expect(admin.page.getByRole('heading', { name: 'کارهای ارجاعی' })).toBeVisible();
     await admin.page.getByRole('button', { name: 'سپردن کار' }).first().click();
@@ -35,6 +43,8 @@ test.describe('assigned tasks', () => {
     const strip = page.getByRole('group', { name: 'کارهای ارجاعی به من' });
     await expect(strip).toContainText('گزارش فروش آبان');
     await expect(strip).toContainText('ارجاعی');
+    // The welcome line counts it too, until she answers.
+    await expect(page.getByText(/۱ کار ارجاعی منتظر پاسخ شما/)).toBeVisible();
     await strip.getByRole('button', { name: 'پذیرفتن گزارش فروش آبان' }).click();
     await expect(strip.getByRole('checkbox', { name: 'انجام شد: گزارش فروش آبان' })).toBeVisible();
 

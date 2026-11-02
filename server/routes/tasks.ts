@@ -1,13 +1,15 @@
-import { and, eq, gte, inArray, isNull, or } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, lt, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { Router } from 'express';
 import { z } from 'zod';
 import { featureVisible } from '../../shared/features.js';
 import { isValidJalaliDate, toJalali, toPersianDigits } from '../../shared/jalali.js';
+import { addJalaliDays } from '../../shared/todos.js';
 import {
   TASK_ANSWERS,
   TASK_ASSIGNEES_MAX,
   TASK_NOTE_MAX,
+  TASK_OVERDUE_WINDOW_DAYS,
   TASK_OPEN_GIVEN_LIMIT,
   TASK_REMIND_HOUR,
   TASK_REPLY_MAX,
@@ -71,6 +73,7 @@ const serialize = (t: TaskRow, from: Parameters<typeof person>[0], to: Parameter
   status: t.status,
   reply: t.reply,
   statusAt: t.statusAt?.toISOString() ?? null,
+  reassignedTo: t.reassignedTo,
   createdAt: t.createdAt.toISOString(),
   updatedAt: t.updatedAt.toISOString(),
   from: person(from),
@@ -92,6 +95,8 @@ const createSchema = z.object({
 });
 
 const editSchema = z.object({ title: title.optional(), note: note.optional(), dueDate: dueDate.optional() });
+
+const reassignSchema = z.object({ assigneeId: z.string().min(1).max(100), dueDate: dueDate.optional() });
 
 const answerSchema = z.object({
   status: z.enum(TASK_ANSWERS),
@@ -135,16 +140,30 @@ async function taskOf(id: string) {
   return row;
 }
 
-/** «کارهایی که به من سپرده‌اند» and «کارهایی که سپردم», each without what that person took off their list. */
+/** Active colleagues with an account who see «کارهای ارجاعی» (while in preview, only the pilot group). */
+async function taskPeople() {
+  const config = await featureConfig();
+  const people = await db
+    .select({ id: employees.id, role: employees.role, firstName: employees.firstName, lastName: employees.lastName })
+    .from(employees)
+    .where(and(eq(employees.isActive, true), eq(employees.hasAccount, true)));
+  return people.filter((p) => featureVisible(config, 'tasks', { id: p.id, role: p.role }));
+}
+
+/**
+ * «کارهایی که به من سپرده‌اند» and «کارهایی که سپردم», each without what that person took off their list,
+ * and who work can be handed to (so the form and the phone book offer only them).
+ */
 tasksRouter.get(
   '/tasks',
   route(async (req, res) => {
     const viewer = currentUser(req);
-    const [mine, given] = await Promise.all([
+    const [mine, given, people] = await Promise.all([
       readTasks(and(eq(assignedTasks.assigneeId, viewer.id), isNull(assignedTasks.assigneeHiddenAt))),
       readTasks(and(eq(assignedTasks.assignerId, viewer.id), isNull(assignedTasks.assignerHiddenAt))),
+      taskPeople(),
     ]);
-    res.json({ mine, given });
+    res.json({ mine, given, recipients: people.filter((p) => p.id !== viewer.id).map((p) => p.id) });
   }),
 );
 
@@ -224,6 +243,8 @@ tasksRouter.patch(
       changes.dueDate = input.dueDate;
       // Moved to today after the morning reminder: the change notification below is the reminder.
       changes.remindedOn = remindedOnFor(input.dueDate);
+      // A new date gets its own «overdue» reminder if it passes too.
+      changes.overdueRemindedOn = null;
     }
     if (Object.keys(changes).length > 0) {
       await db
@@ -248,6 +269,61 @@ tasksRouter.patch(
       for (const r of open) signalBoth(r);
     }
     res.json(await readTasks(eq(assignedTasks.groupId, req.params.groupId)));
+  }),
+);
+
+/**
+ * The one who handed a task over passes a declined copy on to another colleague: a new copy in the same
+ * task (same title and note), with the old date or a new one. The declined copy stays on the card,
+ * marked as passed on, so it is not passed on twice.
+ */
+tasksRouter.post(
+  '/tasks/:id/reassign',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const input = parse(reassignSchema, req.body);
+    const task = await taskOf(req.params.id);
+    if (!task || task.assignerId !== viewer.id) throw new HttpError(404, 'این کار پیدا نشد.');
+    if (task.status !== 'declined') throw new HttpError(400, 'فقط کاری را که رد شده می‌توان به همکار دیگری سپرد.');
+    if (task.reassignedTo) throw new HttpError(400, 'این کار قبلاً به همکار دیگری سپرده شده است.');
+    if (input.assigneeId === viewer.id) throw new HttpError(400, 'کار خودتان را در «یادداشت‌های من» بنویسید؛ این‌جا برای سپردن کار به همکاران است.');
+    const [to] = (await taskPeople()).filter((p) => p.id === input.assigneeId);
+    if (!to) throw new HttpError(400, 'این همکار حساب فعال در پرتال ندارد یا بخش «کارهای ارجاعی» برایش باز نشده است.');
+    const copies = await db.select().from(assignedTasks).where(eq(assignedTasks.groupId, task.groupId));
+    if (copies.some((c) => c.assigneeId === to.id)) throw new HttpError(400, `این کار قبلاً به ${fullName(to)} سپرده شده است.`);
+    if (copies.length >= TASK_ASSIGNEES_MAX) throw new HttpError(400, `یک کار به بیش از ${toPersianDigits(TASK_ASSIGNEES_MAX)} همکار سپرده نمی‌شود.`);
+    const due = input.dueDate ?? task.dueDate;
+    if (due < toJalali(new Date())) {
+      throw new HttpError(400, input.dueDate ? 'موعد کار نمی‌تواند روزی گذشته باشد.' : 'موعد این کار گذشته است؛ موعد تازه‌ای انتخاب کنید.');
+    }
+    const id = newId('task');
+    // Claimed with the copy, so two quick taps do not pass it on twice.
+    const claimed = await db
+      .update(assignedTasks)
+      .set({ reassignedTo: id })
+      .where(and(eq(assignedTasks.id, task.id), isNull(assignedTasks.reassignedTo), eq(assignedTasks.status, 'declined')))
+      .returning({ id: assignedTasks.id });
+    if (claimed.length === 0) throw new HttpError(400, 'این کار قبلاً به همکار دیگری سپرده شده است.');
+    await db.insert(assignedTasks).values({
+      id,
+      groupId: task.groupId,
+      assignerId: viewer.id,
+      assigneeId: to.id,
+      title: task.title,
+      note: task.note,
+      dueDate: due,
+      remindedOn: remindedOnFor(due),
+    });
+    await createNotifications([to.id], {
+      title: `کار تازه از ${fullName(viewer)}: ${shorten(task.title)}`,
+      message: 'برای دیدن جزئیات، پذیرفتن یا رد کردن آن، «کارهای ارجاعی» را باز کنید.',
+      type: 'task',
+      linkTab: 'tasks',
+      linkId: task.groupId,
+    });
+    signalUser(viewer.id, 'tasks');
+    signalUser(to.id, 'tasks');
+    res.status(201).json(await readTasks(eq(assignedTasks.groupId, task.groupId)));
   }),
 );
 
@@ -346,6 +422,8 @@ tasksRouter.delete(
     const asAssigner = task.assignerId === viewer.id;
     if (asAssigner && taskOpen(task.status)) {
       await db.delete(assignedTasks).where(eq(assignedTasks.id, task.id));
+      // A declined copy passed on to this one can be passed on again.
+      await db.update(assignedTasks).set({ reassignedTo: null }).where(eq(assignedTasks.reassignedTo, task.id));
       await createNotifications([task.assigneeId], {
         title: `کار «${shorten(task.title, 50)}» پس گرفته شد`,
         message: `${fullName(viewer)} این کار را لغو کرد و دیگر لازم نیست انجامش دهید.`,
@@ -407,4 +485,89 @@ export async function processTaskReminders(now = new Date()) {
     });
   }
   return byUser.size;
+}
+
+/**
+ * From 08:00 the morning after the due date, an unfinished task is reminded once: to the colleague who has
+ * it, and to the one who handed it over (one notification per task, naming everyone still on it). Both
+ * must still see «کارهای ارجاعی». Returns how many people were reminded.
+ */
+export async function processTaskOverdue(now = new Date()) {
+  if (now.getHours() < TASK_REMIND_HOUR) return 0;
+  const today = toJalali(now);
+  const late = await db
+    .select({ task: assignedTasks, to: personColumns(assignee), toRole: assignee.role, toActive: assignee.isActive, fromRole: assigner.role, fromActive: assigner.isActive })
+    .from(assignedTasks)
+    .innerJoin(assigner, eq(assigner.id, assignedTasks.assignerId))
+    .innerJoin(assignee, eq(assignee.id, assignedTasks.assigneeId))
+    .where(
+      and(
+        lt(assignedTasks.dueDate, today),
+        gte(assignedTasks.dueDate, addJalaliDays(today, -TASK_OVERDUE_WINDOW_DAYS)),
+        isNull(assignedTasks.overdueRemindedOn),
+        inArray(assignedTasks.status, ['new', 'accepted', 'in_progress']),
+      ),
+    );
+  if (late.length === 0) return 0;
+  // Claimed first, so a second server tick or a restart does not remind twice.
+  const claimed = new Set(
+    (
+      await db
+        .update(assignedTasks)
+        .set({ overdueRemindedOn: today })
+        .where(and(inArray(assignedTasks.id, late.map((r) => r.task.id)), isNull(assignedTasks.overdueRemindedOn)))
+        .returning({ id: assignedTasks.id })
+    ).map((r) => r.id),
+  );
+  const config = await featureConfig();
+  const sees = (id: string, role: string, active: boolean) => active && featureVisible(config, 'tasks', { id, role });
+  const rows = late.filter((r) => claimed.has(r.task.id));
+
+  // The colleague who has it: one notification for all their late tasks.
+  const byAssignee = new Map<string, TaskRow[]>();
+  for (const r of rows) {
+    if (!sees(r.task.assigneeId, r.toRole, r.toActive)) continue;
+    byAssignee.set(r.task.assigneeId, [...(byAssignee.get(r.task.assigneeId) ?? []), r.task]);
+  }
+  for (const [userId, tasks] of byAssignee) {
+    const one = tasks.length === 1 ? tasks[0] : null;
+    await createNotifications([userId], {
+      title: one ? `موعد کار ارجاعی گذشت: ${shorten(one.title)}` : `موعد ${toPersianDigits(tasks.length)} کار ارجاعی گذشت`,
+      message: one
+        ? 'این کار هنوز تمام نشده است. اگر به آن نمی‌رسید، در «کارهای ارجاعی» پاسخ دهید تا سپارنده بداند.'
+        : tasks.map((t) => shorten(t.title, 40)).join('، '),
+      type: 'task',
+      linkTab: 'tasks',
+      ...(one ? { linkId: one.groupId } : {}),
+    });
+  }
+
+  // The one who handed it over: one notification per task, with who still has it.
+  const byGroup = new Map<string, typeof rows>();
+  for (const r of rows) {
+    if (!sees(r.task.assignerId, r.fromRole, r.fromActive)) continue;
+    byGroup.set(r.task.groupId, [...(byGroup.get(r.task.groupId) ?? []), r]);
+  }
+  const byAssigner = new Map<string, { groupId: string; title: string; names: string[] }[]>();
+  for (const [groupId, list] of byGroup) {
+    const assignerId = list[0].task.assignerId;
+    const names = list.map((r) => fullName(r.to));
+    byAssigner.set(assignerId, [...(byAssigner.get(assignerId) ?? []), { groupId, title: list[0].task.title, names }]);
+  }
+  for (const [userId, groups] of byAssigner) {
+    const one = groups.length === 1 ? groups[0] : null;
+    const who = (names: string[]) => (names.length === 1 ? names[0] : `${toPersianDigits(names.length)} همکار`);
+    await createNotifications([userId], {
+      title: one ? `موعد کار «${shorten(one.title, 50)}» گذشت` : `موعد ${toPersianDigits(groups.length)} کاری که سپرده‌اید گذشت`,
+      message: one
+        ? one.names.length === 1
+          ? `${one.names[0]} هنوز آن را تمام نکرده است. می‌توانید موعد را عوض کنید یا پیگیری کنید.`
+          : `${who(one.names)} هنوز آن را تمام نکرده‌اند (${joinFa(one.names)}). می‌توانید موعد را عوض کنید یا پیگیری کنید.`
+        : groups.map((g) => `${shorten(g.title, 30)} (${who(g.names)})`).join('، '),
+      type: 'task',
+      linkTab: 'tasks',
+      ...(one ? { linkId: one.groupId } : {}),
+    });
+  }
+  return byAssignee.size + byAssigner.size;
 }

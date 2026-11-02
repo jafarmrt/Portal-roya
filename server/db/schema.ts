@@ -791,8 +791,11 @@ export const personalTodos = pgTable(
     sourceType: text('source_type'),
     sourceId: text('source_id'),
     doneAt: timestamp('done_at', { withTimezone: true }),
-    // Done notes stay on the page until the person archives them; then they are only in «آرشیو».
+    // Done notes stay on the page until the person archives them (or the server does, 60 days after
+    // they were done); then they are only in «آرشیو».
     archivedAt: timestamp('archived_at', { withTimezone: true }),
+    // When the person last brought it back from «آرشیو»; the automatic archiving counts from here too.
+    restoredAt: timestamp('restored_at', { withTimezone: true }),
     // The Jalali day the morning reminder went out, so it is sent once.
     remindedOn: text('reminded_on'),
     // The same for the reminder the morning before, when the person asked for it.
@@ -833,6 +836,10 @@ export const assignedTasks = pgTable(
     statusAt: timestamp('status_at', { withTimezone: true }),
     // The Jalali day the due-date reminder went out, so it is sent once.
     remindedOn: text('reminded_on'),
+    // The Jalali day the «overdue» reminder (the morning after the due date) went out to both sides.
+    overdueRemindedOn: text('overdue_reminded_on'),
+    // A declined copy the person who handed it over passed on to someone else: the new copy's id.
+    reassignedTo: text('reassigned_to'),
     // Each side takes a finished task off its own list; the row goes once both have.
     assignerHiddenAt: timestamp('assigner_hidden_at', { withTimezone: true }),
     assigneeHiddenAt: timestamp('assignee_hidden_at', { withTimezone: true }),

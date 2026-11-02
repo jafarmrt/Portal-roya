@@ -17,6 +17,11 @@ export const TASK_REMIND_HOUR = 8;
  * bell of the one who handed the task over (if still unread), instead of a second «دوباره باز کرد».
  */
 export const TASK_UNDO_MS = 2 * 60 * 1000;
+/**
+ * The morning after the due date, an unfinished task is reminded once to both people. A task that went
+ * past its date while the server was off is still reminded within this many days (not older ones).
+ */
+export const TASK_OVERDUE_WINDOW_DAYS = 3;
 
 export const TASK_STATUSES = [
   { id: 'new', label: 'منتظر پاسخ', tone: 'bg-amber-100 text-amber-900' },

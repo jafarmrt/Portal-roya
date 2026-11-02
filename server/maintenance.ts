@@ -12,6 +12,7 @@ import { createNotifications } from './notify.js';
 import { pruneKudos } from './routes/kudos.js';
 import { pruneReactions } from './routes/reactions.js';
 import { pruneNotices } from './routes/notices.js';
+import { archiveOldTodos } from './routes/todos.js';
 import { buildInfo } from './version.js';
 import { ADMIN_ROLE_ID } from '../shared/permissions.js';
 
@@ -226,6 +227,7 @@ export async function runNightlyMaintenance(now = new Date()) {
     await pruneKudos(now).catch((err) => console.error('Emoji cleanup failed:', err));
     await pruneReactions().catch((err) => console.error('Reaction cleanup failed:', err));
     await pruneNotices(now).catch((err) => console.error('Notice cleanup failed:', err));
+    await archiveOldTodos(now).catch((err) => console.error('To-do archiving failed:', err));
   }
   try {
     await backupDatabase(config.backupDir, now);

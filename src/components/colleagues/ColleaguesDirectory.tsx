@@ -21,12 +21,15 @@ import {
   MapPin,
   Printer,
   Download,
+  Send,
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { usePresence } from '../online/usePresence';
 import { OnlineDot } from '../common/OnlineDot';
 import { telHref } from '../../lib/phone';
 import { secondaryButtonClass } from '../common/Modal';
+import { TaskFormModal } from '../tasks/TaskFormModal';
+import { useCanHandTask } from '../tasks/canHandTask';
 
 export const ColleaguesDirectory: React.FC = () => {
   const { employees, can, appSettings, departmentPages, focusId, setActiveTab, currentUser, featureOn } = usePortal();
@@ -43,6 +46,9 @@ export const ColleaguesDirectory: React.FC = () => {
   const selectedUserForView = focusId ? employees.find(e => e.id === focusId) ?? null : null;
   const setSelectedUserForView = (emp: UserProfile | null) => setActiveTab('colleagues', emp?.id ?? null);
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<UserProfile | null>(null);
+  // «سپردن کار» on a card opens the form here, outside the clickable card.
+  const [handTo, setHandTo] = useState<UserProfile | null>(null);
+  const canHandTask = useCanHandTask();
   const [copiedExtension, setCopiedExtension] = useState<string | null>(null);
   const [printOpen, setPrintOpen] = useState(false);
 
@@ -291,9 +297,25 @@ export const ColleaguesDirectory: React.FC = () => {
               </div>
 
               {/* Bottom Footer Action */}
-              <div className="mt-4 pt-3 border-t border-line flex items-center justify-between text-xs font-bold text-brand group-hover:translate-x-1 transition-transform">
-                <span>مشاهده پروفایل کامل و سوابق</span>
-                <ChevronLeft className="w-4 h-4" />
+              <div className="mt-4 pt-3 border-t border-line flex items-center justify-between gap-2 text-xs font-bold text-brand">
+                <span className="flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  مشاهده پروفایل کامل و سوابق
+                  <ChevronLeft className="w-4 h-4" />
+                </span>
+                {canHandTask(emp) && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setHandTo(emp);
+                    }}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    aria-label={`سپردن کار به ${emp.firstName} ${emp.lastName}`}
+                    className="px-2.5 py-1 rounded-lg border border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100 flex items-center gap-1 shrink-0"
+                  >
+                    <Send className="w-3.5 h-3.5" /> سپردن کار
+                  </button>
+                )}
               </div>
 
             </div>
@@ -316,6 +338,8 @@ export const ColleaguesDirectory: React.FC = () => {
       />}
 
       {printOpen && <PhoneListPrintModal onClose={() => setPrintOpen(false)} />}
+
+      {handTo && <TaskFormModal initialAssigneeIds={[handTo.id]} onClose={() => setHandTo(null)} />}
     </div>
   );
 };

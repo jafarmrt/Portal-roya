@@ -29,6 +29,21 @@ describe('the welcome line on the dashboard', () => {
     expect(parts[2]).toBe('۲ یادداشت برای امروز');
   });
 
+  it('counts work handed over in one part, right after circulars', () => {
+    expect(todaySummary({ ...none, tasksWaiting: 2 })).toEqual(['۲ کار ارجاعی منتظر پاسخ شما']);
+    expect(todaySummary({ ...none, tasksDue: 1 })).toEqual(['۱ کار ارجاعی برای امروز']);
+    const parts = todaySummary({
+      ...none,
+      pendingAcks: 1,
+      tasksWaiting: 2,
+      tasksDue: 1,
+      dueNotes: 3,
+      eventsToday: [{ title: 'جلسهٔ ماهانه', time: '' }],
+      birthdaysToday: ['ندا کریمی'],
+    });
+    expect(parts).toEqual(['۱ بخشنامه منتظر تأیید شما', '۲ کار ارجاعی منتظر پاسخ و ۱ کار برای امروز', 'جلسهٔ ماهانه', '۳ یادداشت برای امروز']);
+  });
+
   it('gives the time of a single event', () => {
     expect(todaySummary({ ...none, eventsToday: [{ title: 'جلسهٔ ماهانه', time: '10:00' }] })).toEqual(['جلسهٔ ماهانه ساعت ۱۰:۰۰']);
   });
