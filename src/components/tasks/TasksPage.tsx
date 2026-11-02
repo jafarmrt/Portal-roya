@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, CheckCircle2, ClipboardList, Lock, Pencil, PlayCircle, RotateCcw, Send, Trash2, Undo2, X, XCircle } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { PageHeader } from '../common/PageHeader';
@@ -11,10 +11,28 @@ import { shortDue } from '../todos/todoText';
 import { TASK_REPLY_MAX, taskOpen, taskStatus, type TaskAnswer } from '../../../shared/tasks';
 import type { AssignedTask, TaskPerson } from '../../types';
 import { TaskFormModal } from './TaskFormModal';
+import { useAnswerTask } from './useAnswerTask';
 
 type View = 'mine' | 'given';
 
 const byDue = (a: AssignedTask, b: AssignedTask) => a.dueDate.localeCompare(b.dueDate) || a.createdAt.localeCompare(b.createdAt);
+
+/**
+ * The copy that stands for a task handed to several colleagues: an unfinished one (changes reach only
+ * those), else the one changed last. A copy finished before the title was changed keeps the old title.
+ */
+const current = (copies: AssignedTask[]) =>
+  copies.find((t) => taskOpen(t.status)) ?? [...copies].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+
+/** Copies of the tasks this person handed out, one list per task. */
+const groupCopies = (given: AssignedTask[]) => {
+  const map = new Map<string, AssignedTask[]>();
+  for (const t of given) map.set(t.groupId, [...(map.get(t.groupId) ?? []), t]);
+  return [...map.values()];
+};
+
+/** The card a notification opened (#tasks/<task>) gets a ring. */
+const focusRing = (focused: boolean) => (focused ? ' ring-2 ring-violet-400 border-violet-300' : '');
 
 /** The due date in a few words, red once it has passed on an unfinished task. */
 const Due: React.FC<{ task: AssignedTask }> = ({ task }) => {
@@ -50,11 +68,30 @@ const PersonLine: React.FC<{ person: TaskPerson; prefix: string }> = ({ person, 
  * Only the two people on a task see it; managers have no view of it.
  */
 export const TasksPage: React.FC = () => {
-  const { tasks, appSettings } = usePortal();
-  const [view, setView] = useState<View>(() => (tasks.mine.some((t) => taskOpen(t.status)) || tasks.given.length === 0 ? 'mine' : 'given'));
+  const { tasks, appSettings, focusId, isLoaded, setActiveTab } = usePortal();
+  const [view, setView] = useState<View>(() =>
+    focusId && tasks.given.some((t) => t.groupId === focusId)
+      ? 'given'
+      : tasks.mine.some((t) => taskOpen(t.status)) || tasks.given.length === 0
+        ? 'mine'
+        : 'given',
+  );
   const [writing, setWriting] = useState(false);
   const mineOpen = tasks.mine.filter((t) => taskOpen(t.status)).length;
-  const givenOpen = tasks.given.filter((t) => taskOpen(t.status)).length;
+  // Counted per task, as in «در جریان» below (one task may have gone to several colleagues).
+  const givenOpen = groupCopies(tasks.given).filter((g) => g.some((t) => taskOpen(t.status))).length;
+
+  // A notification opens its task: the right list, scrolled to the card (once, not on every live update).
+  const shownFor = useRef<string | null>(null);
+  const inMine = Boolean(focusId && tasks.mine.some((t) => t.groupId === focusId));
+  const inGiven = Boolean(focusId && tasks.given.some((t) => t.groupId === focusId));
+  useEffect(() => {
+    if (!focusId || shownFor.current === focusId || (!inMine && !inGiven)) return;
+    shownFor.current = focusId;
+    setView(inMine ? 'mine' : 'given');
+    requestAnimationFrame(() => document.getElementById(`task-${focusId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  }, [focusId, inMine, inGiven]);
+  const gone = Boolean(focusId && isLoaded('tasks') && !inMine && !inGiven);
 
   const tabs: { id: View; label: string; count: number }[] = [
     { id: 'mine', label: 'به من سپرده‌اند', count: mineOpen },
@@ -96,6 +133,15 @@ export const TasksPage: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {gone && (
+        <p role="status" className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950">
+          <span className="flex-1">این کار دیگر در فهرست شما نیست؛ شاید پس گرفته یا از فهرست برداشته شده باشد.</span>
+          <button type="button" onClick={() => setActiveTab('tasks')} aria-label="بستن" className="p-1 rounded-lg hover:bg-amber-100">
+            <X className="w-4 h-4" />
+          </button>
+        </p>
+      )}
 
       {view === 'mine' ? <MineView /> : <GivenView onAssign={() => setWriting(true)} />}
 
@@ -148,7 +194,8 @@ const MineView: React.FC = () => {
 
 /** One task handed to this person, with the answers that fit its status. */
 const MineCard: React.FC<{ task: AssignedTask }> = ({ task }) => {
-  const { answerTask, removeTask } = usePortal();
+  const { removeTask, focusId } = usePortal();
+  const answerTask = useAnswerTask();
   // «رد می‌کنم» and «انجام شد» can carry a short answer for the one who handed it over.
   const [answering, setAnswering] = useState<'declined' | 'done' | null>(null);
   const [reply, setReply] = useState('');
@@ -156,7 +203,7 @@ const MineCard: React.FC<{ task: AssignedTask }> = ({ task }) => {
 
   const answer = async (status: TaskAnswer, text?: string) => {
     setBusy(true);
-    const ok = await answerTask(task.id, status, text);
+    const ok = await answerTask(task, status, text);
     setBusy(false);
     if (ok) {
       setAnswering(null);
@@ -165,7 +212,7 @@ const MineCard: React.FC<{ task: AssignedTask }> = ({ task }) => {
   };
 
   return (
-    <article aria-label={task.title} className={cardClass}>
+    <article id={`task-${task.groupId}`} aria-label={task.title} className={cardClass + focusRing(focusId === task.groupId)}>
       <div className="flex items-start gap-2">
         <h3 className={`flex-1 min-w-0 text-sm font-black break-words ${task.status === 'done' ? 'line-through text-faint' : 'text-ink'}`}>{task.title}</h3>
         <StatusPill status={task.status} />
@@ -213,7 +260,9 @@ const MineCard: React.FC<{ task: AssignedTask }> = ({ task }) => {
             <ActionButton icon={<PlayCircle />} label="در حال انجام" onClick={() => void answer('in_progress')} disabled={busy} />
           )}
           {taskOpen(task.status) && <ActionButton icon={<CheckCircle2 />} label="انجام شد" onClick={() => setAnswering('done')} disabled={busy} strong={task.status !== 'new'} />}
-          {task.status === 'in_progress' && <ActionButton icon={<XCircle />} label="نمی‌توانم انجام دهم" onClick={() => setAnswering('declined')} disabled={busy} />}
+          {(task.status === 'accepted' || task.status === 'in_progress') && (
+            <ActionButton icon={<XCircle />} label="نمی‌توانم انجام دهم" onClick={() => setAnswering('declined')} disabled={busy} />
+          )}
           {!taskOpen(task.status) && (
             <>
               <ActionButton icon={<RotateCcw />} label={task.status === 'done' ? 'باز کردن دوباره' : 'پذیرفتن'} onClick={() => void answer(task.status === 'done' ? 'in_progress' : 'accepted')} disabled={busy} />
@@ -249,13 +298,12 @@ const ActionButton: React.FC<{ icon: React.ReactNode; label: string; onClick: ()
 /** Work this person handed out: one card per task, with how far each colleague got. */
 const GivenView: React.FC<{ onAssign: () => void }> = ({ onAssign }) => {
   const { tasks } = usePortal();
-  const groups = useMemo(() => {
-    const map = new Map<string, AssignedTask[]>();
-    for (const t of tasks.given) map.set(t.groupId, [...(map.get(t.groupId) ?? []), t]);
-    return [...map.values()].map((copies) => copies.sort((a, b) => a.to.name.localeCompare(b.to.name, 'fa')));
-  }, [tasks.given]);
-  const open = groups.filter((g) => g.some((t) => taskOpen(t.status))).sort((a, b) => byDue(a[0], b[0]));
-  const finished = groups.filter((g) => g.every((t) => !taskOpen(t.status))).sort((a, b) => b[0].updatedAt.localeCompare(a[0].updatedAt));
+  const groups = useMemo(
+    () => groupCopies(tasks.given).map((copies) => copies.sort((a, b) => a.to.name.localeCompare(b.to.name, 'fa'))),
+    [tasks.given],
+  );
+  const open = groups.filter((g) => g.some((t) => taskOpen(t.status))).sort((a, b) => byDue(current(a), current(b)));
+  const finished = groups.filter((g) => g.every((t) => !taskOpen(t.status))).sort((a, b) => current(b).updatedAt.localeCompare(current(a).updatedAt));
 
   if (groups.length === 0) {
     return (
@@ -284,9 +332,9 @@ const GivenView: React.FC<{ onAssign: () => void }> = ({ onAssign }) => {
 };
 
 const GivenCard: React.FC<{ copies: AssignedTask[] }> = ({ copies }) => {
-  const { removeTask } = usePortal();
+  const { removeTask, focusId } = usePortal();
   const [editing, setEditing] = useState(false);
-  const first = copies[0];
+  const first = current(copies);
   const anyOpen = copies.some((t) => taskOpen(t.status));
   const done = copies.filter((t) => t.status === 'done').length;
 
@@ -299,7 +347,7 @@ const GivenCard: React.FC<{ copies: AssignedTask[] }> = ({ copies }) => {
   };
 
   return (
-    <article aria-label={first.title} className={cardClass}>
+    <article id={`task-${first.groupId}`} aria-label={first.title} className={cardClass + focusRing(focusId === first.groupId)}>
       <div className="flex items-start gap-2">
         <h3 className="flex-1 min-w-0 text-sm font-black text-ink break-words">{first.title}</h3>
         {copies.length > 1 && (
@@ -318,7 +366,7 @@ const GivenCard: React.FC<{ copies: AssignedTask[] }> = ({ copies }) => {
           </button>
         )}
       </div>
-      <Due task={copies.find((t) => taskOpen(t.status)) ?? first} />
+      <Due task={first} />
       {first.note && <p className="text-xs text-ink-soft leading-relaxed whitespace-pre-line">{first.note}</p>}
       <ul className="divide-y divide-black/5 border-t border-black/5">
         {copies.map((t) => (
@@ -342,7 +390,7 @@ const GivenCard: React.FC<{ copies: AssignedTask[] }> = ({ copies }) => {
           </li>
         ))}
       </ul>
-      {editing && <TaskFormModal task={copies.find((t) => taskOpen(t.status)) ?? first} onClose={() => setEditing(false)} />}
+      {editing && <TaskFormModal task={first} onClose={() => setEditing(false)} />}
     </article>
   );
 };

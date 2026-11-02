@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { NOTICE_KEEP_DAYS, NOTICE_SENDER_MAX, NOTICE_TEXT_MAX, noticeWindow } from '../../shared/notices.js';
 import { featureVisible } from '../../shared/features.js';
+import { inAudience } from '../../shared/audience.js';
 import { isValidJalaliDate, toJalali, toPersianDigits } from '../../shared/jalali.js';
 import { audit } from '../audit.js';
 import { audienceIncludes, audienceOfRow, checkAudience } from '../audience.js';
@@ -96,10 +97,11 @@ noticesRouter.get(
     // Counted the way the board shows them: active colleagues with an account, in the audience, who see the board.
     const config = await featureConfig();
     const people = await db.select().from(employees).where(and(eq(employees.isActive, true), eq(employees.hasAccount, true)));
-    const boardPeople = new Set(people.filter((p) => featureVisible(config, 'noticeBoard', p)).map((p) => p.id));
+    const boardPeople = people.filter((p) => featureVisible(config, 'noticeBoard', p));
     const out = [];
     for (const r of rows) {
-      const audience = (await audienceIdsFor(audienceOfRow(r))).filter((id) => boardPeople.has(id));
+      const target = audienceOfRow(r);
+      const audience = boardPeople.filter((p) => inAudience(p, target));
       out.push({
         ...serialize(r, false),
         notify: r.notify,

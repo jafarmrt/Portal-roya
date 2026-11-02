@@ -7,6 +7,8 @@ import { featureOn } from '../../lib/features';
 import { formatDateTime, toPersianDigits } from '../../lib/jalali';
 import {
   type PushInfo,
+  PUSH_CHANGED_EVENT,
+  announcePushChange,
   currentSubscription,
   disablePushHere,
   enablePush,
@@ -75,9 +77,15 @@ export const PushPrompt: React.FC = () => {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    setLocalPush(on && !!info && !offHere(), info?.muted ?? []);
-    // Permission is already given: make sure this browser is subscribed for whoever is signed in now.
-    if (on && info && !offHere() && notificationPermission() === 'granted') void subscribeDevice(info.publicKey).catch(() => undefined);
+    const sync = () => {
+      setPermission(notificationPermission());
+      setLocalPush(on && !!info && !offHere(), info?.muted ?? []);
+      // Permission is already given: make sure this browser is subscribed for whoever is signed in now.
+      if (on && info && !offHere() && notificationPermission() === 'granted') void subscribeDevice(info.publicKey).catch(() => undefined);
+    };
+    sync();
+    window.addEventListener(PUSH_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(PUSH_CHANGED_EVENT, sync);
   }, [on, info]);
 
   const support = pushSupport();
@@ -159,6 +167,7 @@ export const PushSettingsPanel: React.FC = () => {
         setLocalPush(true, info.muted);
         setHere(Boolean(await currentSubscription()));
         await load();
+        announcePushChange();
         toast.success('اعلان‌ها روی این دستگاه روشن شد.');
       } else if (result === 'denied') {
         toast.error('مرورگر اجازهٔ اعلان را نداد. از تنظیمات مرورگر، اعلان این سایت را مجاز کنید.');
@@ -178,6 +187,7 @@ export const PushSettingsPanel: React.FC = () => {
       await disablePushHere();
       setHere(false);
       await load();
+      announcePushChange();
       toast.success('اعلان‌ها روی این دستگاه خاموش شد. زنگولهٔ پرتال مثل قبل کار می‌کند.');
     } finally {
       setBusy(null);

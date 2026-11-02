@@ -113,9 +113,10 @@ const KudosBanner: React.FC<{ emojis: KudosEmoji[] }> = ({ emojis }) => {
   useEffect(() => setTabExtra(items.length), [items.length]);
   useEffect(() => () => setTabExtra(0), []);
 
-  const dismiss = (ids?: number[]) => {
-    setItems((list) => (ids ? list.filter((i) => !ids.includes(i.id)) : []));
-    api.post('/api/kudos/banner/dismiss', ids ? { ids } : {}).catch(() => undefined);
+  // Only what the person saw is closed: an emoji that arrived a moment ago stays for the next look.
+  const dismiss = (ids: number[]) => {
+    setItems((list) => list.filter((i) => !ids.includes(i.id)));
+    api.post('/api/kudos/banner/dismiss', { ids }).catch(() => undefined);
   };
 
   const reply = async (item: ReceivedKudos, emoji: KudosEmoji) => {
@@ -151,7 +152,7 @@ const KudosBanner: React.FC<{ emojis: KudosEmoji[] }> = ({ emojis }) => {
             </span>
             <ChevronDown className={`w-4 h-4 text-faint shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
           </button>
-          <button type="button" onClick={() => dismiss()} aria-label="بستن همه" title="بستن همه" className="p-1 rounded-lg text-faint hover:bg-surface">
+          <button type="button" onClick={() => dismiss(items.map((i) => i.id))} aria-label="بستن همه" title="بستن همه" className="p-1 rounded-lg text-faint hover:bg-surface">
             <X className="w-4 h-4" />
           </button>
         </div>

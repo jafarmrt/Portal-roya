@@ -48,7 +48,8 @@ export const ReactionBar: React.FC<{
     setOptimistic(withMine(shown, next));
     haptic();
     if (next) requestAnimationFrame(() => pop(bar.current?.querySelector(`[data-emoji="${next}"]`)));
-    await react(target, id, next);
+    // A refused choice (no connection, card removed) goes back to what the server has.
+    if (!(await react(target, id, next))) setOptimistic(null);
     setBusy(false);
   };
 

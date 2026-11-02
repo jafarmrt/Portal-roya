@@ -117,9 +117,10 @@ describe('guest (not signed in) access', () => {
   });
 
   it('counts a router that hides internet visitors behind its LAN address as outside (OUTSIDE_ADDRESSES)', () => {
-    const outside = outsideList(['192.168.0.100', '10.9.0.0/16', 'not-an-ip', '192.168.0.0/99']);
+    // A trailing «/» or a word after it is a mistake that is skipped, not a range of the whole network.
+    const outside = outsideList(['192.168.0.100', '10.9.0.0/16', 'not-an-ip', '192.168.0.0/99', '192.168.0.50/', '192.168.0.60/x']);
     for (const ip of ['192.168.0.100', '::ffff:192.168.0.100', '10.9.4.2']) expect(isCompanyAddress(ip, outside), ip).toBe(false);
-    for (const ip of ['192.168.0.15', '192.168.0.101', '10.8.0.1']) expect(isCompanyAddress(ip, outside), ip).toBe(true);
+    for (const ip of ['192.168.0.15', '192.168.0.101', '10.8.0.1', '192.168.0.50', '192.168.0.60']) expect(isCompanyAddress(ip, outside), ip).toBe(true);
     // Not set: every private address is inside, as before.
     expect(isCompanyAddress('192.168.0.100')).toBe(true);
   });

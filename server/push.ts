@@ -2,7 +2,7 @@
 // (VAPID, kept in settings) and hands it, encrypted for that one browser, to the browser's push service
 // (Google for Chrome and Android, Apple for iPhone and Safari, Mozilla for Firefox, Microsoft for Edge),
 // which wakes the phone or computer. So the server needs to reach the internet; nothing else is needed.
-import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import webpush from 'web-push';
 import { config } from './config.js';
 import { db } from './db/index.js';
@@ -10,7 +10,7 @@ import { employees, pushSubscriptions, settings } from './db/schema.js';
 import { featureConfig } from './features.js';
 import { ensureSettings } from './settings.js';
 import { featureOfNotification, featureOfTab, featureVisible, type FeatureConfig } from '../shared/features.js';
-import { pushCategoryOf, pushUrl } from '../shared/push.js';
+import { pushCategoryOf, pushTag, pushUrl } from '../shared/push.js';
 
 export interface PushMessage {
   title: string;
@@ -123,17 +123,24 @@ export function wantsPush(
   return !person.pushMuted.includes(pushCategoryOf(input.type));
 }
 
-export const pushMessage = (input: { title: string; message: string; type: string; linkTab?: string | null; linkId?: string | null }): PushMessage => ({
+/** The device notification of one bell notification; the tag is the bell notification's own (see shared/push.ts). */
+export const pushMessage = (
+  notificationId: number | string,
+  input: { title: string; message: string; type: string; linkTab?: string | null; linkId?: string | null },
+): PushMessage => ({
   title: input.title.slice(0, 120),
   body: input.message.slice(0, 300),
   url: pushUrl(input.linkTab, input.linkId),
-  tag: `${input.type}:${input.linkTab ?? ''}:${input.linkId ?? ''}`,
+  tag: pushTag(notificationId),
 });
 
-/** Delivers to every device of the subscribed colleagues; devices the push service has forgotten are removed. */
-export async function deliver(rows: (PushTarget & { userId: string })[], message: PushMessage) {
+/**
+ * Delivers to every device of the subscribed colleagues (one message for all, or each person's own);
+ * devices the push service has forgotten are removed.
+ */
+export async function deliver(rows: (PushTarget & { userId: string })[], message: PushMessage | ((userId: string) => PushMessage)) {
   if (rows.length === 0) return { sent: 0, failed: 0 };
-  const payload = JSON.stringify(message);
+  const payloadOf = typeof message === 'function' ? (userId: string) => JSON.stringify(message(userId)) : () => JSON.stringify(message);
   let sent = 0;
   let failed = 0;
   const gone: string[] = [];
@@ -143,7 +150,7 @@ export async function deliver(rows: (PushTarget & { userId: string })[], message
   const worker = async () => {
     for (let row = queue.shift(); row; row = queue.shift()) {
       try {
-        const code = await sender(row, payload);
+        const code = await sender(row, payloadOf(row.userId));
         if (code >= 200 && code < 300) {
           sent += 1;
           delivered.push(row.endpoint);
@@ -169,10 +176,15 @@ export async function deliver(rows: (PushTarget & { userId: string })[], message
   return { sent, failed };
 }
 
-/** Called for every new notification; never throws, so the bell is never held up by the phones. */
-export async function pushToUsers(userIds: string[], input: { title: string; message: string; type: string; linkTab?: string | null; linkId?: string | null }) {
+/** Called for every new notification (one per person); never throws, so the bell is never held up by the phones. */
+export async function pushToUsers(
+  created: { id: number; userId: string }[],
+  input: { title: string; message: string; type: string; linkTab?: string | null; linkId?: string | null },
+) {
   try {
-    if (userIds.length === 0) return;
+    if (created.length === 0) return;
+    const userIds = created.map((c) => c.userId);
+    const idOf = new Map(created.map((c) => [c.userId, c.id]));
     const rows = await db
       .select({
         endpoint: pushSubscriptions.endpoint,
@@ -189,17 +201,25 @@ export async function pushToUsers(userIds: string[], input: { title: string; mes
           inArray(pushSubscriptions.userId, userIds),
           eq(employees.isActive, true),
           eq(employees.hasAccount, true),
-          isNotNull(pushSubscriptions.p256dh),
         ),
       );
     if (rows.length === 0) return;
     const features = await featureConfig();
     const targets = rows.filter((r) => wantsPush(features, { id: r.userId, role: r.role, pushMuted: r.pushMuted }, input));
-    await deliver(targets, pushMessage(input));
+    await deliver(targets, (userId) => pushMessage(idOf.get(userId) ?? '', input));
   } catch (err) {
     noteError(err instanceof Error ? err.message : String(err));
     console.error('push failed:', err);
   }
+}
+
+/**
+ * Stops every device of this colleague getting notifications: whenever their sign-ins are ended (a new
+ * password, a reset, the account taken away or switched off), so a lost phone goes quiet too. The device
+ * they still use subscribes again by itself the next time the portal opens there.
+ */
+export async function forgetPushDevices(userId: string) {
+  await db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
 }
 
 /** How many colleagues and devices get notifications outside the portal (for the administrator). */

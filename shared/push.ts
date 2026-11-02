@@ -27,3 +27,10 @@ export const pushCategoryOf = (type: string) => PUSH_CATEGORIES.find((c) => c.ty
 /** The address a notification opens, as in the portal's own links (#tab/id). */
 export const pushUrl = (linkTab?: string | null, linkId?: string | null) =>
   linkTab ? `/#${linkTab}${linkId ? `/${encodeURIComponent(linkId)}` : ''}` : '/#notifications';
+
+/**
+ * The tag of a device notification: that of the bell notification it shows, the same for the server's
+ * Web Push and the open page's own layer, so one notification never shows twice and two never replace
+ * each other.
+ */
+export const pushTag = (notificationId: number | string) => `portal-${notificationId}`;
