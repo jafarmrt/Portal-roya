@@ -3,13 +3,14 @@ import toast from 'react-hot-toast';
 import { ChevronDown, Crown, LogOut, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { primaryButtonClass, secondaryButtonClass } from '../common/Modal';
-import { Bracket, MatchCard } from './Bracket';
+import { MatchCard } from './Bracket';
+import { CompetitionBoard } from './Standings';
 import { ObjectionModal } from './ObjectionModal';
 import { ResultModal } from './ResultModal';
 import { TeamModal } from './TeamModal';
 import { CompetitionFormModal } from './CompetitionFormModal';
 import { EntryPicture, api, entryName, knockedOut, nextMatchOf, useEventAction } from './eventUi';
-import { SCORINGS, STAGE_POLICIES, TIE_RULES } from '../../../shared/specialEvents';
+import { FORMATS, RANK_BY, SCORINGS, STAGE_POLICIES, TIE_RULES } from '../../../shared/specialEvents';
 import { toPersianDigits } from '../../lib/jalali';
 import type { EventCompetition, EventMatch, EventView } from './types';
 
@@ -35,6 +36,9 @@ export const CompetitionCard: React.FC<{ view: EventView; competition: EventComp
   const mine = new Set(myEntry ? [myEntry.id] : []);
   const nextMatch = myEntry ? nextMatchOf(competition, myEntry.id) : null;
   const champion = competition.entries.find((e) => e.id === competition.champion);
+  const ranking = competition.format === 'ranking';
+  const knockout = competition.format === 'knockout';
+  const formatLine = ranking ? `رتبه‌بندی (${label(RANK_BY, competition.rankBy)})` : label(FORMATS, competition.format);
 
   const signUpAlone = () =>
     run(() => api.post<{ status: string }>(`/api/event_competitions/${competition.id}/entries`, {})).then((r) => {
@@ -66,15 +70,15 @@ export const CompetitionCard: React.FC<{ view: EventView; competition: EventComp
         <div className="flex-1 min-w-0">
           <h3 className="text-base font-black text-ink">{competition.title}</h3>
           <p className="text-xs text-muted mt-0.5">
-            {team ? `تیمی، ${toPersianDigits(competition.teamMin)} تا ${toPersianDigits(competition.teamMax)} نفر` : 'فردی'} · جدول حذفی ·{' '}
+            {team ? `تیمی، ${toPersianDigits(competition.teamMin)} تا ${toPersianDigits(competition.teamMax)} نفر` : 'فردی'} · {formatLine} ·{' '}
             {toPersianDigits(inEntries.length)} از {toPersianDigits(competition.capacity)} {team ? 'تیم' : 'نفر'}
             {waiting.length > 0 && ` · ${toPersianDigits(waiting.length)} در انتظار`}
           </p>
           <p className="text-[11px] text-faint mt-0.5">
             {label(STAGE_POLICIES, competition.stagePolicy)}
             {competition.stagePolicy !== 'all' && competition.dayPlace ? ` · ${competition.dayPlace}` : ''}
-            {competition.scoring !== 'winner' && ` · تساوی: ${label(TIE_RULES, competition.tieRule)}`}
-            {` · نتیجه: ${label(SCORINGS, competition.scoring)}`}
+            {knockout && competition.scoring !== 'winner' && ` · تساوی: ${label(TIE_RULES, competition.tieRule)}`}
+            {!ranking && ` · نتیجه: ${label(SCORINGS, competition.scoring)}`}
           </p>
         </div>
         {roles.isOrganizer && (
@@ -106,6 +110,35 @@ export const CompetitionCard: React.FC<{ view: EventView; competition: EventComp
             <p className="text-[11px] text-amber-900 font-bold">قهرمان</p>
             <p className="text-sm font-black text-ink truncate">{entryName(champion, view.people)}</p>
           </div>
+        </div>
+      )}
+
+      {competition.championTie.length > 0 && (
+        <div className="mx-4 sm:mx-5 mb-3 p-3 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
+          <p className="text-xs font-bold text-amber-950">
+            رتبهٔ اول مساوی شد: {competition.championTie.map((id) => entryName(competition.entries.find((e) => e.id === id), view.people)).join('، ')}.{' '}
+            {roles.decides ? 'قهرمان را انتخاب کنید (در تاریخچه می‌ماند):' : `قهرمان را ${event.juryIds.length > 0 ? 'هیئت داوران' : 'برگزارکننده'} انتخاب می‌کند.`}
+          </p>
+          {roles.decides && (
+            <div className="flex flex-wrap gap-1.5">
+              {competition.championTie.map((id) => {
+                const entry = competition.entries.find((e) => e.id === id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`«${entryName(entry, view.people)}» قهرمان «${competition.title}» شود؟ همه باخبر می‌شوند.`))
+                        void run(() => api.post(`/api/event_competitions/${competition.id}/champion`, { entryId: id }), 'قهرمان انتخاب شد.');
+                    }}
+                    className={secondaryButtonClass}
+                  >
+                    <Crown className="w-4 h-4 text-amber-500" /> {entryName(entry, view.people)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -155,7 +188,7 @@ export const CompetitionCard: React.FC<{ view: EventView; competition: EventComp
 
           {nextMatch && competition.bracketVisible && (
             <div>
-              <p className="text-xs font-black text-ink-soft mb-1.5">بازی بعدی من</p>
+              <p className="text-xs font-black text-ink-soft mb-1.5">{ranking ? 'نوبت اجرای من' : 'بازی بعدی من'}</p>
               <MatchCard competition={competition} match={nextMatch} people={view.people} mine={mine} />
             </div>
           )}
@@ -226,13 +259,14 @@ export const CompetitionCard: React.FC<{ view: EventView; competition: EventComp
       {competition.bracketVisible && competition.matches.length > 0 && (
         <div className="border-t border-line p-4 sm:p-5 space-y-3">
           {!competition.publishedAt && <p className="text-[11px] font-bold text-amber-800 bg-amber-50 rounded-lg px-2 py-1 inline-block">هنوز منتشر نشده؛ فقط برگزارکنندگان و داوران می‌بینند</p>}
-          <Bracket
+          <CompetitionBoard
             competition={competition}
             people={view.people}
             mine={mine}
-            onOpen={roles.referee ? setResultFor : myEntry ? (m) => (m.winnerId && !myObjection(m) ? setObjectionFor(m) : undefined) : undefined}
+            onOpen={roles.referee ? setResultFor : myEntry ? (m) => (m.done && !myObjection(m) && (m.entryA === myEntry.id || m.entryB === myEntry.id) ? setObjectionFor(m) : undefined) : undefined}
           />
-          {myEntry && !roles.referee && <p className="text-[11px] text-muted">اگر به نتیجهٔ بازی خودتان اعتراض دارید، روی همان بازی بزنید.</p>}
+          {myEntry && !roles.referee && !ranking && <p className="text-[11px] text-muted">اگر به نتیجهٔ بازی خودتان اعتراض دارید، روی همان بازی بزنید.</p>}
+          {myEntry && !roles.referee && ranking && <p className="text-[11px] text-muted">اگر به نتیجهٔ ثبت‌شدهٔ خودتان اعتراض دارید، روی ردیف خودتان بزنید.</p>}
         </div>
       )}
       {!competition.bracketVisible && competition.drawnAt && (

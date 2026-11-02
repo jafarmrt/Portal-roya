@@ -4,7 +4,7 @@ import { usePortal } from '../../context/PortalContext';
 import { api, ApiError, errorMessage } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import { Avatar } from '../common/Avatar';
-import { BADGE_PREFIX, isBadge, phaseLabel, type EventPhase } from '../../../shared/specialEvents';
+import { BADGE_PREFIX, formatRankValue, isBadge, phaseLabel, type EventPhase } from '../../../shared/specialEvents';
 import type { EventCompetition, EventEntry, EventMatch, EventPerson, EventView } from './types';
 
 /** The Yalda look: a night sky, pomegranate red, candle gold and watermelon green. */
@@ -59,8 +59,26 @@ export const PhaseChip: React.FC<{ phase: EventPhase; className?: string }> = ({
   </span>
 );
 
+/** Whoever plays it is known (both sides, or the performer of a ranking), so a result can be entered. */
+export const isReady = (c: Pick<EventCompetition, 'format'>, m: EventMatch) =>
+  !m.bye && (c.format === 'ranking' ? Boolean(m.entryA) : Boolean(m.entryA && m.entryB));
+
+/** «۱:۰۵٫۳»، «۴۲ امتیاز» or «نیامد» for a performance of a ranking. */
+export function performanceLine(c: Pick<EventCompetition, 'rankBy'>, m: EventMatch) {
+  if (!m.done) return '';
+  if (m.walkover) return 'نیامد';
+  return c.rankBy === 'time' ? formatRankValue(m.scoreA, 'time') : `${formatRankValue(m.scoreA, 'high')} امتیاز`;
+}
+
+/** The two sides of a match as names: «علی – سارا», or the performer of a ranking. */
+export function sidesLine(c: EventCompetition, m: EventMatch, people: Record<string, EventPerson>) {
+  const name = (id: string | null) => entryName(c.entries.find((e) => e.id === id), people);
+  return c.format === 'ranking' ? name(m.entryA) : `${name(m.entryA)} – ${name(m.entryB)}`;
+}
+
 /** «۳ – ۱»، «برد فنی» or nothing yet. */
-export function scoreLine(m: EventMatch) {
+export function scoreLine(m: EventMatch, c?: Pick<EventCompetition, 'format' | 'rankBy'>) {
+  if (c?.format === 'ranking') return performanceLine(c, m);
   if (m.walkover) return 'برد فنی';
   if (m.scoreA === null || m.scoreB === null) return '';
   const tie = m.tieA !== null && m.tieB !== null ? ` (پ ${toPersianDigits(m.tieA)}–${toPersianDigits(m.tieB)})` : '';
@@ -71,7 +89,7 @@ export type MatchState = 'waiting' | 'ready' | 'live' | 'done' | 'bye';
 
 export function matchState(m: EventMatch): MatchState {
   if (m.bye) return 'bye';
-  if (m.winnerId) return 'done';
+  if (m.done) return 'done';
   if (m.live) return 'live';
   if (m.entryA && m.entryB) return 'ready';
   return 'waiting';
@@ -107,13 +125,14 @@ export function myEntries(view: EventView, userId: string | undefined) {
 export function nextMatchOf(c: EventCompetition, entryId: string) {
   return (
     c.matches
-      .filter((m) => !m.winnerId && !m.bye && (m.entryA === entryId || m.entryB === entryId))
-      .sort((a, b) => a.round - b.round)[0] ?? null
+      .filter((m) => !m.done && !m.bye && (m.entryA === entryId || m.entryB === entryId))
+      .sort((a, b) => a.round - b.round || a.slot - b.slot)[0] ?? null
   );
 }
 
 /** Whether an entry lost a match (and so is out), counting the third-place match as not going on. */
 export function knockedOut(c: EventCompetition, entryId: string) {
+  if (c.format !== 'knockout') return c.matches.length > 0 && !c.matches.some((m) => !m.done && (m.entryA === entryId || m.entryB === entryId));
   return c.matches.some((m) => !m.third && m.winnerId && !m.bye && (m.entryA === entryId || m.entryB === entryId) && m.winnerId !== entryId);
 }
 

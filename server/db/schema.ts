@@ -15,7 +15,7 @@ import type { AuditAction, AuditEntity } from '../../shared/audit.js';
 import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
 import type { KudosEmoji } from '../../shared/kudos.js';
 import type { MonthlySummary } from '../../shared/reports.js';
-import type { EntryKind, EventPhase, EventStatus, EventTheme, Scoring, ScreenState, StagePolicy, TieRule } from '../../shared/specialEvents.js';
+import type { EntryKind, EventPhase, EventStatus, EventTheme, Format, RankBy, Scoring, ScreenState, StagePolicy, TieRule } from '../../shared/specialEvents.js';
 import type { SuggestionBoxNames } from '../../shared/suggestions.js';
 import type { TaskStatus } from '../../shared/tasks.js';
 import type { TodoRemind, TodoRepeat, TodoStep } from '../../shared/todos.js';
@@ -966,6 +966,14 @@ export const eventCompetitions = pgTable(
     tieRule: text('tie_rule').$type<TieRule>().notNull().default('organizer'),
     thirdPlace: boolean('third_place').notNull().default(false),
     stagePolicy: text('stage_policy').$type<StagePolicy>().notNull().default('final'),
+    // Knockout, a points table (everyone plays everyone) or a ranking (each performs alone).
+    format: text('format').$type<Format>().notNull().default('knockout'),
+    rankBy: text('rank_by').$type<RankBy>().notNull().default('high'),
+    // When first place of a table or ranking is shared, the one the organizers or jury picked.
+    championPickId: text('champion_pick_id'),
+    // The pantomime's words (only organizers and jurors see them), and those already shown.
+    words: text('words').array().notNull().default([]),
+    usedWords: text('used_words').array().notNull().default([]),
     // Where and from when daytime matches are played, and how long each takes.
     dayPlace: text('day_place').notNull().default(''),
     dayStart: text('day_start').notNull().default('10:00'),
@@ -1026,6 +1034,8 @@ export const eventMatches = pgTable(
     tieB: integer('tie_b'),
     winnerId: text('winner_id'),
     bye: boolean('bye').notNull().default(false),
+    // A result is in (a draw of a points table has no winner; a ranking's value is scoreA).
+    done: boolean('done').notNull().default(false),
     // Won because the other side did not come («برد فنی»).
     walkover: boolean('walkover').notNull().default(false),
     // Being played on stage now; the remote moves the score.

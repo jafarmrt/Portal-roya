@@ -4,7 +4,7 @@ import { Modal, inputClass, labelClass, primaryButtonClass, secondaryButtonClass
 import { JalaliDateInput } from '../common/JalaliDateInput';
 import { MatchCard } from './Bracket';
 import { ResultModal } from './ResultModal';
-import { api, entryName, scoreLine, useEventAction } from './eventUi';
+import { api, isReady, scoreLine, sidesLine, useEventAction } from './eventUi';
 import { OBJECTION_MAX, PLACE_MAX } from '../../../shared/specialEvents';
 import { timeAgo, toPersianDigits } from '../../lib/jalali';
 import type { EventCompetition, EventMatch, EventObjection, EventView } from './types';
@@ -94,7 +94,7 @@ const ObjectionItem: React.FC<{ view: EventView; objection: EventObjection }> = 
         <span className="font-black text-ink">{by?.name ?? 'همکار'}</span>
         <span className="text-muted">
           {competition?.title} · {match?.roundName}
-          {match && competition && ` · ${entryName(competition.entries.find((e) => e.id === match.entryA), view.people)} ${scoreLine(match)} ${entryName(competition.entries.find((e) => e.id === match.entryB), view.people)}`}
+          {match && competition && ` · ${sidesLine(competition, match, view.people)} ${scoreLine(match, competition)}`}
         </span>
         <span className="text-faint ms-auto">{timeAgo(objection.createdAt)}</span>
       </div>
@@ -127,9 +127,9 @@ const ObjectionItem: React.FC<{ view: EventView; objection: EventObjection }> = 
 /** The draw and publishing of one competition, and moving its daytime matches when the day runs late. */
 const CompetitionControls: React.FC<{ competition: EventCompetition }> = ({ competition }) => {
   const run = useEventAction();
-  const played = competition.matches.some((m) => m.winnerId && !m.bye);
+  const played = competition.matches.some((m) => m.done && !m.bye);
   const inEntries = competition.entries.filter((e) => e.status === 'in').length;
-  const daytime = competition.matches.some((m) => !m.onStage && !m.winnerId && m.time);
+  const daytime = competition.matches.some((m) => !m.onStage && !m.done && m.time);
   return (
     <li className="flex flex-wrap items-center gap-2 py-2.5">
       <span className="text-lg" aria-hidden>
@@ -169,7 +169,7 @@ const CompetitionControls: React.FC<{ competition: EventCompetition }> = ({ comp
         <button
           type="button"
           onClick={() => {
-            if (window.confirm('جدول برای همه منتشر شود؟ هر بازیکن از حریف و ساعت بازی‌اش باخبر می‌شود.')) void run(() => api.post(`/api/event_competitions/${competition.id}/publish`), 'جدول منتشر شد.');
+            if (window.confirm(competition.format === 'ranking' ? 'ترتیب اجرا برای همه منتشر شود؟ هر شرکت‌کننده از نوبت و ساعتش باخبر می‌شود.' : 'جدول برای همه منتشر شود؟ هر بازیکن از حریف و ساعت بازی‌اش باخبر می‌شود.')) void run(() => api.post(`/api/event_competitions/${competition.id}/publish`), 'جدول منتشر شد.');
           }}
           className={primaryButtonClass}
         >
@@ -204,7 +204,7 @@ export const OrganizerConsole: React.FC<{ view: EventView }> = ({ view }) => {
   const [showDone, setShowDone] = useState(false);
 
   const pending = view.competitions
-    .flatMap((c) => c.matches.filter((m) => m.entryA && m.entryB && !m.bye && (showDone || !m.winnerId)).map((m) => ({ competition: c, match: m })))
+    .flatMap((c) => c.matches.filter((m) => isReady(c, m) && (showDone || !m.done)).map((m) => ({ competition: c, match: m })))
     .sort((a, b) => Number(a.match.onStage) - Number(b.match.onStage) || (a.match.day || '9').localeCompare(b.match.day || '9') || (a.match.time || '99').localeCompare(b.match.time || '99'));
   const objections = [...view.objections].sort((a, b) => Number(b.status === 'open') - Number(a.status === 'open') || b.createdAt.localeCompare(a.createdAt));
 
@@ -240,7 +240,7 @@ export const OrganizerConsole: React.FC<{ view: EventView }> = ({ view }) => {
                     {competition.icon} {competition.title} · {match.roundName}
                     {match.day && match.day !== view.event.programDate && !match.onStage ? ` · ${toPersianDigits(match.day)}` : ''}
                   </span>
-                  {!match.winnerId && (
+                  {!match.done && (
                     <button type="button" onClick={() => setTimeFor({ competition, match })} className="p-1 rounded-lg hover:bg-surface" aria-label="تغییر زمان و محل این بازی">
                       <CalendarClock className="w-3.5 h-3.5" />
                     </button>

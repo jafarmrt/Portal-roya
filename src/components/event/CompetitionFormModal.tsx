@@ -7,18 +7,32 @@ import {
   ENTRIES_MAX,
   ENTRY_KINDS,
   EVENT_TEXT_MAX,
+  FORMATS,
+  LEAGUE_MAX,
   PLACE_MAX,
+  RANK_BY,
   SCORINGS,
-  STAGE_POLICIES,
   TIE_RULES,
+  WORDS_MAX,
+  cleanWords,
+  stagePoliciesFor,
   type EntryKind,
+  type Format,
+  type RankBy,
   type Scoring,
   type StagePolicy,
   type TieRule,
 } from '../../../shared/specialEvents';
 import type { EventCompetition } from './types';
 
-const ICONS = ['🎮', '🎭', '🏓', '♟️', '🎯', '🎲', '🧠', '🎤', '⚽', '🏆'];
+const ICONS = ['🎮', '🎭', '🏓', '♟️', '🎯', '🎲', '🧠', '🎤', '⚽', '🏆', '🍉', '⏱️'];
+
+/** What each format means, in one line under the choice. */
+const FORMAT_HINT: Record<Format, string> = {
+  knockout: 'دو به دو؛ بازنده حذف می‌شود و برنده‌ها تا فینال جلو می‌روند.',
+  league: `همه با همه یک بار بازی می‌کنند (حداکثر ${LEAGUE_MAX.toLocaleString('fa-IR')} شرکت‌کننده)؛ برد ۳ امتیاز، مساوی ۱ امتیاز.`,
+  ranking: 'هر کس جدا اجرا می‌کند (مسابقهٔ اطلاعات، سرعت، پانتومیم…)؛ بهترین امتیاز یا کمترین زمان اول می‌شود.',
+};
 
 /** A chip row for picking one option. */
 function Choice<T extends string>({ label, value, options, onChange, disabled }: { label: string; value: T; options: readonly { id: T; label: string }[]; onChange: (v: T) => void; disabled?: boolean }) {
@@ -55,6 +69,9 @@ export const CompetitionFormModal: React.FC<{ eventId: string; competition?: Eve
   const [teamMax, setTeamMax] = useState(competition?.teamMax && competition.kind === 'team' ? competition.teamMax : 4);
   const [capacity, setCapacity] = useState(competition?.capacity ?? 8);
   const [scoring, setScoring] = useState<Scoring>(competition?.scoring ?? 'goals');
+  const [format, setFormat] = useState<Format>(competition?.format ?? 'knockout');
+  const [rankBy, setRankBy] = useState<RankBy>(competition?.rankBy ?? 'high');
+  const [words, setWords] = useState((competition?.words ?? []).join('\n'));
   const [tieRule, setTieRule] = useState<TieRule>(competition?.tieRule ?? 'penalties');
   const [thirdPlace, setThirdPlace] = useState(competition?.thirdPlace ?? false);
   const [stagePolicy, setStagePolicy] = useState<StagePolicy>(competition?.stagePolicy ?? 'final');
@@ -68,17 +85,20 @@ export const CompetitionFormModal: React.FC<{ eventId: string; competition?: Eve
     if (!title.trim() || saving) return;
     setSaving(true);
     const body = {
+      format,
+      rankBy,
+      words: cleanWords(words),
       title: title.trim(),
       icon,
       rules: rules.trim(),
       kind,
       teamMin: kind === 'team' ? teamMin : 1,
       teamMax: kind === 'team' ? Math.max(teamMin, teamMax) : 1,
-      capacity,
-      scoring,
+      capacity: format === 'league' ? Math.min(capacity, LEAGUE_MAX) : capacity,
+      scoring: format === 'ranking' ? 'points' : scoring,
       tieRule,
-      thirdPlace,
-      stagePolicy,
+      thirdPlace: format === 'knockout' && thirdPlace,
+      stagePolicy: format !== 'knockout' && stagePolicy === 'final' ? 'all' : stagePolicy,
       dayPlace: dayPlace.trim(),
       dayStart,
       slotMinutes,
@@ -96,7 +116,7 @@ export const CompetitionFormModal: React.FC<{ eventId: string; competition?: Eve
   return (
     <Modal
       title={competition ? `ویرایش «${competition.title}»` : 'مسابقهٔ تازه'}
-      subtitle="جدول حذفی؛ شکل‌های «جدول امتیازی» و «رتبه‌بندی» در نسخهٔ بعد می‌آیند."
+      subtitle="حذفی، جدول امتیازی یا رتبه‌بندی؛ برای هر بازی تازه فقط همین فرم را پر کنید."
       icon={<Trophy className="w-5 h-5" />}
       onClose={onClose}
       size="xl"
@@ -136,13 +156,37 @@ export const CompetitionFormModal: React.FC<{ eventId: string; competition?: Eve
             ))}
           </div>
         </fieldset>
+        <div className="sm:col-span-2 space-y-1">
+          <Choice
+            label="شکل مسابقه"
+            value={format}
+            options={FORMATS}
+            onChange={(f) => {
+              setFormat(f);
+              if (f !== 'knockout' && stagePolicy === 'final') setStagePolicy(f === 'ranking' ? 'all' : 'none');
+              if (f === 'league' && capacity > LEAGUE_MAX) setCapacity(LEAGUE_MAX);
+            }}
+            disabled={drawn}
+          />
+          <p className="text-[11px] text-muted">{FORMAT_HINT[format]}</p>
+        </div>
         <Choice label="شرکت‌کننده" value={kind} options={ENTRY_KINDS} onChange={setKind} disabled={drawn} />
         <div className="grid grid-cols-3 gap-2">
           <div>
             <label htmlFor={`${formId}-cap`} className={labelClass}>
               ظرفیت ({kind === 'team' ? 'تیم' : 'نفر'})
             </label>
-            <input id={`${formId}-cap`} type="number" inputMode="numeric" min={2} max={ENTRIES_MAX} value={capacity} disabled={drawn} onChange={number(capacity, setCapacity, 2, ENTRIES_MAX)} className={inputClass} />
+            <input
+              id={`${formId}-cap`}
+              type="number"
+              inputMode="numeric"
+              min={2}
+              max={format === 'league' ? LEAGUE_MAX : ENTRIES_MAX}
+              value={capacity}
+              disabled={drawn}
+              onChange={number(capacity, setCapacity, 2, format === 'league' ? LEAGUE_MAX : ENTRIES_MAX)}
+              className={inputClass}
+            />
           </div>
           {kind === 'team' && (
             <>
@@ -161,13 +205,19 @@ export const CompetitionFormModal: React.FC<{ eventId: string; competition?: Eve
             </>
           )}
         </div>
-        <Choice label="نتیجه" value={scoring} options={SCORINGS} onChange={setScoring} />
-        {scoring !== 'winner' && <Choice label="در صورت تساوی" value={tieRule} options={TIE_RULES} onChange={setTieRule} />}
-        <Choice label="کجا بازی می‌شود" value={stagePolicy} options={STAGE_POLICIES} onChange={setStagePolicy} />
-        <label className="flex items-center gap-2 text-xs font-bold text-ink-soft self-end">
-          <input type="checkbox" checked={thirdPlace} disabled={drawn} onChange={(e) => setThirdPlace(e.target.checked)} className="w-4 h-4 accent-red-700" />
-          بازی ردهٔ سوم هم باشد
-        </label>
+        {format === 'ranking' ? (
+          <Choice label="برنده کیست" value={rankBy} options={RANK_BY} onChange={setRankBy} disabled={drawn} />
+        ) : (
+          <Choice label="نتیجه" value={scoring} options={SCORINGS} onChange={setScoring} disabled={drawn} />
+        )}
+        {format === 'knockout' && scoring !== 'winner' && <Choice label="در صورت تساوی" value={tieRule} options={TIE_RULES} onChange={setTieRule} />}
+        <Choice label={format === 'ranking' ? 'کجا اجرا می‌شود' : 'کجا بازی می‌شود'} value={stagePolicy} options={stagePoliciesFor(format)} onChange={setStagePolicy} />
+        {format === 'knockout' && (
+          <label className="flex items-center gap-2 text-xs font-bold text-ink-soft self-end">
+            <input type="checkbox" checked={thirdPlace} disabled={drawn} onChange={(e) => setThirdPlace(e.target.checked)} className="w-4 h-4 accent-red-700" />
+            بازی ردهٔ سوم هم باشد
+          </label>
+        )}
         {stagePolicy !== 'all' && (
           <div className="sm:col-span-2 grid grid-cols-3 gap-2">
             <div>
@@ -184,7 +234,7 @@ export const CompetitionFormModal: React.FC<{ eventId: string; competition?: Eve
             </div>
             <div>
               <label htmlFor={`${formId}-slot`} className={labelClass}>
-                هر بازی (دقیقه)
+                {format === 'ranking' ? 'هر اجرا (دقیقه)' : 'هر بازی (دقیقه)'}
               </label>
               <input id={`${formId}-slot`} type="number" inputMode="numeric" min={5} max={180} value={slotMinutes} onChange={number(slotMinutes, setSlotMinutes, 5, 180)} className={inputClass} />
             </div>
@@ -196,9 +246,25 @@ export const CompetitionFormModal: React.FC<{ eventId: string; competition?: Eve
           </label>
           <textarea id={`${formId}-rules`} value={rules} maxLength={EVENT_TEXT_MAX} rows={3} onChange={(e) => setRules(e.target.value)} placeholder="مثلاً هر بازی ۲ نیمهٔ ۴ دقیقه‌ای" className={inputClass} />
         </div>
+        <div className="sm:col-span-2">
+          <label htmlFor={`${formId}-words`} className={labelClass}>
+            کلمه‌های کارت (برای پانتومیم و بازی‌های حدسی؛ اختیاری)
+          </label>
+          <textarea
+            id={`${formId}-words`}
+            value={words}
+            rows={4}
+            onChange={(e) => setWords(e.target.value)}
+            placeholder={'هر خط یک کلمه یا عبارت، مثلاً:\nهندوانهٔ شب یلدا\nفال حافظ\nکرسی'}
+            className={inputClass}
+          />
+          <p className="text-[11px] text-muted mt-1">
+            {cleanWords(words).length.toLocaleString('fa-IR')} کلمه (حداکثر {WORDS_MAX.toLocaleString('fa-IR')}). فقط برگزارکنندگان و داوران می‌بینند؛ روی ریموت هر بار یک کلمهٔ تکراری‌نشده نشان داده می‌شود.
+          </p>
+        </div>
         {drawn && (
           <p className="sm:col-span-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
-            قرعه کشیده شده؛ نوع، ظرفیت، اندازهٔ تیم و ردهٔ سوم قفل است. برای عوض کردنشان اول قرعه را پاک کنید.
+            قرعه کشیده شده؛ شکل مسابقه، نوع نتیجه، ظرفیت، اندازهٔ تیم و ردهٔ سوم قفل است. برای عوض کردنشان اول قرعه را پاک کنید.
           </p>
         )}
       </form>

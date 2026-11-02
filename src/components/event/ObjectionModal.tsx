@@ -47,9 +47,9 @@ export const ObjectionModal: React.FC<{ view: EventView; competition: EventCompe
         <div className="flex items-center gap-2 p-3 rounded-2xl bg-surface text-xs font-bold">
           <EntryPicture entry={a} people={view.people} className="w-7 h-7 rounded-lg text-base" />
           <span className="truncate">{entryName(a, view.people)}</span>
-          <span className="mx-auto text-ink tabular-nums">{scoreLine(match)}</span>
-          <span className="truncate">{entryName(b, view.people)}</span>
-          <EntryPicture entry={b} people={view.people} className="w-7 h-7 rounded-lg text-base" />
+          <span className="mx-auto text-ink tabular-nums">{scoreLine(match, competition)}</span>
+          {b && <span className="truncate">{entryName(b, view.people)}</span>}
+          {b && <EntryPicture entry={b} people={view.people} className="w-7 h-7 rounded-lg text-base" />}
         </div>
         <div>
           <label htmlFor={`${formId}-text`} className={labelClass}>

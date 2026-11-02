@@ -300,6 +300,221 @@ export function championOf(matches: Pick<BracketMatch, 'round' | 'third' | 'winn
   return matches.find((m) => m.round === rounds && !m.third)?.winnerId ?? null;
 }
 
+// ─── Competition formats: knockout, points table, ranking ────────────────────
+
+/**
+ * «حذفی»: the loser is out. «جدول امتیازی»: everyone plays everyone once, a win is worth 3 points and a
+ * draw 1. «رتبه‌بندی»: each entry performs on its own (a quiz, a race, the fastest to peel a pomegranate)
+ * and the best score or time wins.
+ */
+export const FORMATS = [
+  { id: 'knockout', label: 'حذفی' },
+  { id: 'league', label: 'جدول امتیازی' },
+  { id: 'ranking', label: 'رتبه‌بندی' },
+] as const;
+export type Format = (typeof FORMATS)[number]['id'];
+
+/** What wins a ranking: the highest score, or the shortest time. */
+export const RANK_BY = [
+  { id: 'high', label: 'امتیاز بیشتر' },
+  { id: 'time', label: 'زمان کمتر' },
+] as const;
+export type RankBy = (typeof RANK_BY)[number]['id'];
+
+/** Everyone plays everyone: 10 entries are already 45 matches. */
+export const LEAGUE_MAX = 10;
+export const LEAGUE_POINTS = { win: 3, draw: 1 } as const;
+/** A ranking's value: a score, or a time in tenths of a second (up to about 2:46:40). */
+export const RANK_VALUE_MAX = 99_999;
+
+/** Which stage policies make sense for a format: a points table or a ranking has no final. */
+export const stagePoliciesFor = (format: Format) => (format === 'knockout' ? STAGE_POLICIES : STAGE_POLICIES.filter((p) => p.id !== 'final'));
+
+/**
+ * The rounds of a points table by the circle method: in each round everyone plays once (one sits out
+ * when the number is odd), and over all rounds everyone meets everyone exactly once.
+ */
+export function roundRobin<T>(entries: T[]): [T, T][][] {
+  const list: (T | null)[] = [...entries];
+  if (list.length % 2 === 1) list.push(null);
+  const n = list.length;
+  const rounds: [T, T][][] = [];
+  for (let r = 0; r < n - 1; r++) {
+    const pairs: [T, T][] = [];
+    for (let i = 0; i < n / 2; i++) {
+      const a = list[i];
+      const b = list[n - 1 - i];
+      if (a === null || b === null) continue;
+      // Alternate sides so nobody is always «first».
+      pairs.push(r % 2 === 0 ? [a, b] : [b, a]);
+    }
+    rounds.push(pairs);
+    // Keep the first in place and turn the rest one step.
+    list.splice(1, 0, list.pop()!);
+  }
+  return rounds;
+}
+
+export interface LeagueResult {
+  entryA: string | null;
+  entryB: string | null;
+  scoreA: number | null;
+  scoreB: number | null;
+  winnerId: string | null;
+  /** A result was recorded (a draw has no winner). */
+  done: boolean;
+}
+
+export interface StandingRow {
+  entryId: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  scored: number;
+  conceded: number;
+  points: number;
+  /** Equal rows share a rank (۱، ۲، ۲، ۴). */
+  rank: number;
+}
+
+/**
+ * The points table: points, then goal difference and goals scored (when there are scores), then the
+ * matches between those still level. Rows still level after that share their rank.
+ */
+export function leagueTable(entryIds: string[], matches: LeagueResult[], headToHead = true): StandingRow[] {
+  const rows = new Map<string, StandingRow>(entryIds.map((id) => [id, { entryId: id, played: 0, won: 0, drawn: 0, lost: 0, scored: 0, conceded: 0, points: 0, rank: 0 }]));
+  const played = matches.filter((m) => m.done && m.entryA && m.entryB && rows.has(m.entryA) && rows.has(m.entryB));
+  for (const m of played) {
+    const a = rows.get(m.entryA!)!;
+    const b = rows.get(m.entryB!)!;
+    a.played++;
+    b.played++;
+    a.scored += m.scoreA ?? 0;
+    a.conceded += m.scoreB ?? 0;
+    b.scored += m.scoreB ?? 0;
+    b.conceded += m.scoreA ?? 0;
+    if (!m.winnerId) {
+      a.drawn++;
+      b.drawn++;
+      a.points += LEAGUE_POINTS.draw;
+      b.points += LEAGUE_POINTS.draw;
+    } else {
+      const [w, l] = m.winnerId === m.entryA ? [a, b] : [b, a];
+      w.won++;
+      l.lost++;
+      w.points += LEAGUE_POINTS.win;
+    }
+  }
+  const key = (r: StandingRow) => [r.points, r.scored - r.conceded, r.scored];
+  const compare = (x: number[], y: number[]) => {
+    for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return y[i] - x[i];
+    return 0;
+  };
+  const sorted = [...rows.values()].sort((x, y) => compare(key(x), key(y)));
+  // Rows level on all of that: the matches among them decide, else they share the rank.
+  const result: StandingRow[] = [];
+  for (let i = 0; i < sorted.length; ) {
+    let j = i + 1;
+    while (j < sorted.length && compare(key(sorted[i]), key(sorted[j])) === 0) j++;
+    const group = sorted.slice(i, j);
+    if (group.length === 1 || !headToHead) {
+      for (const row of group) result.push({ ...row, rank: i + 1 });
+    } else {
+      const ids = new Set(group.map((g) => g.entryId));
+      const mini = leagueTable(
+        [...ids],
+        played.filter((m) => ids.has(m.entryA!) && ids.has(m.entryB!)),
+        false,
+      );
+      const separates = mini.some((r) => r.rank !== 1);
+      const order = separates ? mini : group.map((g) => ({ entryId: g.entryId, rank: 1 }));
+      for (const r of order) {
+        const row = group.find((g) => g.entryId === r.entryId)!;
+        result.push({ ...row, rank: i + r.rank });
+      }
+    }
+    i = j;
+  }
+  return result;
+}
+
+export interface Performance {
+  entryId: string;
+  value: number | null;
+  done: boolean;
+}
+
+export interface RankRow {
+  entryId: string;
+  value: number | null;
+  /** null: not performed yet, or did not come. */
+  rank: number | null;
+  absent: boolean;
+}
+
+/** The ranking: the best value first, equal values share a rank; the absent and those yet to perform after. */
+export function rankingTable(performances: Performance[], rankBy: RankBy): RankRow[] {
+  const valued = performances.filter((p) => p.done && p.value !== null);
+  valued.sort((a, b) => (rankBy === 'time' ? a.value! - b.value! : b.value! - a.value!));
+  const rows: RankRow[] = valued.map((p, i) => ({ entryId: p.entryId, value: p.value, rank: i + 1, absent: false }));
+  for (let i = 1; i < rows.length; i++) if (rows[i].value === rows[i - 1].value) rows[i].rank = rows[i - 1].rank;
+  for (const p of performances) {
+    if (p.done && p.value === null) rows.push({ entryId: p.entryId, value: null, rank: null, absent: true });
+  }
+  for (const p of performances) if (!p.done) rows.push({ entryId: p.entryId, value: null, rank: null, absent: false });
+  return rows;
+}
+
+/**
+ * The champion of a points table or a ranking, once everything is played: the one ranked first, or,
+ * when several share first place, the one the organizers or jury picked among them (`pick`).
+ */
+export function tableChampion(rows: { entryId: string; rank: number | null }[], allDone: boolean, pick: string | null) {
+  if (!allDone) return { champion: null as string | null, tie: [] as string[] };
+  const first = rows.filter((r) => r.rank === 1).map((r) => r.entryId);
+  if (first.length === 1) return { champion: first[0], tie: [] };
+  if (first.length === 0) return { champion: null, tie: [] };
+  if (pick && first.includes(pick)) return { champion: pick, tie: [] };
+  return { champion: null, tie: first };
+}
+
+/** «۱:۰۵٫۳» for a time in tenths of a second; a plain number for a score. */
+export function formatRankValue(value: number | null, rankBy: RankBy) {
+  if (value === null) return '';
+  if (rankBy !== 'time') return toPersianNumber(String(value));
+  const tenths = value % 10;
+  const seconds = Math.floor(value / 10);
+  const minutes = Math.floor(seconds / 60);
+  const ss = String(seconds % 60).padStart(minutes > 0 ? 2 : 1, '0');
+  return toPersianNumber(`${minutes > 0 ? `${minutes}:` : ''}${ss}.${tenths}`).replace('.', '٫');
+}
+
+const toPersianNumber = (s: string) => s.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
+
+/** «۱:۰۵.۳»، «65.3» or «65» (Persian or Latin digits) → tenths of a second; null if it is not a time. */
+export function parseRankTime(text: string): number | null {
+  const latin = text
+    .trim()
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/[٫,/]/g, '.');
+  const m = /^(?:(\d{1,3}):)?(\d{1,4})(?:\.(\d))?$/.exec(latin);
+  if (!m) return null;
+  const minutes = Number(m[1] ?? 0);
+  const seconds = Number(m[2]);
+  if (m[1] !== undefined && seconds >= 60) return null;
+  const value = (minutes * 60 + seconds) * 10 + Number(m[3] ?? 0);
+  return value <= RANK_VALUE_MAX ? value : null;
+}
+
+/** The words of a pantomime (or another guessing game), one per line, without repeats. */
+export const WORDS_MAX = 300;
+export const WORD_MAX = 60;
+export function cleanWords(text: string | string[]) {
+  const lines = (Array.isArray(text) ? text : text.split(/\r?\n/)).map((w) => w.trim().replace(/\s+/g, ' ')).filter(Boolean);
+  return [...new Set(lines)].slice(0, WORDS_MAX).map((w) => w.slice(0, WORD_MAX));
+}
+
 // ─── The big screen ──────────────────────────────────────────────────────────
 
 /** What the big screen in the hall shows; the organizers switch it from their phones. */

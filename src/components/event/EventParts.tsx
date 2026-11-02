@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Gavel, Lightbulb, Scale } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
-import { entryName, matchWhen, myEntries, nextMatchOf, PersonAvatar } from './eventUi';
+import { entryName, isReady, matchWhen, myEntries, nextMatchOf, PersonAvatar } from './eventUi';
 import { programStart } from '../../../shared/specialEvents';
 import { toPersianDigits } from '../../lib/jalali';
 import type { EventView } from './types';
@@ -60,9 +60,11 @@ function nowLines(view: EventView, userId: string | undefined, isGuest: boolean)
   if (me.decides) {
     const open = view.objections.filter((o) => o.status === 'open').length;
     if (open > 0) lines.push({ text: `${toPersianDigits(open)} اعتراض منتظر رأی ${event.juryIds.length > 0 ? 'هیئت داوران' : 'شما'} است.`, target: 'objections' });
+    // A shared first place waits for whoever decides.
+    for (const c of view.competitions.filter((x) => x.championTie.length > 0)) lines.push({ text: `رتبهٔ اول «${c.title}» مساوی شد؛ قهرمان را انتخاب کنید.`, target: c.id });
   }
   if (me.referee && (phase === 'matchday' || phase === 'live')) {
-    const due = view.competitions.flatMap((c) => c.matches.filter((m) => m.entryA && m.entryB && !m.winnerId && !m.bye && m.day === event.programDate && !m.onStage));
+    const due = view.competitions.flatMap((c) => c.matches.filter((m) => isReady(c, m) && !m.done && m.day === event.programDate && !m.onStage));
     if (due.length > 0) lines.push({ text: `${toPersianDigits(due.length)} بازی روز امروز هنوز نتیجه ندارد؛ نتیجه‌ها را از «میز برگزارکننده» ثبت کنید.`, target: 'console' });
   }
   // «انتخاب‌های یلدا»: the head settles a tie, jurors vote, a shortlisted colleague may step down, everyone nominates.
@@ -113,6 +115,10 @@ function nowLines(view: EventView, userId: string | undefined, isGuest: boolean)
     if (!entry || !c.bracketVisible) continue;
     const next = nextMatchOf(c, entry.id);
     if (!next) continue;
+    if (c.format === 'ranking') {
+      lines.push({ text: `نوبت اجرای شما در «${c.title}»: ${next.roundName}، ${matchWhen(next)}${next.day && next.day !== event.programDate && !next.onStage ? ` (${toPersianDigits(next.day)})` : ''}.`, target: c.id });
+      continue;
+    }
     const other = next.entryA === entry.id ? next.entryB : next.entryA;
     const rival = other ? entryName(c.entries.find((e) => e.id === other), view.people) : 'برندهٔ بازی قبل';
     lines.push({ text: `بازی بعدی شما در «${c.title}»: ${matchWhen(next)}${next.day && next.day !== event.programDate ? ` (${toPersianDigits(next.day)})` : ''}، مقابل ${rival}.`, target: c.id });

@@ -4,6 +4,8 @@ import type {
   EventPhase,
   EventStatus,
   EventTheme,
+  Format,
+  RankBy,
   Scoring,
   ScreenState,
   StagePolicy,
@@ -68,6 +70,8 @@ export interface EventMatch {
   tieA: number | null;
   tieB: number | null;
   winnerId: string | null;
+  /** A result is in (a draw of a points table has no winner; a ranking's value is scoreA). */
+  done: boolean;
   bye: boolean;
   walkover: boolean;
   live: boolean;
@@ -90,6 +94,11 @@ export interface EventCompetition {
   teamMax: number;
   capacity: number;
   scoring: Scoring;
+  format: Format;
+  rankBy: RankBy;
+  /** The pantomime's words: only for organizers and jurors. */
+  words: string[];
+  wordsUsed: number;
   tieRule: TieRule;
   thirdPlace: boolean;
   stagePolicy: StagePolicy;
@@ -102,6 +111,8 @@ export interface EventCompetition {
   rounds: number;
   bracketVisible: boolean;
   champion: string | null;
+  /** First place of a finished table or ranking is shared: the jury picks among these. */
+  championTie: string[];
   full: boolean;
   entries: EventEntry[];
   matches: EventMatch[];

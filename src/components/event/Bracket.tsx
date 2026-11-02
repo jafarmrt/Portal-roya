@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock, Crown, MapPin, Mic2 } from 'lucide-react';
-import { EntryPicture, MATCH_STATE_LABEL, entryName, matchState, matchWhen } from './eventUi';
+import { EntryPicture, MATCH_STATE_LABEL, entryName, isReady, matchState, matchWhen, performanceLine } from './eventUi';
 import { toPersianDigits } from '../../lib/jalali';
 import type { EventCompetition, EventMatch, EventPerson } from './types';
 
@@ -21,7 +21,9 @@ export const MatchCard: React.FC<MatchCardProps> = ({ competition, match, people
   const state = matchState(match);
   const stateInfo = MATCH_STATE_LABEL[state];
   const isMine = Boolean(mine && ((match.entryA && mine.has(match.entryA)) || (match.entryB && mine.has(match.entryB))));
-  const canOpen = Boolean(onOpen && match.entryA && match.entryB && !match.bye);
+  const canOpen = Boolean(onOpen && isReady(competition, match));
+  const ranking = competition.format === 'ranking';
+  const drawn = match.done && !match.winnerId && !ranking && !match.walkover;
   const side = (entryId: string | null, score: number | null, tie: number | null) => {
     const entry = competition.entries.find((e) => e.id === entryId);
     const won = match.winnerId && match.winnerId === entryId;
@@ -37,7 +39,8 @@ export const MatchCard: React.FC<MatchCardProps> = ({ competition, match, people
           {entryId ? entryName(entry, people) : match.bye ? '—' : 'برندهٔ بازی قبل'}
         </span>
         {won && <Crown className={`${big ? 'w-6 h-6' : 'w-3.5 h-3.5'} text-amber-500 shrink-0`} aria-label="برنده" />}
-        {score !== null && !match.walkover && (
+        {ranking && match.done && <span className={`${big ? 'text-3xl' : 'text-sm'} font-black tabular-nums shrink-0`}>{performanceLine(competition, match)}</span>}
+        {!ranking && score !== null && !match.walkover && (
           <span className={`${big ? 'text-3xl' : 'text-sm'} font-black tabular-nums shrink-0`}>
             {toPersianDigits(score)}
             {tie !== null && <span className={`${big ? 'text-lg' : 'text-[10px]'} text-muted font-bold`}> ({toPersianDigits(tie)})</span>}
@@ -50,7 +53,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ competition, match, people
   const Tag = canOpen ? 'button' : 'div';
   return (
     <Tag
-      {...(canOpen ? { type: 'button' as const, onClick: () => onOpen!(match), 'aria-label': `${match.roundName}: ثبت یا اصلاح نتیجه` } : {})}
+      {...(canOpen ? { type: 'button' as const, onClick: () => onOpen!(match), 'aria-label': `${ranking ? `${match.roundName}، ${entryName(competition.entries.find((e) => e.id === match.entryA), people)}` : match.roundName}: ثبت یا اصلاح نتیجه` } : {})}
       className={`w-full text-right rounded-2xl border bg-white p-2.5 space-y-1.5 ${isMine ? 'border-red-500 ring-2 ring-red-500/20' : 'border-line'} ${canOpen ? 'hover:border-red-400 hover:shadow-sm transition' : ''} ${match.bye ? 'opacity-60' : ''}`}
     >
       <div className={`flex items-center justify-between gap-2 ${big ? 'text-base' : 'text-[10px]'} text-muted`}>
@@ -58,10 +61,14 @@ export const MatchCard: React.FC<MatchCardProps> = ({ competition, match, people
           {match.onStage ? <Mic2 className="w-3 h-3 text-red-700 shrink-0" aria-hidden /> : match.time ? <Clock className="w-3 h-3 shrink-0" aria-hidden /> : null}
           {match.bye ? 'بدون بازی به دور بعد' : matchWhen(match)}
         </span>
-        {!match.bye && <span className={`px-1.5 py-0.5 rounded-md font-bold shrink-0 ${stateInfo.className}`}>{match.walkover ? 'برد فنی' : stateInfo.label}</span>}
+        {!match.bye && (
+          <span className={`px-1.5 py-0.5 rounded-md font-bold shrink-0 ${stateInfo.className}`}>
+            {match.walkover ? (ranking ? 'نیامد' : 'برد فنی') : drawn ? 'مساوی' : stateInfo.label}
+          </span>
+        )}
       </div>
-      {side(match.entryA, match.scoreA, match.tieA)}
-      {side(match.entryB, match.scoreB, match.tieB)}
+      {side(match.entryA, ranking ? null : match.scoreA, match.tieA)}
+      {!ranking && side(match.entryB, match.scoreB, match.tieB)}
     </Tag>
   );
 };

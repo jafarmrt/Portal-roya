@@ -281,6 +281,13 @@
       "when": 1793632493580,
       "tag": "0039_event_awards",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1793634050355,
+      "tag": "0040_competition_formats",
+      "breakpoints": true
     }
   ]
 }

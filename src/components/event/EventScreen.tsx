@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Crown, Maximize, Trophy } from 'lucide-react';
 import { Bracket } from './Bracket';
+import { CompetitionBoard } from './Standings';
 import { JuryStrip, countdownText } from './EventParts';
-import { EntryPicture, YALDA, entryName, heroStyle, scoreLine } from './eventUi';
+import { EntryPicture, YALDA, entryName, heroStyle, isReady, performanceLine, scoreLine, sidesLine } from './eventUi';
 import { playChime } from '../../lib/sound';
-import { programStart, timerLeft, type ScreenState } from '../../../shared/specialEvents';
+import { programStart, rankingTable, timerLeft, type ScreenState } from '../../../shared/specialEvents';
 import { toPersianDigits } from '../../lib/jalali';
 import type { EventCompetition, EventView } from './types';
 
@@ -71,6 +72,42 @@ const Welcome: React.FC<{ view: EventView; offset: number }> = ({ view, offset }
 const StageMatch: React.FC<{ view: EventView; competition: EventCompetition | undefined; matchId: string | null }> = ({ view, competition, matchId }) => {
   const match = competition?.matches.find((m) => m.id === matchId);
   if (!competition || !match) return <Big><p className="text-[4vw] font-black">بازی بعدی به‌زودی…</p></Big>;
+  if (competition.format === 'ranking') {
+    // One performer: their picture, the score as it moves (or the time once entered), and the top three so far.
+    const entry = competition.entries.find((e) => e.id === match.entryA);
+    const counts = competition.rankBy === 'high';
+    // The best so far, with shared places sharing a medal.
+    const best = rankingTable(
+      competition.matches.filter((m) => m.entryA).map((m) => ({ entryId: m.entryA!, value: m.scoreA, done: m.done })),
+      competition.rankBy,
+    ).filter((r) => r.rank !== null && r.rank <= 3);
+    return (
+      <Big>
+        <p className="text-[2.4vw] font-bold" style={{ color: YALDA.gold }}>
+          {competition.icon} {competition.title} · {match.roundName} از {toPersianDigits(competition.matches.length)}
+          {match.live && !match.done && <span className="ms-4 inline-flex items-center gap-2 text-red-400"><span className="w-[1vw] h-[1vw] rounded-full bg-red-500 animate-pulse" />زنده</span>}
+        </p>
+        <EntryPicture entry={entry} people={view.people} fileUrl={fileUrl} className="w-[18vw] h-[18vw] rounded-[3vw] text-[11vw]" />
+        <p className="text-[4vw] font-black leading-tight">{entryName(entry, view.people)}</p>
+        {competition.kind === 'team' && entry && <p className="text-[1.8vw] opacity-75">{entry.members.map((id) => view.people[id]?.firstName).join('، ')}</p>}
+        {match.done ? (
+          <p className="text-[8vw] font-black leading-none tabular-nums">{performanceLine(competition, match)}</p>
+        ) : (
+          counts && <p className="text-[12vw] font-black leading-none tabular-nums">{toPersianDigits(match.scoreA ?? 0)}</p>
+        )}
+        {best.length > 0 && (
+          <ol className="flex gap-[3vw] text-[1.8vw] opacity-90">
+            {best.map((r) => (
+              <li key={r.entryId}>
+                {['🥇', '🥈', '🥉'][r.rank! - 1]} {entryName(competition.entries.find((e) => e.id === r.entryId), view.people)}:{' '}
+                {performanceLine(competition, competition.matches.find((m) => m.entryA === r.entryId)!)}
+              </li>
+            ))}
+          </ol>
+        )}
+      </Big>
+    );
+  }
   const side = (entryId: string | null, score: number | null) => {
     const entry = competition.entries.find((e) => e.id === entryId);
     const won = match.winnerId && match.winnerId === entryId;
@@ -103,7 +140,7 @@ const StageMatch: React.FC<{ view: EventView; competition: EventCompetition | un
 
 const Today: React.FC<{ view: EventView }> = ({ view }) => {
   const rows = view.competitions
-    .flatMap((c) => c.matches.filter((m) => m.entryA && m.entryB && !m.bye && (m.onStage || m.day === view.event.programDate)).map((m) => ({ c, m })))
+    .flatMap((c) => c.matches.filter((m) => isReady(c, m) && (m.onStage || m.day === view.event.programDate)).map((m) => ({ c, m })))
     .sort((a, b) => Number(a.m.onStage) - Number(b.m.onStage) || (a.m.time || '99').localeCompare(b.m.time || '99'))
     .slice(0, 12);
   return (
@@ -119,10 +156,8 @@ const Today: React.FC<{ view: EventView }> = ({ view }) => {
                 {m.onStage ? 'صحنه' : toPersianDigits(m.time || '—')}
               </span>
               <span className="shrink-0">{c.icon}</span>
-              <span className="flex-1 min-w-0 truncate font-bold">
-                {entryName(c.entries.find((e) => e.id === m.entryA), view.people)} – {entryName(c.entries.find((e) => e.id === m.entryB), view.people)}
-              </span>
-              <span className="shrink-0 font-black tabular-nums">{m.winnerId ? scoreLine(m) || '✓' : m.live ? 'زنده' : ''}</span>
+              <span className="flex-1 min-w-0 truncate font-bold">{sidesLine(c, m, view.people)}</span>
+              <span className="shrink-0 font-black tabular-nums">{m.done ? scoreLine(m, c) || '✓' : m.live ? 'زنده' : ''}</span>
             </li>
           ))}
         </ul>
@@ -174,9 +209,15 @@ const Scene: React.FC<{ view: EventView; screen: ScreenState; offset: number; ti
           <h2 className="text-[3.4vw] font-black">
             {competition.icon} {competition.title}
           </h2>
-          <div className="text-ink bg-page rounded-[2vw] p-[1.4vw] max-w-full" style={{ zoom: 1.5 }}>
-            <Bracket competition={competition} people={view.people} fileUrl={fileUrl} />
-          </div>
+          {competition.format === 'knockout' ? (
+            <div className="text-ink bg-page rounded-[2vw] p-[1.4vw] max-w-full" style={{ zoom: 1.5 }}>
+              <Bracket competition={competition} people={view.people} fileUrl={fileUrl} />
+            </div>
+          ) : (
+            <div className="text-ink bg-page rounded-[2vw] p-[1.4vw] w-full max-w-[80vw] max-h-[75vh] overflow-hidden">
+              <CompetitionBoard competition={competition} people={view.people} fileUrl={fileUrl} big />
+            </div>
+          )}
         </Big>
       ) : (
         <Big><p className="text-[4vw] font-black">جدول به‌زودی منتشر می‌شود</p></Big>
