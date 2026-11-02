@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomInt } from 'crypto';
-import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, ne, or } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNull, lt, ne, or } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
 import { isValidJalaliDate, jalaliToDate, TIME_RE, toJalali, toPersianDigits } from '../../shared/jalali.js';
@@ -15,6 +15,13 @@ import {
   EVENT_THEMES,
   EVENT_TITLE_MAX,
   type EventPhase,
+  FORMATS,
+  type Format,
+  LEAGUE_MAX,
+  RANK_BY,
+  RANK_VALUE_MAX,
+  WORD_MAX,
+  WORDS_MAX,
   MATCH_REMIND_MINUTES,
   MIN_SIGNUP_WORKDAYS,
   OBJECTION_MAX,
@@ -32,7 +39,13 @@ import {
   TEAM_NAME_MAX,
   TIE_RULES,
   championOf,
+  cleanWords,
   datesProblem,
+  formatRankValue,
+  leagueTable,
+  rankingTable,
+  roundRobin,
+  tableChampion,
   eventPhase,
   firstRoundPairs,
   juryProblem,
@@ -79,6 +92,29 @@ type CompetitionRow = typeof eventCompetitions.$inferSelect;
 type EntryRow = typeof eventEntries.$inferSelect;
 type MatchRow = typeof eventMatches.$inferSelect;
 export type Viewer = Pick<SessionUser, 'id' | 'role' | 'permissions'> | null;
+
+/** The sides of a match: two in a knockout or a points table, the one performing in a ranking. */
+const sidesOf = (m: Pick<MatchRow, 'entryA' | 'entryB'>) => [m.entryA, m.entryB].filter((id): id is string => Boolean(id));
+
+/** Whoever plays it is known (both sides, or the performer of a ranking), so it can be played. */
+const isReady = (m: Pick<MatchRow, 'entryA' | 'entryB' | 'bye'>, format: Format) =>
+  !m.bye && (format === 'ranking' ? Boolean(m.entryA) : Boolean(m.entryA && m.entryB));
+
+/** «فینال»، «دور ۲» or «نوبت ۵», by the competition's format. */
+const matchLabel = (m: Pick<MatchRow, 'round' | 'slot' | 'third'>, rounds: number, format: Format) =>
+  format === 'league' ? `دور ${toPersianDigits(m.round)}` : format === 'ranking' ? `نوبت ${toPersianDigits(m.slot + 1)}` : roundName(m.round, rounds, m.third);
+
+/** The champion of a competition once it is decided, and who shares first place while the jury has to pick. */
+function championInfo(c: Pick<CompetitionRow, 'format' | 'rankBy' | 'championPickId'>, matches: MatchRow[]) {
+  if (c.format === 'knockout') return { champion: championOf(matches), tie: [] as string[] };
+  const allDone = matches.length > 0 && matches.every((m) => m.done);
+  if (c.format === 'league') {
+    const ids = [...new Set(matches.flatMap(sidesOf))];
+    return tableChampion(leagueTable(ids, matches), allDone, c.championPickId);
+  }
+  const performances = matches.filter((m) => m.entryA).map((m) => ({ entryId: m.entryA!, value: m.scoreA, done: m.done }));
+  return tableChampion(rankingTable(performances, c.rankBy), allDone, c.championPickId);
+}
 
 export const NOTIFY = { type: 'event' as const, linkTab: 'event' };
 
@@ -199,12 +235,13 @@ async function competitionsOf(eventId: string) {
 
 const matchStart = (m: Pick<MatchRow, 'day' | 'time'>) => (m.day && m.time ? jalaliToDate(m.day, m.time) : null);
 
-const serializeMatch = (m: MatchRow, rounds: number) => ({
+const serializeMatch = (m: MatchRow, rounds: number, format: Format) => ({
   id: m.id,
   round: m.round,
   slot: m.slot,
   third: m.third,
-  roundName: roundName(m.round, rounds, m.third),
+  roundName: matchLabel(m, rounds, format),
+  done: m.done,
   entryA: m.entryA,
   entryB: m.entryB,
   scoreA: m.scoreA,
@@ -232,8 +269,9 @@ function timeClashes(
 ) {
   const slot = new Map(competitions.map((c) => [c.id, c.slotMinutes]));
   const title = new Map(competitions.map((c) => [c.id, c.title]));
+  const format = new Map(competitions.map((c) => [c.id, c.format]));
   const timed = matches
-    .filter((m) => !m.winnerId && !m.onStage && m.entryA && m.entryB && matchStart(m))
+    .filter((m) => !m.done && !m.onStage && isReady(m, format.get(m.competitionId) ?? 'knockout') && matchStart(m))
     .map((m) => ({ m, start: matchStart(m)!.getTime(), end: matchStart(m)!.getTime() + (slot.get(m.competitionId) ?? 20) * 60_000 }));
   const warnings: string[] = [];
   for (let i = 0; i < timed.length; i++) {
@@ -241,8 +279,10 @@ function timeClashes(
       const a = timed[i];
       const b = timed[j];
       if (a.m.competitionId === b.m.competitionId || a.start >= b.end || b.start >= a.end) continue;
-      const peopleA = new Set([...(membersOf.get(a.m.entryA!) ?? []), ...(membersOf.get(a.m.entryB!) ?? [])]);
-      const both = [...(membersOf.get(b.m.entryA!) ?? []), ...(membersOf.get(b.m.entryB!) ?? [])].filter((p) => peopleA.has(p));
+      const peopleA = new Set(sidesOf(a.m).flatMap((e) => membersOf.get(e) ?? []));
+      const both = sidesOf(b.m)
+        .flatMap((e) => membersOf.get(e) ?? [])
+        .filter((p) => peopleA.has(p));
       for (const p of both) {
         warnings.push(
           `${people[p]?.name ?? 'یک همکار'} ساعت ${toPersianDigits(a.m.time)} در «${title.get(a.m.competitionId)}» و ساعت ${toPersianDigits(b.m.time)} در «${title.get(b.m.competitionId)}» بازی دارد.`,
@@ -337,15 +377,22 @@ export async function eventView(ev: EventRow, viewer: Viewer) {
       const inEntries = entries.filter((e) => e.competitionId === c.id && e.status === 'in').length;
       const rounds = Math.max(0, ...own.map((m) => m.round));
       const bracketVisible = Boolean(c.publishedAt) || roles.referee;
+      const { champion, tie } = bracketVisible ? championInfo(c, own) : { champion: null, tie: [] };
       return {
         ...c,
         drawnAt: c.drawnAt?.toISOString() ?? null,
         publishedAt: c.publishedAt?.toISOString() ?? null,
         championAnnouncedAt: undefined,
+        championPickId: undefined,
         createdAt: undefined,
+        // The pantomime's words are for those who run it; players never see them.
+        words: roles.referee ? c.words : [],
+        usedWords: undefined,
+        wordsUsed: roles.referee ? c.usedWords.length : 0,
         rounds,
         bracketVisible,
-        champion: c.publishedAt || roles.referee ? championOf(own) : null,
+        champion,
+        championTie: tie,
         full: inEntries >= c.capacity,
         entries: entries
           .filter((e) => e.competitionId === c.id)
@@ -358,7 +405,7 @@ export async function eventView(ev: EventRow, viewer: Viewer) {
             members: membersOf.get(e.id) ?? [],
             waitlistPosition: waitlistPosition.get(e.id) ?? null,
           })),
-        matches: bracketVisible ? own.map((m) => serializeMatch(m, rounds)) : [],
+        matches: bracketVisible ? own.map((m) => serializeMatch(m, rounds, c.format)) : [],
       };
     }),
     people,
@@ -630,6 +677,9 @@ const competitionSchema = z
     tieRule: z.enum(TIE_RULES.map((t) => t.id) as [string, ...string[]]),
     thirdPlace: z.boolean().optional(),
     stagePolicy: z.enum(STAGE_POLICIES.map((s) => s.id) as [string, ...string[]]),
+    format: z.enum(FORMATS.map((f) => f.id) as [string, ...string[]]).optional(),
+    rankBy: z.enum(RANK_BY.map((r) => r.id) as [string, ...string[]]).optional(),
+    words: z.array(z.string().max(WORD_MAX * 2)).max(WORDS_MAX * 2).optional(),
     dayPlace: z.string().trim().max(PLACE_MAX).optional(),
     dayStart: time.optional(),
     slotMinutes: z.number().int().min(5).max(180).optional(),
@@ -640,7 +690,19 @@ function competitionValues(input: z.infer<typeof competitionSchema>) {
   const teamMin = team ? (input.teamMin ?? 2) : 1;
   const teamMax = team ? Math.max(teamMin, input.teamMax ?? teamMin) : 1;
   if (team && teamMax < 2) throw new HttpError(400, 'تیم دست‌کم دو نفر است.');
+  const format = (input.format ?? 'knockout') as Format;
+  if (format === 'league' && input.capacity > LEAGUE_MAX) {
+    throw new HttpError(400, `در جدول امتیازی همه با هم بازی می‌کنند؛ ظرفیت حداکثر ${toPersianDigits(LEAGUE_MAX)} است.`);
+  }
+  if (format !== 'knockout' && input.stagePolicy === 'final') {
+    throw new HttpError(400, 'جدول امتیازی و رتبه‌بندی فینال جدا ندارد؛ «همه روی صحنه» یا «همه در طول روز» را انتخاب کنید.');
+  }
+  // A points table has draws instead of tie-breaks; a ranking has one value per entry.
+  const scoring = (format === 'ranking' ? 'points' : input.scoring) as CompetitionRow['scoring'];
   return {
+    format,
+    rankBy: (format === 'ranking' ? (input.rankBy ?? 'high') : 'high') as CompetitionRow['rankBy'],
+    ...(input.words ? { words: cleanWords(input.words) } : {}),
     title: input.title,
     icon: input.icon ?? '🏆',
     rules: input.rules ?? '',
@@ -648,10 +710,10 @@ function competitionValues(input: z.infer<typeof competitionSchema>) {
     teamMin,
     teamMax,
     capacity: input.capacity,
-    scoring: input.scoring as CompetitionRow['scoring'],
-    // «فقط برنده» has no draw to break.
-    tieRule: (input.scoring === 'winner' ? 'organizer' : input.tieRule) as CompetitionRow['tieRule'],
-    thirdPlace: input.thirdPlace ?? false,
+    scoring,
+    // «فقط برنده» has no draw to break, and only a knockout breaks one.
+    tieRule: (scoring === 'winner' || format !== 'knockout' ? 'organizer' : input.tieRule) as CompetitionRow['tieRule'],
+    thirdPlace: format === 'knockout' && (input.thirdPlace ?? false),
     stagePolicy: input.stagePolicy as CompetitionRow['stagePolicy'],
     dayPlace: input.dayPlace ?? '',
     dayStart: input.dayStart ?? '10:00',
@@ -684,12 +746,13 @@ specialEventsRouter.put(
     const values = competitionValues(parse(competitionSchema, req.body));
     if (competition.drawnAt) {
       // After the draw only what does not change the bracket may change.
-      const locked = ['kind', 'teamMin', 'teamMax', 'capacity', 'thirdPlace'] as const;
+      const locked = ['kind', 'teamMin', 'teamMax', 'capacity', 'thirdPlace', 'format', 'rankBy', 'scoring'] as const;
       if (locked.some((k) => values[k] !== competition[k])) {
-        throw new HttpError(400, 'بعد از قرعه‌کشی نوع، اندازهٔ تیم، ظرفیت و ردهٔ سوم عوض نمی‌شود؛ اول قرعه را پاک کنید.');
+        throw new HttpError(400, 'بعد از قرعه‌کشی شکل مسابقه، نوع نتیجه، اندازهٔ تیم، ظرفیت و ردهٔ سوم عوض نمی‌شود؛ اول قرعه را پاک کنید.');
       }
     }
-    await db.update(eventCompetitions).set(values).where(eq(eventCompetitions.id, competition.id));
+    const usedWords = values.words ? competition.usedWords.filter((w) => values.words!.includes(w)) : competition.usedWords;
+    await db.update(eventCompetitions).set({ ...values, usedWords }).where(eq(eventCompetitions.id, competition.id));
     if (competition.drawnAt && values.stagePolicy !== competition.stagePolicy) await applyStagePolicy(competition.id);
     await promoteWaitlist(competition.id, ev);
     await logAction(ev, viewer.id, 'مسابقه ویرایش شد', values.title);
@@ -1008,8 +1071,10 @@ function shuffle<T>(items: T[]) {
 }
 
 /** Writes the result of settling a bracket back to its matches. */
-async function settleCompetition(competitionId: string) {
-  const matches = await db.select().from(eventMatches).where(eq(eventMatches.competitionId, competitionId));
+async function settleCompetition(competition: Pick<CompetitionRow, 'id' | 'format'>) {
+  // Only a knockout moves winners on; a points table and a ranking are all known from the draw.
+  if (competition.format !== 'knockout') return [];
+  const matches = await db.select().from(eventMatches).where(eq(eventMatches.competitionId, competition.id));
   const changes = settleBracket(matches);
   for (const c of changes) {
     const before = matches.find((m) => m.id === c.id)!;
@@ -1020,6 +1085,7 @@ async function settleCompetition(competitionId: string) {
         entryA: c.entryA,
         entryB: c.entryB,
         winnerId: c.winnerId,
+        done: Boolean(c.winnerId),
         bye: c.bye,
         ...(c.cleared || sidesChanged || c.bye
           ? { scoreA: null, scoreB: null, tieA: null, tieB: null, walkover: false, live: false, resultAt: c.bye ? new Date() : null, resultById: null }
@@ -1038,7 +1104,7 @@ async function applyStagePolicy(competitionId: string) {
   const matches = await db.select().from(eventMatches).where(eq(eventMatches.competitionId, competitionId));
   const rounds = Math.max(0, ...matches.map((m) => m.round));
   for (const m of matches) {
-    const onStage = competition.stagePolicy === 'all' || (competition.stagePolicy === 'final' && m.round === rounds);
+    const onStage = competition.stagePolicy === 'all' || (competition.format === 'knockout' && competition.stagePolicy === 'final' && m.round === rounds && !m.third);
     if (m.onStage !== onStage) await db.update(eventMatches).set({ onStage }).where(eq(eventMatches.id, m.id));
   }
 }
@@ -1074,21 +1140,31 @@ async function draw(competition: CompetitionRow, ev: EventRow, by: string | null
     .where(and(eq(eventEntries.competitionId, competition.id), eq(eventEntries.status, 'in')));
   if (entries.length < 2) throw new HttpError(400, 'برای قرعه‌کشی دست‌کم دو شرکت‌کننده لازم است.');
   const order = shuffle(entries.map((e) => e.id));
-  const pairs = firstRoundPairs(order);
-  const rounds = roundsFor(order.length);
   const rows: (typeof eventMatches.$inferInsert)[] = [];
-  pairs.forEach(([a, b], slot) => rows.push({ id: newId('match'), competitionId: competition.id, round: 1, slot, entryA: a, entryB: b }));
-  for (let round = 2; round <= rounds; round++) {
-    for (let slot = 0; slot < 2 ** (rounds - round); slot++) rows.push({ id: newId('match'), competitionId: competition.id, round, slot });
+  if (competition.format === 'league') {
+    // Everyone plays everyone, round by round.
+    roundRobin(order).forEach((pairs, r) =>
+      pairs.forEach(([a, b], slot) => rows.push({ id: newId('match'), competitionId: competition.id, round: r + 1, slot, entryA: a, entryB: b })),
+    );
+  } else if (competition.format === 'ranking') {
+    // The draw is the order of performing.
+    order.forEach((entryId, slot) => rows.push({ id: newId('match'), competitionId: competition.id, round: 1, slot, entryA: entryId }));
+  } else {
+    const pairs = firstRoundPairs(order);
+    const rounds = roundsFor(order.length);
+    pairs.forEach(([a, b], slot) => rows.push({ id: newId('match'), competitionId: competition.id, round: 1, slot, entryA: a, entryB: b }));
+    for (let round = 2; round <= rounds; round++) {
+      for (let slot = 0; slot < 2 ** (rounds - round); slot++) rows.push({ id: newId('match'), competitionId: competition.id, round, slot });
+    }
+    if (competition.thirdPlace && rounds >= 2) rows.push({ id: newId('match'), competitionId: competition.id, round: rounds, slot: 1, third: true });
   }
-  if (competition.thirdPlace && rounds >= 2) rows.push({ id: newId('match'), competitionId: competition.id, round: rounds, slot: 1, third: true });
   await db.transaction(async (tx) => {
     await tx.delete(eventMatches).where(eq(eventMatches.competitionId, competition.id));
     await tx.insert(eventMatches).values(rows);
-    await tx.update(eventCompetitions).set({ drawnAt: new Date(), publishedAt: null }).where(eq(eventCompetitions.id, competition.id));
+    await tx.update(eventCompetitions).set({ drawnAt: new Date(), publishedAt: null, championPickId: null }).where(eq(eventCompetitions.id, competition.id));
   });
   await applyStagePolicy(competition.id);
-  await settleCompetition(competition.id);
+  await settleCompetition(competition);
   await scheduleDaytime(competition, ev);
   // The waiting list did not get in; they are told when the bracket is published.
   await logAction(ev, by, 'قرعه‌کشی', `${competition.title}: ${toPersianDigits(entries.length)} شرکت‌کننده`);
@@ -1099,7 +1175,7 @@ async function hasPlayed(competitionId: string) {
   const played = await db
     .select({ id: eventMatches.id })
     .from(eventMatches)
-    .where(and(eq(eventMatches.competitionId, competitionId), eq(eventMatches.bye, false), isNotNull(eventMatches.winnerId)))
+    .where(and(eq(eventMatches.competitionId, competitionId), eq(eventMatches.bye, false), eq(eventMatches.done, true)))
     .limit(1);
   return played.length > 0;
 }
@@ -1203,14 +1279,54 @@ const whenWhere = (m: Pick<MatchRow, 'onStage' | 'time' | 'place' | 'day'>, ev: 
       : 'ساعتش را برگزارکننده اعلام می‌کند';
 
 /** Tells both sides of every pairing they have not heard about whom they play next. */
+const pairKey = (m: Pick<MatchRow, 'entryA' | 'entryB'>) => `${m.entryA}|${m.entryB ?? ''}`;
+
 async function announcePairs(competition: CompetitionRow, ev: EventRow) {
   if (!competition.publishedAt || ev.status !== 'active') return;
-  const matches = await db.select().from(eventMatches).where(eq(eventMatches.competitionId, competition.id));
+  const matches = await db
+    .select()
+    .from(eventMatches)
+    .where(eq(eventMatches.competitionId, competition.id))
+    .orderBy(asc(eventMatches.round), asc(eventMatches.slot));
   const rounds = Math.max(0, ...matches.map((m) => m.round));
-  const fresh = matches.filter((m) => m.entryA && m.entryB && !m.bye && !m.winnerId && m.announcedPair !== `${m.entryA}|${m.entryB}`);
+  const fresh = matches.filter((m) => isReady(m, competition.format) && !m.done && m.announcedPair !== pairKey(m));
   if (fresh.length === 0) return;
   const names = await entryNames(fresh.flatMap((m) => [m.entryA, m.entryB]));
   const members = await memberIdsOf(fresh.flatMap((m) => [m.entryA, m.entryB]));
+  const markAnnounced = async (list: MatchRow[]) => {
+    for (const m of list) await db.update(eventMatches).set({ announcedPair: pairKey(m) }).where(eq(eventMatches.id, m.id));
+  };
+
+  if (competition.format === 'ranking') {
+    for (const m of fresh) {
+      await createNotifications(members.get(m.entryA!) ?? [], {
+        ...NOTIFY,
+        title: `${competition.title}: نوبت ${toPersianDigits(m.slot + 1)} از ${toPersianDigits(matches.length)} با شماست`,
+        message: `اجرای شما ${whenWhere(m, ev)}.`,
+        linkId: competition.id,
+      });
+    }
+    await markAnnounced(fresh);
+    return;
+  }
+
+  if (competition.format === 'league') {
+    // One note per entry with all its matches, rather than one per match.
+    for (const entryId of new Set(fresh.flatMap(sidesOf))) {
+      const own = fresh.filter((m) => m.entryA === entryId || m.entryB === entryId);
+      const first = own[0];
+      const rival = first.entryA === entryId ? first.entryB : first.entryA;
+      await createNotifications(members.get(entryId) ?? [], {
+        ...NOTIFY,
+        title: `${competition.title}: ${toPersianDigits(own.length)} بازی جدول امتیازی برای شما`,
+        message: `اولی ${whenWhere(first, ev)}، مقابل ${names.get(rival!) ?? ''}. همهٔ بازی‌ها و جدول را در صفحهٔ رویداد ببینید.`,
+        linkId: competition.id,
+      });
+    }
+    await markAnnounced(fresh);
+    return;
+  }
+
   for (const m of fresh) {
     for (const [own, other] of [
       [m.entryA!, m.entryB!],
@@ -1218,12 +1334,12 @@ async function announcePairs(competition: CompetitionRow, ev: EventRow) {
     ]) {
       await createNotifications(members.get(own) ?? [], {
         ...NOTIFY,
-        title: `${competition.title}، ${roundName(m.round, rounds, m.third)}: حریف شما ${names.get(other) ?? ''}`,
+        title: `${competition.title}، ${matchLabel(m, rounds, competition.format)}: حریف شما ${names.get(other) ?? ''}`,
         message: `بازی شما ${whenWhere(m, ev)}.`,
         linkId: competition.id,
       });
     }
-    await db.update(eventMatches).set({ announcedPair: `${m.entryA}|${m.entryB}` }).where(eq(eventMatches.id, m.id));
+    await markAnnounced([m]);
   }
 }
 
@@ -1231,7 +1347,7 @@ async function announcePairs(competition: CompetitionRow, ev: EventRow) {
 async function announceChampion(competition: CompetitionRow, ev: EventRow) {
   if (competition.championAnnouncedAt || ev.status !== 'active') return;
   const matches = await db.select().from(eventMatches).where(eq(eventMatches.competitionId, competition.id));
-  const champion = championOf(matches);
+  const { champion } = championInfo(competition, matches);
   if (!champion) return;
   const claimed = await db
     .update(eventCompetitions)
@@ -1259,7 +1375,7 @@ specialEventsRouter.post(
     const matches = await db
       .select()
       .from(eventMatches)
-      .where(and(eq(eventMatches.competitionId, competition.id), eq(eventMatches.onStage, false), isNull(eventMatches.winnerId)));
+      .where(and(eq(eventMatches.competitionId, competition.id), eq(eventMatches.onStage, false), eq(eventMatches.done, false)));
     const moved: MatchRow[] = [];
     for (const m of matches) {
       const start = matchStart(m);
@@ -1273,9 +1389,10 @@ specialEventsRouter.post(
       moved.push(row);
     }
     if (competition.publishedAt && ev.status === 'active') {
-      const members = await memberIdsOf(moved.flatMap((m) => (m.entryA && m.entryB ? [m.entryA, m.entryB] : [])));
-      for (const m of moved.filter((x) => x.entryA && x.entryB)) {
-        await createNotifications([...(members.get(m.entryA!) ?? []), ...(members.get(m.entryB!) ?? [])], {
+      const ready = moved.filter((x) => isReady(x, competition.format));
+      const members = await memberIdsOf(ready.flatMap(sidesOf));
+      for (const m of ready) {
+        await createNotifications(sidesOf(m).flatMap((e) => members.get(e) ?? []), {
           ...NOTIFY,
           title: `ساعت بازی شما در «${competition.title}» عوض شد`,
           message: `بازی شما حالا ${whenWhere(m, ev)}.`,
@@ -1286,6 +1403,55 @@ specialEventsRouter.post(
     await logAction(ev, viewer.id, 'جابه‌جایی ساعت بازی‌ها', `${competition.title}: ${toPersianDigits(Math.abs(minutes))} دقیقه ${minutes > 0 ? 'دیرتر' : 'زودتر'}`);
     announceChange(ev);
     res.json(await eventView(ev, viewer));
+  }),
+);
+
+/** First place of a finished points table or ranking is shared: the jury (or the organizers) pick the champion. */
+specialEventsRouter.post(
+  '/event_competitions/:id/champion',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const { competition, ev } = await competitionOf(req.params.id);
+    if (!rolesOf(ev, viewer).decides) throw new HttpError(403, ev.juryIds.length > 0 ? 'انتخاب قهرمان با هیئت داوران است.' : 'انتخاب قهرمان با برگزارکنندگان است.');
+    const { entryId } = parse(z.object({ entryId: z.string().min(1) }), req.body);
+    const matches = await db.select().from(eventMatches).where(eq(eventMatches.competitionId, competition.id));
+    const { tie } = championInfo({ ...competition, championPickId: null }, matches);
+    if (!tie.includes(entryId)) throw new HttpError(400, 'قهرمان را از میان کسانی که رتبهٔ اول مشترک دارند انتخاب کنید.');
+    await db.update(eventCompetitions).set({ championPickId: entryId }).where(eq(eventCompetitions.id, competition.id));
+    const names = await entryNames([entryId]);
+    await logAction(ev, viewer.id, 'انتخاب قهرمان از میان برابرها', `${competition.title}: ${names.get(entryId) ?? ''}`);
+    await announceChampion({ ...competition, championPickId: entryId }, ev);
+    announceChange(ev);
+    res.json(await eventView(ev, viewer));
+  }),
+);
+
+/**
+ * «کارت کلمه» of a pantomime: the organizer's phone shows the next word nobody has had yet (players and
+ * the big screen never see the list), or starts the list again.
+ */
+specialEventsRouter.post(
+  '/event_competitions/:id/word',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const { competition, ev } = await competitionOf(req.params.id);
+    requireReferee(ev, viewer);
+    const { action } = parse(z.object({ action: z.enum(['next', 'reset']) }), req.body);
+    const total = competition.words.length;
+    if (total === 0) throw new HttpError(400, 'برای این مسابقه کلمه‌ای وارد نشده است؛ در ویرایش مسابقه کلمه‌ها را بنویسید.');
+    if (action === 'reset') {
+      await db.update(eventCompetitions).set({ usedWords: [] }).where(eq(eventCompetitions.id, competition.id));
+      res.json({ word: null, left: total, total });
+      return;
+    }
+    const unused = competition.words.filter((w) => !competition.usedWords.includes(w));
+    if (unused.length === 0) throw new HttpError(400, 'کلمه‌ها تمام شد؛ «از اول» را بزنید یا کلمهٔ تازه اضافه کنید.');
+    const word = unused[randomInt(unused.length)];
+    await db
+      .update(eventCompetitions)
+      .set({ usedWords: [...competition.usedWords, word] })
+      .where(eq(eventCompetitions.id, competition.id));
+    res.json({ word, left: unused.length - 1, total });
   }),
 );
 
@@ -1318,9 +1484,9 @@ specialEventsRouter.patch(
       .set({ ...input, ...(timeChanged ? { remindedAt: null, overdueRemindedAt: null } : {}) })
       .where(eq(eventMatches.id, match.id))
       .returning();
-    if (timeChanged && competition.publishedAt && ev.status === 'active' && updated.entryA && updated.entryB && !updated.winnerId) {
-      const members = await memberIdsOf([updated.entryA, updated.entryB]);
-      await createNotifications([...(members.get(updated.entryA) ?? []), ...(members.get(updated.entryB) ?? [])], {
+    if (timeChanged && competition.publishedAt && ev.status === 'active' && isReady(updated, competition.format) && !updated.done) {
+      const members = await memberIdsOf(sidesOf(updated));
+      await createNotifications(sidesOf(updated).flatMap((e) => members.get(e) ?? []), {
         ...NOTIFY,
         title: `ساعت بازی شما در «${competition.title}» عوض شد`,
         message: `بازی شما حالا ${whenWhere(updated, ev)}.`,
@@ -1339,39 +1505,59 @@ const resultSchema = z.object({
   tieA: score.nullable().optional(),
   tieB: score.nullable().optional(),
   winnerId: z.string().nullable().optional(),
-  // The other side did not come: the winner goes through without a score.
+  // The other side did not come: the winner goes through without a score (in a ranking: did not perform).
   walkover: z.boolean().optional(),
+  // A ranking's score, or its time in tenths of a second.
+  value: z.number().int().min(0).max(RANK_VALUE_MAX).nullable().optional(),
   // Needed when a result already entered is changed; kept in the history.
   reason: z.string().trim().max(300).optional(),
 });
 
 /** Works out the winner of a played match from the scores and the competition's tie rule. */
-function decide(competition: CompetitionRow, match: MatchRow, input: z.infer<typeof resultSchema>) {
+interface Decided {
+  winnerId: string | null;
+  scoreA: number | null;
+  scoreB: number | null;
+  tieA: number | null;
+  tieB: number | null;
+  walkover: boolean;
+  done: true;
+}
+
+function decide(competition: CompetitionRow, match: MatchRow, input: z.infer<typeof resultSchema>): Decided {
   const sides = [match.entryA, match.entryB];
+  const none = { scoreA: null, scoreB: null, tieA: null, tieB: null, done: true as const };
+  if (competition.format === 'ranking') {
+    if (input.walkover) return { ...none, winnerId: null, walkover: true };
+    if (input.value === null || input.value === undefined) throw new HttpError(400, competition.rankBy === 'time' ? 'زمان را وارد کنید.' : 'امتیاز را وارد کنید.');
+    return { ...none, winnerId: null, scoreA: input.value, walkover: false };
+  }
   if (input.walkover) {
     if (!input.winnerId || !sides.includes(input.winnerId)) throw new HttpError(400, 'برندهٔ برد فنی را انتخاب کنید.');
-    return { winnerId: input.winnerId, scoreA: null, scoreB: null, tieA: null, tieB: null, walkover: true };
+    return { ...none, winnerId: input.winnerId, walkover: true };
   }
   if (competition.scoring === 'winner') {
     if (!input.winnerId || !sides.includes(input.winnerId)) throw new HttpError(400, 'برنده را انتخاب کنید.');
-    return { winnerId: input.winnerId, scoreA: null, scoreB: null, tieA: null, tieB: null, walkover: false };
+    return { ...none, winnerId: input.winnerId, walkover: false };
   }
   const a = input.scoreA;
   const b = input.scoreB;
   if (a === null || a === undefined || b === null || b === undefined) throw new HttpError(400, 'نتیجهٔ هر دو طرف را وارد کنید.');
-  if (a !== b) return { winnerId: a > b ? match.entryA : match.entryB, scoreA: a, scoreB: b, tieA: null, tieB: null, walkover: false };
+  if (a !== b) return { winnerId: a > b ? match.entryA : match.entryB, scoreA: a, scoreB: b, tieA: null, tieB: null, walkover: false, done: true };
+  // A draw counts as a draw in a points table.
+  if (competition.format === 'league') return { winnerId: null, scoreA: a, scoreB: b, tieA: null, tieB: null, walkover: false, done: true };
   if (competition.tieRule === 'penalties') {
     const ta = input.tieA;
     const tb = input.tieB;
     if (ta === null || ta === undefined || tb === null || tb === undefined || ta === tb) {
       throw new HttpError(400, 'بازی مساوی است؛ نتیجهٔ پنالتی را وارد کنید (مساوی نباشد).');
     }
-    return { winnerId: ta > tb ? match.entryA : match.entryB, scoreA: a, scoreB: b, tieA: ta, tieB: tb, walkover: false };
+    return { winnerId: ta > tb ? match.entryA : match.entryB, scoreA: a, scoreB: b, tieA: ta, tieB: tb, walkover: false, done: true };
   }
   if (!input.winnerId || !sides.includes(input.winnerId)) {
     throw new HttpError(400, competition.tieRule === 'extra' ? 'بازی مساوی است؛ بعد از دور اضافه نتیجهٔ نهایی را وارد کنید یا برنده را انتخاب کنید.' : 'بازی مساوی است؛ برنده را انتخاب کنید.');
   }
-  return { winnerId: input.winnerId, scoreA: a, scoreB: b, tieA: null, tieB: null, walkover: false };
+  return { winnerId: input.winnerId, scoreA: a, scoreB: b, tieA: null, tieB: null, walkover: false, done: true };
 }
 
 const scoreText = (r: { scoreA: number | null; scoreB: number | null; tieA: number | null; tieB: number | null; walkover: boolean }) =>
@@ -1387,9 +1573,9 @@ specialEventsRouter.post(
     const viewer = currentUser(req);
     const { match, competition, ev } = await matchOf(req.params.id);
     requireReferee(ev, viewer);
-    if (!match.entryA || !match.entryB || match.bye) throw new HttpError(400, 'دو طرف این بازی هنوز مشخص نیستند.');
+    if (!isReady(match, competition.format)) throw new HttpError(400, 'دو طرف این بازی هنوز مشخص نیستند.');
     const input = parse(resultSchema, req.body);
-    const correction = Boolean(match.winnerId);
+    const correction = match.done;
     if (correction && (!input.reason || input.reason.length < 3)) throw new HttpError(400, 'برای اصلاح نتیجه، دلیل آن را بنویسید (در تاریخچه می‌ماند).');
     const result = decide(competition, match, input);
 
@@ -1399,22 +1585,39 @@ specialEventsRouter.post(
       .update(eventMatches)
       .set({ ...result, live: false, resultById: viewer.id, resultAt: new Date() })
       .where(eq(eventMatches.id, match.id));
-    const changes = await settleCompetition(competition.id);
+    const changes = await settleCompetition(competition);
     const cleared = changes.filter((c) => c.cleared).map((c) => before.find((m) => m.id === c.id)!.id);
 
     const names = await entryNames([match.entryA, match.entryB]);
-    const line = `${names.get(match.entryA)} ${scoreText(result)} ${names.get(match.entryB)}`.replace(/\s+/g, ' ');
+    const ranking = competition.format === 'ranking';
+    const line = ranking
+      ? `${names.get(match.entryA!)}: ${result.walkover ? 'اجرا نکرد' : formatRankValue(result.scoreA, competition.rankBy)}`
+      : `${names.get(match.entryA!)} ${scoreText(result)} ${names.get(match.entryB!)}`.replace(/\s+/g, ' ');
+    const outcome = ranking ? '' : result.winnerId ? `؛ برنده ${names.get(result.winnerId) ?? ''}` : '؛ مساوی';
     await logAction(
       ev,
       viewer.id,
-      correction ? 'اصلاح نتیجه' : result.walkover ? 'برد فنی' : 'ثبت نتیجه',
-      `${competition.title}: ${line}؛ برنده ${names.get(result.winnerId!) ?? ''}${correction ? `. دلیل: ${input.reason}` : ''}${cleared.length > 0 ? `. ${toPersianDigits(cleared.length)} بازی بعدی پاک شد.` : ''}`,
+      correction ? 'اصلاح نتیجه' : result.walkover ? (ranking ? 'غیبت' : 'برد فنی') : 'ثبت نتیجه',
+      `${competition.title}: ${line}${outcome}${correction ? `. دلیل: ${input.reason}` : ''}${cleared.length > 0 ? `. ${toPersianDigits(cleared.length)} بازی بعدی پاک شد.` : ''}`,
       match.id,
     );
 
+    // First place shared once everything is played: the jury (or the organizers) pick the champion.
+    const after = await db.select().from(eventMatches).where(eq(eventMatches.competitionId, competition.id));
+    const { tie } = championInfo(competition, after);
+    if (tie.length > 0) {
+      const tied = await entryNames(tie);
+      await createNotifications(ev.juryIds.length > 0 ? ev.juryIds : ev.organizerIds, {
+        ...NOTIFY,
+        title: `رتبهٔ اول «${competition.title}» مساوی شد`,
+        message: `${tie.map((id) => tied.get(id)).join('، ')} برابرند؛ قهرمان را در صفحهٔ رویداد انتخاب کنید.`,
+        linkId: competition.id,
+      });
+    }
+
     if (competition.publishedAt && ev.status === 'active') {
-      const members = await memberIdsOf([match.entryA, match.entryB]);
-      await createNotifications([...(members.get(match.entryA) ?? []), ...(members.get(match.entryB) ?? [])], {
+      const members = await memberIdsOf(sidesOf(match));
+      await createNotifications(sidesOf(match).flatMap((e) => members.get(e) ?? []), {
         ...NOTIFY,
         title: correction ? `نتیجهٔ بازی شما در «${competition.title}» اصلاح شد` : `نتیجهٔ بازی شما در «${competition.title}» ثبت شد`,
         message: `${line}. ${correction ? `دلیل: ${input.reason}. ` : ''}اگر به نتیجه اعتراض دارید، در صفحهٔ رویداد «اعتراض به نتیجه» را بزنید.`,
@@ -1434,9 +1637,9 @@ specialEventsRouter.post(
   '/event_matches/:id/live',
   route(async (req, res) => {
     const viewer = currentUser(req);
-    const { match, ev } = await matchOf(req.params.id);
+    const { match, competition, ev } = await matchOf(req.params.id);
     requireReferee(ev, viewer);
-    if (!match.entryA || !match.entryB || match.winnerId) throw new HttpError(400, 'این بازی در جریان نیست.');
+    if (!isReady(match, competition.format) || match.done) throw new HttpError(400, 'این بازی در جریان نیست.');
     const input = parse(z.object({ scoreA: score, scoreB: score, live: z.boolean().optional() }), req.body);
     await db
       .update(eventMatches)
@@ -1454,14 +1657,14 @@ specialEventsRouter.post(
     const viewer = currentUser(req);
     const { match, competition, ev } = await matchOf(req.params.id);
     requireReferee(ev, viewer);
-    if (!match.winnerId || match.bye || match.resultById !== viewer.id || !match.resultAt || Date.now() - match.resultAt.getTime() > RESULT_UNDO_MS + 5000) {
+    if (!match.done || match.bye || match.resultById !== viewer.id || !match.resultAt || Date.now() - match.resultAt.getTime() > RESULT_UNDO_MS + 5000) {
       throw new HttpError(400, 'وقت برگرداندن گذشته است؛ برای تغییر نتیجه «اصلاح نتیجه» را بزنید.');
     }
     await db
       .update(eventMatches)
-      .set({ winnerId: null, scoreA: null, scoreB: null, tieA: null, tieB: null, walkover: false, resultAt: null, resultById: null })
+      .set({ winnerId: null, done: false, scoreA: null, scoreB: null, tieA: null, tieB: null, walkover: false, resultAt: null, resultById: null })
       .where(eq(eventMatches.id, match.id));
-    await settleCompetition(competition.id);
+    await settleCompetition(competition);
     await logAction(ev, viewer.id, 'نتیجه برگردانده شد', competition.title, match.id);
     announceChange(ev);
     res.json(await eventView(ev, viewer));
@@ -1479,7 +1682,7 @@ specialEventsRouter.post(
     const members = await memberIdsOf([match.entryA, match.entryB]);
     const playing = [...(members.get(match.entryA ?? '') ?? []), ...(members.get(match.entryB ?? '') ?? [])];
     if (!playing.includes(viewer.id)) throw new HttpError(403, 'فقط بازیکنان همین بازی می‌توانند به نتیجه‌اش اعتراض کنند.');
-    if (!match.winnerId || match.bye) throw new HttpError(400, 'نتیجهٔ این بازی هنوز ثبت نشده است.');
+    if (!match.done || match.bye) throw new HttpError(400, 'نتیجهٔ این بازی هنوز ثبت نشده است.');
     if (phaseOf(ev) === 'ended') throw new HttpError(400, 'رویداد تمام شده است.');
     const open = await db
       .select({ id: eventObjections.id })
@@ -1687,7 +1890,7 @@ export async function processSpecialEvents(now = new Date()) {
       const byId = new Map(competitions.map((c) => [c.id, c]));
       for (const m of matches) {
         const c = byId.get(m.competitionId);
-        if (!c?.publishedAt || m.onStage || m.winnerId || m.bye || !m.entryA || !m.entryB) continue;
+        if (!c?.publishedAt || m.onStage || m.done || !isReady(m, c.format)) continue;
         const start = matchStart(m);
         if (!start) continue;
         const startMs = start.getTime();
@@ -1699,11 +1902,21 @@ export async function processSpecialEvents(now = new Date()) {
             .returning({ id: eventMatches.id });
           if (claimed.length > 0) {
             const names = await entryNames([m.entryA, m.entryB]);
-            const members = await memberIdsOf([m.entryA, m.entryB]);
-            for (const [own, other] of [
-              [m.entryA, m.entryB],
-              [m.entryB, m.entryA],
-            ]) {
+            const members = await memberIdsOf(sidesOf(m));
+            if (c.format === 'ranking') {
+              await createNotifications(members.get(m.entryA!) ?? [], {
+                ...NOTIFY,
+                title: `نوبت اجرای شما در «${c.title}» ساعت ${toPersianDigits(m.time)}`,
+                message: m.place ? `${m.place}.` : 'محل را برگزارکننده اعلام می‌کند.',
+                linkId: c.id,
+              });
+            }
+            for (const [own, other] of c.format === 'ranking'
+              ? []
+              : [
+                  [m.entryA!, m.entryB!],
+                  [m.entryB!, m.entryA!],
+                ]) {
               await createNotifications(members.get(own) ?? [], {
                 ...NOTIFY,
                 title: `بازی شما در «${c.title}» ساعت ${toPersianDigits(m.time)}`,
@@ -1724,7 +1937,9 @@ export async function processSpecialEvents(now = new Date()) {
             await createNotifications(ev.organizerIds, {
               ...NOTIFY,
               title: `نتیجهٔ بازی ساعت ${toPersianDigits(m.time)} «${c.title}» ثبت نشده`,
-              message: `${names.get(m.entryA)} و ${names.get(m.entryB)}. اگر بازی عقب افتاده، ساعت‌ها را جلو ببرید.`,
+              message: `${sidesOf(m)
+                .map((e) => names.get(e))
+                .join(' و ')}. اگر بازی عقب افتاده، ساعت‌ها را جلو ببرید.`,
               linkId: 'console',
             });
           }

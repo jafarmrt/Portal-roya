@@ -5,6 +5,8 @@ import { expect, test } from '@playwright/test';
 // draws and publishes the bracket, enters the final's result, and drives a big screen paired by code.
 test.describe('special event', () => {
   test.use({ storageState: 'e2e/.auth/admin.json' });
+  // The second test uses the draft event the first one builds.
+  test.describe.configure({ mode: 'serial' });
 
   test('a competition from signup to champion, shown on the big screen', async ({ page, browser }) => {
     page.on('dialog', (dialog) => void dialog.accept());
@@ -93,5 +95,96 @@ test.describe('special event', () => {
     await award.getByRole('button', { name: 'اعلام برنده' }).click();
     await expect(award).toContainText('برنده');
     await expect(award).toContainText('سارا احمدی');
+
+    // «رتبه‌بندی» with the pantomime's word card: each performs alone; a shared first place is picked.
+    await page.getByRole('button', { name: 'مسابقهٔ تازه' }).click();
+    const rankForm = page.getByRole('dialog', { name: 'مسابقهٔ تازه' });
+    await rankForm.getByLabel('نام مسابقه').fill('پانتومیم');
+    await rankForm.getByRole('button', { name: 'رتبه‌بندی' }).click();
+    await expect(rankForm.getByRole('button', { name: 'فقط فینال روی صحنه' })).toHaveCount(0);
+    await rankForm.getByLabel(/کلمه‌های کارت/).fill('کرسی\nانار');
+    await rankForm.getByRole('button', { name: 'ذخیره' }).click();
+    await expect(rankForm).toBeHidden();
+    const panto = page.locator('article', { has: page.getByRole('heading', { name: 'پانتومیم' }) });
+    await expect(panto).toContainText('رتبه‌بندی (امتیاز بیشتر)');
+    await panto.getByRole('button', { name: 'ثبت‌نام می‌کنم' }).click();
+    await panto.getByRole('button', { name: /به‌جای دیگران/ }).click();
+    const others2 = page.getByRole('dialog', { name: /ثبت‌نام همکار/ });
+    await others2.getByLabel(/همکار/).fill('سارا');
+    await others2.getByRole('button', { name: /سارا احمدی/ }).click();
+    await others2.getByRole('button', { name: 'ثبت‌نام', exact: true }).click();
+    await expect(others2).toBeHidden();
+
+    await page.getByRole('tab', { name: 'میز برگزارکننده' }).click();
+    const controls = page.locator('li', { has: page.getByText('پانتومیم', { exact: true }) });
+    await controls.getByRole('button', { name: 'قرعه‌کشی' }).click();
+    await controls.getByRole('button', { name: 'انتشار جدول' }).click();
+    await expect(controls.getByText('جدول منتشر شده')).toBeVisible();
+
+    // On the remote: the admin's turn on stage, a word on the phone, «حدس زدند» adds a point.
+    await page.getByRole('tab', { name: 'ریموت صفحهٔ بزرگ' }).click();
+    await page.getByLabel('مسابقه (برای جدول، بازی و قهرمان)').selectOption({ label: '🎮 پانتومیم' });
+    await page.getByRole('button', { name: /مدیر سیستم/ }).click();
+    const words = page.getByLabel('کارت کلمه');
+    await words.getByRole('button', { name: 'کلمهٔ بعدی' }).click();
+    await expect(words.getByText(/^(کرسی|انار)$/)).toBeVisible();
+    await expect(words).toContainText('۱ کلمه مانده');
+    await words.getByRole('button', { name: /حدس زدند/ }).click();
+    await expect(words).toContainText('۰ کلمه مانده');
+    await page.getByRole('button', { name: 'پایان اجرا و ثبت نتیجه' }).click();
+    const perf = page.getByRole('dialog', { name: 'ثبت نتیجه' });
+    await expect(perf.getByLabel('امتیاز به عدد')).toHaveValue('1');
+    await perf.getByRole('button', { name: 'ثبت نتیجه' }).click();
+    await expect(perf).toBeHidden();
+
+    // Sara also scores 1: first place is shared, and the organizer (no jury) picks the champion.
+    await page.getByRole('tab', { name: 'مسابقه‌ها' }).click();
+    await panto.getByRole('button', { name: /سارا احمدی: ثبت یا اصلاح نتیجه/ }).click();
+    const perf2 = page.getByRole('dialog', { name: 'ثبت نتیجه' });
+    await perf2.getByLabel('امتیاز به عدد').fill('1');
+    await perf2.getByRole('button', { name: 'ثبت نتیجه' }).click();
+    await expect(perf2).toBeHidden();
+    await expect(panto).toContainText('رتبهٔ اول مساوی شد');
+    await panto.getByRole('button', { name: 'سارا احمدی', exact: true }).click();
+    await expect(panto.getByText('قهرمان', { exact: true })).toBeVisible();
+    await expect(panto).not.toContainText('رتبهٔ اول مساوی شد');
+  });
+
+  test('a points table: everyone against everyone, a draw counts', async ({ page }) => {
+    page.on('dialog', (dialog) => void dialog.accept());
+    await page.goto('/#event');
+    await expect(page.getByRole('heading', { name: 'الان چه کنم؟' })).toBeVisible();
+    await page.getByRole('button', { name: 'مسابقهٔ تازه' }).click();
+    const form = page.getByRole('dialog', { name: 'مسابقهٔ تازه' });
+    await form.getByLabel('نام مسابقه').fill('شطرنج');
+    await form.getByRole('button', { name: 'جدول امتیازی' }).click();
+    await expect(form.getByText(/همه با همه یک بار بازی می‌کنند/)).toBeVisible();
+    await form.getByRole('button', { name: 'ذخیره' }).click();
+    await expect(form).toBeHidden();
+    const chess = page.locator('article', { has: page.getByRole('heading', { name: 'شطرنج' }) });
+    await chess.getByRole('button', { name: 'ثبت‌نام می‌کنم' }).click();
+    await chess.getByRole('button', { name: /به‌جای دیگران/ }).click();
+    const others = page.getByRole('dialog', { name: /ثبت‌نام همکار/ });
+    await others.getByLabel(/همکار/).fill('سارا');
+    await others.getByRole('button', { name: /سارا احمدی/ }).click();
+    await others.getByRole('button', { name: 'ثبت‌نام', exact: true }).click();
+    await expect(others).toBeHidden();
+
+    await page.getByRole('tab', { name: 'میز برگزارکننده' }).click();
+    const controls = page.locator('li', { has: page.getByText('شطرنج', { exact: true }) });
+    await controls.getByRole('button', { name: 'قرعه‌کشی' }).click();
+    await controls.getByRole('button', { name: 'انتشار جدول' }).click();
+    await page.getByRole('tab', { name: 'مسابقه‌ها' }).click();
+    await expect(chess.getByRole('table', { name: /جدول امتیازی شطرنج/ })).toBeVisible();
+    await chess.getByRole('button', { name: /همهٔ بازی‌ها/ }).click();
+    await chess.getByRole('button', { name: 'دور ۱: ثبت یا اصلاح نتیجه' }).click();
+    const result = page.getByRole('dialog', { name: 'ثبت نتیجه' });
+    await expect(result).toContainText('مساوی؛ در جدول امتیازی هر طرف ۱ امتیاز می‌گیرد.');
+    await result.getByRole('button', { name: 'پایان بازی و ثبت' }).click();
+    await expect(result).toBeHidden();
+    // Both on one point and level on everything: they share first place.
+    const rows = chess.getByRole('table').getByRole('row');
+    await expect(rows.nth(1)).toContainText('۱');
+    await expect(chess).toContainText('رتبهٔ اول مساوی شد');
   });
 });

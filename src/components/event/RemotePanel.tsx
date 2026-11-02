@@ -1,12 +1,12 @@
 import React, { useEffect, useId, useState } from 'react';
-import { Link2, Monitor, Pause, Play, RotateCcw, Send } from 'lucide-react';
+import { Check, Eye, EyeOff, Link2, Monitor, Pause, Play, RotateCcw, Send, SkipForward, WholeWord } from 'lucide-react';
 import { inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { ResultModal } from './ResultModal';
-import { EntryPicture, Stepper, api, entryName, useEventAction } from './eventUi';
+import { EntryPicture, Stepper, api, entryName, isReady, sidesLine, useEventAction } from './eventUi';
 import { countdownText } from './EventParts';
 import { SCREEN_SCENES, timerLeft, type ScreenScene, type ScreenState } from '../../../shared/specialEvents';
 import { toPersianDigits } from '../../lib/jalali';
-import type { EventView } from './types';
+import type { EventCompetition, EventView } from './types';
 
 const card = 'bg-white border border-line rounded-3xl p-4 sm:p-5 space-y-3';
 const TIMER_PRESETS = [60, 120, 300, 600];
@@ -100,6 +100,87 @@ const TimerControls: React.FC<{ eventId: string; screen: ScreenState }> = ({ eve
 };
 
 /**
+ * «کارت کلمه» of a pantomime: the next word nobody has had, on the organizer's phone only (it is shown to
+ * the one acting, never on the big screen). «حدس زدند» adds a point to the side playing and deals the next.
+ */
+const WordCard: React.FC<{ competition: EventCompetition; onGuessed?: () => void }> = ({ competition, onGuessed }) => {
+  const run = useEventAction();
+  const [word, setWord] = useState<string | null>(null);
+  const [left, setLeft] = useState(competition.words.length - competition.wordsUsed);
+  const [hidden, setHidden] = useState(false);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    setWord(null);
+    setLeft(competition.words.length - competition.wordsUsed);
+  }, [competition.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const send = async (action: 'next' | 'reset') => {
+    setBusy(true);
+    const answer = await run(() => api.post<{ word: string | null; left: number }>(`/api/event_competitions/${competition.id}/word`, { action }));
+    setBusy(false);
+    if (!answer) return;
+    setWord(answer.word);
+    setLeft(answer.left);
+    setHidden(false);
+  };
+
+  return (
+    <div className="p-3 rounded-2xl border-2 border-dashed border-red-300 bg-red-50/40 space-y-2" aria-label="کارت کلمه">
+      <p className="text-xs font-black text-ink flex items-center gap-1.5">
+        <WholeWord className="w-4 h-4 text-red-700" aria-hidden /> کارت کلمه
+        <span className="ms-auto text-[11px] font-bold text-muted">{toPersianDigits(left)} کلمه مانده</span>
+      </p>
+      <div className="min-h-20 rounded-xl bg-white border border-line flex items-center justify-center p-3 text-center" aria-live="polite">
+        {word ? (
+          hidden ? (
+            <span className="text-sm text-muted">کلمه پنهان است</span>
+          ) : (
+            <span className="text-3xl font-black text-ink leading-snug break-words">{word}</span>
+          )
+        ) : (
+          <span className="text-xs text-muted">«کلمهٔ بعدی» را بزنید و گوشی را فقط به کسی که اجرا می‌کند نشان دهید.</span>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {word && onGuessed ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              onGuessed();
+              void send('next');
+            }}
+            className="px-5 py-3 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+          >
+            <Check className="w-4 h-4" /> حدس زدند (+۱)
+          </button>
+        ) : null}
+        <button type="button" disabled={busy || left === 0} onClick={() => void send('next')} className={`${word && onGuessed ? secondaryButtonClass : primaryButtonClass} justify-center py-3`}>
+          <SkipForward className="w-4 h-4" /> {word ? 'رد شد؛ کلمهٔ بعدی' : 'کلمهٔ بعدی'}
+        </button>
+      </div>
+      <div className="flex gap-2">
+        {word && (
+          <button type="button" onClick={() => setHidden((h) => !h)} className={secondaryButtonClass}>
+            {hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />} {hidden ? 'نشان بده' : 'پنهان کن'}
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            if (window.confirm('همهٔ کلمه‌ها دوباره قابل استفاده شوند؟')) void send('reset');
+          }}
+          className={`${secondaryButtonClass} ms-auto`}
+        >
+          <RotateCcw className="w-4 h-4" /> از اول
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/**
  * «ریموت»: the organizer's phone drives the big screen: which scene it shows, the match on stage with its
  * score moving live, the timer and a short caption.
  */
@@ -112,6 +193,8 @@ export const RemotePanel: React.FC<{ view: EventView }> = ({ view }) => {
   const [competitionId, setCompetitionId] = useState(screen?.competitionId ?? view.competitions[0]?.id ?? '');
   const [finishing, setFinishing] = useState(false);
   const [scores, setScores] = useState<{ matchId: string; a: number; b: number } | null>(null);
+  // Whose turn it is for the word card's «حدس زدند».
+  const [turn, setTurn] = useState<'a' | 'b'>('a');
   useEffect(() => setCaption(screen?.caption ?? ''), [screen?.caption]);
   useEffect(() => {
     if (screen?.competitionId) setCompetitionId(screen.competitionId);
@@ -120,7 +203,10 @@ export const RemotePanel: React.FC<{ view: EventView }> = ({ view }) => {
   if (!screen) return null;
   const competition = view.competitions.find((c) => c.id === competitionId);
   const stageMatch = competition?.matches.find((m) => m.id === screen.matchId);
-  const playable = competition?.matches.filter((m) => m.entryA && m.entryB && !m.bye) ?? [];
+  const playable = competition?.matches.filter((m) => isReady(competition, m)) ?? [];
+  const ranking = competition?.format === 'ranking';
+  // A ranking by time is entered at the end; a score moves live.
+  const counts = competition ? (ranking ? competition.rankBy === 'high' : competition.scoring !== 'winner') : false;
 
   const show = (scene: ScreenScene, extra: Partial<Pick<ScreenState, 'competitionId' | 'matchId' | 'caption'>> = {}) =>
     run(() =>
@@ -204,40 +290,57 @@ export const RemotePanel: React.FC<{ view: EventView }> = ({ view }) => {
                     type="button"
                     onClick={() => void show('match', { matchId: m.id, competitionId })}
                     aria-pressed={active}
-                    className={`w-full flex items-center gap-2 p-2 rounded-xl border text-xs text-right ${active ? 'border-red-700 bg-red-50' : 'border-line hover:bg-surface'} ${m.winnerId ? 'opacity-60' : ''}`}
+                    className={`w-full flex items-center gap-2 p-2 rounded-xl border text-xs text-right ${active ? 'border-red-700 bg-red-50' : 'border-line hover:bg-surface'} ${m.done ? 'opacity-60' : ''}`}
                   >
                     <span className="font-bold text-muted w-20 shrink-0 truncate">{m.roundName}</span>
-                    <span className="flex-1 min-w-0 truncate font-bold">
-                      {entryName(competition!.entries.find((e) => e.id === m.entryA), view.people)} – {entryName(competition!.entries.find((e) => e.id === m.entryB), view.people)}
-                    </span>
-                    {m.winnerId ? <span className="text-emerald-700">تمام</span> : m.live ? <span className="text-amber-700">زنده</span> : null}
+                    <span className="flex-1 min-w-0 truncate font-bold">{sidesLine(competition!, m, view.people)}</span>
+                    {m.done ? <span className="text-emerald-700">تمام</span> : m.live ? <span className="text-amber-700">زنده</span> : null}
                   </button>
                 </li>
               );
             })}
           </ul>
         )}
-        {stageMatch && competition && screen.scene === 'match' && !stageMatch.winnerId && (
+        {stageMatch && competition && screen.scene === 'match' && !stageMatch.done && (
           <div className="p-3 rounded-2xl bg-surface space-y-3">
             <div className="flex justify-around gap-2">
               {[
-                { entryId: stageMatch.entryA, value: shownA, set: (v: number) => live(v, shownB), label: 'طرف اول' },
-                { entryId: stageMatch.entryB, value: shownB, set: (v: number) => live(shownA, v), label: 'طرف دوم' },
+                { key: 'a' as const, entryId: stageMatch.entryA, value: shownA, set: (v: number) => live(v, shownB), label: ranking ? 'اجراکننده' : 'طرف اول' },
+                ...(ranking ? [] : [{ key: 'b' as const, entryId: stageMatch.entryB, value: shownB, set: (v: number) => live(shownA, v), label: 'طرف دوم' }]),
               ].map((side) => {
                 const entry = competition.entries.find((e) => e.id === side.entryId);
                 return (
                   <div key={side.label} className="flex flex-col items-center gap-2 min-w-0">
                     <EntryPicture entry={entry} people={view.people} className="w-10 h-10 rounded-xl text-2xl" />
                     <span className="text-xs font-black truncate max-w-full">{entryName(entry, view.people)}</span>
-                    {competition.scoring !== 'winner' && <Stepper big value={side.value} onChange={side.set} label={`امتیاز ${side.label}`} />}
+                    {counts && <Stepper big value={side.value} onChange={side.set} label={`امتیاز ${side.label}`} />}
+                    {!ranking && competition.words.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setTurn(side.key)}
+                        aria-pressed={turn === side.key}
+                        className={`px-3 py-1 rounded-full text-[11px] font-bold border ${turn === side.key ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-line-strong'}`}
+                      >
+                        {turn === side.key ? 'نوبت این طرف' : 'نوبت این طرف شود'}
+                      </button>
+                    )}
                   </div>
                 );
               })}
             </div>
             <button type="button" onClick={() => setFinishing(true)} className={`${primaryButtonClass} w-full justify-center py-3`}>
-              پایان بازی و ثبت نتیجه
+              {ranking ? 'پایان اجرا و ثبت نتیجه' : 'پایان بازی و ثبت نتیجه'}
             </button>
           </div>
+        )}
+        {/* One card in one place, so its word stays put while the scene changes. */}
+        {competition && competition.words.length > 0 && (
+          <WordCard
+            competition={competition}
+            onGuessed={
+              counts && stageMatch && screen.scene === 'match' && !stageMatch.done ? () => (turn === 'b' && !ranking ? live(shownA, shownB + 1) : live(shownA + 1, shownB)) : undefined
+            }
+          />
         )}
       </section>
 

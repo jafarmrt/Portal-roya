@@ -3,7 +3,7 @@ import { Flag } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { EntryPicture, Stepper, api, entryName, useEventAction } from './eventUi';
-import { RESULT_UNDO_MS, scoreUnit } from '../../../shared/specialEvents';
+import { RANK_VALUE_MAX, RESULT_UNDO_MS, formatRankValue, parseRankTime, scoreUnit } from '../../../shared/specialEvents';
 import { toPersianDigits } from '../../lib/jalali';
 import type { EventCompetition, EventMatch, EventView } from './types';
 
@@ -23,7 +23,13 @@ interface ResultModalProps {
 export const ResultModal: React.FC<ResultModalProps> = ({ view, competition, match, initialScores, onClose }) => {
   const run = useEventAction();
   const formId = useId();
-  const correcting = Boolean(match.winnerId);
+  const correcting = match.done;
+  const ranking = competition.format === 'ranking';
+  const league = competition.format === 'league';
+  const timed = ranking && competition.rankBy === 'time';
+  const [value, setValue] = useState(initialScores?.a ?? match.scoreA ?? 0);
+  const [timeText, setTimeText] = useState(timed && match.scoreA !== null ? formatRankValue(match.scoreA, 'time') : '');
+  const parsedTime = timed ? parseRankTime(timeText) : null;
   const a = competition.entries.find((e) => e.id === match.entryA);
   const b = competition.entries.find((e) => e.id === match.entryB);
   const [scoreA, setScoreA] = useState(initialScores?.a ?? match.scoreA ?? 0);
@@ -35,24 +41,31 @@ export const ResultModal: React.FC<ResultModalProps> = ({ view, competition, mat
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const onlyWinner = competition.scoring === 'winner' || walkover;
-  const level = !onlyWinner && scoreA === scoreB;
-  const penalties = level && competition.tieRule === 'penalties';
-  const pickWinner = onlyWinner || (level && !penalties);
+  const onlyWinner = !ranking && (competition.scoring === 'winner' || walkover);
+  const level = !ranking && !onlyWinner && scoreA === scoreB;
+  // A points table keeps a draw; a knockout breaks it.
+  const penalties = level && !league && competition.tieRule === 'penalties';
+  const pickWinner = !ranking && (onlyWinner || (level && !league && !penalties));
   // Later matches already played with this winner are cleared if the winner changes.
-  const laterPlayed = correcting && competition.matches.some((m) => m.round > match.round && !m.bye && m.winnerId && (m.entryA === match.winnerId || m.entryB === match.winnerId));
+  const laterPlayed =
+    correcting && competition.format === 'knockout' && competition.matches.some((m) => m.round > match.round && !m.bye && m.winnerId && (m.entryA === match.winnerId || m.entryB === match.winnerId));
 
   const ready =
     !saving &&
     (!pickWinner || Boolean(winnerId)) &&
     (!penalties || tieA !== tieB) &&
+    (!timed || walkover || parsedTime !== null) &&
     (!correcting || reason.trim().length >= 3);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ready) return;
     setSaving(true);
-    const body = walkover
+    const body = ranking
+      ? walkover
+        ? { walkover: true, reason: reason.trim() || undefined }
+        : { value: timed ? parsedTime : value, reason: reason.trim() || undefined }
+      : walkover
       ? { walkover: true, winnerId, reason: reason.trim() || undefined }
       : competition.scoring === 'winner'
         ? { winnerId, reason: reason.trim() || undefined }
@@ -106,17 +119,61 @@ export const ResultModal: React.FC<ResultModalProps> = ({ view, competition, mat
             انصراف
           </button>
           <button type="submit" form={formId} disabled={!ready} className={primaryButtonClass}>
-            {walkover ? 'ثبت برد فنی' : 'پایان بازی و ثبت'}
+            {walkover ? (ranking ? 'ثبت غیبت' : 'ثبت برد فنی') : ranking ? 'ثبت نتیجه' : 'پایان بازی و ثبت'}
           </button>
         </>
       }
     >
       <form id={formId} onSubmit={submit} className="space-y-4">
-        <div className="flex gap-2 items-stretch">
-          {side(a, 'طرف اول', scoreA, setScoreA)}
-          <span className="self-center text-faint font-black">–</span>
-          {side(b, 'طرف دوم', scoreB, setScoreB)}
-        </div>
+        {ranking ? (
+          <div className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-surface">
+            <EntryPicture entry={a} people={view.people} className="w-12 h-12 rounded-2xl text-3xl" />
+            <span className="text-sm font-black text-ink text-center truncate max-w-full">{entryName(a, view.people)}</span>
+            {!walkover &&
+              (timed ? (
+                <div className="w-full max-w-[14rem]">
+                  <label htmlFor={`${formId}-time`} className={labelClass}>
+                    زمان (دقیقه:ثانیه٫دهم ثانیه)
+                  </label>
+                  <input
+                    id={`${formId}-time`}
+                    value={timeText}
+                    onChange={(e) => setTimeText(e.target.value)}
+                    inputMode="decimal"
+                    autoComplete="off"
+                    placeholder="۱:۰۵٫۳"
+                    className={`${inputClass} text-center text-lg tabular-nums`}
+                    dir="ltr"
+                  />
+                  {timeText.trim() !== '' && parsedTime === null && <p className="text-[11px] text-red-700 mt-1">زمان را مثل ۱:۰۵٫۳ یا ۴۵٫۲ بنویسید.</p>}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Stepper value={value} onChange={setValue} label="امتیاز" big />
+                  <label htmlFor={`${formId}-value`} className="sr-only">
+                    امتیاز به عدد
+                  </label>
+                  <input
+                    id={`${formId}-value`}
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={RANK_VALUE_MAX}
+                    value={value}
+                    onChange={(e) => setValue(Math.min(RANK_VALUE_MAX, Math.max(0, Number(e.target.value) || 0)))}
+                    className={`${inputClass} w-24 text-center`}
+                  />
+                </div>
+              ))}
+          </div>
+        ) : (
+          <div className="flex gap-2 items-stretch">
+            {side(a, 'طرف اول', scoreA, setScoreA)}
+            <span className="self-center text-faint font-black">–</span>
+            {side(b, 'طرف دوم', scoreB, setScoreB)}
+          </div>
+        )}
+        {league && level && <p className="text-xs text-ink-soft bg-surface rounded-xl p-2.5">مساوی؛ در جدول امتیازی هر طرف ۱ امتیاز می‌گیرد.</p>}
 
         {penalties && (
           <div className="p-3 rounded-2xl border border-amber-200 bg-amber-50 space-y-2">
@@ -152,7 +209,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({ view, competition, mat
 
         <label className="flex items-center gap-2 text-xs font-bold text-ink-soft">
           <input type="checkbox" checked={walkover} onChange={(e) => setWalkover(e.target.checked)} className="w-4 h-4 accent-red-700" />
-          یک طرف نیامد (برد فنی)
+          {ranking ? 'نیامد و اجرا نکرد' : 'یک طرف نیامد (برد فنی)'}
         </label>
 
         {correcting && (
