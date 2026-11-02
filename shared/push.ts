@@ -11,6 +11,7 @@ export interface PushCategory {
 export const PUSH_CATEGORIES: PushCategory[] = [
   { id: 'tasks', label: 'کارهای ارجاعی', types: ['task'] },
   { id: 'notices', label: 'تابلوی اعلانات', types: ['notice'] },
+  { id: 'events', label: 'رویدادهای ویژه و مسابقات', types: ['event'] },
   { id: 'news', label: 'خبرها، بخشنامه‌ها و سندها', types: ['announcement', 'document'] },
   { id: 'calendar', label: 'رویدادها و دوره‌های آموزشی', types: ['calendar', 'training'] },
   { id: 'polls', label: 'نظرسنجی‌ها', types: ['poll'] },

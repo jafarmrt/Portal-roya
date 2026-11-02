@@ -21,6 +21,7 @@ export type ResourceName =
   | 'moods'
   | 'todos'
   | 'tasks'
+  | 'special_event'
   | 'notices'
   | 'presence';
 

@@ -14,6 +14,7 @@ import { processTrainingReminders } from './routes/trainings.js';
 import { processTodoReminders } from './routes/todos.js';
 import { processTaskOverdue, processTaskReminders } from './routes/tasks.js';
 import { startDueNotices } from './routes/notices.js';
+import { processSpecialEvents, removeStaleScreens } from './routes/specialEvents.js';
 import { releaseAnonymousSuggestions } from './routes/suggestions.js';
 import { indexMissingDocumentTexts } from './textExtract.js';
 import { announceNews, processAckDeadlines } from './routes/news.js';
@@ -156,6 +157,8 @@ export function startScheduler() {
     processTaskReminders().catch((err) => console.error('Task reminder error:', err));
     processTaskOverdue().catch((err) => console.error('Task overdue reminder error:', err));
     startDueNotices().catch((err) => console.error('Notice board error:', err));
+    processSpecialEvents().catch((err) => console.error('Special event error:', err));
+    removeStaleScreens().catch((err) => console.error('Event screen cleanup error:', err));
     releaseAnonymousSuggestions().catch((err) => console.error('Suggestion release error:', err));
     processMonthlySummary().catch((err) => console.error('Monthly summary error:', err));
     runNightlyMaintenance().catch((err) => console.error('Maintenance error:', err));

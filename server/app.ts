@@ -31,6 +31,8 @@ import { kudosRouter } from './routes/kudos.js';
 import { reactionsRouter } from './routes/reactions.js';
 import { noticesRouter } from './routes/notices.js';
 import { pushRouter } from './routes/push.js';
+import { specialEventsRouter } from './routes/specialEvents.js';
+import { eventScreenRouter } from './routes/eventScreen.js';
 import { buildInfo, changelog } from './version.js';
 
 /** Builds the API application. The static/Vite front-end is attached in server/index.ts. */
@@ -70,6 +72,8 @@ export function createApp() {
   // Which version is running and what changed in it; shown in the footer, also on the login page.
   api.get('/version', (_req, res) => res.json(buildInfo()));
   api.get('/version/changelog', (_req, res) => res.json(changelog().slice(0, 15)));
+  // The big screen of a special event has no account; it reads the event it was paired with (see the router).
+  api.use(eventScreenRouter);
 
   // Everything below requires a signed-in user who has replaced their temporary password,
   // except the read-only endpoints that visitors may open while guest access is enabled.
@@ -99,6 +103,7 @@ export function createApp() {
   api.use(reactionsRouter);
   api.use(noticesRouter);
   api.use(pushRouter);
+  api.use(specialEventsRouter);
   api.use(uploadsRouter);
   api.use((_req, res) => res.status(404).json({ error: 'مسیر یافت نشد.' }));
 

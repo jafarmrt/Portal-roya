@@ -44,6 +44,7 @@ const AuditLogModule = named(() => import('./components/admin/AuditLogModule'), 
 const SuggestionsModule = named(() => import('./components/suggestions/SuggestionsModule'), 'SuggestionsModule');
 const TodosPage = named(() => import('./components/todos/TodosPage'), 'TodosPage');
 const TasksPage = named(() => import('./components/tasks/TasksPage'), 'TasksPage');
+const EventPage = named(() => import('./components/event/EventPage'), 'EventPage');
 
 const FullScreenLoader: React.FC<{ text: string }> = ({ text }) => (
   <div className="min-h-screen bg-page flex flex-col items-center justify-center gap-4" role="status">
@@ -167,6 +168,7 @@ const MainContent: React.FC = () => {
                 {activeTab === 'tasks' &&
                   (isGuest ? <LoginRequired message="برای دیدن کارهای ارجاعی وارد حساب کاربری شوید." /> : <TasksPage />)}
                 {activeTab === 'systems' && <SystemsModule />}
+                {activeTab === 'event' && <EventPage />}
                 {activeTab === 'reports' && can('reports.view') && <ReportsModule />}
                 {activeTab === 'people' && can('users.manage') && <PeopleManagement />}
                 {activeTab === 'admin' && (isAdmin || can('settings.manage')) && <AdminSettingsModule />}

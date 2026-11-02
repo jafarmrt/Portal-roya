@@ -17,7 +17,8 @@ import {
   Heart,
   ClipboardList,
   NotebookPen,
-  Megaphone
+  Megaphone,
+  Sparkles
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { secondaryButtonClass } from '../common/Modal';
@@ -72,6 +73,8 @@ export const NotificationsInbox: React.FC = () => {
         return <NotebookPen className="w-4 h-4 text-teal-700" />;
       case 'notice':
         return <Megaphone className="w-4 h-4 text-amber-700" />;
+      case 'event':
+        return <Sparkles className="w-4 h-4 text-red-700" />;
       default:
         return <Newspaper className="w-4 h-4 text-red-600" />;
     }

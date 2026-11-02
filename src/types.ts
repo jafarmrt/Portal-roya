@@ -516,7 +516,7 @@ export interface CalendarRsvpRow {
   respondedAt: string | null;
 }
 
-export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system' | 'suggestion' | 'todo' | 'kudos' | 'notice' | 'task';
+export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system' | 'suggestion' | 'todo' | 'kudos' | 'notice' | 'task' | 'event';
 
 export interface NotificationItem {
   id: string;
@@ -659,7 +659,8 @@ export type ActiveTab =
   | 'audit'
   | 'suggestions'
   | 'todos'
-  | 'tasks';
+  | 'tasks'
+  | 'event';
 
 export interface SearchResultItem {
   id: string;

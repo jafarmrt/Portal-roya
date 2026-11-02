@@ -358,6 +358,7 @@ const FEATURE_RESOURCES: Record<FeatureKey, ResourceName[]> = {
   mood: ['moods'],
   todos: ['todos', 'notifications'],
   tasks: ['tasks', 'notifications'],
+  specialEvents: ['special_event', 'notifications'],
   occasionThemes: [],
   dashboardLayout: [],
   onlineColleagues: ['presence', 'notifications'],
