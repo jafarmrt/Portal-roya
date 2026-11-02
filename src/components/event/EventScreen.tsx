@@ -4,8 +4,8 @@ import { Bracket } from './Bracket';
 import { CompetitionBoard } from './Standings';
 import { JuryStrip, countdownText } from './EventParts';
 import { EntryPicture, PersonAvatar, YALDA, entryName, heroStyle, isReady, performanceLine, scoreLine, sidesLine } from './eventUi';
-import { playChime } from '../../lib/sound';
-import { HAFEZ_FAL, programStart, rankingTable, timerLeft, type ScreenState } from '../../../shared/specialEvents';
+import { playChime, playTick } from '../../lib/sound';
+import { HAFEZ_FAL, WHEEL_SPIN_MS, programStart, rankingTable, timerLeft, wheelPosition, type ScreenState } from '../../../shared/specialEvents';
 import { Couplet, useScheduleNow } from './NightSection';
 import { QuizOptions, useQuizLeft } from './QuizSection';
 import { toPersianDigits } from '../../lib/jalali';
@@ -371,6 +371,107 @@ const GuessScene: React.FC<{ view: EventView }> = ({ view }) => {
   );
 };
 
+/** «آرزوهای یلدا»: the approved wishes, six at a time, turning page every few seconds. */
+const WISHES_PAGE = 6;
+const WishesScene: React.FC<{ view: EventView }> = ({ view }) => {
+  const wall = view.wishes.wall;
+  const pages = Math.max(1, Math.ceil(wall.length / WISHES_PAGE));
+  const [page, setPage] = useState(0);
+  useEffect(() => {
+    if (pages <= 1) return undefined;
+    const t = window.setInterval(() => setPage((p) => (p + 1) % pages), 9000);
+    return () => window.clearInterval(t);
+  }, [pages]);
+  // Newest first, so a wish approved a moment ago is on the first page.
+  const shown = [...wall].reverse().slice((page % pages) * WISHES_PAGE, (page % pages) * WISHES_PAGE + WISHES_PAGE);
+  return (
+    <Big className="justify-start pt-[3vw]">
+      <h2 className="text-[4vw] font-black">🕯️ آرزوهای یلدا</h2>
+      {wall.length === 0 ? (
+        <p className="text-[2.6vw] opacity-85">آرزویتان را در پرتال، صفحهٔ رویداد بنویسید تا اینجا بیاید.</p>
+      ) : (
+        <ul key={page} className="w-full grid grid-cols-2 gap-[1.6vw] text-right animate-[page-enter_0.8s_ease-out]">
+          {shown.map((w) => (
+            <li key={w.id} className="rounded-[1.6vw] px-[2vw] py-[1.4vw] space-y-[0.6vw]" style={{ background: 'rgba(255,255,255,0.12)' }}>
+              <p className="text-[2.2vw] font-bold leading-relaxed">«{w.text}»</p>
+              <p className="text-[1.6vw] font-black" style={{ color: YALDA.gold }}>
+                {w.byId ? (view.people[w.byId]?.name ?? 'همکار') : 'بی‌نام'}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+      {pages > 1 && (
+        <p className="text-[1.4vw] opacity-60 tabular-nums">
+          {toPersianDigits((page % pages) + 1)} از {toPersianDigits(pages)}
+        </p>
+      )}
+    </Big>
+  );
+};
+
+/** «گردونهٔ شانس»: names run fast and slow down to stop on the winner; then the winner, big. */
+const WheelScene: React.FC<{ view: EventView; offset: number; started: boolean }> = ({ view, offset, started }) => {
+  const spin = view.wheel.spins.at(-1);
+  const at = spin ? new Date(spin.at).getTime() : 0;
+  const elapsed = Date.now() + offset - at;
+  const spinning = Boolean(spin) && elapsed < WHEEL_SPIN_MS;
+  const [, tick] = useState(0);
+  const lastName = useRef(-1);
+  useEffect(() => {
+    if (!spinning) return undefined;
+    const t = window.setInterval(() => tick((n) => n + 1), 50);
+    return () => window.clearInterval(t);
+  }, [spinning, spin?.id]);
+  const position = spin ? wheelPosition(elapsed, spin.reel.length) : 0;
+  // A soft click as each name passes, and the chime when it stops.
+  useEffect(() => {
+    if (!spin || !started) return;
+    if (lastName.current !== position && spinning) playTick();
+    if (lastName.current !== -1 && lastName.current < spin.reel.length - 1 && position === spin.reel.length - 1) playChime();
+    lastName.current = position;
+  }, [position, spin, spinning, started]);
+
+  if (!spin) {
+    return (
+      <Big>
+        <p className="text-[12vw] leading-none animate-[spin_6s_linear_infinite]" aria-hidden>
+          🎡
+        </p>
+        <h2 className="text-[5vw] font-black">گردونهٔ شانس</h2>
+        <p className="text-[2.4vw] opacity-85">{toPersianDigits(view.wheel.left)} نفر در گردونه‌اند؛ هر کس در صفحهٔ رویداد کاری کرده.</p>
+      </Big>
+    );
+  }
+  if (spinning) {
+    const person = view.people[spin.reel[position]];
+    return (
+      <Big>
+        <p className="text-[2.6vw] font-bold opacity-85">🎡 گردونه می‌چرخد…{spin.prize ? ` (${spin.prize})` : ''}</p>
+        <p className="text-[8vw] font-black leading-tight" style={{ color: YALDA.gold }}>
+          {person?.name ?? 'همکار'}
+        </p>
+      </Big>
+    );
+  }
+  const winner = view.people[spin.winnerId];
+  return (
+    <Big>
+      <p className="text-[6vw] leading-none" aria-hidden>
+        🎉🎡🎉
+      </p>
+      <PersonAvatar person={winner} src={winner?.avatarUrl ? fileUrl(winner.avatarUrl) : undefined} className="w-[18vw] h-[18vw] rounded-full text-[7vw] object-cover ring-[0.6vw] ring-amber-300" />
+      <p className="text-[6vw] font-black leading-tight">{winner?.name ?? 'همکار'}</p>
+      {spin.prize && (
+        <p className="text-[3vw] font-bold" style={{ color: YALDA.gold }}>
+          🎁 {spin.prize}
+        </p>
+      )}
+      {spin.absent && <p className="text-[2vw] opacity-75">در سالن نبود؛ گردونه دوباره می‌چرخد.</p>}
+    </Big>
+  );
+};
+
 const Today: React.FC<{ view: EventView }> = ({ view }) => {
   const rows = view.competitions
     .flatMap((c) => c.matches.filter((m) => isReady(c, m) && (m.onStage || m.day === view.event.programDate)).map((m) => ({ c, m })))
@@ -426,7 +527,7 @@ const Champion: React.FC<{ view: EventView; competition: EventCompetition | unde
   );
 };
 
-const Scene: React.FC<{ view: EventView; screen: ScreenState; offset: number; timer: number }> = ({ view, screen, offset, timer }) => {
+const Scene: React.FC<{ view: EventView; screen: ScreenState; offset: number; timer: number; started: boolean }> = ({ view, screen, offset, timer, started }) => {
   const competition = view.competitions.find((c) => c.id === screen.competitionId) ?? view.competitions[0];
   switch (screen.scene) {
     case 'jury':
@@ -473,6 +574,10 @@ const Scene: React.FC<{ view: EventView; screen: ScreenState; offset: number; ti
       return <Predictors view={view} />;
     case 'guess':
       return <GuessScene view={view} />;
+    case 'wishes':
+      return <WishesScene view={view} />;
+    case 'wheel':
+      return <WheelScene view={view} offset={offset} started={started} />;
     case 'champion':
       return <Champion view={view} competition={screen.competitionId ? competition : undefined} />;
     case 'break':
@@ -587,7 +692,7 @@ export const EventScreen: React.FC = () => {
         </Big>
       ) : (
         <>
-          <Scene view={answer} screen={answer.screen} offset={offset} timer={timer} />
+          <Scene view={answer} screen={answer.screen} offset={offset} timer={timer} started={started} />
           {answer.screen.scene !== 'break' && (answer.screen.timer.endsAt || timer !== answer.screen.timer.durationSec) && (
             <div className="absolute top-[2vw] left-[2vw] rounded-[1.4vw] bg-black/40 px-[2vw] py-[0.8vw] text-[4vw] font-black tabular-nums" aria-label="زمان‌سنج">
               {countdownText(timer) || toPersianDigits('00:00:00')}

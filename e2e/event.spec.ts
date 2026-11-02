@@ -191,7 +191,7 @@ test.describe('special event', () => {
   test('songs for the night and ideas for the program', async ({ page }) => {
     page.on('dialog', (dialog) => void dialog.accept());
     await page.goto('/#event');
-    await page.getByRole('tab', { name: 'آهنگ‌ها و ایده‌ها' }).click();
+    await page.getByRole('tab', { name: 'فال، آرزو، آهنگ' }).click();
     await page.getByLabel('نام آهنگ').fill('گل سنگم');
     await page.getByLabel('خواننده').fill('بنان');
     await page.getByRole('button', { name: 'پیشنهاد آهنگ' }).click();
@@ -262,7 +262,7 @@ test.describe('special event', () => {
     await expect(schedule.getByRole('listitem').first()).toContainText('۱۵:۰۰خوش‌آمد');
     await expect(schedule.getByRole('listitem').nth(1)).toContainText('شام');
 
-    await page.getByRole('tab', { name: 'آهنگ‌ها و ایده‌ها' }).click();
+    await page.getByRole('tab', { name: 'فال، آرزو، آهنگ' }).click();
     const fal = page.getByRole('region', { name: 'فال حافظ' });
     await fal.getByRole('button', { name: 'نیت کردم، فال بگیر' }).click();
     await expect(fal.getByRole('button', { name: 'نیت کردم، فال بگیر' })).toBeHidden();
@@ -301,6 +301,36 @@ test.describe('special event', () => {
     await page.getByRole('tab', { name: 'میز برگزارکننده' }).click();
     await page.getByRole('button', { name: /از اول/ }).click();
     await expect(card).toBeHidden();
+    await page.getByRole('tab', { name: 'تنظیمات' }).click();
+    await page.getByLabel('امتحان صفحه در مرحلهٔ').selectOption('');
+  });
+  test('Yalda wishes on the wall and the wheel turned from the remote', async ({ page }) => {
+    page.on('dialog', (dialog) => void dialog.accept());
+    await page.goto('/#event');
+    await page.getByRole('tab', { name: 'فال، آرزو، آهنگ' }).click();
+    const wishes = page.locator('#event-wishes');
+    await wishes.getByLabel('آرزوی شما').fill('سالی پر از سلامتی برای همه');
+    await wishes.getByRole('button', { name: 'ثبت آرزو' }).click();
+    // An organizer's own goes straight on the wall.
+    await expect(wishes.getByRole('listitem').filter({ hasText: 'روی دیوار' })).toBeVisible();
+    await expect(wishes).toContainText('«سالی پر از سلامتی برای همه»');
+
+    await page.getByRole('tab', { name: 'تنظیمات' }).click();
+    await page.getByLabel('امتحان صفحه در مرحلهٔ').selectOption('live');
+    await page.getByRole('tab', { name: 'ریموت صفحهٔ بزرگ' }).click();
+    const remote = page.getByRole('region', { name: /گردونهٔ شانس/ });
+    await remote.getByLabel('جایزهٔ این دور (اختیاری)').fill('یک جعبه گز');
+    await remote.getByRole('button', { name: '🎡 بچرخان' }).click();
+    await expect(page.getByRole('button', { name: 'گردونهٔ شانس', pressed: true })).toBeVisible();
+    await expect(remote.getByRole('listitem')).toHaveCount(1);
+    await expect(remote.getByRole('listitem')).toContainText('یک جعبه گز');
+    await remote.getByRole('button', { name: 'نبود' }).click();
+    await expect(remote.getByRole('button', { name: 'بود' })).toBeVisible();
+    await page.getByRole('button', { name: 'آرزوهای یلدا' }).click();
+    await expect(page.getByRole('button', { name: 'آرزوهای یلدا', pressed: true })).toBeVisible();
+
+    await remote.getByRole('button', { name: 'از اول (بعد از تمرین)' }).click();
+    await expect(remote.getByRole('listitem')).toHaveCount(0);
     await page.getByRole('tab', { name: 'تنظیمات' }).click();
     await page.getByLabel('امتحان صفحه در مرحلهٔ').selectOption('');
   });

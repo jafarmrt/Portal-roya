@@ -88,6 +88,24 @@ export function playChime() {
   return true;
 }
 
+/** A very short click (a name passing on the wheel of the big screen). */
+export function playTick() {
+  const ctx = audioContext();
+  if (!ctx || ctx.state !== 'running') return false;
+  const start = ctx.currentTime + 0.005;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.value = 1600;
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(0.08, start + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.05);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(start);
+  osc.stop(start + 0.06);
+  return true;
+}
+
 /** Chimes for a reaction that just arrived; with several tabs open, only one of them plays. */
 export function chimeNow() {
   if (!kudosSoundOn()) return;

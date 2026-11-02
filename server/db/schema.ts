@@ -15,7 +15,7 @@ import type { AuditAction, AuditEntity } from '../../shared/audit.js';
 import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
 import type { KudosEmoji } from '../../shared/kudos.js';
 import type { MonthlySummary } from '../../shared/reports.js';
-import type { EntryKind, EventPhase, EventStatus, EventTheme, Format, IdeaKind, QuizState, RankBy, ScheduleItem, Scoring, ScreenState, StagePolicy, TieRule } from '../../shared/specialEvents.js';
+import type { EntryKind, EventPhase, EventStatus, EventTheme, Format, IdeaKind, QuizState, RankBy, ScheduleItem, Scoring, ScreenState, StagePolicy, TieRule, WishStatus } from '../../shared/specialEvents.js';
 import type { SuggestionBoxNames } from '../../shared/suggestions.js';
 import type { TaskStatus } from '../../shared/tasks.js';
 import type { TodoRemind, TodoRepeat, TodoStep } from '../../shared/todos.js';
@@ -1315,4 +1315,38 @@ export const eventQuizAnswers = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.questionId, t.employeeId] })],
+);
+
+/** «آرزوهای یلدا»: a short wish for the new year; on the wall (and the big screen) once an organizer approves it. */
+export const eventWishes = pgTable(
+  'event_wishes',
+  {
+    id: text('id').primaryKey(),
+    eventId: text('event_id').notNull().references(() => specialEvents.id, { onDelete: 'cascade' }),
+    byId: text('by_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    text: text('text').notNull(),
+    anonymous: boolean('anonymous').notNull().default(false),
+    status: text('status').$type<WishStatus>().notNull().default('pending'),
+    decidedById: text('decided_by_id'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('event_wishes_event_idx').on(t.eventId)],
+);
+
+/** «گردونهٔ شانس»: one turn of the wheel on the night, with the names that ran on the screen before the winner. */
+export const eventWheelSpins = pgTable(
+  'event_wheel_spins',
+  {
+    id: text('id').primaryKey(),
+    eventId: text('event_id').notNull().references(() => specialEvents.id, { onDelete: 'cascade' }),
+    winnerId: text('winner_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    prize: text('prize').notNull().default(''),
+    reel: text('reel').array().notNull(),
+    // Not in the hall when the name came up: the wheel turns again, and this name stays out.
+    absent: boolean('absent').notNull().default(false),
+    byId: text('by_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('event_wheel_spins_event_idx').on(t.eventId)],
 );
