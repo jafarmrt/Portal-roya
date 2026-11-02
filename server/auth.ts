@@ -144,6 +144,7 @@ const GUEST_READABLE = [
   /^\/roles$/,
   /^\/notices$/,
   /^\/special_events\/current$/,
+  /^\/event_badges$/,
 ];
 
 /** True for any read, e.g. downloading an uploaded file. */

@@ -77,6 +77,7 @@ import { audienceIds, createNotifications } from '../notify.js';
 import { fullName } from '../serializers.js';
 import { guestSettings } from '../settings.js';
 import { awardsView, processAwards } from './eventAwards.js';
+import { gamesView } from './eventGames.js';
 import { songsView } from './eventSongs.js';
 
 // «رویداد ویژه»: the page of a company occasion (Yalda night). Who may do what:
@@ -106,7 +107,7 @@ const matchLabel = (m: Pick<MatchRow, 'round' | 'slot' | 'third'>, rounds: numbe
   format === 'league' ? `دور ${toPersianDigits(m.round)}` : format === 'ranking' ? `نوبت ${toPersianDigits(m.slot + 1)}` : roundName(m.round, rounds, m.third);
 
 /** The champion of a competition once it is decided, and who shares first place while the jury has to pick. */
-function championInfo(c: Pick<CompetitionRow, 'format' | 'rankBy' | 'championPickId'>, matches: MatchRow[]) {
+export function championInfo(c: Pick<CompetitionRow, 'format' | 'rankBy' | 'championPickId'>, matches: MatchRow[]) {
   if (c.format === 'knockout') return { champion: championOf(matches), tie: [] as string[] };
   const allDone = matches.length > 0 && matches.every((m) => m.done);
   if (c.format === 'league') {
@@ -316,9 +317,11 @@ export async function eventView(ev: EventRow, viewer: Viewer) {
 
   const awardsPart = await awardsView(ev, viewer);
   const funPart = await songsView(ev, viewer);
+  const gamesPart = await gamesView(ev, viewer, { competitions, matches, membersOf });
   const people = await peopleById([
     ...awardsPart.peopleIds,
     ...funPart.peopleIds,
+    ...gamesPart.peopleIds,
     ...ev.juryIds,
     ...ev.organizerIds,
     ...members.map((m) => m.employeeId),
@@ -372,6 +375,7 @@ export async function eventView(ev: EventRow, viewer: Viewer) {
       juryIds: ev.juryIds,
       juryHeadId: ev.juryHeadId,
       juryPhotos: ev.juryPhotos,
+      guessQuestion: ev.guessQuestion,
       screen: roles.referee ? (ev.screen ?? DEFAULT_SCREEN) : null,
     },
     me: roles,
@@ -430,6 +434,8 @@ export async function eventView(ev: EventRow, viewer: Viewer) {
     awardsInfo: awardsPart.awardsInfo,
     songs: funPart.songs,
     ideas: funPart.ideas,
+    predictions: gamesPart.predictions,
+    guess: gamesPart.guess,
     serverNow: now.toISOString(),
   };
 }

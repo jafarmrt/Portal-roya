@@ -8,6 +8,7 @@ import { CompetitionCard } from './CompetitionCard';
 import { CompetitionFormModal } from './CompetitionFormModal';
 import { AwardsSection } from './AwardsSection';
 import { FunSection } from './FunSection';
+import { GuessCard, PredictionsSection } from './GamesSection';
 import { Countdown, JuryStrip, NowCard } from './EventParts';
 import { CreateEventForm, EventSettings } from './EventSettings';
 import { OrganizerConsole } from './OrganizerConsole';
@@ -26,6 +27,15 @@ const SECTIONS: { id: Section; label: string }[] = [
   { id: 'remote', label: 'ریموت صفحهٔ بزرگ' },
   { id: 'settings', label: 'تنظیمات' },
 ];
+
+/** Places on the page a notification or a «الان چه کنم؟» line can point to. */
+const FOCUS_IDS: Record<string, string> = {
+  objections: 'event-objections',
+  awards: 'event-awards',
+  fun: 'event-fun',
+  predict: 'event-predict',
+  guess: 'event-guess',
+};
 
 const Hero: React.FC<{ view: EventView }> = ({ view }) => {
   const { event } = view;
@@ -80,10 +90,11 @@ export const EventPage: React.FC = () => {
     if (!focusId || !loaded) return undefined;
     if (focusId === 'objections') setSection('console');
     if (focusId === 'fun') setSection('fun');
+    if (focusId === 'predict' || focusId === 'guess') setSection('competitions');
     const timer = window.setTimeout(
       () =>
         document
-          .getElementById(focusId === 'objections' ? 'event-objections' : focusId === 'awards' ? 'event-awards' : focusId === 'fun' ? 'event-fun' : `competition-${focusId}`)
+          .getElementById(FOCUS_IDS[focusId] ?? `competition-${focusId}`)
           ?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
       150,
     );
@@ -133,7 +144,7 @@ export const EventPage: React.FC = () => {
       return;
     }
     setSection('competitions');
-    const id = target === 'awards' ? 'event-awards' : `competition-${target}`;
+    const id = FOCUS_IDS[target] ?? `competition-${target}`;
     window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
@@ -163,6 +174,8 @@ export const EventPage: React.FC = () => {
       {current === 'competitions' && (
         <div className="space-y-4">
           {juryShown && <JuryStrip view={view} />}
+          <PredictionsSection view={view} />
+          <GuessCard key={view.guess ? 'on' : 'off'} view={view} />
           {view.competitions.length === 0 ? (
             <EmptyState icon={<Sparkles className="w-8 h-8" />} title="هنوز مسابقه‌ای اعلام نشده" hint={me.isOrganizer ? 'با دکمهٔ زیر اولین مسابقه را بسازید.' : 'به‌زودی مسابقه‌ها اینجا می‌آیند.'} compact />
           ) : (

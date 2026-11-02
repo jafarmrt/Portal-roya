@@ -36,6 +36,7 @@ import {
   Send,
 } from 'lucide-react';
 import { featureOn, tabOn } from '../../lib/features';
+import { useEventBadges } from '../event/useEventBadges';
 
 interface UserProfileModalProps {
   user: UserProfile;
@@ -53,6 +54,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
   const [introducing, setIntroducing] = useState(false);
   const [handing, setHanding] = useState(false);
   const canHandTask = useCanHandTask()(user);
+  const badges = useEventBadges(featureOn(appSettings, 'specialEvents'))[user.id] ?? [];
   const introduction = newColleagues.find((nc) => nc.userId === user.id);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -156,6 +158,16 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                 <h2 className="text-xl sm:text-2xl font-black text-ink break-words">
                   {user.firstName} {user.lastName}
                 </h2>
+                {badges.length > 0 && (
+                  <ul className="flex flex-wrap gap-1" aria-label="نشان‌های رویداد">
+                    {badges.map((b) => (
+                      <li key={b.label} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-900">
+                        <span aria-hidden>{b.icon}</span>
+                        {b.label}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <p className="text-xs font-bold text-brand flex items-center gap-1.5">
                   <Briefcase className="w-3.5 h-3.5" />
                   <span>{user.position || NO_POSITION}</span>

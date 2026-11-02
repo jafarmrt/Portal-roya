@@ -221,4 +221,30 @@ test.describe('special event', () => {
     await playing.getByRole('button', { name: 'قطع' }).click();
     await expect(playing).toContainText('آهنگی روی صفحهٔ بزرگ نیست');
   });
+  test('«چند دانه؟»: turned on by the organizers, opened from the remote on the night', async ({ page }) => {
+    await page.goto('/#event');
+    const guess = page.locator('#event-guess');
+    await guess.getByRole('button', { name: 'روشن کردن بازی' }).click();
+    await expect(guess.getByRole('heading', { name: 'چند دانه؟' })).toBeVisible();
+    await expect(guess).toContainText('انار روی میز چند دانه دارد؟');
+    await expect(guess).toContainText('۰ نفر حدس زده‌اند');
+    // Organizers set the game up, so they do not play it.
+    await expect(guess).toContainText('برگزارکنندگان و داوران در این بازی شرکت نمی‌کنند.');
+
+    // The answer waits for the program; in the rehearsal the night is one choice away.
+    await page.getByRole('tab', { name: 'ریموت صفحهٔ بزرگ' }).click();
+    const remote = page.getByRole('region', { name: 'چند دانه؟' });
+    await expect(remote).toContainText('جواب بعد از شروع برنامه اعلام می‌شود');
+    await page.getByRole('tab', { name: 'تنظیمات' }).click();
+    await page.getByLabel('امتحان صفحه در مرحلهٔ').selectOption('live');
+    await page.getByRole('tab', { name: 'ریموت صفحهٔ بزرگ' }).click();
+    await remote.getByLabel('جواب درست').fill('۶۱۲');
+    await remote.getByRole('button', { name: 'اعلام جواب' }).click();
+    await expect(remote).toContainText('جواب: ۶۱۲');
+    await expect(page.getByRole('button', { name: 'چند دانه؟', pressed: true })).toBeVisible();
+    await remote.getByRole('button', { name: 'پس گرفتن جواب' }).click();
+    await expect(remote.getByLabel('جواب درست')).toBeVisible();
+    await page.getByRole('tab', { name: 'تنظیمات' }).click();
+    await page.getByLabel('امتحان صفحه در مرحلهٔ').selectOption('');
+  });
 });

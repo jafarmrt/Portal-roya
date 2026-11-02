@@ -3,7 +3,7 @@ import { Crown, Maximize, Trophy } from 'lucide-react';
 import { Bracket } from './Bracket';
 import { CompetitionBoard } from './Standings';
 import { JuryStrip, countdownText } from './EventParts';
-import { EntryPicture, YALDA, entryName, heroStyle, isReady, performanceLine, scoreLine, sidesLine } from './eventUi';
+import { EntryPicture, PersonAvatar, YALDA, entryName, heroStyle, isReady, performanceLine, scoreLine, sidesLine } from './eventUi';
 import { playChime } from '../../lib/sound';
 import { programStart, rankingTable, timerLeft, type ScreenState } from '../../../shared/specialEvents';
 import { toPersianDigits } from '../../lib/jalali';
@@ -134,6 +134,96 @@ const StageMatch: React.FC<{ view: EventView; competition: EventCompetition | un
         {side(match.entryB, match.scoreB)}
       </div>
       {match.tieA !== null && match.tieB !== null && <p className="text-[2.4vw] font-bold">پنالتی: {scoreLine(match)}</p>}
+      <PredictionLine view={view} competition={competition} matchId={match.id} />
+    </Big>
+  );
+};
+
+/** «پیش‌بینی همکاران»: how the hall picked this match, once picking closed. */
+const PredictionLine: React.FC<{ view: EventView; competition: EventCompetition; matchId: string }> = ({ view, competition, matchId }) => {
+  const counts = view.predictions.matches[matchId]?.counts;
+  if (!counts || counts.total === 0) return null;
+  const match = competition.matches.find((m) => m.id === matchId)!;
+  const pct = (n: number) => toPersianDigits(Math.round((n * 100) / counts.total));
+  const name = (id: string | null) => entryName(competition.entries.find((e) => e.id === id), view.people);
+  return (
+    <p className="text-[1.8vw] opacity-85">
+      🔮 پیش‌بینی {toPersianDigits(counts.total)} همکار: {name(match.entryA)} {pct(counts.a)}٪
+      {competition.format === 'league' && counts.draw > 0 && <> · مساوی {pct(counts.draw)}٪</>} · {name(match.entryB)} {pct(counts.b)}٪
+    </p>
+  );
+};
+
+/** «بهترین پیش‌بین‌ها»: who guessed the most winners. */
+const Predictors: React.FC<{ view: EventView }> = ({ view }) => {
+  const leaders = view.predictions.leaders.slice(0, 8);
+  return (
+    <Big className="justify-start pt-[3vw]">
+      <h2 className="text-[4vw] font-black">🔮 بهترین پیش‌بین‌ها</h2>
+      {leaders.length === 0 ? (
+        <p className="text-[2.4vw] opacity-80">هنوز بازی‌ای که پیش‌بینی شده باشد تمام نشده.</p>
+      ) : (
+        <ol className="w-full max-w-[70vw] space-y-[0.8vw] text-right">
+          {leaders.map((l) => {
+            const person = view.people[l.employeeId];
+            return (
+              <li key={l.employeeId} className="bg-white/10 rounded-[1.4vw] px-[1.6vw] py-[0.8vw] flex items-center gap-[1.4vw] text-[2.2vw]">
+                <span className="w-[4vw] text-center font-black tabular-nums" style={{ color: YALDA.gold }}>
+                  {l.rank <= 3 ? ['🥇', '🥈', '🥉'][l.rank - 1] : toPersianDigits(l.rank)}
+                </span>
+                <PersonAvatar person={person} src={person?.avatarUrl ? fileUrl(person.avatarUrl) : undefined} className="w-[4vw] h-[4vw] rounded-full text-[1.6vw] object-cover" />
+                <span className="flex-1 min-w-0 truncate font-black">{person?.name ?? 'همکار'}</span>
+                <span className="font-bold tabular-nums">
+                  {toPersianDigits(l.correct)} از {toPersianDigits(l.total)}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </Big>
+  );
+};
+
+/** «چند دانه؟»: the question and how many guessed; then the answer and the three closest. */
+const GuessScene: React.FC<{ view: EventView }> = ({ view }) => {
+  const { guess } = view;
+  if (!guess) return <Big><p className="text-[4vw] font-black">بازی «چند دانه؟» امسال نیست.</p></Big>;
+  return (
+    <Big>
+      <h2 className="text-[4.4vw] font-black leading-tight">{guess.question}</h2>
+      {guess.revealed ? (
+        <>
+          <p className="text-[14vw] font-black leading-none tabular-nums" style={{ color: YALDA.gold }}>
+            {toPersianDigits(guess.answer ?? 0)}
+          </p>
+          <ol className="flex flex-wrap justify-center gap-[4vw]">
+            {guess.winners.map((w, i) => {
+              const person = view.people[w.employeeId];
+              return (
+                <li key={w.employeeId} className={`flex flex-col items-center gap-2 ${i === 0 ? '' : 'opacity-85'}`}>
+                  <span className="text-[4vw] leading-none" aria-hidden>
+                    {['🥇', '🥈', '🥉'][i]}
+                  </span>
+                  <PersonAvatar person={person} src={person?.avatarUrl ? fileUrl(person.avatarUrl) : undefined} className={`${i === 0 ? 'w-[12vw] h-[12vw] text-[5vw]' : 'w-[8vw] h-[8vw] text-[3vw]'} rounded-full object-cover`} />
+                  <p className={`${i === 0 ? 'text-[3vw]' : 'text-[2vw]'} font-black`}>{person?.name ?? 'همکار'}</p>
+                  <p className="text-[1.8vw] opacity-80 tabular-nums">
+                    حدس {toPersianDigits(w.value)}
+                    {w.diff === 0 ? ' · دقیق!' : ''}
+                  </p>
+                </li>
+              );
+            })}
+          </ol>
+        </>
+      ) : (
+        <>
+          <p className="text-[12vw] leading-none" aria-hidden>
+            ❓
+          </p>
+          <p className="text-[3vw] font-bold">{toPersianDigits(guess.count)} نفر حدس زده‌اند</p>
+        </>
+      )}
     </Big>
   );
 };
@@ -226,6 +316,10 @@ const Scene: React.FC<{ view: EventView; screen: ScreenState; offset: number; ti
       return <StageMatch view={view} competition={competition} matchId={screen.matchId} />;
     case 'today':
       return <Today view={view} />;
+    case 'predictors':
+      return <Predictors view={view} />;
+    case 'guess':
+      return <GuessScene view={view} />;
     case 'champion':
       return <Champion view={view} competition={screen.competitionId ? competition : undefined} />;
     case 'break':
