@@ -938,6 +938,10 @@ export const specialEvents = pgTable('special_events', {
   screen: jsonb('screen').$type<ScreenState>(),
   // Reminders that went out once («signup», «program»), so they are not sent again.
   sentReminders: text('sent_reminders').array().notNull().default([]),
+  // «انتخاب‌های یلدا»: when the shortlists were made, shown to everyone, and the jury's votes closed.
+  awardsShortlistedAt: timestamp('awards_shortlisted_at', { withTimezone: true }),
+  awardsPublishedAt: timestamp('awards_published_at', { withTimezone: true }),
+  awardsClosedAt: timestamp('awards_closed_at', { withTimezone: true }),
   activatedAt: timestamp('activated_at', { withTimezone: true }),
   createdById: text('created_by_id').references(() => employees.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -1087,3 +1091,83 @@ export const eventScreens = pgTable('event_screens', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** A category of «انتخاب‌های یلدا» (خوش‌تیپ‌ترین…): colleagues nominate, the jury chooses. */
+export const eventAwards = pgTable(
+  'event_awards',
+  {
+    id: text('id').primaryKey(),
+    eventId: text('event_id').notNull().references(() => specialEvents.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    icon: text('icon').notNull().default('🏅'),
+    description: text('description').notNull().default(''),
+    sortOrder: integer('sort_order').notNull().default(0),
+    // Worked out when the votes close; nobody sees it until it is opened on stage (revealedAt).
+    winnerId: text('winner_id').references(() => employees.id, { onDelete: 'set null' }),
+    // A tie the head of the jury has to settle, and the head's pick.
+    tieIds: text('tie_ids').array().notNull().default([]),
+    pickedId: text('picked_id'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    revealedAt: timestamp('revealed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('event_awards_event_idx').on(t.eventId)],
+);
+
+/** One colleague's nomination in a category (one per category, changeable); who nominated is never shown. */
+export const eventNominations = pgTable(
+  'event_nominations',
+  {
+    id: text('id').primaryKey(),
+    awardId: text('award_id').notNull().references(() => eventAwards.id, { onDelete: 'cascade' }),
+    nominatorId: text('nominator_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    nomineeId: text('nominee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    // A line for the jury only; the jury hides one that is not kind.
+    reason: text('reason').notNull().default(''),
+    hidden: boolean('hidden').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('event_nominations_award_nominator_idx').on(t.awardId, t.nominatorId), index('event_nominations_nominee_idx').on(t.awardId, t.nomineeId)],
+);
+
+/** The shortlist of a category: the most nominated, or added by the jury; kept when removed or stepped down. */
+export const eventNominees = pgTable(
+  'event_nominees',
+  {
+    awardId: text('award_id').notNull().references(() => eventAwards.id, { onDelete: 'cascade' }),
+    employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    source: text('source').$type<'auto' | 'jury'>().notNull().default('auto'),
+    rank: integer('rank').notNull().default(0),
+    addedById: text('added_by_id'),
+    note: text('note').notNull().default(''),
+    // Stepped down (or asked to be left out of nominations), or taken off by the jury with a reason.
+    withdrawn: boolean('withdrawn').notNull().default(false),
+    removedById: text('removed_by_id'),
+    removedReason: text('removed_reason').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.awardId, t.employeeId] })],
+);
+
+/** A juror's secret vote in a category (changeable until the votes close). */
+export const eventAwardVotes = pgTable(
+  'event_award_votes',
+  {
+    awardId: text('award_id').notNull().references(() => eventAwards.id, { onDelete: 'cascade' }),
+    jurorId: text('juror_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    nomineeId: text('nominee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.awardId, t.jurorId] })],
+);
+
+/** Colleagues who asked not to be put in any category of an event. */
+export const eventAwardOptOuts = pgTable(
+  'event_award_opt_outs',
+  {
+    eventId: text('event_id').notNull().references(() => specialEvents.id, { onDelete: 'cascade' }),
+    employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.eventId, t.employeeId] })],
+);

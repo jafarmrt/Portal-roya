@@ -63,6 +63,7 @@ import { HttpError, currentUser, newId, parse, route, viewerOf } from '../http.j
 import { audienceIds, createNotifications } from '../notify.js';
 import { fullName } from '../serializers.js';
 import { guestSettings } from '../settings.js';
+import { awardsView, processAwards } from './eventAwards.js';
 
 // «رویداد ویژه»: the page of a company occasion (Yalda night). Who may do what:
 // - those with «مدیریت رویدادهای ویژه» create the event, set its dates, organizers and jury, and switch it on;
@@ -73,17 +74,17 @@ import { guestSettings } from '../settings.js';
 
 export const specialEventsRouter = Router();
 
-type EventRow = typeof specialEvents.$inferSelect;
+export type EventRow = typeof specialEvents.$inferSelect;
 type CompetitionRow = typeof eventCompetitions.$inferSelect;
 type EntryRow = typeof eventEntries.$inferSelect;
 type MatchRow = typeof eventMatches.$inferSelect;
-type Viewer = Pick<SessionUser, 'id' | 'role' | 'permissions'> | null;
+export type Viewer = Pick<SessionUser, 'id' | 'role' | 'permissions'> | null;
 
-const NOTIFY = { type: 'event' as const, linkTab: 'event' };
+export const NOTIFY = { type: 'event' as const, linkTab: 'event' };
 
 // ─── Who the viewer is to an event ───────────────────────────────────────────
 
-function rolesOf(ev: EventRow, viewer: Viewer) {
+export function rolesOf(ev: EventRow, viewer: Viewer) {
   const canManage = Boolean(viewer && can(viewer, 'events.manage'));
   const isOrganizer = Boolean(viewer && (canManage || ev.organizerIds.includes(viewer.id)));
   const isJuror = Boolean(viewer && ev.juryIds.includes(viewer.id));
@@ -93,7 +94,7 @@ function rolesOf(ev: EventRow, viewer: Viewer) {
 }
 
 /** The phase the page shows: a draft may be looked at as another phase during the rehearsal. */
-const phaseOf = (ev: EventRow, now = new Date()): EventPhase =>
+export const phaseOf = (ev: EventRow, now = new Date()): EventPhase =>
   ev.status === 'draft' && ev.testPhase ? ev.testPhase : eventPhase(ev, now);
 
 function visibleTo(ev: EventRow, viewer: Viewer, now = new Date()) {
@@ -112,7 +113,7 @@ async function currentEventFor(viewer: Viewer) {
   return open.at(-1) ?? visible[0] ?? null;
 }
 
-async function eventOf(id: string) {
+export async function eventOf(id: string) {
   const [ev] = await db.select().from(specialEvents).where(eq(specialEvents.id, id));
   if (!ev) throw new HttpError(404, 'این رویداد پیدا نشد.');
   return ev;
@@ -128,7 +129,7 @@ function requireManager(viewer: SessionUser) {
   if (!can(viewer, 'events.manage')) throw new HttpError(403, 'ساختن و تنظیم رویداد با مدیر پرتال است.');
 }
 
-function requireOrganizer(ev: EventRow, viewer: SessionUser) {
+export function requireOrganizer(ev: EventRow, viewer: SessionUser) {
   if (!rolesOf(ev, viewer).isOrganizer) throw new HttpError(403, 'این کار با برگزارکنندگان رویداد است.');
 }
 
@@ -137,19 +138,19 @@ function requireReferee(ev: EventRow, viewer: SessionUser) {
 }
 
 /** Everyone who should see a change at once: the whole portal for a public event, else its organizers and jury. */
-function announceChange(ev: EventRow) {
+export function announceChange(ev: EventRow) {
   if (ev.status === 'active') broadcastChange('special_event');
   else for (const id of new Set([...ev.organizerIds, ...ev.juryIds])) signalUser(id, 'special_event');
   // Those who manage events see drafts too; they get the whole-portal signal only when it is public.
 }
 
-async function logAction(ev: EventRow, by: string | null, action: string, detail = '', matchId: string | null = null) {
+export async function logAction(ev: EventRow, by: string | null, action: string, detail = '', matchId: string | null = null) {
   await db.insert(eventLog).values({ eventId: ev.id, byId: by, action, detail, matchId });
 }
 
 // ─── Reading an event ────────────────────────────────────────────────────────
 
-interface Person {
+export interface Person {
   id: string;
   name: string;
   firstName: string;
@@ -159,7 +160,7 @@ interface Person {
   position: string;
 }
 
-async function peopleById(ids: Iterable<string>) {
+export async function peopleById(ids: Iterable<string>) {
   const list = [...new Set(ids)].filter(Boolean);
   if (list.length === 0) return {} as Record<string, Person>;
   const rows = await db
@@ -252,7 +253,7 @@ function timeClashes(
   return warnings;
 }
 
-async function eventView(ev: EventRow, viewer: Viewer) {
+export async function eventView(ev: EventRow, viewer: Viewer) {
   const now = new Date();
   const roles = rolesOf(ev, viewer);
   const phase = phaseOf(ev, now);
@@ -272,7 +273,9 @@ async function eventView(ev: EventRow, viewer: Viewer) {
     ? await db.select().from(eventLog).where(eq(eventLog.eventId, ev.id)).orderBy(desc(eventLog.id)).limit(80)
     : [];
 
+  const awardsPart = await awardsView(ev, viewer);
   const people = await peopleById([
+    ...awardsPart.peopleIds,
     ...ev.juryIds,
     ...ev.organizerIds,
     ...members.map((m) => m.employeeId),
@@ -373,6 +376,8 @@ async function eventView(ev: EventRow, viewer: Viewer) {
     })),
     warnings,
     log: log.map((l) => ({ id: l.id, matchId: l.matchId, byId: l.byId, action: l.action, detail: l.detail, createdAt: l.createdAt.toISOString() })),
+    awards: awardsPart.awards,
+    awardsInfo: awardsPart.awardsInfo,
     serverNow: now.toISOString(),
   };
 }
@@ -1617,7 +1622,7 @@ function signupReminderDay(signupEnd: string) {
   return day;
 }
 
-async function claimReminder(ev: EventRow, key: string) {
+export async function claimReminder(ev: EventRow, key: string) {
   if (ev.sentReminders.includes(key)) return false;
   const [row] = await db.select({ sent: specialEvents.sentReminders }).from(specialEvents).where(eq(specialEvents.id, ev.id));
   if (!row || row.sent.includes(key)) return false;
@@ -1636,6 +1641,7 @@ export async function processSpecialEvents(now = new Date()) {
   for (const ev of events) {
     const phase = eventPhase(ev, now);
     if (phase === 'ended') continue;
+    await processAwards(ev, now);
     const today = toJalali(now);
     const hour = now.getHours();
 

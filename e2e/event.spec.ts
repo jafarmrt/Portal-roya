@@ -67,5 +67,31 @@ test.describe('special event', () => {
     await page.getByRole('tab', { name: 'مسابقه‌ها' }).click();
     await expect(card.getByText('قهرمان', { exact: true })).toBeVisible();
     await tv.close();
+
+    // «انتخاب‌های یلدا»: a category, a nomination, the shortlist, the vote (organizers vote without a jury)
+    // and the winner opened on stage.
+    await page.getByRole('button', { name: 'بخش تازه' }).click();
+    const awardForm = page.getByRole('dialog', { name: 'بخش تازهٔ انتخاب‌ها' });
+    await awardForm.getByLabel('نام بخش').fill('خوش‌تیپ‌ترین');
+    await awardForm.getByRole('button', { name: 'ذخیره' }).click();
+    await expect(awardForm).toBeHidden();
+    const award = page.getByRole('article', { name: 'خوش‌تیپ‌ترین' });
+    await award.getByRole('button', { name: 'معرفی نامزد' }).click();
+    const nominate = page.getByRole('dialog', { name: /خوش‌تیپ‌ترین/ });
+    await nominate.getByLabel(/همکار/).fill('سارا');
+    await nominate.getByRole('button', { name: /سارا احمدی/ }).click();
+    await nominate.getByLabel(/یک جمله برای داوران/).fill('همیشه مرتب');
+    await nominate.getByRole('button', { name: 'ثبت معرفی' }).click();
+    await expect(award).toContainText('معرفی شما: سارا احمدی');
+
+    await page.getByRole('button', { name: 'ساختن فهرست نامزدها الان' }).click();
+    await expect(award).toContainText('«همیشه مرتب»');
+    await page.getByRole('button', { name: 'انتشار فهرست الان' }).click();
+    await award.getByRole('button', { name: 'انتخاب' }).click();
+    await expect(award.getByRole('button', { name: 'رأی من' })).toBeVisible();
+    await page.getByRole('button', { name: 'بستن رأی‌گیری الان' }).click();
+    await award.getByRole('button', { name: 'اعلام برنده' }).click();
+    await expect(award).toContainText('برنده');
+    await expect(award).toContainText('سارا احمدی');
   });
 });

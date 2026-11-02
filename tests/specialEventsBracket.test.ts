@@ -3,6 +3,7 @@ import {
   type BracketMatch,
   bracketSize,
   championOf,
+  countAwards,
   datesProblem,
   eventPhase,
   firstRoundPairs,
@@ -129,5 +130,35 @@ describe('the dates and jury of a special event', () => {
     expect(juryProblem(['a', 'b', 'c'], 'x')).toBeTruthy();
     expect(juryProblem(['a', 'b', 'c'], 'b')).toBeNull();
     expect(juryProblem(['a', 'b', 'c', 'd', 'e'], 'e')).toBeNull();
+  });
+});
+
+describe('countAwards: the winners of «انتخاب‌های یلدا»', () => {
+  const award = (id: string, nominees: string[], votes: Record<string, string>, picked: string | null = null) => ({ id, nominees, votes, picked });
+
+  it('gives each category to the most votes, one title per colleague', () => {
+    const out = countAwards(
+      [award('a', ['sara', 'reza'], { j1: 'sara', j2: 'sara', j3: 'reza' }), award('b', ['sara', 'mina'], { j1: 'sara', j2: 'sara', j3: 'mina' })],
+      'j1',
+    );
+    expect(out).toEqual([
+      { id: 'a', winner: 'sara', tie: [], waiting: false },
+      { id: 'b', winner: 'mina', tie: [], waiting: false },
+    ]);
+  });
+
+  it('lets the head of the jury break a tie with their vote, or asks them, holding back later categories', () => {
+    expect(countAwards([award('a', ['x', 'y'], { j1: 'y', j2: 'x' })], 'j1')[0].winner).toBe('y');
+    const asked = countAwards([award('a', ['x', 'y', 'z'], { j2: 'x', j3: 'y' }), award('b', ['x'], { j1: 'x' })], 'j1');
+    expect(asked).toEqual([
+      { id: 'a', winner: null, tie: ['x', 'y'], waiting: false },
+      { id: 'b', winner: null, tie: [], waiting: true },
+    ]);
+    const settled = countAwards([award('a', ['x', 'y', 'z'], { j2: 'x', j3: 'y' }, 'x'), award('b', ['x', 'q'], { j1: 'x' })], 'j1');
+    expect(settled.map((o) => o.winner)).toEqual(['x', 'q']);
+  });
+
+  it('leaves a category without a winner when everyone on it already won', () => {
+    expect(countAwards([award('a', ['x'], {}), award('b', ['x'], { j1: 'x' })], 'j1')[1]).toEqual({ id: 'b', winner: null, tie: [], waiting: false });
   });
 });

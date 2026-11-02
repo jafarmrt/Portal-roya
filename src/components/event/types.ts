@@ -1,4 +1,5 @@
 import type {
+  AwardStage,
   EntryKind,
   EventPhase,
   EventStatus,
@@ -135,6 +136,49 @@ export interface EventRoles {
   referee: boolean;
 }
 
+export interface AwardNominee {
+  id: string;
+  /** For organizers and jurors only. */
+  source?: 'auto' | 'jury';
+  note?: string;
+  withdrawn?: boolean;
+  removed?: boolean;
+  removedReason?: string;
+  /** The nominators' lines, without names (for those who vote). */
+  reasons: { id: string; text: string; hidden: boolean }[];
+}
+
+export interface EventAward {
+  id: string;
+  title: string;
+  icon: string;
+  description: string;
+  sortOrder: number;
+  stage: AwardStage;
+  myNomination: { nomineeId: string; reason: string } | null;
+  nominees: AwardNominee[];
+  myVote: string | null;
+  votedCount: number | null;
+  tie: string[];
+  decided: boolean;
+  noWinner: boolean;
+  winnerId: string | null;
+}
+
+export interface AwardsInfo {
+  shortlistAt: string;
+  publishAt: string;
+  voteDeadline: string;
+  shortlistedAt: string | null;
+  publishedAt: string | null;
+  closedAt: string | null;
+  optedOut: boolean;
+  voters: number;
+  canStepDown: boolean;
+  votes: boolean;
+  onShortlist: string[];
+}
+
 export interface EventView {
   event: EventInfo;
   me: EventRoles;
@@ -143,6 +187,8 @@ export interface EventView {
   objections: EventObjection[];
   warnings: string[];
   log: EventLogItem[];
+  awards: EventAward[];
+  awardsInfo: AwardsInfo;
   serverNow: string;
 }
 

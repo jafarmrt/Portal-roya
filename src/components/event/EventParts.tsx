@@ -65,12 +65,28 @@ function nowLines(view: EventView, userId: string | undefined, isGuest: boolean)
     const due = view.competitions.flatMap((c) => c.matches.filter((m) => m.entryA && m.entryB && !m.winnerId && !m.bye && m.day === event.programDate && !m.onStage));
     if (due.length > 0) lines.push({ text: `${toPersianDigits(due.length)} بازی روز امروز هنوز نتیجه ندارد؛ نتیجه‌ها را از «میز برگزارکننده» ثبت کنید.`, target: 'console' });
   }
+  // «انتخاب‌های یلدا»: the head settles a tie, jurors vote, a shortlisted colleague may step down, everyone nominates.
+  const { awards, awardsInfo } = view;
+  if (awards.some((a) => a.tie.length > 0)) lines.push({ text: 'رأی‌های یکی از بخش‌های انتخاب‌ها مساوی شد؛ انتخاب برنده با شماست.', target: 'awards' });
+  if (awardsInfo.votes && awardsInfo.publishedAt && !awardsInfo.closedAt) {
+    const left = awards.filter((a) => !a.myVote && a.nominees.some((n) => !n.withdrawn && !n.removed)).length;
+    if (left > 0) lines.push({ text: `در ${toPersianDigits(left)} بخش انتخاب‌ها هنوز رأی نداده‌اید.`, target: 'awards' });
+  }
+  if (awardsInfo.canStepDown && awardsInfo.onShortlist.length > 0) {
+    lines.push({ text: 'شما در انتخاب‌های یلدا نامزد شده‌اید 🎉 اگر نمی‌خواهید، تا انتشار فهرست انصراف دهید.', target: 'awards' });
+  }
+  if (phase === 'signup' && !awardsInfo.shortlistedAt && !(userId && event.juryIds.includes(userId))) {
+    const left = awards.filter((a) => !a.myNomination).length;
+    if (left > 0) lines.push({ text: `در ${toPersianDigits(left)} بخش «انتخاب‌ها» هنوز کسی را معرفی نکرده‌اید.`, target: 'awards' });
+  }
+
   if (userId && event.juryIds.includes(userId)) {
     lines.push({ text: 'شما داور رویداد هستید: نتیجه‌ها، اصلاح‌ها و اعتراض‌ها با هیئت داوران است و در هیچ مسابقه‌ای شرکت نمی‌کنید.' });
     return lines;
   }
 
   if (phase === 'signup') {
+    const before = lines.length;
     if (mine.size === 0) {
       lines.push({ text: `در مسابقه‌ها ثبت‌نام کنید؛ تنها یا با تیم. ثبت‌نام تا پایان ${toPersianDigits(event.signupEnd)} باز است.`, target: view.competitions[0]?.id });
     } else {
@@ -81,7 +97,7 @@ function nowLines(view: EventView, userId: string | undefined, isGuest: boolean)
         else if (c.kind === 'team' && entry.members.length < c.teamMin)
           lines.push({ text: `تیم «${entry.name}» در «${c.title}» ${toPersianDigits(c.teamMin - entry.members.length)} نفر کم دارد؛ هم‌تیمی اضافه کنید.`, target: c.id });
       }
-      if (lines.length === 0) lines.push({ text: `ثبت‌نام شما در ${toPersianDigits(mine.size)} مسابقه قطعی است. بعد از ${toPersianDigits(event.signupEnd)} قرعه کشیده می‌شود.` });
+      if (lines.length === before) lines.push({ text: `ثبت‌نام شما در ${toPersianDigits(mine.size)} مسابقه قطعی است. بعد از ${toPersianDigits(event.signupEnd)} قرعه کشیده می‌شود.` });
     }
     return lines;
   }
