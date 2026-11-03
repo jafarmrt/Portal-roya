@@ -43,7 +43,7 @@ export const MyCelebrationCard: React.FC = () => {
           <section
             key={occasion}
             aria-label={isBirthday ? 'تبریک تولد شما' : 'تبریک سالگرد همکاری شما'}
-            className="bg-gradient-to-l from-gold-soft via-warm-soft to-orange-100 rounded-3xl p-5 sm:p-6 text-ink border border-gold/40 shadow-card relative overflow-hidden"
+            className="bg-gradient-to-l from-gold-soft via-warm-soft to-surface-soft rounded-3xl p-5 sm:p-6 text-ink border border-gold/40 shadow-card relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/50 rounded-full blur-2xl -mr-10 -mt-10" />
             <div className="absolute bottom-0 left-0 w-24 h-24 bg-gold/20 rounded-full blur-xl -ml-5 -mb-5" />

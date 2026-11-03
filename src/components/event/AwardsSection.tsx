@@ -267,7 +267,7 @@ const AwardCard: React.FC<{ view: EventView; award: EventAward }> = ({ view, awa
               onClick={() => {
                 if (window.confirm(`بخش «${award.title}» با همهٔ معرفی‌هایش حذف شود؟`)) void run(() => api.delete(`/api/event_awards/${award.id}`), 'حذف شد.');
               }}
-              className="p-2 rounded-xl hover:bg-red-50 text-red-700"
+              className="p-2 rounded-xl hover:bg-danger-50 text-danger-700"
               aria-label={`حذف ${award.title}`}
             >
               <Trash2 className="w-4 h-4" />
@@ -303,7 +303,7 @@ const AwardCard: React.FC<{ view: EventView; award: EventAward }> = ({ view, awa
               <button
                 type="button"
                 onClick={() => void run(() => api.delete(`/api/event_awards/${award.id}/nomination`), 'معرفی شما برداشته شد.')}
-                className="p-2 rounded-xl hover:bg-red-50 text-red-700"
+                className="p-2 rounded-xl hover:bg-danger-50 text-danger-700"
                 aria-label="برداشتن معرفی من"
               >
                 <Trash2 className="w-4 h-4" />

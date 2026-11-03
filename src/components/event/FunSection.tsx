@@ -145,7 +145,7 @@ const SongsSection: React.FC<{ view: EventView }> = ({ view }) => {
                       onClick={() => {
                         if (window.confirm(`«${s.title}» از فهرست حذف شود؟`)) void run(() => api.delete(`/api/event_songs/${s.id}`), 'حذف شد.');
                       }}
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-700"
+                      className="p-1.5 rounded-lg hover:bg-danger-50 text-danger-700"
                       aria-label={`حذف ${s.title}`}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -223,7 +223,7 @@ const IdeaItem: React.FC<{ view: EventView; idea: EventIdea; open: boolean }> = 
             onClick={() => {
               if (window.confirm('این ایده حذف شود؟')) void run(() => api.delete(`/api/event_ideas/${idea.id}`), 'حذف شد.');
             }}
-            className="p-1.5 rounded-lg hover:bg-red-50 text-red-700 shrink-0"
+            className="p-1.5 rounded-lg hover:bg-danger-50 text-danger-700 shrink-0"
             aria-label="حذف ایده"
           >
             <Trash2 className="w-3.5 h-3.5" />

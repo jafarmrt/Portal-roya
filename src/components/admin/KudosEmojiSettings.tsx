@@ -61,7 +61,7 @@ export const KudosEmojiSettings: React.FC<{ settings: AppSettings }> = ({ settin
               onClick={() => setList((l) => l.filter((_, j) => j !== i))}
               disabled={list.length <= 1}
               aria-label={`حذف ${e.label || 'ایموجی'}`}
-              className="p-2 rounded-xl text-faint hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
+              className="p-2 rounded-xl text-faint hover:bg-danger-50 hover:text-danger-700 disabled:opacity-40"
             >
               <Trash2 className="w-4 h-4" />
             </button>

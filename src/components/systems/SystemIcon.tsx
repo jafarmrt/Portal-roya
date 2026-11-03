@@ -16,6 +16,10 @@ const sizes = {
   lg: { box: 'w-16 h-16 rounded-2xl', icon: 'w-8 h-8' },
 };
 
+/** An app an admin coloured "red" stays red when a colleague picks another portal colour
+ * (the standard red follows the personal colour; see index.css). Classes: bg-danger-50 text-danger-700. */
+const fixedRed = (cls: string) => cls.replace(/\bred-(\d+)/g, 'danger-$1');
+
 /** The app's uploaded logo when it has one, otherwise its coloured icon. Falls back to the icon if the image fails to load. */
 export const SystemIcon: React.FC<{ system: ExternalSystem; size?: keyof typeof sizes; className?: string }> = ({ system, size = 'md', className = '' }) => {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
@@ -32,7 +36,7 @@ export const SystemIcon: React.FC<{ system: ExternalSystem; size?: keyof typeof 
 
   const Icon = iconMap[system.iconName] || Settings;
   return (
-    <span className={`${s.box} shrink-0 flex items-center justify-center ${system.bgColor} ${system.textColor} ${className}`}>
+    <span className={`${s.box} shrink-0 flex items-center justify-center ${fixedRed(system.bgColor)} ${fixedRed(system.textColor)} ${className}`}>
       <Icon className={s.icon} />
     </span>
   );

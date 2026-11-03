@@ -263,7 +263,7 @@ const ArchiveView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           </p>
         </div>
         {items && items.length > 0 && (
-          <button type="button" onClick={() => void emptyArchive()} className="tap-area text-xs font-bold text-red-700 hover:underline flex items-center gap-1">
+          <button type="button" onClick={() => void emptyArchive()} className="tap-area text-xs font-bold text-danger-700 hover:underline flex items-center gap-1">
             <Trash2 className="w-3.5 h-3.5" /> خالی کردن آرشیو
           </button>
         )}
@@ -425,7 +425,7 @@ const NoteRow: React.FC<{ todo: PersonalTodo; onEdit?: () => void; archived: boo
               <button type="button" onClick={() => void restore()} aria-label={`برگرداندن ${todo.title} از آرشیو`} title="برگرداندن به صفحهٔ یادداشت‌ها" className={iconButton}>
                 <ArchiveRestore className="w-4 h-4" />
               </button>
-              <button type="button" onClick={() => void remove()} aria-label={`پاک کردن ${todo.title}`} title="پاک کردن برای همیشه" className={`${iconButton} hover:text-red-700`}>
+              <button type="button" onClick={() => void remove()} aria-label={`پاک کردن ${todo.title}`} title="پاک کردن برای همیشه" className={`${iconButton} hover:text-danger-700`}>
                 <Trash2 className="w-4 h-4" />
               </button>
             </>

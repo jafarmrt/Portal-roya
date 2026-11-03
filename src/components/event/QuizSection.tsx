@@ -208,7 +208,7 @@ export const QuizEditor: React.FC<{ view: EventView }> = ({ view }) => {
                   ثانیه‌های سؤال {toPersianDigits(i + 1)}
                 </label>
                 <input id={`${id}-s${i}`} className={`${inputClass} w-16 text-center`} inputMode="numeric" title="ثانیه" value={d.seconds} onChange={(e) => change(i, { seconds: e.target.value })} />
-                <button type="button" onClick={() => setDrafts(drafts.filter((_, j) => j !== i))} className="p-2 text-muted hover:text-red-700" aria-label={`حذف سؤال ${toPersianDigits(i + 1)}`}>
+                <button type="button" onClick={() => setDrafts(drafts.filter((_, j) => j !== i))} className="p-2 text-muted hover:text-danger-700" aria-label={`حذف سؤال ${toPersianDigits(i + 1)}`}>
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>

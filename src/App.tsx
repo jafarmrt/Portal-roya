@@ -55,7 +55,7 @@ const FullScreenLoader: React.FC<{ text: string }> = ({ text }) => (
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
   <div className="min-h-screen bg-page flex flex-col items-center justify-center p-6">
-    <div role="alert" className="bg-white p-8 rounded-3xl shadow-sm border border-red-300 max-w-md w-full text-center space-y-4">
+    <div role="alert" className="bg-white p-8 rounded-3xl shadow-sm border border-danger-300 max-w-md w-full text-center space-y-4">
       <div className="w-12 h-12 bg-brand-soft text-brand rounded-2xl flex items-center justify-center mx-auto">
         <AlertCircle className="w-6 h-6" />
       </div>

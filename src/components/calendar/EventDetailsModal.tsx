@@ -193,7 +193,7 @@ export const EventDetailsModal: React.FC<{ event: CalendarEvent; onClose: () => 
             </button>
           )}
           {isManager && (
-            <button type="button" onClick={remove} className={`${linkClass} text-red-700`}>
+            <button type="button" onClick={remove} className={`${linkClass} text-danger-700`}>
               <Trash2 className="w-4 h-4" /> حذف این رویداد
             </button>
           )}

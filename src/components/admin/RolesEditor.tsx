@@ -83,7 +83,7 @@ const RoleCard: React.FC<{ role: RoleInfo }> = ({ role }) => {
               await deleteRole(role.id);
               setBusy(false);
             }}
-            className="flex items-center gap-1 text-xs font-bold text-red-700 disabled:opacity-40"
+            className="flex items-center gap-1 text-xs font-bold text-danger-700 disabled:opacity-40"
           >
             <Trash2 className="w-3.5 h-3.5" /> حذف
           </button>

@@ -369,7 +369,7 @@ export const FeatureSettings: React.FC = () => {
         هر بخش را تا روز معرفی پنهان نگه دارید یا اول با گروه آزمایشی امتحان کنید. بخش پنهان از منو، داشبورد، جست‌وجو و اعلان‌ها برداشته می‌شود و با نوشتن
         نشانی‌اش هم باز نمی‌شود؛ داده‌هایش پاک نمی‌شود و با روشن کردن دوباره برمی‌گردد.
       </p>
-      {error && <p role="alert" className="text-xs text-red-700 font-bold">{error}</p>}
+      {error && <p role="alert" className="text-xs text-danger-700 font-bold">{error}</p>}
       {data && (
         <>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">

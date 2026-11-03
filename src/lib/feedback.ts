@@ -26,7 +26,7 @@ export function pop(el: Element | null | undefined) {
   el.classList.add('pop');
 }
 
-const COLOURS = ['#DC2626', '#E9C46A', '#D97B5F', '#9BB088', '#F87171', '#FBBF24'];
+const COLOURS = ['#DC2626', '#E9C46A', '#A14478', '#9BB088', '#F87171', '#FBBF24'];
 
 /** A small burst of paper around an element, on computers only. */
 export function confettiFrom(el: Element | null | undefined, pieces = 18) {

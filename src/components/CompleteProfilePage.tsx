@@ -68,7 +68,7 @@ export const CompleteProfilePage: React.FC = () => {
               نام «{firstName} {lastName}» از قبل در دفتر تلفن پرتال هست. اگر خودتان هستید انتخابش کنید تا حساب شما به همان ردیف وصل شود و ردیف تکراری ساخته نشود.
             </p>
           </div>
-          {error && <div role="alert" className="p-3 bg-red-50 text-red-800 text-xs font-bold rounded-xl border border-red-200">{error}</div>}
+          {error && <div role="alert" className="p-3 bg-danger-50 text-danger-800 text-xs font-bold rounded-xl border border-danger-200">{error}</div>}
           <div className="space-y-2">
             {matches.map((m) => (
               <button key={m.id} type="button" disabled={busy} onClick={() => void save(m.id)} className="w-full text-right p-3 rounded-2xl border border-line hover:border-red-700 hover:bg-red-50/40 disabled:opacity-60">
@@ -102,7 +102,7 @@ export const CompleteProfilePage: React.FC = () => {
           </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div role="alert" className="p-3 bg-red-50 text-red-800 text-xs font-bold rounded-xl border border-red-200">{error}</div>}
+          {error && <div role="alert" className="p-3 bg-danger-50 text-danger-800 text-xs font-bold rounded-xl border border-danger-200">{error}</div>}
           {gaps.names && (
             <>
               <div>

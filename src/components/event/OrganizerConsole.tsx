@@ -269,7 +269,7 @@ export const OrganizerConsole: React.FC<{ view: EventView }> = ({ view }) => {
 
       <section className={card} id="event-objections">
         <h2 className="text-sm font-black text-ink flex items-center gap-1.5">
-          <MessageSquareWarning className="w-4 h-4 text-red-700" /> اعتراض‌ها
+          <MessageSquareWarning className="w-4 h-4 text-danger-700" /> اعتراض‌ها
         </h2>
         {objections.length === 0 ? (
           <p className="text-xs text-muted mt-2">اعتراضی نرسیده است.</p>

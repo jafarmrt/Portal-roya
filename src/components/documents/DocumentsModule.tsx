@@ -37,7 +37,7 @@ type Filter = 'all' | 'mine' | 'mandatory' | 'review';
 type Dialog = { kind: 'edit' | 'version' | 'review' | 'history' | 'receipts' | 'delete'; doc: PortalDocument };
 
 const smallButton = (alert = false) =>
-  `flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border bg-white ${alert ? 'border-red-300 text-red-800 hover:border-red-500' : 'border-line hover:border-red-300'}`;
+  `flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border bg-white ${alert ? 'border-danger-300 text-danger-800 hover:border-danger-500' : 'border-line hover:border-red-300'}`;
 
 const DocumentCard: React.FC<{ doc: PortalDocument; focused: boolean; open: (kind: Dialog['kind']) => void }> = ({ doc, focused, open }) => {
   const { can, currentUser, roleName, acknowledgeDocument } = usePortal();
@@ -97,7 +97,7 @@ const DocumentCard: React.FC<{ doc: PortalDocument; focused: boolean; open: (kin
               <button onClick={() => open('edit')} className="p-2 rounded-xl text-ink hover:bg-surface" aria-label={`ویرایش ${doc.title}`} title="ویرایش مشخصات">
                 <Pencil className="w-4 h-4" />
               </button>
-              <button onClick={() => open('delete')} className="p-2 rounded-xl text-red-700 hover:bg-red-50" aria-label={`حذف ${doc.title}`} title="حذف سند">
+              <button onClick={() => open('delete')} className="p-2 rounded-xl text-danger-700 hover:bg-danger-50" aria-label={`حذف ${doc.title}`} title="حذف سند">
                 <Trash2 className="w-4 h-4" />
               </button>
             </>

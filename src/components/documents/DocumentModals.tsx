@@ -18,7 +18,7 @@ const ChosenFile: React.FC<{ file: UploadedFile; onClear: () => void }> = ({ fil
   <div className="flex items-center justify-between gap-2 p-2.5 bg-surface rounded-xl">
     <span className="truncate">{file.name}</span>
     <span className="text-xs text-faint whitespace-nowrap">{formatFileSize(file.size)}</span>
-    <button type="button" onClick={onClear} aria-label="حذف فایل" className="text-red-700"><Trash2 className="w-4 h-4" /></button>
+    <button type="button" onClick={onClear} aria-label="حذف فایل" className="text-danger-700"><Trash2 className="w-4 h-4" /></button>
   </div>
 );
 
@@ -305,7 +305,7 @@ export const VersionsModal: React.FC<{ doc: PortalDocument; onClose: () => void 
 
   return (
     <Modal title="تاریخچهٔ نسخه‌ها" subtitle={doc.title} icon={<History className="w-5 h-5" />} onClose={onClose} size="md">
-      {error && <p role="alert" className="text-red-700 font-bold">{error}</p>}
+      {error && <p role="alert" className="text-danger-700 font-bold">{error}</p>}
       {!versions && !error && <p>در حال دریافت...</p>}
       {versions && (
         <ol className="space-y-2">

@@ -65,15 +65,15 @@ export const MoodReport: React.FC = () => {
         }
       />
       {loadError ? (
-        <p role="alert" className="text-xs text-red-700">{loadError}</p>
+        <p role="alert" className="text-xs text-danger-700">{loadError}</p>
       ) : (
         <div className="h-64 w-full" dir="ltr">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#6e6a60' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: '#6e6a60' }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#62656d' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 12, fill: '#62656d' }} axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip
-                cursor={{ fill: '#f5f2ed' }}
+                cursor={{ fill: '#eef0f2' }}
                 formatter={(value) => [toPersianDigits(String(value)), 'تعداد']}
                 contentStyle={{ borderRadius: '12px', border: '1px solid #e5e5e5', fontSize: '12px', textAlign: 'right' }}
               />

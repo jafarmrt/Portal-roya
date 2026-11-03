@@ -190,7 +190,7 @@ export const KidRemote: React.FC<{ view: EventView }> = ({ view }) => {
                 </button>
               )}
               {me.isOrganizer && (
-                <button type="button" onClick={() => remove(p.id)} className="p-1.5 text-muted hover:text-red-700" aria-label={`پاک کردن عکس ${view.people[p.employeeId]?.name ?? 'همکار'}`}>
+                <button type="button" onClick={() => remove(p.id)} className="p-1.5 text-muted hover:text-danger-700" aria-label={`پاک کردن عکس ${view.people[p.employeeId]?.name ?? 'همکار'}`}>
                   <Trash2 className="w-4 h-4" />
                 </button>
               )}

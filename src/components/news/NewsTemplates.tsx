@@ -65,11 +65,11 @@ export const TemplatePicker: React.FC<{ onPick: (template: NewsTemplate) => void
             <span key={t.id} className="inline-flex items-center gap-1 pr-3 pl-1 py-1 rounded-xl bg-white border border-line-strong text-xs font-bold">
               {t.name}
               {confirmId === t.id ? (
-                <button type="button" onClick={() => remove(t)} className="px-2 py-0.5 rounded-lg bg-red-700 text-white text-xs">
+                <button type="button" onClick={() => remove(t)} className="px-2 py-0.5 rounded-lg bg-danger-700 text-white text-xs">
                   حذف شود
                 </button>
               ) : (
-                <button type="button" onClick={() => setConfirmId(t.id)} aria-label={`حذف قالب ${t.name}`} className="p-0.5 text-faint hover:text-red-700">
+                <button type="button" onClick={() => setConfirmId(t.id)} aria-label={`حذف قالب ${t.name}`} className="p-0.5 text-faint hover:text-danger-700">
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}

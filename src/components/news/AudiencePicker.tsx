@@ -130,7 +130,7 @@ export const AudiencePicker: React.FC<{ value: Audience; onChange: (next: Audien
                   return (
                     <span key={id} className="flex items-center gap-1 pr-3 pl-1 py-1 rounded-xl bg-white border border-line-strong font-bold">
                       {p ? `${p.firstName} ${p.lastName}` : 'همکار غیرفعال'}
-                      <button type="button" aria-label={`حذف ${p ? `${p.firstName} ${p.lastName}` : 'همکار'}`} onClick={() => set('userIds', value.userIds.filter((u) => u !== id))} className="p-0.5 text-faint hover:text-red-700">
+                      <button type="button" aria-label={`حذف ${p ? `${p.firstName} ${p.lastName}` : 'همکار'}`} onClick={() => set('userIds', value.userIds.filter((u) => u !== id))} className="p-0.5 text-faint hover:text-danger-700">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </span>

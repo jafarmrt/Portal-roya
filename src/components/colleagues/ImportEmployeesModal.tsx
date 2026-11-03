@@ -242,7 +242,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
             </table>
           </div>
           {result.skipped.length > 0 && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-2xl text-red-800 space-y-1">
+            <div className="p-3 bg-danger-50 border border-danger-200 rounded-2xl text-danger-800 space-y-1">
               <p className="font-bold">{toPersianDigits(result.skipped.length)} ردیف ثبت نشد:</p>
               {result.skipped.map((s) => <p key={s.row}>{s.username || '—'}: {s.errors.join(' ')}</p>)}
             </div>
@@ -340,7 +340,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
               {updateCount > 0 && <span className="px-3 py-1 rounded-full bg-sky-50 text-sky-800">{toPersianDigits(updateCount)} نفر به‌روزرسانی</span>}
               {unchangedCount > 0 && <span className="px-3 py-1 rounded-full bg-stone-100 text-stone-700">{toPersianDigits(unchangedCount)} نفر بدون تغییر</span>}
               {phoneOnlyCount > 0 && <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-900">{toPersianDigits(phoneOnlyCount)} نفر جدید فقط دفتر تلفن (بدون نام کاربری)</span>}
-              {invalidCount > 0 && <span className="px-3 py-1 rounded-full bg-red-50 text-red-700">{toPersianDigits(invalidCount)} ردیف با خطا (ثبت نمی‌شود)</span>}
+              {invalidCount > 0 && <span className="px-3 py-1 rounded-full bg-danger-50 text-danger-700">{toPersianDigits(invalidCount)} ردیف با خطا (ثبت نمی‌شود)</span>}
             </div>
             {newRows.length > 0 && <label className="flex items-start gap-2 p-3 bg-surface rounded-xl cursor-pointer leading-relaxed">
               <input type="checkbox" checked={introduce} onChange={(e) => setIntroduce(e.target.checked)} className="accent-red-700 mt-0.5" />
@@ -401,7 +401,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                 </thead>
                 <tbody>
                   {preview.map((r) => (
-                    <tr key={r.row} className={`border-t border-line ${r.errors.length ? 'bg-red-50/60' : ''}`}>
+                    <tr key={r.row} className={`border-t border-line ${r.errors.length ? 'bg-danger-50/60' : ''}`}>
                       <td className="p-2">{toPersianDigits(r.row)}</td>
                       <td className="p-2">{r.target ?? `${r.data.firstName ?? ''} ${r.data.lastName ?? ''}`}</td>
                       <td className="p-2">{r.data.username ? <code dir="ltr">{r.data.username}</code> : <span className="text-faint">بدون حساب</span>}</td>
@@ -428,7 +428,7 @@ export const ImportEmployeesModal: React.FC<{ onClose: () => void }> = ({ onClos
                             {r.warnings.map((w) => <span key={w} className="block text-amber-800 mt-0.5">{w}</span>)}
                           </>
                         ) : (
-                          <span className="text-red-700 flex items-start gap-1"><AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {r.errors.join(' ')}</span>
+                          <span className="text-danger-700 flex items-start gap-1"><AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {r.errors.join(' ')}</span>
                         )}
                       </td>
                     </tr>

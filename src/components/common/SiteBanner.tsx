@@ -56,7 +56,7 @@ export const SiteBanner: React.FC = () => {
       {visible && (
         <div
           role={warning ? 'alert' : 'status'}
-          className={warning ? 'bg-red-700 text-white border-b border-red-800' : 'bg-sky-50 text-sky-950 border-b border-sky-200'}
+          className={warning ? 'bg-danger-700 text-white border-b border-danger-800' : 'bg-sky-50 text-sky-950 border-b border-sky-200'}
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-start gap-2.5 text-xs sm:text-sm">
             {warning ? <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> : <Megaphone className="w-4 h-4 mt-0.5 shrink-0 text-sky-700" />}
@@ -67,7 +67,7 @@ export const SiteBanner: React.FC = () => {
                 onClick={() => setEditing(true)}
                 aria-label="ویرایش پیام سراسری"
                 title="ویرایش پیام سراسری"
-                className={`p-1 rounded-lg shrink-0 ${warning ? 'hover:bg-red-800' : 'hover:bg-sky-100'}`}
+                className={`p-1 rounded-lg shrink-0 ${warning ? 'hover:bg-danger-800' : 'hover:bg-sky-100'}`}
               >
                 <Pencil className="w-4 h-4" />
               </button>
@@ -80,7 +80,7 @@ export const SiteBanner: React.FC = () => {
               }}
               aria-label="بستن پیام"
               title="بستن پیام"
-              className={`p-1 rounded-lg shrink-0 ${warning ? 'hover:bg-red-800' : 'hover:bg-sky-100'}`}
+              className={`p-1 rounded-lg shrink-0 ${warning ? 'hover:bg-danger-800' : 'hover:bg-sky-100'}`}
             >
               <X className="w-4 h-4" />
             </button>
@@ -163,7 +163,7 @@ export const BannerEditorModal: React.FC<{ onClose: () => void }> = ({ onClose }
       footer={
         <>
           {current && (
-            <button type="button" onClick={remove} disabled={busy} className={`${secondaryButtonClass} text-red-700 ml-auto`}>
+            <button type="button" onClick={remove} disabled={busy} className={`${secondaryButtonClass} text-danger-700 ml-auto`}>
               برداشتن پیام
             </button>
           )}

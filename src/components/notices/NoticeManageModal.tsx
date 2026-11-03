@@ -89,7 +89,7 @@ export const NoticeManageModal: React.FC<{ onClose: () => void }> = ({ onClose }
                         <button type="button" onClick={() => setEditing(n)} aria-label="ویرایش" title="ویرایش" className="tap-area p-1.5 hover:bg-surface rounded-lg text-ink-soft">
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button type="button" onClick={() => void remove(n)} aria-label="حذف" title="حذف" className="tap-area p-1.5 hover:bg-red-50 rounded-lg text-red-700">
+                        <button type="button" onClick={() => void remove(n)} aria-label="حذف" title="حذف" className="tap-area p-1.5 hover:bg-danger-50 rounded-lg text-danger-700">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>

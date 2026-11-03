@@ -102,7 +102,7 @@ export const WishesCard: React.FC<{ view: EventView }> = ({ view }) => {
                   {w.anonymous && <span className="text-muted"> (بدون نام)</span>}
                 </span>
                 <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS[w.status].className}`}>{STATUS[w.status].label}</span>
-                <button type="button" onClick={() => takeBack(w.id)} className="shrink-0 text-muted hover:text-red-700" aria-label="برداشتن این آرزو">
+                <button type="button" onClick={() => takeBack(w.id)} className="shrink-0 text-muted hover:text-danger-700" aria-label="برداشتن این آرزو">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </li>

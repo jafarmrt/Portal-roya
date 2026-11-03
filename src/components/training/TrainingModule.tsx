@@ -148,7 +148,7 @@ export const TrainingModule: React.FC = () => {
                         onClick={() => setPendingDelete({ id: program.id, title: program.title })}
                         aria-label={`حذف دوره ${program.title}`}
                         title="حذف دوره"
-                        className="p-1.5 bg-white/90 hover:bg-white text-red-700 rounded-lg"
+                        className="p-1.5 bg-white/90 hover:bg-white text-danger-700 rounded-lg"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

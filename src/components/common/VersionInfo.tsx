@@ -68,7 +68,7 @@ export const WhatsNewModal: React.FC<{ info: BuildInfo; onClose: () => void }> =
       onClose={onClose}
       footer={<button type="button" onClick={onClose} className={primaryButtonClass}>بستن</button>}
     >
-      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+      {error && <p role="alert" className="text-sm text-danger-700">{error}</p>}
       {!entries && !error && (
         <div className="py-10 flex justify-center"><Loader2 className="w-6 h-6 text-red-600 animate-spin" /></div>
       )}

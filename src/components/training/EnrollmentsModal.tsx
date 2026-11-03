@@ -111,7 +111,7 @@ export const EnrollmentsModal: React.FC<{ training: TrainingProgram; onClose: ()
   const removeButton = (r: TrainingEnrollment) =>
     !isManager ? null : confirming === r.userId ? (
       <span className="flex items-center gap-1.5">
-        <button type="button" onClick={() => remove(r)} className="px-2.5 py-1 text-xs font-bold text-white bg-red-700 rounded-lg">
+        <button type="button" onClick={() => remove(r)} className="px-2.5 py-1 text-xs font-bold text-white bg-danger-700 rounded-lg">
           لغو ثبت‌نام
         </button>
         <button type="button" onClick={() => setConfirming(null)} className="px-2.5 py-1 text-xs font-bold text-muted bg-surface rounded-lg">
@@ -148,7 +148,7 @@ export const EnrollmentsModal: React.FC<{ training: TrainingProgram; onClose: ()
         </>
       }
     >
-      {error && <p role="alert" className="text-red-700 font-bold">{error}</p>}
+      {error && <p role="alert" className="text-danger-700 font-bold">{error}</p>}
       {!rows && !error && <p>در حال دریافت...</p>}
       {rows && (
         <div className="space-y-6">

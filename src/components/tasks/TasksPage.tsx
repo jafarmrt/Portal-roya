@@ -364,7 +364,7 @@ const GivenCard: React.FC<{ copies: AssignedTask[] }> = ({ copies }) => {
           </button>
         )}
         {!anyOpen && (
-          <button type="button" onClick={() => void clearAll()} aria-label={`برداشتن ${first.title} از فهرست`} title="برداشتن از فهرست" className="p-1 rounded-lg text-muted hover:bg-surface-soft hover:text-red-700">
+          <button type="button" onClick={() => void clearAll()} aria-label={`برداشتن ${first.title} از فهرست`} title="برداشتن از فهرست" className="p-1 rounded-lg text-muted hover:bg-surface-soft hover:text-danger-700">
             <Trash2 className="w-4 h-4" />
           </button>
         )}
@@ -383,7 +383,7 @@ const GivenCard: React.FC<{ copies: AssignedTask[] }> = ({ copies }) => {
                 </button>
               ) : (
                 anyOpen && (
-                  <button type="button" onClick={() => void removeTask(t)} aria-label={`برداشتن ${t.to.name} از فهرست`} title="برداشتن از فهرست" className="p-1 rounded-lg text-faint hover:text-red-700">
+                  <button type="button" onClick={() => void removeTask(t)} aria-label={`برداشتن ${t.to.name} از فهرست`} title="برداشتن از فهرست" className="p-1 rounded-lg text-faint hover:text-danger-700">
                     <X className="w-4 h-4" />
                   </button>
                 )

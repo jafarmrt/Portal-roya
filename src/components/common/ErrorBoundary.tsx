@@ -68,7 +68,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     const updated = isChunkLoadError(error);
     return (
       <div className={this.props.fullScreen ? 'min-h-screen bg-page flex items-center justify-center p-6' : 'py-12 flex justify-center'} dir="rtl">
-        <div role="alert" className="bg-white p-8 rounded-3xl shadow-sm border border-red-300 max-w-md w-full text-center space-y-4">
+        <div role="alert" className="bg-white p-8 rounded-3xl shadow-sm border border-danger-300 max-w-md w-full text-center space-y-4">
           <div className="w-12 h-12 bg-brand-soft text-brand rounded-2xl flex items-center justify-center mx-auto">
             <AlertCircle className="w-6 h-6" />
           </div>

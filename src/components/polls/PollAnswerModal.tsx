@@ -181,7 +181,7 @@ export const PollAnswerModal: React.FC<{ poll: Poll; onClose: () => void }> = ({
           />
         ))}
         {missing.length > 0 && (
-          <p role="alert" className="text-xs font-bold text-red-700">
+          <p role="alert" className="text-xs font-bold text-danger-700">
             {toPersianDigits(missing.length)} سؤال اجباری بی‌پاسخ مانده است.
           </p>
         )}

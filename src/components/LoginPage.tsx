@@ -33,7 +33,7 @@ const LoginForm: React.FC = () => {
   return (
     <form onSubmit={handleSubmit} className="p-8 space-y-4">
       {error && (
-        <div role="alert" className="p-3 bg-red-50 text-red-800 text-xs font-bold rounded-xl border border-red-200">
+        <div role="alert" className="p-3 bg-danger-50 text-danger-800 text-xs font-bold rounded-xl border border-danger-200">
           {error}
         </div>
       )}

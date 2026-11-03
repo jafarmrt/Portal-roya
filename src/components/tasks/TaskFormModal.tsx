@@ -120,7 +120,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ task, reassign, in
                   return (
                     <span key={id} className="flex items-center gap-1 pr-2 pl-1 py-1 rounded-xl bg-white border border-line-strong text-sm font-bold">
                       {name}
-                      <button type="button" aria-label={`حذف ${name}`} onClick={() => setAssigneeIds(assigneeIds.filter((a) => a !== id))} className="p-0.5 text-faint hover:text-red-700">
+                      <button type="button" aria-label={`حذف ${name}`} onClick={() => setAssigneeIds(assigneeIds.filter((a) => a !== id))} className="p-0.5 text-faint hover:text-danger-700">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </span>
@@ -198,7 +198,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({ task, reassign, in
         <div>
           <label htmlFor={`${formId}-due`} className={labelClass}>موعد</label>
           <DueDateField id={`${formId}-due`} value={dueDate} onChange={setDueDate} />
-          {past && <p role="alert" className="mt-1 text-xs font-bold text-red-700">این روز گذشته است؛ امروز یا روزی بعد را انتخاب کنید.</p>}
+          {past && <p role="alert" className="mt-1 text-xs font-bold text-danger-700">این روز گذشته است؛ امروز یا روزی بعد را انتخاب کنید.</p>}
         </div>
         {!reassign && (
           <div>

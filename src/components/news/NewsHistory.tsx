@@ -51,7 +51,7 @@ export const NewsHistoryModal: React.FC<{ item: NewsItem; onClose: () => void }>
       size="lg"
       footer={<button onClick={onClose} className={secondaryButtonClass}>بستن</button>}
     >
-      {failed && <p className="text-sm text-red-700">تاریخچه دریافت نشد.</p>}
+      {failed && <p className="text-sm text-danger-700">تاریخچه دریافت نشد.</p>}
       {history && (
         <ol className="space-y-3" aria-label="تغییرات خبر">
           {history.entries.map((entry) => {

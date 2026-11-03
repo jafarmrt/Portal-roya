@@ -452,7 +452,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                           <button
                             onClick={() => removeWorkExperience(user.id, exp.id)}
                             aria-label={`حذف سابقهٔ ${exp.company}`}
-                            className="p-1 text-faint hover:text-red-700"
+                            className="p-1 text-faint hover:text-danger-700"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -536,7 +536,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                       </button>
                     )}
                     {canEdit && (
-                      <button onClick={() => removeSkill(user.id, skill.id)} aria-label={`حذف مهارت ${skill.name}`} className="text-faint hover:text-red-700">
+                      <button onClick={() => removeSkill(user.id, skill.id)} aria-label={`حذف مهارت ${skill.name}`} className="text-faint hover:text-danger-700">
                         <Trash2 className="w-3 h-3" />
                       </button>
                     )}
