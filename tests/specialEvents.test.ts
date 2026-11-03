@@ -1,6 +1,10 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { and, asc, eq } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { config } from '../server/config';
 import { db, pool } from '../server/db/index';
 import { eventMatches, notifications } from '../server/db/schema';
 import { processSpecialEvents } from '../server/routes/specialEvents';
@@ -282,6 +286,21 @@ describe('«رویداد ویژه»: the Yalda night page', () => {
     expect(state.log).toEqual([]);
     // A screen cannot change anything.
     await screen.put(`/api/special_events/${eventId}/screen`).send({ scene: 'welcome' }).expect(401);
+
+    // The pictures it shows come through its own address, even when the upload folder sits under a dot
+    // folder (the browser tests keep theirs in e2e/.uploads); a hidden file still does not.
+    const saved = config.uploadDir;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), '.portal-'));
+    fs.writeFileSync(path.join(dir, 'screen-photo.png'), 'photo');
+    fs.writeFileSync(path.join(dir, '.secret.png'), 'secret');
+    config.uploadDir = dir;
+    try {
+      expect((await screen.get('/api/event_screen/file/screen-photo.png').expect(200)).body.toString()).toBe('photo');
+      await screen.get('/api/event_screen/file/.secret.png').expect(404);
+    } finally {
+      config.uploadDir = saved;
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('draws, publishes and reminds on its own once signup has closed', async () => {

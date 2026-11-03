@@ -166,22 +166,23 @@ export { api };
 
 /** Small round stepper buttons for scores (big enough for a thumb). */
 export const Stepper: React.FC<{ value: number; onChange: (v: number) => void; label: string; big?: boolean }> = ({ value, onChange, label, big }) => (
-  <div className="flex items-center gap-2" role="group" aria-label={label}>
+  // The big one sits two side by side on a phone's remote, so it is a little smaller below the sm width.
+  <div className={`flex items-center ${big ? 'gap-1 sm:gap-2' : 'gap-2'}`} role="group" aria-label={label}>
     <button
       type="button"
       onClick={() => onChange(Math.max(0, value - 1))}
-      className={`${big ? 'w-14 h-14 text-2xl' : 'w-10 h-10 text-xl'} rounded-2xl bg-surface hover:bg-surface-strong font-black text-ink`}
+      className={`${big ? 'w-11 h-11 sm:w-14 sm:h-14 text-2xl' : 'w-10 h-10 text-xl'} rounded-2xl bg-surface hover:bg-surface-strong font-black text-ink`}
       aria-label={`${label}: یکی کم`}
     >
       −
     </button>
-    <span className={`${big ? 'text-4xl w-14' : 'text-2xl w-10'} font-black text-center tabular-nums`} aria-live="polite">
+    <span className={`${big ? 'text-3xl sm:text-4xl w-9 sm:w-14' : 'text-2xl w-10'} font-black text-center tabular-nums`} aria-live="polite">
       {toPersianDigits(value)}
     </span>
     <button
       type="button"
       onClick={() => onChange(Math.min(999, value + 1))}
-      className={`${big ? 'w-14 h-14 text-2xl' : 'w-10 h-10 text-xl'} rounded-2xl bg-red-700 hover:bg-red-800 text-white font-black`}
+      className={`${big ? 'w-11 h-11 sm:w-14 sm:h-14 text-2xl' : 'w-10 h-10 text-xl'} rounded-2xl bg-red-700 hover:bg-red-800 text-white font-black`}
       aria-label={`${label}: یکی بیشتر`}
     >
       +
