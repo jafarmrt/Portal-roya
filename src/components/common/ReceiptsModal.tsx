@@ -112,7 +112,7 @@ export const ReceiptsModal: React.FC<{ item: ReceiptsSource; onClose: () => void
 
   return (
     <Modal title={item.tracksReads ? 'گزارش خوانده‌شدن' : 'گزارش تأیید مطالعه'} subtitle={item.title} icon={<BarChart3 className="w-5 h-5" />} onClose={onClose} size="lg">
-      {error && <p role="alert" className="text-red-700 font-bold">{error}</p>}
+      {error && <p role="alert" className="text-danger-700 font-bold">{error}</p>}
       {!receipts && !error && <p>در حال دریافت...</p>}
       {receipts && (
         <div className="space-y-4">

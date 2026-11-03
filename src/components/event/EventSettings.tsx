@@ -90,7 +90,7 @@ const DatesFields: React.FC<{ value: DatesForm; onChange: (v: DatesForm) => void
         )}
         {isValidJalaliDate(value.signupEnd) && <span>از امروز تا پایان ثبت‌نام {toPersianDigits(workdays)} روز کاری است.</span>}
       </div>
-      {problem && <p className="sm:col-span-2 text-xs text-red-800 bg-red-50 border border-red-200 rounded-xl p-2.5">{problem}</p>}
+      {problem && <p className="sm:col-span-2 text-xs text-danger-800 bg-danger-50 border border-danger-200 rounded-xl p-2.5">{problem}</p>}
       <div className="sm:col-span-2">
         <label htmlFor={`${id}-intro`} className={labelClass}>
           چند خط دربارهٔ برنامه (بالای صفحه)

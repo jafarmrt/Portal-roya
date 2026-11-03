@@ -84,7 +84,7 @@ const ListEditor: React.FC<{ settings: AppSettings; section: (typeof SECTIONS)[n
             <span className="flex-1">{item}</span>
             <button onClick={() => move(i, -1)} disabled={i === 0} aria-label={`بالا بردن ${item}`} className="p-1 disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
             <button onClick={() => move(i, 1)} disabled={i === items.length - 1} aria-label={`پایین بردن ${item}`} className="p-1 disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
-            <button onClick={() => setItems(items.filter((x) => x !== item))} disabled={items.length === 1} aria-label={`حذف ${item}`} className="p-1 text-red-700 disabled:opacity-30"><X className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setItems(items.filter((x) => x !== item))} disabled={items.length === 1} aria-label={`حذف ${item}`} className="p-1 text-danger-700 disabled:opacity-30"><X className="w-3.5 h-3.5" /></button>
           </li>
         ))}
       </ul>
@@ -275,7 +275,7 @@ const ManagedListEditor: React.FC<{ settings: AppSettings; config: ManagedList }
                 <button onClick={() => move(i, -1)} disabled={busy || i === 0} aria-label={`بالا بردن ${item}`} className="p-1 disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
                 <button onClick={() => move(i, 1)} disabled={busy || i === list.length - 1} aria-label={`پایین بردن ${item}`} className="p-1 disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
                 <button onClick={() => setRenaming({ name: item, value: item })} disabled={busy} aria-label={`تغییر نام ${item}`} className="p-1"><Pencil className="w-3.5 h-3.5" /></button>
-                <button onClick={() => remove(item)} disabled={busy || (list.length === 1 && !config.mayBeEmpty)} aria-label={`حذف ${item}`} className="p-1 text-red-700 disabled:opacity-30"><X className="w-3.5 h-3.5" /></button>
+                <button onClick={() => remove(item)} disabled={busy || (list.length === 1 && !config.mayBeEmpty)} aria-label={`حذف ${item}`} className="p-1 text-danger-700 disabled:opacity-30"><X className="w-3.5 h-3.5" /></button>
               </div>
             )}
             {merging?.name === item && (
@@ -589,11 +589,11 @@ const ServerStatusCard: React.FC = () => {
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
-      {error && <p role="alert" className="text-xs text-red-700 font-bold">{error}</p>}
+      {error && <p role="alert" className="text-xs text-danger-700 font-bold">{error}</p>}
       {status && (
         <>
           {status.backups.lastError && (
-            <div role="alert" className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-900 text-xs leading-relaxed">
+            <div role="alert" className="flex items-start gap-2 p-3 rounded-xl bg-danger-50 border border-danger-200 text-danger-900 text-xs leading-relaxed">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>
                 <span className="font-bold">آخرین پشتیبان‌گیری ({formatDateTime(status.backups.lastError.at)}) انجام نشد:</span> {status.backups.lastError.message}
@@ -618,11 +618,11 @@ const ServerStatusCard: React.FC = () => {
             <StatusRow label="فضای دیسک">
               {disk ? (
                 <>
-                  <span className={lowDisk ? 'font-bold text-red-700' : 'font-bold'}>{formatFileSize(disk.free)} خالی</span> از {formatFileSize(disk.total)}
+                  <span className={lowDisk ? 'font-bold text-danger-700' : 'font-bold'}>{formatFileSize(disk.free)} خالی</span> از {formatFileSize(disk.total)}
                   <span className="block h-1.5 mt-1.5 rounded-full bg-line overflow-hidden" aria-hidden="true">
-                    <span className={`block h-full ${lowDisk ? 'bg-red-600' : 'bg-emerald-600'}`} style={{ width: `${usedPercent}%` }} />
+                    <span className={`block h-full ${lowDisk ? 'bg-danger-600' : 'bg-emerald-600'}`} style={{ width: `${usedPercent}%` }} />
                   </span>
-                  {lowDisk && <span className="block text-xs text-red-700 mt-1">فضای خالی کم است؛ پشتیبان‌های قدیمی یا فایل‌های بزرگ را از سرور بردارید.</span>}
+                  {lowDisk && <span className="block text-xs text-danger-700 mt-1">فضای خالی کم است؛ پشتیبان‌های قدیمی یا فایل‌های بزرگ را از سرور بردارید.</span>}
                 </>
               ) : (
                 'نامشخص'

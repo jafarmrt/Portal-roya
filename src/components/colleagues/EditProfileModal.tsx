@@ -149,7 +149,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, onClos
           <div className="flex items-center gap-3">
             <Avatar src={form.avatar} firstName={form.firstName} lastName={form.lastName} className="w-14 h-14 rounded-2xl text-base" />
             <FileUpload accept={IMAGE_ACCEPT} label={form.avatar ? 'تغییر عکس' : 'بارگذاری عکس'} onUploaded={(f) => set('avatar', f.url)} />
-            {form.avatar && <button type="button" onClick={() => set('avatar', '')} className="text-red-700 font-bold">حذف عکس</button>}
+            {form.avatar && <button type="button" onClick={() => set('avatar', '')} className="text-danger-700 font-bold">حذف عکس</button>}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {adminField('edit-first', 'نام *', 'firstName')}

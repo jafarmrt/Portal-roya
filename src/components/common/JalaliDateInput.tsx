@@ -98,7 +98,7 @@ export const JalaliDateInput: React.FC<JalaliDateInputProps> = ({ id, value, onC
           placeholder={placeholder}
           aria-invalid={invalid}
           onChange={(e) => onChange(toLatinDigits(e.target.value))}
-          className={`${inputClass} text-left pr-16 ${invalid ? 'border-red-500' : ''}`}
+          className={`${inputClass} text-left pr-16 ${invalid ? 'border-danger-500' : ''}`}
         />
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
           {value && (
@@ -120,7 +120,7 @@ export const JalaliDateInput: React.FC<JalaliDateInputProps> = ({ id, value, onC
           </button>
         </div>
       </div>
-      {invalid && <p className="text-xs text-red-600 mt-1">تاریخ را به شکل ۱۴۰۵/۰۸/۱۵ وارد کنید.</p>}
+      {invalid && <p className="text-xs text-danger-600 mt-1">تاریخ را به شکل ۱۴۰۵/۰۸/۱۵ وارد کنید.</p>}
 
       {open && position && createPortal(
         <div

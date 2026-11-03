@@ -33,7 +33,7 @@ export const ChangePasswordForm: React.FC<{ onDone?: () => void; onCancel?: () =
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <div role="alert" className="p-3 bg-red-50 text-red-800 text-xs font-bold rounded-xl border border-red-200">{error}</div>}
+      {error && <div role="alert" className="p-3 bg-danger-50 text-danger-800 text-xs font-bold rounded-xl border border-danger-200">{error}</div>}
       <div>
         <label htmlFor="pw-current" className={labelClass}>رمز عبور فعلی</label>
         <input id="pw-current" type="password" dir="ltr" autoComplete="current-password" required value={current} onChange={(e) => setCurrent(e.target.value)} className={inputClass} />

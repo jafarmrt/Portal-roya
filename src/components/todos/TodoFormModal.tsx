@@ -88,7 +88,7 @@ export const TodoFormModal: React.FC<TodoFormModalProps> = ({ todo, initial, onC
                 removeTodo(todo.id);
                 onClose();
               }}
-              className={`${secondaryButtonClass} text-red-700`}
+              className={`${secondaryButtonClass} text-danger-700`}
             >
               <Trash2 className="w-4 h-4" /> حذف
             </button>
@@ -170,7 +170,7 @@ export const TodoFormModal: React.FC<TodoFormModalProps> = ({ todo, initial, onC
                     aria-label={`گام ${toPersianDigits(i + 1)}`}
                     className={`${inputClass} !py-1.5 ${step.done ? 'line-through text-faint' : ''}`}
                   />
-                  <button type="button" onClick={() => setSteps(steps.filter((_, j) => j !== i))} aria-label={`حذف گام ${step.text}`} className="p-1.5 rounded-lg text-faint hover:text-red-700 hover:bg-red-50">
+                  <button type="button" onClick={() => setSteps(steps.filter((_, j) => j !== i))} aria-label={`حذف گام ${step.text}`} className="p-1.5 rounded-lg text-faint hover:text-danger-700 hover:bg-danger-50">
                     <X className="w-4 h-4" />
                   </button>
                 </li>

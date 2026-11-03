@@ -153,7 +153,7 @@ export const SystemsModule: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleRemoveSystem(system.id)}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-2 text-danger-500 hover:bg-danger-50 rounded-lg transition-colors"
                       title="حذف سامانه"
                       aria-label={`حذف ${system.name}`}
                     >

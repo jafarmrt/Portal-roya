@@ -40,7 +40,7 @@ const WishList: React.FC<{ nc: NewColleagueWelcome; tall?: boolean }> = ({ nc, t
             <span className="flex items-start gap-1.5 text-xs text-faint whitespace-nowrap">
               {timeAgo(w.time)}
               {(w.senderId === currentUser?.id || can('comments.moderate')) && (
-                <button type="button" onClick={() => deleteWelcomeWish(w.id)} aria-label={`حذف پیام ${w.userName}`} title="حذف پیام" className="text-faint hover:text-red-700">
+                <button type="button" onClick={() => deleteWelcomeWish(w.id)} aria-label={`حذف پیام ${w.userName}`} title="حذف پیام" className="text-faint hover:text-danger-700">
                   <Trash2 className="w-3 h-3" />
                 </button>
               )}
@@ -273,7 +273,7 @@ export const WelcomeNewColleagueCard: React.FC = () => {
                       }}
                       aria-label="حذف کارت معرفی"
                       title="حذف کارت معرفی"
-                      className="p-1.5 text-faint hover:text-red-700 rounded-lg hover:bg-white"
+                      className="p-1.5 text-faint hover:text-danger-700 rounded-lg hover:bg-white"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

@@ -256,7 +256,7 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
             {form.image ? (
               <div className="relative">
                 <img src={form.image} alt="" className="w-full h-32 object-cover rounded-xl border border-line" />
-                <button type="button" onClick={() => set('image', '')} aria-label="حذف تصویر" className="absolute top-2 left-2 p-1.5 bg-white/90 rounded-lg text-red-700">
+                <button type="button" onClick={() => set('image', '')} aria-label="حذف تصویر" className="absolute top-2 left-2 p-1.5 bg-white/90 rounded-lg text-danger-700">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -274,7 +274,7 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
                   <span className="truncate">{a.name}</span>
                   <span className="text-xs text-faint whitespace-nowrap">{formatFileSize(a.size)}</span>
                 </span>
-                <button type="button" aria-label={`حذف ${a.name}`} onClick={() => set('attachments', form.attachments.filter((x) => x.url !== a.url))} className="p-1 text-red-700">
+                <button type="button" aria-label={`حذف ${a.name}`} onClick={() => set('attachments', form.attachments.filter((x) => x.url !== a.url))} className="p-1 text-danger-700">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>

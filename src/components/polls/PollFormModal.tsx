@@ -81,7 +81,7 @@ const QuestionEditor: React.FC<{
             <ArrowDown className="w-4 h-4" />
           </button>
           {!locked && count > 1 && (
-            <button type="button" onClick={onRemove} aria-label={`حذف سؤال ${n}`} className="p-1.5 rounded-lg text-faint hover:text-red-700 hover:bg-white">
+            <button type="button" onClick={onRemove} aria-label={`حذف سؤال ${n}`} className="p-1.5 rounded-lg text-faint hover:text-danger-700 hover:bg-white">
               <Trash2 className="w-4 h-4" />
             </button>
           )}

@@ -168,7 +168,7 @@ const SearchMissesCard: React.FC = () => {
         }
       />
       {error ? (
-        <p role="alert" className="text-xs text-red-700">{error}</p>
+        <p role="alert" className="text-xs text-danger-700">{error}</p>
       ) : !misses ? (
         <p className="text-xs text-muted">در حال دریافت...</p>
       ) : misses.length === 0 ? (

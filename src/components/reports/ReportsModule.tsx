@@ -170,7 +170,7 @@ export const ReportsModule: React.FC = () => {
           </section>
 
           {error ? (
-            <p role="alert" className="text-sm text-red-700 bg-white rounded-2xl p-4 border border-red-100">{error}</p>
+            <p role="alert" className="text-sm text-danger-700 bg-white rounded-2xl p-4 border border-danger-100">{error}</p>
           ) : !report ? (
             <div className="py-16 flex justify-center"><Loader2 className="w-7 h-7 text-red-600 animate-spin" /></div>
           ) : tab === 'reach' ? (

@@ -91,7 +91,7 @@ export const CompetitionCard: React.FC<{ view: EventView; competition: EventComp
               onClick={() => {
                 if (window.confirm(`مسابقهٔ «${competition.title}» با همهٔ ثبت‌نام‌ها و نتیجه‌هایش حذف شود؟`)) void run(() => api.delete(`/api/event_competitions/${competition.id}`), 'مسابقه حذف شد.');
               }}
-              className="p-2 rounded-xl hover:bg-red-50 text-red-700"
+              className="p-2 rounded-xl hover:bg-danger-50 text-danger-700"
               aria-label={`حذف ${competition.title}`}
             >
               <Trash2 className="w-4 h-4" />
@@ -235,7 +235,7 @@ export const CompetitionCard: React.FC<{ view: EventView; competition: EventComp
                       onClick={() => {
                         if (window.confirm(`«${entryName(e, view.people)}» از مسابقه حذف شود؟`)) void run(() => api.delete(`/api/event_entries/${e.id}`), 'حذف شد.');
                       }}
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-700"
+                      className="p-1.5 rounded-lg hover:bg-danger-50 text-danger-700"
                       aria-label={`حذف ${entryName(e, view.people)}`}
                     >
                       <Trash2 className="w-3.5 h-3.5" />

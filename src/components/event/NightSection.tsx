@@ -87,7 +87,7 @@ export const ScheduleCard: React.FC<{ view: EventView }> = ({ view }) => {
                 value={r.title}
                 onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))}
               />
-              <button type="button" onClick={() => setRows(rows.filter((_, j) => j !== i))} className="p-2 text-muted hover:text-red-700" aria-label={`حذف بخش ${toPersianDigits(i + 1)}`}>
+              <button type="button" onClick={() => setRows(rows.filter((_, j) => j !== i))} className="p-2 text-muted hover:text-danger-700" aria-label={`حذف بخش ${toPersianDigits(i + 1)}`}>
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>

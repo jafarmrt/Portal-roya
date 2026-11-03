@@ -409,7 +409,7 @@ const BoxMessageCard: React.FC<{ message: BoxMessage; onChanged: () => void }> =
               onClick={() => {
                 if (window.confirm('این پیام برای همیشه حذف شود؟')) void act(() => api.delete(`/api/suggestions/${m.id}`), 'پیام حذف شد.');
               }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 text-xs font-bold text-red-700 hover:bg-red-50"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-danger-200 text-xs font-bold text-danger-700 hover:bg-danger-50"
             >
               <Trash2 className="w-4 h-4" /> حذف
             </button>

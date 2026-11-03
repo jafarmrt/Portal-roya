@@ -150,7 +150,7 @@ export const AddTrainingModal: React.FC<AddTrainingModalProps> = ({ training, on
         <div className="flex items-center gap-3">
           {form.coverImage && <img src={form.coverImage} alt="" className="w-24 h-14 object-cover rounded-xl border border-line" />}
           <FileUpload accept={IMAGE_ACCEPT} label={form.coverImage ? 'تغییر تصویر' : 'تصویر جلد (اختیاری)'} onUploaded={(f) => set('coverImage', f.url)} />
-          {form.coverImage && <button type="button" onClick={() => set('coverImage', '')} className="text-red-700 font-bold">حذف تصویر</button>}
+          {form.coverImage && <button type="button" onClick={() => set('coverImage', '')} className="text-danger-700 font-bold">حذف تصویر</button>}
         </div>
         {signedUpCount > 0 && (
           <label className="flex items-start gap-2 p-3 bg-surface rounded-xl cursor-pointer">

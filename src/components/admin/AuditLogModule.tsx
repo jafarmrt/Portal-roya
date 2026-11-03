@@ -23,7 +23,7 @@ interface AuditItem {
 const ACTION_STYLES: Record<AuditAction, string> = {
   create: 'bg-emerald-50 text-emerald-700',
   update: 'bg-amber-50 text-amber-800',
-  delete: 'bg-red-50 text-red-700',
+  delete: 'bg-danger-50 text-danger-700',
   publish: 'bg-sky-50 text-sky-700',
   import: 'bg-violet-50 text-violet-700',
 };
@@ -125,7 +125,7 @@ export const AuditLogModule: React.FC = () => {
         </SearchableSelect>
       </div>
 
-      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+      {error && <p role="alert" className="text-sm text-danger-700">{error}</p>}
       {!items ? (
         <div className="py-16 flex justify-center"><Loader2 className="w-7 h-7 text-red-600 animate-spin" /></div>
       ) : items.length === 0 ? (

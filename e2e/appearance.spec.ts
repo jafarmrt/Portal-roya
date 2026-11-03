@@ -31,3 +31,38 @@ test('a colleague turns on dark mode and larger text, and they stay after a relo
   await expect(html).not.toHaveAttribute('data-text-size', /.+/);
   await context.close();
 });
+
+// Each person may give the portal their own colour (kept on the device). The menu bar and buttons
+// follow it; Roya's red wordmark and the red of warnings and deletes do not.
+test('a colleague picks their own portal colour, and it stays after a reload', async ({ browser }) => {
+  const context = await browser.newContext({ storageState: 'e2e/.auth/employee.json' });
+  const page = await context.newPage();
+  await page.goto('/#dashboard');
+  const html = page.locator('html');
+  const accent = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--color-brand-deep').trim());
+  const danger = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--color-danger-700').trim());
+  const royaBar = await accent();
+  const red = await danger();
+  await expect(html).not.toHaveAttribute('data-accent', /.+/);
+
+  await page.getByRole('button', { name: 'منوی حساب کاربری' }).click();
+  const colours = page.getByRole('radiogroup', { name: 'رنگ پرتال' });
+  await expect(colours.getByRole('radio', { name: 'زرشکی رویا' })).toHaveAttribute('aria-checked', 'true');
+  await colours.getByRole('radio', { name: 'سرمه‌ای' }).click();
+  await expect(html).toHaveAttribute('data-accent', 'navy');
+  await expect(colours.getByRole('radio', { name: 'سرمه‌ای' })).toHaveAttribute('aria-checked', 'true');
+
+  await page.reload();
+  await expect(html).toHaveAttribute('data-accent', 'navy');
+  expect(await accent()).not.toBe(royaBar);
+  expect(await danger()).toBe(red);
+  // The built-in wordmark keeps Roya's red.
+  const wordmark = page.getByText('ROYA', { exact: true }).first();
+  expect(await wordmark.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(227, 6, 19)');
+
+  await page.getByRole('button', { name: 'منوی حساب کاربری' }).click();
+  await page.getByRole('radiogroup', { name: 'رنگ پرتال' }).getByRole('radio', { name: 'زرشکی رویا' }).click();
+  await expect(html).not.toHaveAttribute('data-accent', /.+/);
+  expect(await accent()).toBe(royaBar);
+  await context.close();
+});

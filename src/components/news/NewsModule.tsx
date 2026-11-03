@@ -290,7 +290,7 @@ const StatusBadges: React.FC<{ article: NewsItem }> = ({ article }) => (
       </span>
     )}
     {article.status === 'expired' && <span className="px-2.5 py-1 text-xs font-bold bg-stone-600 text-white rounded-full">منقضی‌شده</span>}
-    {article.isUrgent && <span className="px-2.5 py-1 text-xs font-bold bg-red-600 text-white rounded-full">فوری</span>}
+    {article.isUrgent && <span className="px-2.5 py-1 text-xs font-bold bg-danger-600 text-white rounded-full">فوری</span>}
     {article.requiresAck && (
       <span className={`px-2.5 py-1 text-xs font-bold rounded-full flex items-center gap-1 ${article.acknowledgedAt ? 'bg-emerald-600 text-white' : 'bg-amber-400 text-amber-950'}`}>
         <FileCheck2 className="w-3 h-3" /> {article.acknowledgedAt ? 'تأیید شده' : 'نیاز به تأیید'}
@@ -401,7 +401,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, isManager, onOpen, onLike,
             {isManager && (
               <>
                 <button onClick={onEdit} aria-label="ویرایش" className="p-1.5 text-muted hover:text-red-700 rounded-lg hover:bg-surface"><Edit3 className="w-4 h-4" /></button>
-                <button onClick={onDelete} aria-label="حذف" className="p-1.5 text-muted hover:text-red-700 rounded-lg hover:bg-surface"><Trash2 className="w-4 h-4" /></button>
+                <button onClick={onDelete} aria-label="حذف" className="p-1.5 text-muted hover:text-danger-700 rounded-lg hover:bg-surface"><Trash2 className="w-4 h-4" /></button>
               </>
             )}
             <button onClick={onOpen} className="tap-area text-xs font-bold text-brand hover:underline flex items-center gap-1">

@@ -189,9 +189,9 @@ const QuestionToAnswer: React.FC<{ question: NewsQuestion; onChange: () => Promi
         <span className="flex items-center gap-2">
           {formatDateTime(q.createdAt)}
           {confirmDelete ? (
-            <button type="button" onClick={remove} className="px-2 py-0.5 rounded-lg bg-red-700 text-white font-bold">حذف شود</button>
+            <button type="button" onClick={remove} className="px-2 py-0.5 rounded-lg bg-danger-700 text-white font-bold">حذف شود</button>
           ) : (
-            <button type="button" onClick={() => setConfirmDelete(true)} aria-label="حذف پرسش" className="p-0.5 hover:text-red-700">
+            <button type="button" onClick={() => setConfirmDelete(true)} aria-label="حذف پرسش" className="p-0.5 hover:text-danger-700">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}

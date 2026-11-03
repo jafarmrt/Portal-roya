@@ -113,7 +113,7 @@ const PollCard: React.FC<{ poll: Poll; focused: boolean; open: (kind: 'answer' |
                 onClick={() => {
                   if (confirm(`نظرسنجی «${poll.title}» و همهٔ پاسخ‌هایش حذف شود؟`)) deletePoll(poll.id);
                 }}
-                className="p-1.5 text-faint hover:text-red-700 hover:bg-red-50 rounded-lg"
+                className="p-1.5 text-faint hover:text-danger-700 hover:bg-danger-50 rounded-lg"
                 aria-label={`حذف ${poll.title}`}
                 title="حذف"
               >
