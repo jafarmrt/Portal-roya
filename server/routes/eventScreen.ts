@@ -78,7 +78,8 @@ eventScreenRouter.get(
     if (!screen?.pairedAt || screen.expiresAt.getTime() <= Date.now()) throw new HttpError(401, 'این صفحه به رویدادی وصل نیست.');
     const name = String(req.params.name);
     if (!/^[\w-]+\.(jpe?g|png|webp|gif)$/i.test(name)) throw new HttpError(404, 'فایل پیدا نشد.');
-    res.sendFile(path.join(path.resolve(config.uploadDir), name), { dotfiles: 'deny', maxAge: '1h' }, (err) => {
+    // `root` keeps the dot-file check to the name itself, so an upload folder under a dot folder still works.
+    res.sendFile(name, { root: path.resolve(config.uploadDir), dotfiles: 'deny', maxAge: '1h' }, (err) => {
       if (err && !res.headersSent) res.status(404).json({ error: 'فایل پیدا نشد.' });
     });
   }),

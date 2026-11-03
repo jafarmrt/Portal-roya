@@ -371,7 +371,7 @@ export const RemotePanel: React.FC<{ view: EventView }> = ({ view }) => {
         )}
         {stageMatch && competition && screen.scene === 'match' && !stageMatch.done && (
           <div className="p-3 rounded-2xl bg-surface space-y-3">
-            <div className="flex justify-around gap-2">
+            <div className="flex flex-wrap justify-around gap-2">
               {[
                 { key: 'a' as const, entryId: stageMatch.entryA, value: shownA, set: (v: number) => live(v, shownB), label: ranking ? 'اجراکننده' : 'طرف اول' },
                 ...(ranking ? [] : [{ key: 'b' as const, entryId: stageMatch.entryB, value: shownB, set: (v: number) => live(shownA, v), label: 'طرف دوم' }]),
