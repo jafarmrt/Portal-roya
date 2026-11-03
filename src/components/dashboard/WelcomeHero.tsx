@@ -71,7 +71,7 @@ export const WelcomeHero: React.FC<{ canArrange: boolean; onArrange: () => void 
           </p>
           {currentUser && ready && (parts.length > 0 || !(showPolls || showNews)) && (
             <p className="text-white text-sm leading-relaxed max-w-2xl">
-              {parts.length > 0 ? parts.join(' · ') : 'کاری منتظر شما نیست؛ روز خوبی داشته باشید ☕'}
+              {parts.length > 0 ? parts.join('، ') : 'کاری منتظر شما نیست؛ روز خوبی داشته باشید ☕'}
             </p>
           )}
           {isGuest && (

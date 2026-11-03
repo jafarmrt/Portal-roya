@@ -21,7 +21,7 @@ test('Yalda brings its banner and a one-minute effect on a computer, once a day'
   await expect(banner).toContainText('یلدا مبارک');
   await expect(page.getByTestId('theme-effect')).toBeVisible();
   // The effect does not catch the mouse: the page under it still answers clicks.
-  await page.getByRole('button', { name: 'مشاهده همه اخبار' }).click();
+  await page.getByRole('button', { name: 'مشاهدهٔ همهٔ اخبار' }).click();
   await expect(page).toHaveURL(/#news/);
   // Leaving the dashboard ends it.
   await expect(page.getByTestId('theme-effect')).toHaveCount(0);

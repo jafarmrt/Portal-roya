@@ -232,7 +232,7 @@ export const GuessCard: React.FC<{ view: EventView }> = ({ view }) => {
                 <span className="flex-1 min-w-0 truncate font-bold text-ink">{view.people[w.employeeId]?.name ?? 'همکار'}</span>
                 <span className="text-muted tabular-nums">
                   حدس {toPersianDigits(w.value)}
-                  {w.diff === 0 ? ' · دقیق!' : ` · ${toPersianDigits(w.diff)} اختلاف`}
+                  {w.diff === 0 ? ' · دقیق!' : `، ${toPersianDigits(w.diff)} اختلاف`}
                 </span>
               </li>
             ))}
@@ -317,7 +317,7 @@ export const GuessReveal: React.FC<{ view: EventView; onShow: () => void }> = ({
         <Sparkles className="w-4 h-4 text-red-700" aria-hidden /> چند دانه؟
       </h2>
       <p className="text-xs text-muted">
-        {guess.question} · {toPersianDigits(guess.count)} حدس
+        {guess.question}، {toPersianDigits(guess.count)} حدس
       </p>
       {guess.revealed ? (
         <div className="flex flex-wrap items-center gap-2">

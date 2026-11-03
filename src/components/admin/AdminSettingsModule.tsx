@@ -541,7 +541,7 @@ const StatusRow: React.FC<{ label: string; children: React.ReactNode }> = ({ lab
 const describeBackup = (file: BackupFile | null, keep: string, when: string) =>
   file ? (
     <>
-      <span className="font-bold">{formatDateTime(file.at)}</span> · {formatFileSize(file.size)}
+      <span className="font-bold">{formatDateTime(file.at)}</span> | {formatFileSize(file.size)}
       <span className="block text-xs text-muted">{toPersianDigits(file.count)} نسخه روی سرور ({keep}).</span>
     </>
   ) : (
@@ -629,7 +629,7 @@ const ServerStatusCard: React.FC = () => {
               )}
             </StatusRow>
             <StatusRow label="فایل‌های بارگذاری‌شده">
-              <span className="font-bold">{toPersianDigits(status.uploads.count)} فایل</span> · {status.uploads.count ? formatFileSize(status.uploads.bytes) : 'خالی'}
+              <span className="font-bold">{toPersianDigits(status.uploads.count)} فایل</span> | {status.uploads.count ? formatFileSize(status.uploads.bytes) : 'خالی'}
               <span className="block text-xs text-muted">
                 {status.cleanup
                   ? `آخرین پاک‌سازی (${formatDateTime(status.cleanup.at)}): ${status.cleanup.removed ? `${toPersianDigits(status.cleanup.removed)} فایل بی‌استفاده حذف شد (${formatFileSize(status.cleanup.freedBytes)})` : 'فایل بی‌استفاده‌ای نبود'}.`

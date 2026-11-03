@@ -194,7 +194,8 @@ describe('«همکاران آنلاین»: who has the portal open, and ready-ma
 
     // And the daily cap holds for a burst to different colleagues.
     await db.delete(kudos).where(eq(kudos.fromId, reza.id));
-    const today = new Date(Date.now() - 20 * 60_000);
+    // Earlier today, even just after midnight in Tehran (20 minutes back could be yesterday).
+    const today = new Date(Date.now() - 1000);
     await db.insert(kudos).values(
       Array.from({ length: KUDOS_DAILY_LIMIT - 1 }, () => ({ fromId: reza.id, toId: adminId, emoji: '🌹', label: 'گل', createdAt: today })),
     );

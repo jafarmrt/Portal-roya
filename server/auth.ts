@@ -36,19 +36,41 @@ export async function withPermissions(user: Employee): Promise<SessionUser> {
   return { ...user, permissions: await rolePermissions(user.role) };
 }
 
+/**
+ * bcryptjs works in JavaScript on the portal's only thread, about a quarter of a second per password.
+ * When a whole room signs in at once, dozens of checks ran side by side: every page of the portal
+ * waited behind them, and database requests timed out («خطای داخلی سرور»). A few at a time, the rest
+ * queue: the room still gets in, one after another, and everyone else's pages keep working.
+ */
+export const PASSWORD_CHECKS_AT_ONCE = 2;
+let checking = 0;
+const queue: (() => void)[] = [];
+async function oneOfFew<T>(work: () => Promise<T>): Promise<T> {
+  if (checking < PASSWORD_CHECKS_AT_ONCE) checking++;
+  // The slot is handed over by the check that ends.
+  else await new Promise<void>((resolve) => queue.push(resolve));
+  try {
+    return await work();
+  } finally {
+    const next = queue.shift();
+    if (next) next();
+    else checking--;
+  }
+}
+
 export function hashPassword(password: string) {
-  return bcrypt.hash(password, BCRYPT_ROUNDS);
+  return oneOfFew(() => bcrypt.hash(password, BCRYPT_ROUNDS));
 }
 
 export function verifyPassword(password: string, hash: string) {
-  return bcrypt.compare(password, hash);
+  return oneOfFew(() => bcrypt.compare(password, hash));
 }
 
 let dummyHash: string | null = null;
 /** Compares against a throwaway hash so failed lookups take as long as real ones. */
 export async function burnPasswordCheck(password: string) {
-  dummyHash ??= await bcrypt.hash('not-a-real-password', BCRYPT_ROUNDS);
-  await bcrypt.compare(password, dummyHash);
+  dummyHash ??= await hashPassword('not-a-real-password');
+  await oneOfFew(() => bcrypt.compare(password, dummyHash!));
 }
 
 /** Signs the colleague in on this browser. The session lasts until their session version is raised. */

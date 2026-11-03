@@ -161,7 +161,7 @@ const SongsSection: React.FC<{ view: EventView }> = ({ view }) => {
                   aria-label={`من هم: ${s.title} (${toPersianDigits(s.votes)} نفر)`}
                   className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold border disabled:opacity-60 ${s.myVote ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-line-strong text-ink hover:bg-surface'}`}
                 >
-                  <Heart className={`w-3.5 h-3.5 ${s.myVote ? 'fill-current' : ''}`} aria-hidden /> من هم · {toPersianDigits(s.votes)}
+                  <Heart className={`w-3.5 h-3.5 ${s.myVote ? 'fill-current' : ''}`} aria-hidden /> من هم ({toPersianDigits(s.votes)})
                 </button>
               )}
               {me.isOrganizer && (

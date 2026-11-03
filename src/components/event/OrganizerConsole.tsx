@@ -238,7 +238,7 @@ export const OrganizerConsole: React.FC<{ view: EventView }> = ({ view }) => {
                 <p className="text-[11px] font-bold text-muted flex items-center justify-between gap-2">
                   <span className="truncate">
                     {competition.icon} {competition.title} · {match.roundName}
-                    {match.day && match.day !== view.event.programDate && !match.onStage ? ` · ${toPersianDigits(match.day)}` : ''}
+                    {match.day && match.day !== view.event.programDate && !match.onStage ? `، ${toPersianDigits(match.day)}` : ''}
                   </span>
                   {!match.done && (
                     <button type="button" onClick={() => setTimeFor({ competition, match })} className="p-1 rounded-lg hover:bg-surface" aria-label="تغییر زمان و محل این بازی">

@@ -72,7 +72,7 @@ export const CompetitionCard: React.FC<{ view: EventView; competition: EventComp
           <p className="text-xs text-muted mt-0.5">
             {team ? `تیمی، ${toPersianDigits(competition.teamMin)} تا ${toPersianDigits(competition.teamMax)} نفر` : 'فردی'} · {formatLine} ·{' '}
             {toPersianDigits(inEntries.length)} از {toPersianDigits(competition.capacity)} {team ? 'تیم' : 'نفر'}
-            {waiting.length > 0 && ` · ${toPersianDigits(waiting.length)} در انتظار`}
+            {waiting.length > 0 && `، ${toPersianDigits(waiting.length)} در انتظار`}
           </p>
           <p className="text-[11px] text-faint mt-0.5">
             {label(STAGE_POLICIES, competition.stagePolicy)}
@@ -154,7 +154,7 @@ export const CompetitionCard: React.FC<{ view: EventView; competition: EventComp
                   {myEntry.status === 'waitlist'
                     ? `در فهرست انتظار، نفر ${toPersianDigits(myEntry.waitlistPosition ?? 0)}`
                     : team
-                      ? `${myEntry.members.map((id) => view.people[id]?.firstName ?? '').join('، ')}${myEntry.members.length < competition.teamMin ? ` · ${toPersianDigits(competition.teamMin - myEntry.members.length)} نفر کم دارد` : ''}`
+                      ? `${myEntry.members.map((id) => view.people[id]?.firstName ?? '').join('، ')}${myEntry.members.length < competition.teamMin ? `، ${toPersianDigits(competition.teamMin - myEntry.members.length)} نفر کم دارد` : ''}`
                       : 'جای شما قطعی است'}
                 </p>
               </div>

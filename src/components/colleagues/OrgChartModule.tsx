@@ -68,7 +68,7 @@ const OrgNodeView: React.FC<{ node: OrgNode; depth: number }> = ({ node, depth }
             <span className="block text-sm font-bold text-ink">{person.firstName} {person.lastName}</span>
             <span className="block text-xs text-muted">
               {placeText(person)}
-              {total > 0 && ` · ${toPersianDigits(total)} نفر زیرمجموعه`}
+              {total > 0 && `، ${toPersianDigits(total)} نفر زیرمجموعه`}
             </span>
           </span>
         </button>
