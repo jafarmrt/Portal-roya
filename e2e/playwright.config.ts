@@ -1,6 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const port = Number(process.env.E2E_PORT ?? 4173);
+// The tests themselves run in Tehran time too, like the browser and the portal, so "today" is the same
+// day on all three: between 00:00 and 03:30 in Tehran a runner on UTC is still on yesterday.
+process.env.TZ = 'Asia/Tehran';
 
 // Browser smoke tests: open every page of the built portal as admin, employee and guest.
 // Run with `npm run test:e2e` after `npm run build`; needs a PostgreSQL database (E2E_DATABASE_URL).
