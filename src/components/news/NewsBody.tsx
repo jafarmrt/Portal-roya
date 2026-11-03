@@ -29,7 +29,7 @@ export function audienceSummary(
     item.targetRoles.map(roleName).join('، '),
     item.targetUserCount > 0 ? `${item.targetUserCount.toLocaleString('fa-IR')} نفر به‌نام` : '',
   ].filter(Boolean);
-  return parts.length > 0 ? parts.join(' · ') : null;
+  return parts.length > 0 ? parts.join(' | ') : null;
 }
 
 /** Where a circular is against its deadline: 'soon' is the last day. */

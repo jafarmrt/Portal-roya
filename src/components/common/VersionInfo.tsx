@@ -110,7 +110,7 @@ export const VersionInfo: React.FC<{ className?: string }> = ({ className = '' }
 
   if (!info) return null;
   const isNew = seen !== info.version;
-  const label = `نسخهٔ ${toPersianDigits(info.version)}${info.build ? ` · بیلد ${buildNumber(info.build)}` : ''}${info.builtAt ? ` · ${formatDate(info.builtAt)}` : ''}`;
+  const label = `نسخهٔ ${toPersianDigits(info.version)}${info.build ? ` | بیلد ${buildNumber(info.build)}` : ''}${info.builtAt ? ` | ${formatDate(info.builtAt)}` : ''}`;
 
   return (
     <>

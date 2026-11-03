@@ -158,7 +158,7 @@ export const DashboardModule: React.FC = () => {
                 onClick={() => setActiveTab('news')}
                 className="tap-area text-xs font-bold text-brand hover:underline flex items-center gap-1 whitespace-nowrap shrink-0"
               >
-                <span>مشاهده همه اخبار</span>
+                <span>مشاهدهٔ همهٔ اخبار</span>
                 <ChevronLeft className="w-4 h-4" />
               </button>
             </div>

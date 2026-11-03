@@ -1,6 +1,6 @@
 import { and, eq, ne, sql } from 'drizzle-orm';
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { z } from 'zod';
 import {
   burnPasswordCheck,
@@ -46,16 +46,35 @@ import { jalaliDateValue, optionalText, password, requiredText, username } from 
 
 export const authRouter = Router();
 
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: config.isTest ? 1000 : 30,
-  // Only failed attempts count, so colleagues behind one address (or one person signing in on several
-  // devices) are not locked out by ordinary sign-ins.
-  skipSuccessfulRequests: true,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'تعداد تلاش‌های ورود زیاد است. چند دقیقه دیگر دوباره امتحان کنید.' },
-});
+// Wrong sign-ins are limited per address, but many colleagues can share one: a training session on
+// the office Wi-Fi, or a router that shows every phone as its own LAN address (OUTSIDE_ADDRESSES).
+// Only failed attempts count, yet the counter goes up when a request arrives and down when it
+// succeeds, so with one limit of 30 a room signing in at the same moment got «too many attempts»
+// without a single wrong password, and 30 typos in that room locked everyone out for 15 minutes.
+// Now each username has its own small allowance, and the address as a whole a large one.
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const TOO_MANY = { error: 'تعداد تلاش‌های ورود زیاد است. چند دقیقه دیگر دوباره امتحان کنید.' };
+
+/** The username a sign-in is for, as the login form sends it (for the per-person allowance). */
+const loginNameOf = (req: { body?: { username?: unknown } }) =>
+  typeof req.body?.username === 'string' ? normalizeLoginName(req.body.username.slice(0, 200)) : '';
+
+/**
+ * `perAddress`: every failed sign-in from one address (someone trying many colleagues' passwords).
+ * `perAccount`: failed sign-ins for one username from one address, as many as lock a portal account.
+ */
+export function loginLimiters({ perAddress, perAccount }: { perAddress: number; perAccount: number }) {
+  const common = { windowMs: LOGIN_WINDOW_MS, skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false, message: TOO_MANY } as const;
+  return {
+    address: rateLimit({ ...common, limit: perAddress }),
+    account: rateLimit({ ...common, limit: perAccount, keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? '')}|${loginNameOf(req)}` }),
+  };
+}
+export const LOGIN_LIMITS = { perAddress: 200, perAccount: MAX_FAILED_LOGINS };
+const limiters = loginLimiters(config.isTest ? { perAddress: 1000, perAccount: 1000 } : LOGIN_LIMITS);
+
+/** A username typed with the Persian keyboard (e.g. «سشقش» for sara) can never match. */
+const PERSIAN_LETTERS = /[\u0600-\u06FF]/;
 
 async function hasAnyEmployee() {
   const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(employees);
@@ -152,7 +171,7 @@ const setupSchema = z.object({
 
 authRouter.post(
   '/system/setup',
-  loginLimiter,
+  limiters.address,
   route(async (req, res) => {
     const body = parse(setupSchema, req.body);
     const expectedToken = process.env.SETUP_TOKEN;
@@ -279,7 +298,16 @@ async function syncDirectoryUser(dir: DirectoryUser, existing: Employee | undefi
 
 authRouter.post(
   '/auth/login',
-  loginLimiter,
+  // Checked before the limits, so a try with the keyboard left on Persian is not counted as a wrong one.
+  (req, res, next) => {
+    if (typeof req.body?.username === 'string' && PERSIAN_LETTERS.test(req.body.username)) {
+      res.status(400).json({ error: 'نام کاربری با حروف انگلیسی است (مثلاً ali.rezaei). صفحه‌کلید را انگلیسی کنید و دوباره بنویسید.' });
+      return;
+    }
+    next();
+  },
+  limiters.address,
+  limiters.account,
   route(async (req, res) => {
     const { username: name, password: pass } = parse(loginSchema, req.body);
     const [user] = await db.select().from(employees).where(eq(employees.username, name)).limit(1);

@@ -133,7 +133,7 @@ const DaysView: React.FC<{ onArchive: () => void }> = ({ onArchive }) => {
           </h2>
           <p className="text-sm text-muted flex flex-wrap items-center gap-x-1">
             <span className="flex items-center gap-1 whitespace-nowrap"><Lock className="w-3.5 h-3.5" /> فقط خودتان می‌بینید</span>
-            <span className="whitespace-nowrap">· {toPersianDigits(open.length)} یادداشت باز</span>
+            <span className="whitespace-nowrap">| {toPersianDigits(open.length)} یادداشت باز</span>
           </p>
         </div>
         <button
@@ -256,7 +256,7 @@ const ArchiveView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           <h2 className="text-xl font-black text-ink">آرشیو یادداشت‌ها</h2>
           <p className="text-sm text-muted flex flex-wrap items-center gap-x-1">
             <span className="flex items-center gap-1 whitespace-nowrap"><Lock className="w-3.5 h-3.5" /> فقط خودتان می‌بینید</span>
-            {items && <span className="whitespace-nowrap">· {toPersianDigits(items.length)} یادداشت</span>}
+            {items && <span className="whitespace-nowrap">| {toPersianDigits(items.length)} یادداشت</span>}
           </p>
           <p className="text-xs text-faint mt-0.5">
             یادداشت‌های انجام‌شده {toPersianDigits(TODO_AUTO_ARCHIVE_DAYS)} روز پس از انجام، خودشان به آرشیو می‌آیند. چیزی خودبه‌خود پاک نمی‌شود.

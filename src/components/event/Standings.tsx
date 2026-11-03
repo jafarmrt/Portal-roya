@@ -125,7 +125,7 @@ export const RankingTable: React.FC<BoardProps> = ({ competition, people, mine, 
               <span className="flex-1 min-w-0 truncate font-bold">{entryName(entry, people)}</span>
               {first && <Crown className={`${big ? 'w-[2.2vw] h-[2.2vw]' : 'w-4 h-4'} text-amber-500 shrink-0`} aria-label="قهرمان" />}
               <span className={`shrink-0 font-black tabular-nums ${match.done ? '' : 'text-muted font-bold'}`}>
-                {match.done ? performanceLine(competition, match) : match.live && match.scoreA !== null ? `${fa(match.scoreA)} …` : match.onStage ? `${match.roundName} · روی صحنه` : `${match.roundName}${match.time ? ` · ${toPersianDigits(match.time)}` : ''}`}
+                {match.done ? performanceLine(competition, match) : match.live && match.scoreA !== null ? `${fa(match.scoreA)} …` : match.onStage ? `${match.roundName} · روی صحنه` : `${match.roundName}${match.time ? `، ساعت ${toPersianDigits(match.time)}` : ''}`}
               </span>
             </Tag>
           </li>

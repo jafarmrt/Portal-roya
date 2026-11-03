@@ -8,6 +8,15 @@ import { SystemTile } from './dashboard/QuickSystemsWidget';
 import { RoyaLogo } from './common/RoyaLogo';
 import { ModalCloseButton, ModalShell } from './common/Modal';
 
+/** Persian letters or digits: the phone's keyboard was left on Persian (usernames and AD passwords are English). */
+const PERSIAN_KEYBOARD = /[\u0600-\u06FF]/;
+
+const KeyboardHint: React.FC<{ id: string; children: React.ReactNode }> = ({ id, children }) => (
+  <p id={id} role="status" className="mt-1.5 text-xs font-bold text-amber-800 leading-relaxed">
+    {children}
+  </p>
+);
+
 /** Username/password form shared by the full login page and the guest sign-in dialog. */
 const LoginForm: React.FC = () => {
   const { login, directoryLogin } = usePortal();
@@ -16,6 +25,8 @@ const LoginForm: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const persianName = PERSIAN_KEYBOARD.test(username);
+  const persianPassword = PERSIAN_KEYBOARD.test(password);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,9 +56,14 @@ const LoginForm: React.FC = () => {
             id={`${id}-username`}
             type="text"
             autoComplete="username"
+            // Phones would otherwise write «Ali.rezaei» or «ali. rezaei».
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             autoFocus={!isTouchScreen()}
             required
             dir="ltr"
+            aria-describedby={persianName ? `${id}-username-hint` : undefined}
             placeholder={directoryLogin ? 'مثلاً ali.rezaei' : undefined}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -55,6 +71,9 @@ const LoginForm: React.FC = () => {
           />
           <User className="w-4 h-4 text-faint absolute right-3 top-3.5" />
         </div>
+        {persianName && (
+          <KeyboardHint id={`${id}-username-hint`}>نام کاربری با حروف انگلیسی است؛ صفحه‌کلید را انگلیسی کنید.</KeyboardHint>
+        )}
       </div>
 
       <div>
@@ -66,12 +85,18 @@ const LoginForm: React.FC = () => {
             autoComplete="current-password"
             required
             dir="ltr"
+            aria-describedby={persianPassword ? `${id}-password-hint` : undefined}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full pl-3 pr-10 py-3 rounded-xl border border-line-strong text-sm focus:border-red-700 focus:ring-2 focus:ring-red-700/20 outline-hidden text-left"
           />
           <Lock className="w-4 h-4 text-faint absolute right-3 top-3.5" />
         </div>
+        {persianPassword && (
+          <KeyboardHint id={`${id}-password-hint`}>
+            در رمز، حرف یا عدد فارسی هست. اگر رمز شما انگلیسی است، صفحه‌کلید را انگلیسی کنید.
+          </KeyboardHint>
+        )}
       </div>
 
       <button

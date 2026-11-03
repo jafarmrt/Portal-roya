@@ -318,7 +318,7 @@ export const VersionsModal: React.FC<{ doc: PortalDocument; onClose: () => void 
                 {v.current && <span className="text-xs font-bold text-emerald-800">نسخهٔ فعلی</span>}
                 {v.note && <p className="text-xs text-ink leading-relaxed">{v.note}</p>}
                 <p className="text-xs text-faint">
-                  {formatDate(v.createdAt)}{v.uploadedBy && ` · ${v.uploadedBy}`} · {formatFileSize(v.fileSize)}
+                  {formatDate(v.createdAt)}{v.uploadedBy && ` · ${v.uploadedBy}`} | {formatFileSize(v.fileSize)}
                 </p>
               </div>
               <a href={v.fileUrl} download={v.fileName} className="p-2 rounded-xl text-ink hover:bg-white" aria-label={`دریافت نسخهٔ ${toPersianDigits(v.version)}`} title="دریافت فایل">

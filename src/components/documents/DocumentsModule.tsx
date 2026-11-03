@@ -71,7 +71,7 @@ const DocumentCard: React.FC<{ doc: PortalDocument; focused: boolean; open: (kin
           {doc.description && <p className="text-xs text-muted leading-relaxed">{doc.description}</p>}
           {doc.version > 1 && doc.versionNote && <p className="text-xs text-ink-soft">تغییر نسخهٔ {toPersianDigits(doc.version)}: {doc.versionNote}</p>}
           <p className="text-xs text-faint">
-            {formatFileSize(doc.fileSize)} · {doc.version > 1 ? `به‌روز شده ${formatDate(doc.updatedAt)}` : formatDate(doc.createdAt)}
+            {formatFileSize(doc.fileSize)} | {doc.version > 1 ? `به‌روز شده ${formatDate(doc.updatedAt)}` : formatDate(doc.createdAt)}
             {doc.owner ? ` · مسئول: ${doc.owner}` : doc.uploadedBy && ` · ${doc.uploadedBy}`}
             {caretaker && doc.reviewAt && ` · بازبینی: ${formatDate(doc.reviewAt)}`}
           </p>

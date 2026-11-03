@@ -289,7 +289,7 @@ export const QuizRemote: React.FC<{ view: EventView; onBoard: () => void }> = ({
             <div className="rounded-2xl bg-surface p-3 space-y-1">
               <p className="text-xs text-muted">
                 سؤال {toPersianDigits(current.index)} از {toPersianDigits(quiz.count)} ·{' '}
-                {current.revealed ? 'جواب نشان داده شد' : left > 0 ? `${toPersianDigits(left)} ثانیه مانده` : 'وقت تمام شد'} · {toPersianDigits(current.answered)} جواب
+                {current.revealed ? 'جواب نشان داده شد' : left > 0 ? `${toPersianDigits(left)} ثانیه مانده` : 'وقت تمام شد'}، {toPersianDigits(current.answered)} جواب
               </p>
               <p className="text-sm font-bold text-ink">{current.text}</p>
               {current.correct !== null && <p className="text-xs text-emerald-700">جواب درست: {current.options[current.correct]}</p>}

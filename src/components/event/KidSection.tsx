@@ -177,7 +177,7 @@ export const KidRemote: React.FC<{ view: EventView }> = ({ view }) => {
               <img src={p.url} alt={`عکس کودکی ${view.people[p.employeeId]?.name ?? 'همکار'}`} className="w-12 h-12 rounded-xl object-cover" />
               <span className="flex-1 min-w-0 text-xs">
                 <span className="font-bold">{view.people[p.employeeId]?.name ?? 'همکار'}</span>
-                <span className="block text-muted">{p.revealed ? `جواب اعلام شد · ${toPersianDigits(p.guessed)} حدس` : p.shown ? `روی صفحه رفته · ${toPersianDigits(p.guessed)} حدس` : 'هنوز نشان داده نشده'}</span>
+                <span className="block text-muted">{p.revealed ? `جواب اعلام شد، ${toPersianDigits(p.guessed)} حدس` : p.shown ? `روی صفحه رفته، ${toPersianDigits(p.guessed)} حدس` : 'هنوز نشان داده نشده'}</span>
               </span>
               {kid.live && (
                 <button type="button" onClick={() => void run(() => api.post(`/api/event_kid_photos/${p.id}/show`))} aria-pressed={active} className={secondaryButtonClass}>

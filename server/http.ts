@@ -1,7 +1,37 @@
 import { randomUUID } from 'crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
+import { toPersianDigits } from '../shared/jalali.js';
 import type { AuthedRequest, SessionUser } from './auth.js';
+
+// zod's own messages are English («Too big: expected string to have <=100 characters»), and parse()
+// below shows them to the colleague; these are said in Persian. A message written on a schema wins.
+const fa = (n: unknown) => toPersianDigits(String(n));
+const NUMBERS = new Set(['number', 'int', 'bigint']);
+z.config({
+  customError: (issue) => {
+    switch (issue.code) {
+      case 'too_big':
+        if (issue.origin === 'string') return `حداکثر ${fa(issue.maximum)} حرف`;
+        if (issue.origin === 'array' || issue.origin === 'set') return `حداکثر ${fa(issue.maximum)} مورد`;
+        if (NUMBERS.has(issue.origin)) return `حداکثر ${fa(issue.maximum)}`;
+        return 'بیش از اندازه است';
+      case 'too_small':
+        if (issue.origin === 'string') return Number(issue.minimum) <= 1 ? 'این فیلد الزامی است' : `حداقل ${fa(issue.minimum)} حرف`;
+        if (issue.origin === 'array' || issue.origin === 'set') return `حداقل ${fa(issue.minimum)} مورد`;
+        if (NUMBERS.has(issue.origin)) return `حداقل ${fa(issue.minimum)}`;
+        return 'کمتر از اندازه است';
+      case 'invalid_type':
+        return issue.input === undefined || issue.input === null ? 'این فیلد الزامی است' : 'مقدار این فیلد درست نیست';
+      case 'invalid_value':
+        return 'گزینهٔ انتخاب‌شده درست نیست';
+      case 'invalid_format':
+        return 'شکل این مقدار درست نیست';
+      default:
+        return undefined;
+    }
+  },
+});
 
 export class HttpError extends Error {
   constructor(public status: number, message: string, public code?: string) {
