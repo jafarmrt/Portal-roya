@@ -79,6 +79,9 @@ const defaultSender: PushSender = async (target, payload) => {
         vapidDetails: { subject: vapidSubject(), publicKey, privateKey },
         // A message nobody could deliver within a day is stale (the bell still has it).
         TTL: 24 * 60 * 60,
+        // 'high': an Android phone that lies idle (screen off, battery saving) gets it at once.
+        // With the default 'normal', Google holds it until the phone wakes, sometimes many minutes.
+        urgency: 'high',
         timeout: 15000,
         ...(process.env.PUSH_PROXY ? { proxy: process.env.PUSH_PROXY } : {}),
       },

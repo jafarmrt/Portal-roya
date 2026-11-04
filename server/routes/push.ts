@@ -100,7 +100,9 @@ pushRouter.post(
       title: 'اعلان آزمایشی پرتال',
       body: 'اگر این پیام را می‌بینید، اعلان‌های پرتال روی این دستگاه می‌آید.',
       url: '/#notifications',
-      tag: 'test',
+      // Its own tag each time: a second test with the same tag would silently replace the first one
+      // still on the phone, without sound or vibration, and look as if it never arrived.
+      tag: `test-${Date.now()}`,
     });
     res.json({ devices: rows.length, ...result });
   }),
