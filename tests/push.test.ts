@@ -117,6 +117,15 @@ describe('notifications on phones and computers (Web Push)', () => {
     gone.add(device('a2').endpoint);
     const test = (await admin.post('/api/push/test').expect(200)).body;
     expect(test).toMatchObject({ devices: 3, sent: 2 });
+    // Each test press is a new notification on the phone, not a silent replacement of the last one.
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    sent.length = 0;
+    await admin.post('/api/push/test').expect(200);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await admin.post('/api/push/test').expect(200);
+    const testTags = sent.map((s) => s.payload.tag);
+    expect(testTags.every((tag) => tag.startsWith('test-'))).toBe(true);
+    expect(new Set(testTags).size).toBe(2);
     expect(await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.endpoint, device('a2').endpoint))).toHaveLength(0);
   });
 
