@@ -1,9 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- The "O" of the ROYA logo as a roll of carpet or wallpaper unrolling along the floor.
-       Tab-size version: the thin inner rings of the full icon (icon-512.png) blur at 16-32 px,
-       so only the outer ring, the sheet and a solid centre are kept. -->
+  <!-- The ringed "O" of the ROYA logo, white on Roya red. Tab-size version: the thin inner rings of
+       the full icon (icon-512.png) blur at 16-32 px, so only the outer ring and a solid centre are kept. -->
   <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EA1B22"/><stop offset="1" stop-color="#B80F19"/></linearGradient></defs>
   <rect width="512" height="512" rx="112" fill="url(#g)"/>
-  <clipPath id="c"><rect width="512" height="512" rx="112"/></clipPath>
-  <g clip-path="url(#c)"><path fill="#fff" fill-rule="evenodd" d="M28 222a168 168 0 1 0 336 0a168 168 0 1 0 -336 0ZM101.9 222a94.1 94.1 0 1 1 188.2 0a94.1 94.1 0 1 1 -188.2 0Z"/><path fill="#fff" d="M196 316.1H512V390H196Z"/><circle cx="196" cy="222" r="43.7" fill="#fff"/></g>
+  <path fill="#fff" fill-rule="evenodd" d="M66 256a190 190 0 1 0 380 0a190 190 0 1 0 -380 0ZM149.6 256a106.4 106.4 0 1 1 212.8 0a106.4 106.4 0 1 1 -212.8 0Z"/><circle cx="256" cy="256" r="49.4" fill="#fff"/>
 </svg>

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Small status-bar icon of phone notifications: the white ROYA roll on a transparent background,
-       because Android paints every non-transparent pixel of this icon white. -->
-  <path fill="#fff" fill-rule="evenodd" d="M20 232a176 176 0 1 0 352 0a176 176 0 1 0 -352 0ZM97.4 232a98.6 98.6 0 1 1 197.1 0a98.6 98.6 0 1 1 -197.1 0Z"/><path fill="#fff" d="M196 330.6H512V408H196Z"/><circle cx="196" cy="232" r="45.8" fill="#fff"/>
+  <!-- Small status-bar icon of phone notifications: the white ringed "O" of the ROYA logo on a
+       transparent background, because Android paints every non-transparent pixel of this icon white. -->
+  <path fill="#fff" fill-rule="evenodd" d="M20 256a236 236 0 1 0 472 0a236 236 0 1 0 -472 0ZM123.8 256a132.2 132.2 0 1 1 264.3 0a132.2 132.2 0 1 1 -264.3 0Z"/><circle cx="256" cy="256" r="61.4" fill="#fff"/>
 </svg>

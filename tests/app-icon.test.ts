@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-// The portal's app icon: the "O" of the ROYA logo as a roll of carpet unrolling along the floor.
+// The portal's app icon: the ringed "O" of the ROYA logo, white on Roya red.
 // Phones crop the maskable icon to their own shape and iOS fills transparent corners with black,
 // so those two must be fully opaque; the others keep the rounded, transparent corners.
 const root = join(__dirname, '..');
@@ -24,10 +24,10 @@ describe('app icon', () => {
     expect(pngInfo(file)).toEqual({ width: size, height: size, colourType });
   });
 
-  it('is the ROYA roll, not the old red "R"', () => {
+  it('is the ringed ROYA "O", not the old red "R"', () => {
     const svg = readFileSync(join(root, 'public/favicon.svg'), 'utf8');
     expect(svg).not.toContain('#dc2626');
-    expect(svg).toContain('roll');
+    expect(svg).toContain('ringed "O" of the ROYA logo');
   });
 
   it('every icon the manifest names is a file in public/', () => {
