@@ -2,7 +2,7 @@
 // It caches only the "can't reach the portal" page. Every page and file still comes from the server,
 // so a release installed with update.sh shows on the next open; /api (live updates included) and
 // /uploads are never touched. Bump CACHE when offline.html or its icon changes.
-const CACHE = 'roya-offline-v1';
+const CACHE = 'roya-offline-v2';
 const OFFLINE_URL = '/offline.html';
 
 self.addEventListener('install', (event) => {
