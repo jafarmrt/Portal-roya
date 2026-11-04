@@ -137,7 +137,7 @@ export async function showLocal(items: { id: string; title: string; message: str
     const options: NotificationOptions = {
       body: item.message,
       icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      badge: '/badge-96.png',
       dir: 'rtl',
       lang: 'fa',
       tag: pushTag(item.id),
