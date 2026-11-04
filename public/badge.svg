@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="8 8 48 48">
-  <!-- Small status-bar icon of phone notifications: only the white "R" of the ROYA wordmark on a
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Small status-bar icon of phone notifications: the white ringed "O" of the ROYA logo on a
        transparent background, because Android paints every non-transparent pixel of this icon white. -->
-  <path fill="#fff" d="M25.84 34.6V46.46L30.2 47.15V49H13.8V47.15L17.83 46.46V17.51L13.47 16.85V15H29.72Q37.22 15 40.92 17.31Q44.63 19.61 44.63 24.51Q44.63 31.81 37.78 33.89L46.86 46.46L50.53 47.15V49H39.53L30.05 34.6ZM36.72 24.56Q36.72 20.76 35.14 19.27Q33.57 17.79 29.39 17.79H25.84V31.81H29.52Q33.42 31.81 35.07 30.19Q36.72 28.56 36.72 24.56Z"/>
+  <path fill="#fff" fill-rule="evenodd" d="M20 256a236 236 0 1 0 472 0a236 236 0 1 0 -472 0ZM123.8 256a132.2 132.2 0 1 1 264.3 0a132.2 132.2 0 1 1 -264.3 0Z"/><circle cx="256" cy="256" r="61.4" fill="#fff"/>
 </svg>
