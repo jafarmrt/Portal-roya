@@ -28,6 +28,7 @@ import { suggestionsRouter } from './routes/suggestions.js';
 import { todosRouter } from './routes/todos.js';
 import { tasksRouter } from './routes/tasks.js';
 import { kudosRouter } from './routes/kudos.js';
+import { recognitionRouter } from './routes/recognition.js';
 import { reactionsRouter } from './routes/reactions.js';
 import { noticesRouter } from './routes/notices.js';
 import { pushRouter } from './routes/push.js';
@@ -107,6 +108,7 @@ export function createApp() {
   api.use(todosRouter);
   api.use(tasksRouter);
   api.use(kudosRouter);
+  api.use(recognitionRouter);
   api.use(reactionsRouter);
   api.use(noticesRouter);
   api.use(pushRouter);

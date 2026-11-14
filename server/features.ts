@@ -45,6 +45,8 @@ const FEATURE_ROUTES: { key: FeatureKey; pattern: RegExp; emptyReads: Record<str
     emptyReads: { '/special_events/current': { event: null, canManage: false }, '/event_badges': {} },
   },
   { key: 'pushNotifications', pattern: /^\/push(\/|$)/, emptyReads: {} },
+  // Its settings (/settings/recognition) stay in reach, so they can be written before it is switched on.
+  { key: 'recognition', pattern: /^\/recognitions(\/|$)/, emptyReads: {} },
 ];
 
 /** Keeps a hidden part out of reach even for someone who types its address. */

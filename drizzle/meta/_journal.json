@@ -330,6 +330,13 @@
       "when": 1793640616020,
       "tag": "0046_event_kid_photos",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1794639693149,
+      "tag": "0047_recognition",
+      "breakpoints": true
     }
   ]
 }

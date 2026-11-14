@@ -2,10 +2,11 @@ import { WISH_REACTIONS } from './celebrations.js';
 
 /**
  * Emoji reactions from colleagues: to a new colleague's introduction ('intro'), to a welcome message
- * under it ('welcome', given by the new colleague) and to a greeting card that is not private
- * ('greeting', by anyone but the person it is for, who keeps their own one reaction on the card).
+ * under it ('welcome', given by the new colleague), to a greeting card that is not private
+ * ('greeting', by anyone but the person it is for, who keeps their own one reaction on the card) and,
+ * in the same way, to a recognition on the wall of «سپاس» ('recognition').
  */
-export const REACTION_TARGETS = ['intro', 'welcome', 'greeting'] as const;
+export const REACTION_TARGETS = ['intro', 'welcome', 'greeting', 'recognition'] as const;
 export type ReactionTarget = (typeof REACTION_TARGETS)[number];
 
 /** The same five emoji as a greeting card's own reaction. */

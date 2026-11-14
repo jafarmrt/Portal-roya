@@ -16,7 +16,7 @@ export const PUSH_CATEGORIES: PushCategory[] = [
   { id: 'calendar', label: 'رویدادها و دوره‌های آموزشی', types: ['calendar', 'training'] },
   { id: 'polls', label: 'نظرسنجی‌ها', types: ['poll'] },
   { id: 'todos', label: 'یادآوری کارهای من', types: ['todo'] },
-  { id: 'people', label: 'تولد، همکار جدید و تبریک‌ها', types: ['birthday', 'welcome', 'kudos'] },
+  { id: 'people', label: 'تولد، همکار جدید و تبریک‌ها', types: ['birthday', 'welcome', 'kudos', 'recognition'] },
   { id: 'other', label: 'پیام‌های پرتال و انتقادات و پیشنهادات', types: ['system', 'profile', 'suggestion'] },
 ];
 
