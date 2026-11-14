@@ -1,0 +1,654 @@
+import { and, count, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
+import { featureVisible } from '../shared/features.js';
+import { toPersianDigits } from '../shared/jalali.js';
+import type { ReactionCount } from '../shared/reactions.js';
+import {
+  amountChoices,
+  messageLength,
+  monthAllowance,
+  monthProgress,
+  RECOGNITION_JOIN_AMOUNT,
+  RECOGNITION_MESSAGE_MAX,
+  RECOGNITION_MESSAGE_MIN,
+  RECOGNITION_PAGE,
+  RECOGNITION_REPEAT_MS,
+  RECOGNITION_UNDO_MS,
+  recognitionMonth,
+  recognitionValues,
+  rulesFor,
+} from '../shared/recognition.js';
+import { audit } from './audit.js';
+import type { SessionUser } from './auth.js';
+import { db } from './db/index.js';
+import { employees, recognitions } from './db/schema.js';
+import { broadcastChange, signalUser } from './events.js';
+import { featureConfig } from './features.js';
+import { HttpError, newId } from './http.js';
+import { createNotifications } from './notify.js';
+import { reactionCounts } from './routes/reactions.js';
+import { fullName } from './serializers.js';
+import { ensureSettings } from './settings.js';
+
+// «سپاس»: giving coins with a message of thanks (shared/recognition.ts has the rules). Everything here
+// takes the moment it happens at, so a month's end can be tried without waiting for one.
+//
+// Who reads what:
+// - the amount of a recognition: only its sender and its receiver, never the wall;
+// - a recognition «فقط ما دو نفر»: only the two of them, the administrator included;
+// - a sealed one (not opened yet): the receiver sees who it is from, and the rest once they open it.
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type Row = typeof recognitions.$inferSelect;
+type Viewer = Pick<SessionUser, 'id' | 'role' | 'firstName' | 'lastName' | 'createdAt'>;
+
+const sender = alias(employees, 'recognition_sender');
+const receiver = alias(employees, 'recognition_receiver');
+
+/** Still counts, for the giver's allowance and for the receiver: not taken back and not reversed. */
+const standing = and(isNull(recognitions.withdrawnAt), isNull(recognitions.reversedAt));
+/** A recognition of its own, as against a «من هم» added to one. */
+const original = isNull(recognitions.parentId);
+
+const fa = (n: number) => toPersianDigits(n);
+const total = sql<number>`coalesce(sum(${recognitions.amount}), 0)::int`;
+
+const startOfToday = (now: Date) => {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const personColumns = (t: typeof sender | typeof receiver | typeof employees) => ({
+  id: t.id,
+  firstName: t.firstName,
+  lastName: t.lastName,
+  avatarUrl: t.avatarUrl,
+  position: t.position,
+  department: t.department,
+});
+type PersonRow = { id: string; firstName: string; lastName: string; avatarUrl: string; position: string; department: string };
+
+const person = (e: PersonRow) => ({ id: e.id, name: fullName(e), avatar: e.avatarUrl, position: e.position, department: e.department });
+const valueOf = (r: Row) => ({ id: r.valueId, label: r.valueLabel, tone: r.valueTone });
+const shorten = (text: string, max = 80) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+
+/** The people this colleague can recognise: active, with a portal account, who see the part themselves. */
+async function reachable() {
+  const config = await featureConfig();
+  const rows = await db
+    .select({ ...personColumns(employees), role: employees.role })
+    .from(employees)
+    .where(and(eq(employees.isActive, true), eq(employees.hasAccount, true)));
+  return rows.filter((e) => featureVisible(config, 'recognition', e));
+}
+
+/** What this person gave out of a month's allowance, in all and to each colleague. */
+async function givenIn(userId: string, month: string, tx: Tx | typeof db = db) {
+  const rows = await tx
+    .select({ toId: recognitions.toId, amount: total })
+    .from(recognitions)
+    .where(and(eq(recognitions.fromId, userId), eq(recognitions.month, month), standing))
+    .groupBy(recognitions.toId);
+  return { all: rows.reduce((sum, r) => sum + r.amount, 0), byPerson: new Map(rows.map((r) => [r.toId, r.amount])) };
+}
+
+/** Recognitions this person wrote today; «من هم» has no message and is not one of them. */
+async function writtenToday(userId: string, now: Date, tx: Tx | typeof db = db) {
+  const [row] = await tx
+    .select({ n: count() })
+    .from(recognitions)
+    .where(and(eq(recognitions.fromId, userId), original, isNull(recognitions.withdrawnAt), gte(recognitions.createdAt, startOfToday(now))));
+  return row?.n ?? 0;
+}
+
+/**
+ * The colleague's wallet for the month `now` falls in. Nothing is stored for it: what is left is the
+ * month's allowance less what they gave in it, so a new month starts full and last month's rest is
+ * simply gone, whether or not the server was running at midnight.
+ */
+export async function walletOf(viewer: Pick<Viewer, 'id' | 'createdAt'>, now = new Date()) {
+  const month = recognitionMonth(now);
+  const settings = await ensureSettings();
+  const rules = rulesFor(settings.recognitionRules, month);
+  const allowance = monthAllowance(rules.allowance, month, viewer.createdAt);
+  const given = (await givenIn(viewer.id, month)).all;
+  // Coins received count once the colleague has opened the recognition (a «من هم» has no seal to open),
+  // so the number does not give a sealed one away.
+  const [received] = await db
+    .select({ coins: total })
+    .from(recognitions)
+    .where(and(eq(recognitions.toId, viewer.id), isNotNull(recognitions.deliveredAt), standing, or(isNotNull(recognitions.openedAt), isNotNull(recognitions.parentId))));
+  const [sealed] = await db
+    .select({ n: count() })
+    .from(recognitions)
+    .where(and(eq(recognitions.toId, viewer.id), original, isNotNull(recognitions.deliveredAt), standing, isNull(recognitions.openedAt)));
+  return {
+    month,
+    allowance,
+    given,
+    left: Math.max(0, allowance - given),
+    ...monthProgress(now),
+    rules: { minAmount: rules.minAmount, maxAmount: rules.maxAmount, perPersonMax: rules.perPersonMax, dailyMax: rules.dailyMax },
+    amounts: amountChoices(rules),
+    joinAmount: RECOGNITION_JOIN_AMOUNT,
+    writtenToday: await writtenToday(viewer.id, now),
+    values: recognitionValues(settings.recognitionValues),
+    undoMs: RECOGNITION_UNDO_MS,
+    messageMin: RECOGNITION_MESSAGE_MIN,
+    messageMax: RECOGNITION_MESSAGE_MAX,
+    received: { coins: received?.coins ?? 0, sealed: sealed?.n ?? 0 },
+  };
+}
+
+/** Who the colleague can recognise, with what they already gave each this month (for the per-person limit). */
+export async function recognisable(viewer: Pick<Viewer, 'id'>, now = new Date()) {
+  const [people, given] = await Promise.all([reachable(), givenIn(viewer.id, recognitionMonth(now))]);
+  return people
+    .filter((p) => p.id !== viewer.id)
+    .sort((a, b) => fullName(a).localeCompare(fullName(b), 'fa'))
+    .map((p) => ({ ...person(p), givenThisMonth: given.byPerson.get(p.id) ?? 0 }));
+}
+
+/** The colleague a recognition goes to, or the reason it cannot go to them. */
+async function receiverOf(viewer: Pick<Viewer, 'id'>, toId: string) {
+  if (toId === viewer.id) throw new HttpError(400, 'نمی‌توانید از خودتان قدردانی کنید.');
+  const [target] = await db.select().from(employees).where(eq(employees.id, toId)).limit(1);
+  if (!target || !target.isActive || !target.hasAccount) throw new HttpError(400, 'این همکار حساب فعال در پرتال ندارد.');
+  // While the part is in preview, coins only go to people who can see it.
+  if (!featureVisible(await featureConfig(), 'recognition', target)) {
+    throw new HttpError(400, 'این همکار هنوز به بخش «سپاس» دسترسی ندارد.');
+  }
+  return target;
+}
+
+/**
+ * Checks the month's allowance and the per-person limit and saves the row, under a lock on the giver, so
+ * several clicks at once (a double click, two open pages) can never spend more than there is.
+ */
+async function spend(
+  viewer: Pick<Viewer, 'id' | 'createdAt'>,
+  target: { id: string; firstName: string; lastName: string },
+  values: Omit<typeof recognitions.$inferInsert, 'id' | 'fromId' | 'toId' | 'month' | 'deliverAt' | 'createdAt'>,
+  now: Date,
+  check: (tx: Tx) => Promise<void> = async () => undefined,
+) {
+  const month = recognitionMonth(now);
+  const rules = rulesFor((await ensureSettings()).recognitionRules, month);
+  const allowance = monthAllowance(rules.allowance, month, viewer.createdAt);
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`recognition:${viewer.id}`}))`);
+    await check(tx);
+    const given = await givenIn(viewer.id, month, tx);
+    const left = allowance - given.all;
+    if (left <= 0) throw new HttpError(400, 'سهمیهٔ این ماه شما تمام شده است؛ اول ماه بعد سکه‌های تازه می‌رسد.');
+    if (values.amount > left) throw new HttpError(400, `از سهمیهٔ این ماه ${fa(left)} سکه برایتان مانده است.`);
+    const room = rules.perPersonMax - (given.byPerson.get(target.id) ?? 0);
+    if (values.amount > room) {
+      throw new HttpError(
+        400,
+        room <= 0
+          ? `این ماه به سقف ${fa(rules.perPersonMax)} سکه برای ${fullName(target)} رسیده‌اید.`
+          : `به هر همکار در ماه حداکثر ${fa(rules.perPersonMax)} سکه می‌شود داد؛ برای ${fullName(target)} ${fa(room)} سکهٔ دیگر جا دارید.`,
+      );
+    }
+    const [row] = await tx
+      .insert(recognitions)
+      .values({
+        ...values,
+        id: newId('rec'),
+        fromId: viewer.id,
+        toId: target.id,
+        month,
+        createdAt: now,
+        deliverAt: new Date(now.getTime() + RECOGNITION_UNDO_MS),
+      })
+      .returning();
+    return row;
+  });
+}
+
+export interface GiveInput {
+  to: string;
+  amount: number;
+  valueId: string;
+  message: string;
+  isPublic: boolean;
+}
+
+/** A recognition from `viewer`. The receiver hears of it once the time for taking it back has passed. */
+export async function giveRecognition(viewer: Viewer, input: GiveInput, now = new Date()) {
+  const target = await receiverOf(viewer, input.to);
+  const settings = await ensureSettings();
+  const rules = rulesFor(settings.recognitionRules, recognitionMonth(now));
+  const value = recognitionValues(settings.recognitionValues).find((v) => v.id === input.valueId);
+  if (!value) throw new HttpError(400, 'این ارزش دیگر در فهرست نیست؛ صفحه را دوباره باز کنید.');
+  if (!amountChoices(rules).includes(input.amount)) {
+    throw new HttpError(400, `هر قدردانی بین ${fa(rules.minAmount)} و ${fa(rules.maxAmount)} سکه است، پنج‌تا پنج‌تا.`);
+  }
+  const message = input.message.trim();
+  if (messageLength(message) < RECOGNITION_MESSAGE_MIN) {
+    throw new HttpError(400, `پیام را کمی کامل‌تر بنویسید (حداقل ${fa(RECOGNITION_MESSAGE_MIN)} حرف): چه کاری کرد و چه اثری داشت؟`);
+  }
+  const row = await spend(
+    viewer,
+    target,
+    { amount: input.amount, valueId: value.id, valueLabel: value.label, valueTone: value.tone, message, isPublic: input.isPublic },
+    now,
+    async (tx) => {
+      // The form sent twice (a double click, a slow connection): the first one stands, with its coins.
+      const [same] = await tx
+        .select({ id: recognitions.id })
+        .from(recognitions)
+        .where(
+          and(
+            eq(recognitions.fromId, viewer.id),
+            eq(recognitions.toId, target.id),
+            eq(recognitions.amount, input.amount),
+            eq(recognitions.message, message),
+            original,
+            isNull(recognitions.withdrawnAt),
+            gt(recognitions.createdAt, new Date(now.getTime() - RECOGNITION_REPEAT_MS)),
+          ),
+        )
+        .limit(1);
+      if (same) throw new HttpError(409, 'همین قدردانی چند لحظه پیش ثبت شد.');
+      if ((await writtenToday(viewer.id, now, tx)) >= rules.dailyMax) {
+        throw new HttpError(429, `امروز ${fa(rules.dailyMax)} قدردانی نوشته‌اید؛ فردا دوباره می‌توانید.`);
+      }
+    },
+  );
+  signalUser(viewer.id, 'recognition');
+  return row;
+}
+
+/** A card the wall still shows: public, handed over, not taken off by its receiver and not reversed. */
+const onWall = and(original, eq(recognitions.isPublic, true), isNotNull(recognitions.deliveredAt), standing, isNull(recognitions.hiddenAt));
+
+const JOINED_ALREADY = 'قبلاً با این قدردانی همراه شده‌اید.';
+
+/** «من هم»: adds a few coins of the viewer's own allowance to a card on the wall, once per card. */
+export async function joinRecognition(viewer: Viewer, parentId: string, now = new Date()) {
+  const [parent] = await db.select().from(recognitions).where(and(eq(recognitions.id, parentId), onWall)).limit(1);
+  if (!parent) throw new HttpError(404, 'این قدردانی روی دیوار نیست.');
+  if (parent.fromId === viewer.id) throw new HttpError(400, 'با قدردانی خودتان نمی‌شود همراه شد.');
+  if (parent.toId === viewer.id) throw new HttpError(400, 'با قدردانی‌ای که از شما شده نمی‌شود همراه شد.');
+  const target = await receiverOf(viewer, parent.toId);
+  try {
+    const row = await spend(
+      viewer,
+      target,
+      { amount: RECOGNITION_JOIN_AMOUNT, parentId: parent.id, valueId: parent.valueId, valueLabel: parent.valueLabel, valueTone: parent.valueTone, isPublic: true },
+      now,
+      async (tx) => {
+        const [mine] = await tx
+          .select({ id: recognitions.id })
+          .from(recognitions)
+          .where(and(eq(recognitions.parentId, parent.id), eq(recognitions.fromId, viewer.id), isNull(recognitions.withdrawnAt)))
+          .limit(1);
+        if (mine) throw new HttpError(400, JOINED_ALREADY);
+      },
+    );
+    signalUser(viewer.id, 'recognition');
+    return row;
+  } catch (err) {
+    // Two at once from the same person on the same card; the unique index keeps one.
+    if ((err as { code?: string }).code === '23505' || (err as { cause?: { code?: string } }).cause?.code === '23505') throw new HttpError(400, JOINED_ALREADY);
+    throw err;
+  }
+}
+
+/** The sender takes a recognition (or a «من هم») back before it is handed over; the coins are theirs again. */
+export async function withdrawRecognition(viewer: Pick<Viewer, 'id'>, id: string, now = new Date()) {
+  const [taken] = await db
+    .update(recognitions)
+    .set({ withdrawnAt: now })
+    .where(
+      and(
+        eq(recognitions.id, id),
+        eq(recognitions.fromId, viewer.id),
+        isNull(recognitions.withdrawnAt),
+        isNull(recognitions.deliveredAt),
+        isNull(recognitions.reversedAt),
+        gt(recognitions.deliverAt, now),
+      ),
+    )
+    .returning({ id: recognitions.id });
+  if (!taken) {
+    const [row] = await db.select({ id: recognitions.id }).from(recognitions).where(and(eq(recognitions.id, id), eq(recognitions.fromId, viewer.id)));
+    if (!row) throw new HttpError(404, 'قدردانی یافت نشد.');
+    throw new HttpError(400, 'زمان پس‌گرفتن این قدردانی گذشته است.');
+  }
+  signalUser(viewer.id, 'recognition');
+}
+
+/**
+ * Run by the scheduler every minute: hands over the recognitions whose time for taking back has passed.
+ * Each is claimed first, so a second tick or a restart never tells the receiver twice. Returns how many.
+ */
+export async function deliverDueRecognitions(now = new Date()) {
+  const due = await db
+    .update(recognitions)
+    .set({ deliveredAt: now })
+    .where(and(isNull(recognitions.deliveredAt), standing, lte(recognitions.deliverAt, now)))
+    .returning();
+  if (due.length === 0) return 0;
+  const config = await featureConfig();
+  const people = new Map(
+    (await db.select().from(employees).where(inArray(employees.id, [...new Set(due.flatMap((r) => [r.fromId, r.toId]))]))).map((e) => [e.id, e]),
+  );
+  const parentIds = [...new Set(due.flatMap((r) => (r.parentId ? [r.parentId] : [])))];
+  const parents = new Map(
+    (parentIds.length
+      ? await db
+          .select({ id: recognitions.id, fromId: recognitions.fromId, firstName: sender.firstName, lastName: sender.lastName })
+          .from(recognitions)
+          .innerJoin(sender, eq(sender.id, recognitions.fromId))
+          .where(inArray(recognitions.id, parentIds))
+      : []
+    ).map((p) => [p.id, p]),
+  );
+  let wallChanged = false;
+  for (const r of due.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())) {
+    const from = people.get(r.fromId);
+    const to = people.get(r.toId);
+    if (!from || !to) continue;
+    wallChanged ||= r.isPublic;
+    signalUser(r.fromId, 'recognition');
+    signalUser(r.toId, 'recognition');
+    // Someone who left, or from whom the part is hidden just now, finds it waiting when they are back.
+    if (!to.isActive || !featureVisible(config, 'recognition', to)) continue;
+    const parent = r.parentId ? parents.get(r.parentId) : undefined;
+    // Neither says how many coins, nor what the message is: the receiver opens it to see.
+    await createNotifications(
+      [r.toId],
+      parent
+        ? {
+            title: `${fullName(from)} هم با یک قدردانی از شما همراه شد 🌟`,
+            message: `${fullName(from)} با قدردانی ${fullName(parent)} از شما همراه شد و چند سکه به آن افزود.`,
+            type: 'recognition',
+            linkTab: 'thanks',
+            linkId: parent.id,
+          }
+        : {
+            title: `${fullName(from)} از شما قدردانی کرد 🌟`,
+            message: 'یک قدردانی مهرشده برایتان رسیده است؛ مهر را باز کنید و بخوانید.',
+            type: 'recognition',
+            linkTab: 'thanks',
+            linkId: r.id,
+          },
+    );
+  }
+  if (wallChanged) broadcastChange('recognition');
+  return due.length;
+}
+
+/** The standing «من هم»s of the given cards. The viewer's own shows at once; the others once handed over. */
+async function joinsOf(ids: string[], viewerId: string) {
+  const byCard = new Map<string, { id: string; fromId: string; name: string; amount: number; delivered: boolean }[]>();
+  if (ids.length === 0) return byCard;
+  const rows = await db
+    .select({ r: recognitions, firstName: sender.firstName, lastName: sender.lastName })
+    .from(recognitions)
+    .innerJoin(sender, eq(sender.id, recognitions.fromId))
+    .where(and(inArray(recognitions.parentId, ids), standing, or(isNotNull(recognitions.deliveredAt), eq(recognitions.fromId, viewerId))))
+    .orderBy(recognitions.createdAt);
+  for (const { r, firstName, lastName } of rows) {
+    const list = byCard.get(r.parentId!) ?? [];
+    list.push({ id: r.id, fromId: r.fromId, name: fullName({ firstName, lastName }), amount: r.amount, delivered: r.deliveredAt !== null });
+    byCard.set(r.parentId!, list);
+  }
+  return byCard;
+}
+
+const withPeople = () =>
+  db
+    .select({ r: recognitions, from: personColumns(sender), to: personColumns(receiver) })
+    .from(recognitions)
+    .innerJoin(sender, eq(sender.id, recognitions.fromId))
+    .innerJoin(receiver, eq(receiver.id, recognitions.toId));
+
+type Joined = Awaited<ReturnType<typeof withPeople>>[number];
+
+/** Where a list was left off: the moment and id of the last row handed over. */
+export interface Cursor {
+  at: Date;
+  id: string;
+}
+
+/** `2026-11-14T07:00:00.000Z~rec-…`, as a list's `next` gives it and its `before` takes it; null when it is not one. */
+export function parseCursor(value: string): Cursor | null {
+  const split = value.indexOf('~');
+  const at = new Date(value.slice(0, split));
+  return split > 0 && split < value.length - 1 && !Number.isNaN(at.getTime()) ? { at, id: value.slice(split + 1) } : null;
+}
+
+type Moment = typeof recognitions.deliverAt | typeof recognitions.createdAt;
+
+/** Rows older than the cursor, in the order the lists use: newest first, then by id. */
+const olderThan = (column: Moment, cursor: Cursor | undefined) =>
+  cursor ? or(lt(column, cursor.at), and(eq(column, cursor.at), lt(recognitions.id, cursor.id))) : undefined;
+
+/** A page of rows and where to continue from. */
+function page<T extends { r: Row }>(rows: T[], at: (r: Row) => Date) {
+  const items = rows.slice(0, RECOGNITION_PAGE);
+  const last = items.at(-1);
+  return { items, next: rows.length > RECOGNITION_PAGE && last ? `${at(last.r).toISOString()}~${last.r.id}` : null };
+}
+
+export interface WallFilter {
+  valueId?: string;
+  department?: string;
+  before?: Cursor;
+}
+
+/**
+ * The wall: public recognitions that were handed over, newest first, without any amount. Cards of a
+ * colleague who has left are kept but not shown.
+ */
+export async function recognitionWall(viewer: Pick<Viewer, 'id'>, filter: WallFilter = {}) {
+  const rows = await withPeople()
+    .where(
+      and(
+        onWall,
+        eq(sender.isActive, true),
+        eq(receiver.isActive, true),
+        filter.valueId ? eq(recognitions.valueId, filter.valueId) : undefined,
+        filter.department ? eq(receiver.department, filter.department) : undefined,
+        olderThan(recognitions.deliverAt, filter.before),
+      ),
+    )
+    // By the moment each was due, not the scheduler's tick that handed several over at once.
+    .orderBy(desc(recognitions.deliverAt), desc(recognitions.id))
+    .limit(RECOGNITION_PAGE + 1);
+  const { items, next } = page(rows, (r) => r.deliverAt);
+  const ids = items.map((i) => i.r.id);
+  const [joins, reactions] = await Promise.all([joinsOf(ids, viewer.id), reactionCounts('recognition', ids, viewer.id)]);
+  return { items: items.map((i) => wallCard(i, viewer.id, joins.get(i.r.id) ?? [], reactions.get(i.r.id) ?? [])), next };
+}
+
+function wallCard({ r, from, to }: Joined, viewerId: string, joins: { fromId: string; name: string }[], reactions: ReactionCount[]) {
+  return {
+    id: r.id,
+    from: person(from),
+    to: person(to),
+    value: valueOf(r),
+    message: r.message,
+    at: r.deliverAt.toISOString(),
+    // The receiver's own answer to it, and everybody else's reactions.
+    reaction: r.reaction,
+    reactions,
+    joiners: joins.map((j) => ({ id: j.fromId, name: j.name })),
+    joined: joins.some((j) => j.fromId === viewerId),
+    mine: r.fromId === viewerId ? ('sender' as const) : r.toId === viewerId ? ('receiver' as const) : null,
+  };
+}
+
+/**
+ * What the colleague received (handed over, newest first) and what they gave. A received one stays
+ * sealed, with only who it is from, until they open it; one they gave says whether it was read.
+ */
+export async function myRecognitions(viewer: Pick<Viewer, 'id'>, options: { receivedBefore?: Cursor; givenBefore?: Cursor } = {}, now = new Date()) {
+  const receivedRows = await withPeople()
+    .where(
+      and(
+        eq(recognitions.toId, viewer.id),
+        original,
+        isNotNull(recognitions.deliveredAt),
+        standing,
+        olderThan(recognitions.deliverAt, options.receivedBefore),
+      ),
+    )
+    .orderBy(desc(recognitions.deliverAt), desc(recognitions.id))
+    .limit(RECOGNITION_PAGE + 1);
+  const givenRows = await withPeople()
+    .where(and(eq(recognitions.fromId, viewer.id), isNull(recognitions.withdrawnAt), olderThan(recognitions.createdAt, options.givenBefore)))
+    .orderBy(desc(recognitions.createdAt), desc(recognitions.id))
+    .limit(RECOGNITION_PAGE + 1);
+  const received = page(receivedRows, (r) => r.deliverAt);
+  const given = page(givenRows, (r) => r.createdAt);
+  const joins = await joinsOf(received.items.map((i) => i.r.id), viewer.id);
+  return {
+    received: received.items.map((i) => receivedCard(i, joins.get(i.r.id) ?? [])),
+    receivedNext: received.next,
+    given: given.items.map((i) => givenCard(i, now)),
+    givenNext: given.next,
+  };
+}
+
+function receivedCard({ r, from }: Joined, joins: { name: string; amount: number; delivered: boolean }[]) {
+  const sealed = { id: r.id, from: person(from), at: r.deliverAt.toISOString() };
+  if (!r.openedAt) return { ...sealed, sealed: true as const };
+  const added = joins.filter((j) => j.delivered);
+  return {
+    ...sealed,
+    sealed: false as const,
+    value: valueOf(r),
+    message: r.message,
+    amount: r.amount,
+    // Colleagues who added their own coins to it, and what it comes to with them.
+    joiners: added.map((j) => ({ name: j.name, amount: j.amount })),
+    total: r.amount + added.reduce((sum, j) => sum + j.amount, 0),
+    isPublic: r.isPublic,
+    hidden: r.hiddenAt !== null,
+    openedAt: r.openedAt.toISOString(),
+    reaction: r.reaction,
+  };
+}
+
+function givenCard({ r, to }: Joined, now: Date) {
+  const waiting = r.deliveredAt === null && r.reversedAt === null;
+  return {
+    id: r.id,
+    to: person(to),
+    amount: r.amount,
+    value: valueOf(r),
+    message: r.message,
+    isPublic: r.isPublic,
+    // The card on the wall this «من هم» was added to.
+    joinOf: r.parentId,
+    at: r.createdAt.toISOString(),
+    delivered: r.deliveredAt !== null,
+    // Until then the sender can still take it back.
+    withdrawUntil: waiting && r.deliverAt > now ? r.deliverAt.toISOString() : null,
+    opened: r.openedAt !== null,
+    reaction: r.reaction,
+    reversed: r.reversedAt !== null,
+    reverseReason: r.reverseReason,
+  };
+}
+
+/** A recognition the viewer received that was handed over and still stands. */
+async function receivedBy(viewer: Pick<Viewer, 'id'>, id: string) {
+  const [found] = await withPeople().where(and(eq(recognitions.id, id), eq(recognitions.toId, viewer.id), original, isNotNull(recognitions.deliveredAt), standing));
+  if (!found) throw new HttpError(404, 'قدردانی یافت نشد.');
+  return found;
+}
+
+const cardFor = async (viewer: Pick<Viewer, 'id'>, found: Joined) =>
+  receivedCard(found, (await joinsOf([found.r.id], viewer.id)).get(found.r.id) ?? []);
+
+/** The receiver breaks the seal: from now on they see the message and the coins, and the sender sees it was read. */
+export async function openRecognition(viewer: Pick<Viewer, 'id'>, id: string, now = new Date()) {
+  const found = await receivedBy(viewer, id);
+  if (!found.r.openedAt) {
+    await db.update(recognitions).set({ openedAt: now }).where(and(eq(recognitions.id, id), isNull(recognitions.openedAt)));
+    found.r.openedAt = now;
+    signalUser(found.r.fromId, 'recognition');
+    signalUser(viewer.id, 'recognition');
+  }
+  return cardFor(viewer, found);
+}
+
+/** The receiver answers a recognition they have opened with one emoji ('' takes it back). */
+export async function answerRecognition(viewer: Viewer, id: string, reaction: string) {
+  const found = await receivedBy(viewer, id);
+  if (!found.r.openedAt) throw new HttpError(400, 'اول قدردانی را باز کنید.');
+  await db.update(recognitions).set({ reaction }).where(eq(recognitions.id, id));
+  // The sender hears about the first answer only, so a change of mind does not send a stream of notices.
+  if (reaction && !found.r.reaction) {
+    await createNotifications([found.r.fromId], {
+      title: `${fullName(viewer)} به قدردانی شما پاسخ داد ${reaction}`,
+      message: `«${shorten(found.r.message)}»`,
+      type: 'recognition',
+      linkTab: 'thanks',
+      linkId: id,
+    });
+  }
+  signalUser(found.r.fromId, 'recognition');
+  signalUser(viewer.id, 'recognition');
+  if (found.r.isPublic) broadcastChange('recognition');
+  found.r.reaction = reaction;
+  return cardFor(viewer, found);
+}
+
+/** The receiver takes a public recognition off the wall, or puts it back. It stays theirs either way. */
+export async function hideRecognition(viewer: Pick<Viewer, 'id'>, id: string, hidden: boolean, now = new Date()) {
+  const found = await receivedBy(viewer, id);
+  if (!found.r.isPublic) throw new HttpError(400, 'این قدردانی فقط بین شما دو نفر است و روی دیوار نیست.');
+  if ((found.r.hiddenAt !== null) !== hidden) {
+    const hiddenAt = hidden ? now : null;
+    await db.update(recognitions).set({ hiddenAt }).where(eq(recognitions.id, id));
+    found.r.hiddenAt = hiddenAt;
+    signalUser(viewer.id, 'recognition');
+    broadcastChange('recognition');
+  }
+  return cardFor(viewer, found);
+}
+
+/**
+ * The programme's owner reverses a recognition, with a reason both people are told. The coins leave the
+ * receiver, and go back to the giver's allowance only if its month is not over. The «من هم»s on it go with it.
+ * The owner never sees the message of a private one, here or in the change history.
+ */
+export async function reverseRecognition(actor: SessionUser, id: string, reason: string, now = new Date()) {
+  const [found] = await withPeople().where(and(eq(recognitions.id, id), isNull(recognitions.withdrawnAt)));
+  if (!found) throw new HttpError(404, 'قدردانی یافت نشد.');
+  if (found.r.reversedAt) throw new HttpError(400, 'این قدردانی قبلاً برگردانده شده است.');
+  const reversed = await db
+    .update(recognitions)
+    .set({ reversedAt: now, reversedById: actor.id, reverseReason: reason })
+    .where(and(or(eq(recognitions.id, id), eq(recognitions.parentId, id)), standing))
+    .returning({ id: recognitions.id, fromId: recognitions.fromId, deliveredAt: recognitions.deliveredAt });
+  const { r, from, to } = found;
+  const subject = `قدردانی ${fullName(from)} از ${fullName(to)}`;
+  await audit(actor, { action: 'delete', entity: 'message', id, title: subject, detail: `برگردانده شد. دلیل: ${reason}` });
+  // The receiver is told only about one they had already heard of.
+  const told = [r.fromId, ...(r.deliveredAt ? [r.toId] : [])];
+  await createNotifications(told, {
+    title: 'یک قدردانی برگردانده شد',
+    message: `${subject} را مسئول برنامهٔ «سپاس» برگرداند. دلیل: ${reason}`,
+    type: 'recognition',
+    linkTab: 'thanks',
+  });
+  const joiners = [...new Set(reversed.filter((j) => j.id !== id).map((j) => j.fromId))].filter((userId) => !told.includes(userId));
+  await createNotifications(joiners, {
+    title: 'قدردانی‌ای که با آن همراه شده بودید برگردانده شد',
+    message: `${subject} را مسئول برنامهٔ «سپاس» برگرداند؛ سکه‌ای که به آن افزوده بودید هم برگشت.`,
+    type: 'recognition',
+    linkTab: 'thanks',
+  });
+  for (const userId of new Set([...told, r.toId, ...joiners])) signalUser(userId, 'recognition');
+  if (r.isPublic) broadcastChange('recognition');
+  return { id, reversed: reversed.length };
+}

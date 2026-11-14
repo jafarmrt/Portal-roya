@@ -3,6 +3,11 @@
 All notable changes to the Roya Tarh Dakheli Organization Portal will be documented in this file.
 
 
+## [2.71.0] - 2026-11-14
+### آماده‌سازی بخش تازهٔ «سپاس» (هنوز خاموش)
+- **در این نسخه چیزی در پرتال عوض نمی‌شود.** زیرساخت بخش «سپاس» (قدردانی همکاران از هم با سکه و پیام تشکر) اضافه شده، ولی خاموش است و تا وقتی صفحه‌هایش ساخته نشود، در «امکانات پرتال» کلیدی و در «سطح‌های دسترسی» مجوزی برای آن دیده نمی‌شود.
+- برای فنی‌ها: جدول‌های `recognitions` و `recognition_reminders` و ستون‌های `settings.recognition_rules`، `settings.recognition_values` و `employees.recognition_reminders` (migration `0047_recognition`). قواعد در `shared/recognition.ts`، منطق در `server/recognition.ts` و مسیرها در `server/routes/recognition.ts` (`/api/recognitions/*` و `/api/settings/recognition`). ردیف‌ها هرگز پاک نمی‌شوند؛ پس‌گرفتن و برگرداندن فقط زمان می‌خورند و موجودی همیشه از جمع ردیف‌ها حساب می‌شود، پس سوختن سهمیه در آخر ماه کار زمان‌بندی‌شده نمی‌خواهد. بخش `recognition` در `shared/features.ts` با نشان `unreleased` و مجوز `recognition.manage` اضافه شد. آزمون تازه: `tests/recognition.test.ts`.
+
 ## [2.70.1] - 2026-11-04
 ### اعلان‌ها بی‌معطلی به گوشیِ خاموش‌روشن می‌رسند
 - **گوشی‌ای که کنار گذاشته شده:** وقتی صفحهٔ گوشی اندروید خاموش است و گوشی در حالت صرفه‌جویی باتری است، گوگل اعلان‌های «عادی» را نگه می‌دارد تا گوشی بیدار شود، گاهی چند دقیقه. حالا پرتال اعلان‌ها را «فوری» می‌فرستد تا همان لحظه برسند.

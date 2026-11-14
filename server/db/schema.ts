@@ -1,4 +1,6 @@
+import { sql } from 'drizzle-orm';
 import {
+  type AnyPgColumn,
   boolean,
   index,
   integer,
@@ -14,6 +16,7 @@ import type { AboutMe } from '../../shared/aboutMe.js';
 import type { AuditAction, AuditEntity } from '../../shared/audit.js';
 import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
 import type { KudosEmoji } from '../../shared/kudos.js';
+import type { RecognitionValue, StoredRecognitionRules } from '../../shared/recognition.js';
 import type { MonthlySummary } from '../../shared/reports.js';
 import type { EntryKind, EventPhase, EventStatus, EventTheme, Format, IdeaKind, QuizState, RankBy, ScheduleItem, Scoring, ScreenState, StagePolicy, TieRule, WishStatus } from '../../shared/specialEvents.js';
 import type { SuggestionBoxNames } from '../../shared/suggestions.js';
@@ -140,6 +143,8 @@ export const employees = pgTable('employees', {
   firstWeekDone: text('first_week_done').array().notNull().default([]),
   /** Kinds of notification (shared/push.ts) the colleague does not want on their phone or computer; [] = all of them. */
   pushMuted: text('push_muted').array().notNull().default([]),
+  /** The colleague wants the two monthly reminders of «سپاس» (the middle of the month, three days before its end). */
+  recognitionReminders: boolean('recognition_reminders').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -719,6 +724,11 @@ export const settings = pgTable('settings', {
   // The portal's own key pair for notifications on phones and computers (Web Push, VAPID); made on first start.
   vapidPublicKey: text('vapid_public_key').notNull().default(''),
   vapidPrivateKey: text('vapid_private_key').notNull().default(''),
+  // «سپاس»: the monthly allowance and the limits, with a change that waits for the next month (null = the
+  // built-in rules, see shared/recognition.ts).
+  recognitionRules: jsonb('recognition_rules').$type<StoredRecognitionRules | null>(),
+  // The organisation's values a recognition is given for ([] = the built-in five).
+  recognitionValues: jsonb('recognition_values').$type<RecognitionValue[]>().notNull().default([]),
 });
 
 /** Who created, changed or deleted what in the portal's content, accounts and settings, for the admin. */
@@ -867,6 +877,70 @@ export const kudos = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('kudos_to_idx').on(t.toId, t.createdAt), index('kudos_from_idx').on(t.fromId, t.createdAt), uniqueIndex('kudos_reply_idx').on(t.replyToId)],
+);
+
+/**
+ * «سپاس»: coins given with a message of thanks. A row is never changed in its substance or deleted: taking
+ * one back (the sender, within a few minutes) and reversing one (the programme's owner, with a reason) are
+ * moments written on it. So every number is a sum over these rows: what a colleague has left this month
+ * is their allowance less what they gave in it, and what they hold is what they were given.
+ */
+export const recognitions = pgTable(
+  'recognitions',
+  {
+    id: text('id').primaryKey(),
+    fromId: text('from_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    toId: text('to_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    amount: integer('amount').notNull(),
+    // The Jalali month (YYYY/MM) whose allowance it came out of: the month it was sent in, even when the
+    // few minutes for taking it back run into the next one.
+    month: text('month').notNull(),
+    // «من هم»: the card on the wall this one adds to. It goes to the same colleague and has no message.
+    parentId: text('parent_id').references((): AnyPgColumn => recognitions.id, { onDelete: 'cascade' }),
+    // The value and its look at the time, so a later change of the list does not rewrite it.
+    valueId: text('value_id').notNull(),
+    valueLabel: text('value_label').notNull(),
+    valueTone: text('value_tone').notNull(),
+    message: text('message').notNull().default(''),
+    // On the wall for everyone, or only between the two of them (nobody else reads it, administrators included).
+    isPublic: boolean('is_public').notNull().default(true),
+    // Until this moment the sender can take it back; the receiver is told (and the wall shows it) only after.
+    deliverAt: timestamp('deliver_at', { withTimezone: true }).notNull(),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    // The receiver broke the seal and read it.
+    openedAt: timestamp('opened_at', { withTimezone: true }),
+    // The receiver's own answer to it ('' = none yet), one of WISH_REACTIONS.
+    reaction: text('reaction').notNull().default(''),
+    withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
+    // The receiver took a public one off the wall.
+    hiddenAt: timestamp('hidden_at', { withTimezone: true }),
+    reversedAt: timestamp('reversed_at', { withTimezone: true }),
+    reversedById: text('reversed_by_id').references(() => employees.id, { onDelete: 'set null' }),
+    reverseReason: text('reverse_reason').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('recognitions_from_idx').on(t.fromId, t.month),
+    index('recognitions_to_idx').on(t.toId, t.createdAt),
+    index('recognitions_wall_idx').on(t.deliverAt),
+    index('recognitions_parent_idx').on(t.parentId),
+    // What the scheduler looks for every minute: sent, not taken back, not handed over yet.
+    index('recognitions_due_idx').on(t.deliverAt).where(sql`${t.deliveredAt} is null and ${t.withdrawnAt} is null`),
+    // One «من هم» per colleague and card (one that was taken back does not count).
+    uniqueIndex('recognitions_join_idx').on(t.parentId, t.fromId).where(sql`${t.parentId} is not null and ${t.withdrawnAt} is null`),
+  ],
+);
+
+/** One row per colleague, Jalali month and kind once a reminder of «سپاس» has gone out, so it goes once. */
+export const recognitionReminders = pgTable(
+  'recognition_reminders',
+  {
+    userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    month: text('month').notNull(), // Jalali YYYY/MM
+    kind: text('kind').notNull(), // 'mid' | 'last'
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.month, t.kind] })],
 );
 
 /**

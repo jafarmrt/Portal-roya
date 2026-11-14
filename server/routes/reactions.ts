@@ -1,11 +1,14 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
+import { featureVisible } from '../../shared/features.js';
 import { currentJalaliYear } from '../../shared/jalali.js';
 import { REACTION_EMOJIS, REACTION_TARGETS, type ReactionCount, type ReactionTarget } from '../../shared/reactions.js';
+import type { SessionUser } from '../auth.js';
 import { db } from '../db/index.js';
-import { birthdayWishes, colleagueWishes, employees, newColleagues, reactions } from '../db/schema.js';
+import { birthdayWishes, colleagueWishes, employees, newColleagues, reactions, recognitions } from '../db/schema.js';
 import { broadcastChange, sendToUser } from '../events.js';
+import { featureConfig } from '../features.js';
 import { HttpError, currentUser, parse, route } from '../http.js';
 import { fullName } from '../serializers.js';
 
@@ -49,7 +52,8 @@ export async function pruneReactions() {
     DELETE FROM ${reactions} r WHERE
       (r.target_type = 'intro' AND NOT EXISTS (SELECT 1 FROM ${newColleagues} n WHERE n.id = r.target_id)) OR
       (r.target_type = 'welcome' AND NOT EXISTS (SELECT 1 FROM ${colleagueWishes} w WHERE w.id::text = r.target_id)) OR
-      (r.target_type = 'greeting' AND NOT EXISTS (SELECT 1 FROM ${birthdayWishes} b WHERE b.id::text = r.target_id))`);
+      (r.target_type = 'greeting' AND NOT EXISTS (SELECT 1 FROM ${birthdayWishes} b WHERE b.id::text = r.target_id)) OR
+      (r.target_type = 'recognition' AND NOT EXISTS (SELECT 1 FROM ${recognitions} g WHERE g.id = r.target_id))`);
 }
 
 const reactionSchema = z.object({
@@ -68,7 +72,30 @@ const numericId = (value: string) => {
  * Checks the viewer may react to this thing and returns who it belongs to (they hear a soft chime):
  * the introduced colleague, the writer of the welcome message, or the person the card is for.
  */
-async function ownerOf(target: ReactionTarget, id: string, viewerId: string): Promise<{ owner: string; resource: 'new_colleagues' | 'birthday_wishes' }> {
+async function ownerOf(target: ReactionTarget, id: string, viewer: SessionUser): Promise<{ owner: string; resource: 'new_colleagues' | 'birthday_wishes' | 'recognition' }> {
+  const viewerId = viewer.id;
+  if (target === 'recognition') {
+    // Only a card the wall shows (server/recognition.ts), and only to someone who sees «سپاس».
+    const [card] = featureVisible(await featureConfig(), 'recognition', viewer)
+      ? await db
+          .select({ toId: recognitions.toId })
+          .from(recognitions)
+          .where(
+            and(
+              eq(recognitions.id, id),
+              isNull(recognitions.parentId),
+              eq(recognitions.isPublic, true),
+              isNotNull(recognitions.deliveredAt),
+              isNull(recognitions.withdrawnAt),
+              isNull(recognitions.reversedAt),
+              isNull(recognitions.hiddenAt),
+            ),
+          )
+      : [];
+    if (!card) throw new HttpError(404, 'قدردانی یافت نشد.');
+    if (card.toId === viewerId) throw new HttpError(400, 'واکنش شما به قدردانی‌ای که گرفته‌اید روی خود آن ثبت می‌شود.');
+    return { owner: card.toId, resource: 'recognition' };
+  }
   if (target === 'intro') {
     const [card] = await db.select({ userId: newColleagues.userId }).from(newColleagues).where(eq(newColleagues.id, id));
     if (!card) throw new HttpError(404, 'کارت معرفی یافت نشد.');
@@ -99,7 +126,7 @@ reactionsRouter.put(
   route(async (req, res) => {
     const viewer = currentUser(req);
     const { target, id, emoji } = parse(reactionSchema, req.body);
-    const { owner, resource } = await ownerOf(target, id, viewer.id);
+    const { owner, resource } = await ownerOf(target, id, viewer);
     const where = and(eq(reactions.targetType, target), eq(reactions.targetId, id), eq(reactions.userId, viewer.id));
     const [before] = await db.select({ emoji: reactions.emoji }).from(reactions).where(where);
     if (!emoji) {

@@ -7,6 +7,7 @@ import {
   type FeatureKey,
   type FeatureState,
   featureInfo,
+  featureReleased,
   featureState,
   featureVisible,
   introCardsAllowed,
@@ -50,7 +51,18 @@ export const settingsRouter = Router();
  */
 export function publicSettings(row: typeof settings.$inferSelect, viewer: SessionUser | null) {
   // The push keys never leave the server (the public half is served by /push to those who use it).
-  const { features: states, featureLaunches, pilotRoles, pilotUserIds, vapidPublicKey: _vapidPublic, vapidPrivateKey: _vapidPrivate, ...rest } = row;
+  // The rules and values of «سپاس» go only to those who see it, with their wallet (GET /recognitions/wallet).
+  const {
+    features: states,
+    featureLaunches,
+    pilotRoles,
+    pilotUserIds,
+    vapidPublicKey: _vapidPublic,
+    vapidPrivateKey: _vapidPrivate,
+    recognitionRules: _recognitionRules,
+    recognitionValues: _recognitionValues,
+    ...rest
+  } = row;
   const banner = rest.banner && new Date(rest.banner.expiresAt) > new Date() ? rest.banner : null;
   const config = { states, pilotRoles, pilotUserIds };
   const features: Partial<Record<FeatureKey, 'preview' | 'on'>> = {};
@@ -365,6 +377,7 @@ const FEATURE_RESOURCES: Record<FeatureKey, ResourceName[]> = {
   noticeBoard: ['notices', 'notifications'],
   firstWeek: [],
   pushNotifications: [],
+  recognition: ['recognition', 'notifications'],
 };
 
 function broadcastFeatures(keys: FeatureKey[]) {
@@ -381,7 +394,7 @@ function featureLabel(row: SettingsRow, key: FeatureKey) {
 async function featureSettings() {
   const row = await ensureSettings();
   return {
-    features: FEATURES.filter((f) => switchable(f.key)).map((f) => ({
+    features: FEATURES.filter((f) => switchable(f.key) && featureReleased(f.key)).map((f) => ({
       key: f.key,
       label: featureLabel(row, f.key),
       hint: f.hint,

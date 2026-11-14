@@ -23,6 +23,7 @@ export type ResourceName =
   | 'tasks'
   | 'special_event'
   | 'notices'
+  | 'recognition'
   | 'presence';
 
 interface Client {
