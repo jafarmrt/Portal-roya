@@ -6,7 +6,7 @@ import { deliverDueRecognitions, giveRecognition, parseCursor, walletOf, withdra
 import { FEATURES, featureReleased } from '../shared/features';
 import { jalaliToDate } from '../shared/jalali';
 import {
-  amountChoices,
+  amountsText,
   DEFAULT_RECOGNITION_RULES,
   DEFAULT_RECOGNITION_VALUES,
   messageLength,
@@ -38,13 +38,22 @@ const recognitionNotifications = (userId: string) =>
 describe('«سپاس»: the rules of the coins', () => {
   it('accepts the built-in rules and says what is wrong with others', () => {
     expect(rulesProblem(DEFAULT_RECOGNITION_RULES)).toBeNull();
-    expect(rulesProblem({ ...DEFAULT_RECOGNITION_RULES, allowance: 102 })).toContain('مضرب');
-    expect(rulesProblem({ ...DEFAULT_RECOGNITION_RULES, minAmount: 30 })).toContain('کمترین');
-    expect(rulesProblem({ ...DEFAULT_RECOGNITION_RULES, perPersonMax: 20 })).toContain('سقف یک نفر');
-    expect(rulesProblem({ ...DEFAULT_RECOGNITION_RULES, perPersonMax: 120 })).toContain('سهمیهٔ ماهانه');
+    expect(rulesProblem({ ...DEFAULT_RECOGNITION_RULES, allowance: 0 })).toContain('سهمیهٔ ماهانه');
+    expect(rulesProblem({ ...DEFAULT_RECOGNITION_RULES, allowance: 5000 })).toContain('سهمیهٔ ماهانه');
+    expect(rulesProblem({ ...DEFAULT_RECOGNITION_RULES, amounts: [] })).toContain('مقدارهای قدردانی');
+    expect(rulesProblem({ ...DEFAULT_RECOGNITION_RULES, amounts: [1, 2.5, 5] })).toContain('مقدارهای قدردانی');
+    expect(rulesProblem({ ...DEFAULT_RECOGNITION_RULES, amounts: [5, 3, 20] })).toContain('کوچک به بزرگ');
+    expect(rulesProblem({ ...DEFAULT_RECOGNITION_RULES, amounts: [1, 5, 5, 20] })).toContain('بدون تکرار');
+    expect(rulesProblem({ ...DEFAULT_RECOGNITION_RULES, defaultAmount: 4 })).toContain('پیش‌فرض');
+    expect(rulesProblem({ ...DEFAULT_RECOGNITION_RULES, perPersonMax: 10 })).toContain('بزرگ‌ترین');
+    expect(rulesProblem({ ...DEFAULT_RECOGNITION_RULES, perPersonMax: 60 })).toContain('سهمیهٔ ماهانه');
     expect(rulesProblem({ ...DEFAULT_RECOGNITION_RULES, dailyMax: 0 })).toContain('روزانه');
-    expect(rulesProblem({ ...DEFAULT_RECOGNITION_RULES, allowance: 5000, perPersonMax: 40 })).toContain('حداکثر');
-    expect(amountChoices(DEFAULT_RECOGNITION_RULES)).toEqual([5, 10, 15, 20, 25]);
+    expect(DEFAULT_RECOGNITION_RULES).toEqual({ allowance: 50, amounts: [1, 2, 3, 5, 10, 20], defaultAmount: 5, perPersonMax: 20, dailyMax: 10 });
+    expect(amountsText(DEFAULT_RECOGNITION_RULES.amounts)).toBe('۱، ۲، ۳، ۵، ۱۰ یا ۲۰');
+    expect(amountsText([5])).toBe('۵');
+    // Rules saved in an older shape (a range in fives) are not half-read: the built-in ones apply.
+    const old = { allowance: 100, minAmount: 5, maxAmount: 25, perPersonMax: 40, dailyMax: 10 } as never;
+    expect(rulesFor({ rules: old, pending: null }, '1405/09')).toEqual(DEFAULT_RECOGNITION_RULES);
   });
 
   it('counts the days of Jalali months of 29, 30 and 31 days, in Tehran time', () => {
@@ -60,33 +69,33 @@ describe('«سپاس»: the rules of the coins', () => {
     expect(nextRecognitionMonth('1405/08')).toBe('1405/09');
   });
 
-  it('gives a colleague who joined during the month the share of the days left, in fives', () => {
+  it('gives a colleague who joined during the month the share of the days left, in whole coins', () => {
     const joined = (day: string) => jalaliToDate(day, '10:00')!;
-    expect(monthAllowance(100, '1405/09', joined('1405/08/20'))).toBe(100);
-    expect(monthAllowance(100, '1405/09', joined('1405/09/01'))).toBe(100);
-    expect(monthAllowance(100, '1405/09', joined('1405/09/10'))).toBe(70);
-    expect(monthAllowance(100, '1405/09', joined('1405/09/16'))).toBe(50);
-    // Never less than one coin of five, even on the last day.
-    expect(monthAllowance(100, '1405/09', joined('1405/09/30'))).toBe(5);
-    expect(monthAllowance(20, '1405/09', joined('1405/09/30'))).toBe(5);
+    expect(monthAllowance(50, '1405/09', joined('1405/08/20'))).toBe(50);
+    expect(monthAllowance(50, '1405/09', joined('1405/09/01'))).toBe(50);
+    expect(monthAllowance(50, '1405/09', joined('1405/09/10'))).toBe(35);
+    expect(monthAllowance(50, '1405/09', joined('1405/09/16'))).toBe(25);
+    // Never less than one coin, even on the last day.
+    expect(monthAllowance(50, '1405/09', joined('1405/09/30'))).toBe(2);
+    expect(monthAllowance(10, '1405/09', joined('1405/09/30'))).toBe(1);
     // The month after, they have all of it like everyone else.
-    expect(monthAllowance(100, '1405/10', joined('1405/09/16'))).toBe(100);
-    expect(monthAllowance(100, '1405/09', null)).toBe(100);
+    expect(monthAllowance(50, '1405/10', joined('1405/09/16'))).toBe(50);
+    expect(monthAllowance(50, '1405/09', null)).toBe(50);
   });
 
   it('keeps a change of the rules for the next month, unless the part is still switched off', () => {
-    const smaller = { ...DEFAULT_RECOGNITION_RULES, allowance: 50 };
+    const smaller = { ...DEFAULT_RECOGNITION_RULES, allowance: 30 };
     expect(rulesFor(null, '1405/09')).toEqual(DEFAULT_RECOGNITION_RULES);
     expect(withRulesChange(null, smaller, '1405/09', true)).toEqual({ rules: smaller, pending: null });
     const waiting = withRulesChange(null, smaller, '1405/09', false);
     expect(waiting.pending?.from).toBe('1405/10');
-    expect(rulesFor(waiting, '1405/09').allowance).toBe(100);
-    expect(rulesFor(waiting, '1405/10').allowance).toBe(50);
-    expect(rulesFor(waiting, '1406/01').allowance).toBe(50);
+    expect(rulesFor(waiting, '1405/09').allowance).toBe(50);
+    expect(rulesFor(waiting, '1405/10').allowance).toBe(30);
+    expect(rulesFor(waiting, '1406/01').allowance).toBe(30);
     // A second change two months later starts from the first, which is in force by then.
-    const again = withRulesChange(waiting, { ...smaller, allowance: 75 }, '1405/11', false);
-    expect(rulesFor(again, '1405/11').allowance).toBe(50);
-    expect(rulesFor(again, '1405/12').allowance).toBe(75);
+    const again = withRulesChange(waiting, { ...smaller, allowance: 40 }, '1405/11', false);
+    expect(rulesFor(again, '1405/11').allowance).toBe(30);
+    expect(rulesFor(again, '1405/12').allowance).toBe(40);
   });
 
   it('measures a message without its spaces and reads a list cursor', () => {
@@ -107,7 +116,7 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
   let omid: Person;
   let neda: Person;
   let hr: Person;
-  /** The public recognition (ali to sara, 20 coins) most of the tests are about, and the private one. */
+  /** The public recognition (ali to sara, 10 coins) most of the tests are about, and the private one. */
   let publicId: string;
   let privateId: string;
 
@@ -180,21 +189,22 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     const w = await wallet(ali);
     expect(w).toMatchObject({
       month: recognitionMonth(),
-      allowance: 100,
+      allowance: 50,
       given: 0,
-      left: 100,
-      amounts: [5, 10, 15, 20, 25],
-      joinAmount: 5,
+      left: 50,
+      amounts: [1, 2, 3, 5, 10, 20],
+      defaultAmount: 5,
+      joinAmount: 2,
       writtenToday: 0,
       received: { coins: 0, sealed: 0 },
-      rules: { minAmount: 5, maxAmount: 25, perPersonMax: 40, dailyMax: 10 },
+      rules: { perPersonMax: 20, dailyMax: 10 },
     });
     expect(w.values.map((v: { id: string }) => v.id)).toEqual(['teamwork', 'ownership', 'learning', 'customer', 'initiative']);
     expect({ day: w.day, daysInMonth: w.daysInMonth, daysLeft: w.daysLeft }).toEqual(monthProgress());
     // Someone who joined the portal today has the share of the days left.
     await db.update(employees).set({ createdAt: new Date() }).where(eq(employees.id, neda.id));
     const first = await wallet(neda);
-    expect(first.allowance).toBe(monthAllowance(100, recognitionMonth(), new Date()));
+    expect(first.allowance).toBe(monthAllowance(50, recognitionMonth(), new Date()));
     expect(first.left).toBe(first.allowance);
     await db.update(employees).set({ createdAt: new Date('2020-01-01T08:00:00Z') }).where(eq(employees.id, neda.id));
   });
@@ -202,22 +212,22 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
   it('refuses a recognition to oneself, of a wrong amount, without a value or with a message too short', async () => {
     expect((await give(ali, ali).expect(400)).body.error).toContain('خودتان');
     await give(ali, 'emp-nobody').expect(400);
-    expect((await give(ali, sara, { amount: 7 }).expect(400)).body.error).toContain('پنج‌تا پنج‌تا');
-    await give(ali, sara, { amount: 30 }).expect(400);
+    expect((await give(ali, sara, { amount: 4 }).expect(400)).body.error).toContain('۱، ۲، ۳، ۵، ۱۰ یا ۲۰ سکه');
+    await give(ali, sara, { amount: 25 }).expect(400);
     await give(ali, sara, { amount: 0 }).expect(400);
-    await give(ali, sara, { amount: 12.5 }).expect(400);
+    await give(ali, sara, { amount: 2.5 }).expect(400);
     expect((await give(ali, sara, { valueId: 'nope' }).expect(400)).body.error).toContain('ارزش');
     expect((await give(ali, sara, { message: 'ممنون' }).expect(400)).body.error).toContain('حداقل ۱۵ حرف');
     // Spaces do not make a message longer.
     await give(ali, sara, { message: `ممنون${' '.repeat(30)}عزیز` }).expect(400);
     await give(ali, sara, { message: undefined }).expect(400);
-    expect((await wallet(ali)).left).toBe(100);
+    expect((await wallet(ali)).left).toBe(50);
     expect(await db.select().from(recognitions)).toEqual([]);
   });
 
   it('keeps a recognition from its receiver for five minutes, in which the sender can take it back', async () => {
-    const sent = (await give(ali, sara, { amount: 20 }).expect(201)).body;
-    expect(sent.wallet).toMatchObject({ given: 20, left: 80, writtenToday: 1 });
+    const sent = (await give(ali, sara, { amount: 10 }).expect(201)).body;
+    expect(sent.wallet).toMatchObject({ given: 10, left: 40, writtenToday: 1 });
     const until = new Date(sent.withdrawUntil).getTime() - Date.now();
     expect(until).toBeGreaterThan(RECOGNITION_UNDO_MS - 10_000);
     expect(until).toBeLessThanOrEqual(RECOGNITION_UNDO_MS);
@@ -230,12 +240,12 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     expect((await wall(reza)).items).toEqual([]);
     const given = (await mine(ali)).given;
     expect(given).toHaveLength(1);
-    expect(given[0]).toMatchObject({ id: sent.id, amount: 20, delivered: false, opened: false, withdrawUntil: sent.withdrawUntil, joinOf: null });
+    expect(given[0]).toMatchObject({ id: sent.id, amount: 10, delivered: false, opened: false, withdrawUntil: sent.withdrawUntil, joinOf: null });
 
     // Only the sender takes it back; the coins are theirs again and the day's count goes back too.
     await sara.agent.post(`/api/recognitions/${sent.id}/withdraw`).expect(404);
     const back = (await ali.agent.post(`/api/recognitions/${sent.id}/withdraw`).expect(200)).body;
-    expect(back.wallet).toMatchObject({ given: 0, left: 100, writtenToday: 0 });
+    expect(back.wallet).toMatchObject({ given: 0, left: 50, writtenToday: 0 });
     await ali.agent.post(`/api/recognitions/${sent.id}/withdraw`).expect(400);
     expect((await mine(ali)).given).toEqual([]);
     // It is never handed over afterwards, and the row is kept.
@@ -245,8 +255,8 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
   });
 
   it('hands it over once the five minutes have passed, and tells the receiver once, without the coins or the message', async () => {
-    publicId = (await give(ali, sara, { amount: 20 }).expect(201)).body.id;
-    privateId = (await give(ali, sara, { amount: 15, isPublic: false, message: PRIVATE_MESSAGE, valueId: 'ownership' }).expect(201)).body.id;
+    publicId = (await give(ali, sara, { amount: 10 }).expect(201)).body.id;
+    privateId = (await give(ali, sara, { amount: 5, isPublic: false, message: PRIVATE_MESSAGE, valueId: 'ownership' }).expect(201)).body.id;
     expect(await deliverDueRecognitions(afterUndo())).toBe(2);
     // A second tick of the scheduler (or a restart) hands nothing over twice.
     expect(await deliverDueRecognitions(afterUndo())).toBe(0);
@@ -260,7 +270,7 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     expect(told.map((n) => n.linkId).sort()).toEqual([publicId, privateId].sort());
     // Too late to take it back now.
     expect((await ali.agent.post(`/api/recognitions/${publicId}/withdraw`).expect(400)).body.error).toContain('گذشته');
-    expect((await wallet(ali)).left).toBe(65);
+    expect((await wallet(ali)).left).toBe(35);
   });
 
   it('arrives sealed: the receiver sees who it is from, and the rest when they open it', async () => {
@@ -277,15 +287,15 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     await reza.agent.post(`/api/recognitions/${publicId}/open`).expect(404);
     await ali.agent.post(`/api/recognitions/${publicId}/open`).expect(404);
     const opened = (await sara.agent.post(`/api/recognitions/${publicId}/open`).expect(200)).body;
-    expect(opened).toMatchObject({ sealed: false, amount: 20, total: 20, joiners: [], message: MESSAGE, isPublic: true, hidden: false, reaction: '' });
+    expect(opened).toMatchObject({ sealed: false, amount: 10, total: 10, joiners: [], message: MESSAGE, isPublic: true, hidden: false, reaction: '', reported: false });
     expect(opened.value).toEqual({ id: 'teamwork', label: 'همکاری', tone: 'sage' });
-    expect((await wallet(sara)).received).toEqual({ coins: 20, sealed: 1 });
+    expect((await wallet(sara)).received).toEqual({ coins: 10, sealed: 1 });
     // Opening it again changes nothing, and the sender sees that it was read.
     const again = (await sara.agent.post(`/api/recognitions/${publicId}/open`).expect(200)).body;
     expect(again.openedAt).toBe(opened.openedAt);
     const given = (await mine(ali)).given;
     expect(given.find((g: { id: string }) => g.id === publicId)).toMatchObject({ delivered: true, opened: true, withdrawUntil: null });
-    expect(given.find((g: { id: string }) => g.id === privateId)).toMatchObject({ delivered: true, opened: false, amount: 15, isPublic: false });
+    expect(given.find((g: { id: string }) => g.id === privateId)).toMatchObject({ delivered: true, opened: false, amount: 5, isPublic: false });
   });
 
   it('shows public recognitions on the wall without any amount, and private ones to nobody but the two', async () => {
@@ -306,7 +316,7 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     expect((await wall(ali)).items[0].mine).toBe('sender');
     expect((await wall(sara)).items[0].mine).toBe('receiver');
     // No amount anywhere on the wall, for the two of them either.
-    for (const who of [reza, ali, sara]) expect(JSON.stringify(await wall(who))).not.toMatch(/amount|total|"20"|:20\b/);
+    for (const who of [reza, ali, sara]) expect(JSON.stringify(await wall(who))).not.toMatch(/amount|total|coins/);
 
     // The private one: not on the wall, and the administrator and the programme's owner cannot read it anywhere.
     for (const who of [{ agent: admin }, hr, reza]) {
@@ -330,9 +340,9 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     await reza.agent.get('/api/recognitions/wall?before=not-a-cursor').expect(400);
   });
 
-  it('«من هم»: a colleague adds five coins of their own to a card on the wall, once', async () => {
+  it('«من هم»: a colleague adds two coins of their own to a card on the wall, once', async () => {
     const joined = (await reza.agent.post(`/api/recognitions/${publicId}/join`).expect(201)).body;
-    expect(joined.wallet).toMatchObject({ given: 5, left: 95, writtenToday: 0 });
+    expect(joined.wallet).toMatchObject({ given: 2, left: 48, writtenToday: 0 });
     // Their own shows at once; the others see it when it is handed over.
     expect((await wall(reza)).items[0]).toMatchObject({ joined: true, joiners: [{ id: reza.id, name: 'همکار rec.reza' }] });
     expect((await wall(mina)).items[0]).toMatchObject({ joined: false, joiners: [] });
@@ -344,7 +354,7 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
 
     // Taken back within the five minutes, it can be given again.
     const first = (await mina.agent.post(`/api/recognitions/${publicId}/join`).expect(201)).body;
-    expect((await mina.agent.post(`/api/recognitions/${first.id}/withdraw`).expect(200)).body.wallet.left).toBe(100);
+    expect((await mina.agent.post(`/api/recognitions/${first.id}/withdraw`).expect(200)).body.wallet.left).toBe(50);
     await mina.agent.post(`/api/recognitions/${publicId}/join`).expect(201);
 
     expect(await deliverDueRecognitions(afterUndo())).toBe(2);
@@ -356,27 +366,26 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     expect(told[2]).toMatchObject({ linkId: publicId });
     expect(told[2].title).toContain('همکار rec.reza');
     const card = (await sara.agent.post(`/api/recognitions/${publicId}/open`).expect(200)).body;
-    expect(card).toMatchObject({ amount: 20, total: 30, joiners: [{ name: 'همکار rec.reza', amount: 5 }, { name: 'همکار rec.mina', amount: 5 }] });
-    expect((await wallet(sara)).received).toEqual({ coins: 30, sealed: 1 });
+    expect(card).toMatchObject({ amount: 10, total: 14, joiners: [{ name: 'همکار rec.reza', amount: 2 }, { name: 'همکار rec.mina', amount: 2 }] });
+    expect((await wallet(sara)).received).toEqual({ coins: 14, sealed: 1 });
     // What reza gave shows as a «من هم» of that card.
-    expect((await mine(reza)).given[0]).toMatchObject({ joinOf: publicId, amount: 5, message: '', to: { id: sara.id } });
+    expect((await mine(reza)).given[0]).toMatchObject({ joinOf: publicId, amount: 2, message: '', to: { id: sara.id } });
   });
 
-  it('lets nobody give more than 40 coins to the same colleague in a month, «من هم» included', async () => {
-    // ali has given sara 20 + 15 this month.
+  it('lets nobody give more than 20 coins to the same colleague in a month, «من هم» included', async () => {
+    // ali has given sara 10 + 5 this month.
     const people = (await ali.agent.get('/api/recognitions/colleagues').expect(200)).body;
-    expect(people.find((p: { id: string }) => p.id === sara.id).givenThisMonth).toBe(35);
-    const tooMuch = (await give(ali, sara, { amount: 10 }).expect(400)).body.error;
-    expect(tooMuch).toContain('حداکثر ۴۰ سکه');
+    expect(people.find((p: { id: string }) => p.id === sara.id).givenThisMonth).toBe(15);
+    const tooMuch = (await give(ali, sara, { amount: 20 }).expect(400)).body.error;
+    expect(tooMuch).toContain('حداکثر ۲۰ سکه');
     expect(tooMuch).toContain('۵ سکهٔ دیگر');
     await give(ali, sara, { amount: 5 }).expect(201);
-    expect((await give(ali, sara, { amount: 5, message: `${MESSAGE} باز هم ممنون.` }).expect(400)).body.error).toContain('به سقف ۴۰ سکه');
+    expect((await give(ali, sara, { amount: 5, message: `${MESSAGE} باز هم ممنون.` }).expect(400)).body.error).toContain('به سقف ۲۰ سکه');
     // «من هم» counts for it as well.
-    await give(omid, sara, { amount: 25 }).expect(201);
-    await give(omid, sara, { amount: 15 }).expect(201);
-    expect((await omid.agent.post(`/api/recognitions/${publicId}/join`).expect(400)).body.error).toContain('به سقف ۴۰ سکه');
-    expect((await wallet(omid)).left).toBe(60);
-    expect(await deliverDueRecognitions(afterUndo())).toBe(3);
+    await give(omid, sara, { amount: 20 }).expect(201);
+    expect((await omid.agent.post(`/api/recognitions/${publicId}/join`).expect(400)).body.error).toContain('به سقف ۲۰ سکه');
+    expect((await wallet(omid)).left).toBe(30);
+    expect(await deliverDueRecognitions(afterUndo())).toBe(2);
   });
 
   it('takes the reactions of colleagues on the wall, and the receiver’s own answer on the card', async () => {
@@ -406,31 +415,31 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     // Off the wall, nobody joins it or reacts to it; it is still the receiver's, with its coins.
     await hr.agent.post(`/api/recognitions/${publicId}/join`).expect(404);
     await hr.agent.put('/api/reactions').send({ target: 'recognition', id: publicId, emoji: '👍' }).expect(404);
-    expect((await mine(sara)).received.find((c: { id: string }) => c.id === publicId)).toMatchObject({ hidden: true, total: 30 });
+    expect((await mine(sara)).received.find((c: { id: string }) => c.id === publicId)).toMatchObject({ hidden: true, total: 14 });
     expect((await sara.agent.put(`/api/recognitions/${publicId}/hidden`).send({ hidden: false }).expect(200)).body.hidden).toBe(false);
     expect((await wall(reza)).items.map((c: { id: string }) => c.id)).toContain(publicId);
   });
 
   it('never spends more than the allowance, however many clicks arrive at once', async () => {
-    // Five recognitions of 25 at the same moment from a wallet of 100: four go through.
-    const results = await Promise.all([ali, reza, mina, omid, hr].map((to) => give(neda, to, { amount: 25 })));
-    expect(results.map((r) => r.status).sort()).toEqual([201, 201, 201, 201, 400]);
+    // Six recognitions of 10 at the same moment from a wallet of 50: five go through.
+    const results = await Promise.all([ali, reza, mina, omid, hr, sara].map((to) => give(neda, to, { amount: 10 })));
+    expect(results.map((r) => r.status).sort()).toEqual([201, 201, 201, 201, 201, 400]);
     expect(results.find((r) => r.status === 400)!.body.error).toContain('تمام شده');
-    expect(await wallet(neda)).toMatchObject({ given: 100, left: 0, writtenToday: 4 });
+    expect(await wallet(neda)).toMatchObject({ given: 50, left: 0, writtenToday: 5 });
     expect((await give(neda, sara, { amount: 5 }).expect(400)).body.error).toContain('تمام شده');
-    // With 10 left, 15 is refused and says what is left.
+    // With 5 left, 20 is refused and says what is left.
     const one = (await mine(neda)).given[0];
     await neda.agent.post(`/api/recognitions/${one.id}/withdraw`).expect(200);
-    await give(neda, sara, { amount: 15 }).expect(201);
+    await give(neda, sara, { amount: 5 }).expect(201);
     // The same form sent again a moment later (a double click) is not a second recognition.
-    expect((await give(neda, sara, { amount: 15 }).expect(409)).body.error).toContain('چند لحظه پیش');
-    expect(await wallet(neda)).toMatchObject({ given: 90, left: 10, writtenToday: 4 });
-    expect((await give(neda, mina, { amount: 15 }).expect(400)).body.error).toContain('۱۰ سکه برایتان مانده');
+    expect((await give(neda, sara, { amount: 5 }).expect(409)).body.error).toContain('چند لحظه پیش');
+    expect(await wallet(neda)).toMatchObject({ given: 45, left: 5, writtenToday: 5 });
+    expect((await give(neda, mina, { amount: 20 }).expect(400)).body.error).toContain('۵ سکه برایتان مانده');
     // Two «من هم» at once on the same card: one is kept.
     const twice = await Promise.all([1, 2].map(() => hr.agent.post(`/api/recognitions/${publicId}/join`)));
     expect(twice.map((r) => r.status).sort()).toEqual([201, 400]);
-    expect((await wallet(hr)).given).toBe(5);
-    expect(await deliverDueRecognitions(afterUndo())).toBe(5);
+    expect((await wallet(hr)).given).toBe(2);
+    expect(await deliverDueRecognitions(afterUndo())).toBe(6);
   });
 
   it('burns what is left at the end of the Jalali month and starts the next one full, with no scheduled job', async () => {
@@ -438,11 +447,11 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     // Two minutes before midnight on the last day of Bahman 1404 (a month of 30 days).
     const lastNight = jalaliToDate('1404/11/30', '23:58')!;
     const nextMonth = new Date(lastNight.getTime() + 3 * 60_000);
-    const sent = await giveRecognition(me, { to: ali.id, amount: 25, valueId: 'learning', message: MESSAGE, isPublic: false }, lastNight);
+    const sent = await giveRecognition(me, { to: ali.id, amount: 20, valueId: 'learning', message: MESSAGE, isPublic: false }, lastNight);
     expect(sent.month).toBe('1404/11');
-    expect(await walletOf(me, lastNight)).toMatchObject({ month: '1404/11', allowance: 100, given: 25, left: 75, daysLeft: 1 });
-    // One minute into Esfand: the 75 left are gone and the wallet is full again.
-    expect(await walletOf(me, nextMonth)).toMatchObject({ month: '1404/12', allowance: 100, given: 0, left: 100, day: 1, daysInMonth: 29 });
+    expect(await walletOf(me, lastNight)).toMatchObject({ month: '1404/11', allowance: 50, given: 20, left: 30, daysLeft: 1 });
+    // One minute into Esfand: the 30 left are gone and the wallet is full again.
+    expect(await walletOf(me, nextMonth)).toMatchObject({ month: '1404/12', allowance: 50, given: 0, left: 50, day: 1, daysInMonth: 29 });
 
     // Handed over after midnight, it still came out of Bahman's allowance.
     expect(await deliverDueRecognitions(new Date(lastNight.getTime() + RECOGNITION_UNDO_MS))).toBe(1);
@@ -452,17 +461,69 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     expect((await walletOf(me, nextMonth)).given).toBe(0);
 
     // Taken back after midnight, within its five minutes: the coins go back to Bahman, not to Esfand.
-    const second = await giveRecognition(me, { to: mina.id, amount: 25, valueId: 'learning', message: MESSAGE, isPublic: false }, lastNight);
-    expect((await walletOf(me, lastNight)).left).toBe(50);
+    const second = await giveRecognition(me, { to: mina.id, amount: 20, valueId: 'learning', message: MESSAGE, isPublic: false }, lastNight);
+    expect((await walletOf(me, lastNight)).left).toBe(10);
     await withdrawRecognition(me, second.id, nextMonth);
-    expect((await walletOf(me, lastNight)).left).toBe(75);
-    expect((await walletOf(me, nextMonth)).left).toBe(100);
+    expect((await walletOf(me, lastNight)).left).toBe(30);
+    expect((await walletOf(me, nextMonth)).left).toBe(50);
     // Five minutes and a second after sending, it is too late.
     const third = await giveRecognition(me, { to: mina.id, amount: 5, valueId: 'learning', message: MESSAGE, isPublic: false }, lastNight);
     await expect(withdrawRecognition(me, third.id, new Date(lastNight.getTime() + RECOGNITION_UNDO_MS + 1000))).rejects.toThrow('گذشته');
   });
 
+  it('«گزارش»: the receiver shows one recognition to the programme’s owner, who could not read it before', async () => {
+    const reports = async (who: Person | { agent: Agent }, query = '') => (await who.agent.get(`/api/recognitions/reports${query}`).expect(200)).body;
+    await ali.agent.get('/api/recognitions/reports').expect(403);
+    expect(await reports(hr)).toEqual([]);
+    // Only the colleague it was written for, and only once they have read it.
+    await ali.agent.post(`/api/recognitions/${privateId}/report`).send({}).expect(404);
+    await reza.agent.post(`/api/recognitions/${privateId}/report`).send({}).expect(404);
+    expect((await sara.agent.post(`/api/recognitions/${privateId}/report`).send({}).expect(400)).body.error).toContain('باز کنید');
+    expect((await sara.agent.post(`/api/recognitions/${privateId}/open`).expect(200)).body).toMatchObject({ amount: 5, isPublic: false, reported: false });
+    await sara.agent.post(`/api/recognitions/${privateId}/report`).send({ note: 'x'.repeat(301) }).expect(400);
+    const toldSender = (await recognitionNotifications(ali.id)).length;
+    const note = 'لحن این پیام برایم آزاردهنده بود.';
+    expect((await sara.agent.post(`/api/recognitions/${privateId}/report`).send({ note }).expect(200)).body).toMatchObject({ id: privateId, reported: true });
+    expect((await sara.agent.post(`/api/recognitions/${privateId}/report`).send({ note }).expect(400)).body.error).toContain('قبلاً');
+
+    // The owner and the administrator hear who reported whom, without the message; the sender hears nothing.
+    for (const ownerId of [hr.id, (await db.select().from(employees).where(eq(employees.username, 'admin')))[0].id]) {
+      const last = (await recognitionNotifications(ownerId)).at(-1)!;
+      expect(last.title).toBe('یک قدردانی برای بررسی گزارش شد');
+      expect(last.message).toContain('همکار rec.sara');
+      expect(last.message).toContain('همکار rec.ali');
+      expect(last.message).not.toContain('صبوری');
+    }
+    expect(await recognitionNotifications(ali.id)).toHaveLength(toldSender);
+
+    // Now, and only for this one, the owner reads the message. Never the coins.
+    const open = await reports(hr);
+    expect(open).toHaveLength(1);
+    expect(open[0]).toMatchObject({ id: privateId, message: PRIVATE_MESSAGE, note, isPublic: false, closed: false, reversed: false, from: { id: ali.id }, to: { id: sara.id } });
+    expect(JSON.stringify(open)).not.toMatch(/amount|total|coins/);
+    expect((await reports({ agent: admin }))[0].id).toBe(privateId);
+    // Everybody else is where they were.
+    await reza.agent.get('/api/recognitions/reports').expect(403);
+    expect(JSON.stringify(await wall(reza))).not.toContain('صبوری');
+
+    // The owner looks at it and leaves it; the colleague who reported is told, and it leaves the list.
+    await ali.agent.post(`/api/recognitions/${privateId}/report/close`).expect(403);
+    await hr.agent.post(`/api/recognitions/${publicId}/report/close`).expect(404);
+    await hr.agent.post(`/api/recognitions/${privateId}/report/close`).expect(200);
+    expect((await hr.agent.post(`/api/recognitions/${privateId}/report/close`).expect(400)).body.error).toContain('بسته شده');
+    expect((await recognitionNotifications(sara.id)).at(-1)!.title).toBe('گزارش شما بررسی شد');
+    expect(await reports(hr)).toEqual([]);
+    expect(await reports(hr, '?all=1')).toMatchObject([{ id: privateId, closed: true }]);
+    expect((await mine(sara)).received.find((c: { id: string }) => c.id === privateId)).toMatchObject({ reported: true, amount: 5 });
+    const history = JSON.stringify((await admin.get('/api/audit-log').expect(200)).body);
+    expect(history).toContain('گزارش قدردانی همکار rec.ali از همکار rec.sara');
+    expect(history).not.toContain('صبوری');
+  });
+
   it('lets the programme’s owner reverse one with a reason: the coins go back and both people are told', async () => {
+    // A report that is still open is dealt with by the reversal.
+    await sara.agent.post(`/api/recognitions/${publicId}/report`).send({}).expect(200);
+    expect((await hr.agent.get('/api/recognitions/reports').expect(200)).body).toMatchObject([{ id: publicId, note: '', isPublic: true }]);
     const before = { ali: (await wallet(ali)).left, reza: (await wallet(reza)).left, sara: (await wallet(sara)).received.coins };
     await ali.agent.post(`/api/recognitions/${publicId}/reverse`).send({ reason: 'می‌خواهم برگردد' }).expect(403);
     await hr.agent.post(`/api/recognitions/${publicId}/reverse`).send({ reason: 'نه' }).expect(400);
@@ -475,9 +536,11 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     // Off the wall and out of the receiver's coins; back in the givers' allowance, as the month is not over.
     expect((await wall(omid)).items.map((c: { id: string }) => c.id)).not.toContain(publicId);
     await sara.agent.post(`/api/recognitions/${publicId}/open`).expect(404);
-    expect((await wallet(sara)).received.coins).toBe(before.sara - 35);
-    expect((await wallet(ali)).left).toBe(before.ali + 20);
-    expect((await wallet(reza)).left).toBe(before.reza + 5);
+    expect((await wallet(sara)).received.coins).toBe(before.sara - 16);
+    expect((await wallet(ali)).left).toBe(before.ali + 10);
+    expect((await wallet(reza)).left).toBe(before.reza + 2);
+    expect((await hr.agent.get('/api/recognitions/reports').expect(200)).body).toEqual([]);
+    expect((await hr.agent.get('/api/recognitions/reports?all=1').expect(200)).body[0]).toMatchObject({ id: publicId, closed: true, reversed: true });
     expect((await mine(ali)).given.find((g: { id: string }) => g.id === publicId)).toMatchObject({ reversed: true, reverseReason: 'به اشتباه دو بار ثبت شده بود.' });
 
     // Both people read the reason; those who had joined are told too.
@@ -500,17 +563,18 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
   });
 
   it('applies a change of the rules from the next month, and a change of the values at once', async () => {
-    const smaller = { allowance: 50, minAmount: 5, maxAmount: 10, perPersonMax: 20, dailyMax: 3 };
+    const smaller = { allowance: 30, amounts: [1, 5], defaultAmount: 5, perPersonMax: 10, dailyMax: 3 };
     await ali.agent.put('/api/settings/recognition').send({ rules: smaller }).expect(403);
-    expect((await hr.agent.put('/api/settings/recognition').send({ rules: { ...smaller, minAmount: 15 } }).expect(400)).body.error).toContain('کمترین');
-    await hr.agent.put('/api/settings/recognition').send({ rules: { ...smaller, allowance: 52 } }).expect(400);
-    const saved = (await hr.agent.put('/api/settings/recognition').send({ rules: smaller }).expect(200)).body;
+    expect((await hr.agent.put('/api/settings/recognition').send({ rules: { ...smaller, defaultAmount: 2 } }).expect(400)).body.error).toContain('پیش‌فرض');
+    await hr.agent.put('/api/settings/recognition').send({ rules: { ...smaller, perPersonMax: 40 } }).expect(400);
+    await hr.agent.put('/api/settings/recognition').send({ rules: { allowance: 30, minAmount: 5, maxAmount: 10, perPersonMax: 10, dailyMax: 3 } }).expect(400);
+    const saved = (await hr.agent.put('/api/settings/recognition').send({ rules: { ...smaller, amounts: [5, 1, 5] } }).expect(200)).body;
     const next = nextRecognitionMonth(recognitionMonth());
     expect(saved).toMatchObject({ rules: DEFAULT_RECOGNITION_RULES, pending: { from: next, rules: smaller }, rulesApplyAtOnce: false });
     // Nothing changes for anyone this month.
-    expect(await wallet(mina)).toMatchObject({ allowance: 100, amounts: [5, 10, 15, 20, 25] });
+    expect(await wallet(mina)).toMatchObject({ allowance: 50, amounts: [1, 2, 3, 5, 10, 20] });
     const firstOfNext = jalaliToDate(`${next}/01`, '09:00')!;
-    expect(await walletOf(await rowOf(mina), firstOfNext)).toMatchObject({ month: next, allowance: 50, left: 50, amounts: [5, 10] });
+    expect(await walletOf(await rowOf(mina), firstOfNext)).toMatchObject({ month: next, allowance: 30, left: 30, amounts: [1, 5], defaultAmount: 5 });
 
     // The values: a new list is in use at once; cards already written keep the value they were given for.
     const quality = { id: 'quality', label: 'کیفیت', tone: 'teal' };

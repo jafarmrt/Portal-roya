@@ -917,6 +917,12 @@ export const recognitions = pgTable(
     reversedAt: timestamp('reversed_at', { withTimezone: true }),
     reversedById: text('reversed_by_id').references(() => employees.id, { onDelete: 'set null' }),
     reverseReason: text('reverse_reason').notNull().default(''),
+    // «گزارش»: the receiver asked the programme's owner to look at it. From then on the owner reads this
+    // one, private or not, until they have dealt with it (closed it, or reversed the recognition).
+    reportedAt: timestamp('reported_at', { withTimezone: true }),
+    reportNote: text('report_note').notNull().default(''),
+    reportClosedAt: timestamp('report_closed_at', { withTimezone: true }),
+    reportClosedById: text('report_closed_by_id').references(() => employees.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
