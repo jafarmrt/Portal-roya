@@ -16,6 +16,7 @@ import { useCanHandTask } from '../tasks/canHandTask';
 import {
   X,
   Phone,
+  HandHeart,
   PhoneCall,
   Mail,
   Calendar,
@@ -36,6 +37,7 @@ import {
   Send,
 } from 'lucide-react';
 import { featureOn, tabOn } from '../../lib/features';
+import { openGive } from '../thanks/thanksStore';
 import { useEventBadges } from '../event/useEventBadges';
 
 interface UserProfileModalProps {
@@ -71,6 +73,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
 
 
   const isOwnProfile = currentUser ? currentUser.id === user.id : false;
+  const canThank = Boolean(currentUser) && !isOwnProfile && user.hasAccount && user.isActive && featureOn(appSettings, 'recognition');
   const canEdit = isOwnProfile || can('users.manage');
 
   const copyToClipboard = async (text: string, label: string) => {
@@ -203,8 +206,22 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
             </div>
 
             {/* Quick contact: the extension copies, the mobile calls (and copies); empty ones are left out. */}
-            {(user.extension || user.mobile || canHandTask) && (
+            {(user.extension || user.mobile || canHandTask || canThank) && (
               <div className="flex flex-wrap items-center gap-2">
+                {/* «سپاس»: a recognition for this colleague, from where one is looking at them. */}
+                {canThank && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      openGive(user.id);
+                    }}
+                    className="px-3 py-2 bg-gold-soft hover:bg-gold/30 text-ink rounded-xl text-xs font-bold border border-gold/60 flex items-center gap-1.5 transition-colors"
+                  >
+                    <HandHeart className="w-3.5 h-3.5" />
+                    <span>قدردانی کن</span>
+                  </button>
+                )}
                 {canHandTask && (
                   <button
                     type="button"

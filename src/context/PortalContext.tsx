@@ -60,6 +60,8 @@ const NEWS_PAGE_SIZE = 30;
 export const PRESENCE_EVENT = 'portal:presence';
 /** Fired on window when this person's emoji banner changed (one arrived, or it was closed on another page). */
 export const KUDOS_EVENT = 'portal:kudos';
+/** Fired on window when something of «سپاس» changed for this person or on the wall (src/components/thanks). */
+export const THANKS_EVENT = 'portal:thanks';
 /** Pages spread their refetches after a live signal over this long, so they do not all ask at once. */
 const LIVE_SPREAD_MS = 800;
 // Inside or outside the company is checked again this often while the page is open (see below).
@@ -350,7 +352,7 @@ const PortalContext = createContext<PortalContextType | undefined>(undefined);
 
 const VALID_TABS: ActiveTab[] = [
   'dashboard', 'polls', 'colleagues', 'orgchart', 'departments', 'search', 'news', 'documents', 'guides',
-  'training', 'calendar', 'notifications', 'systems', 'reports', 'people', 'admin', 'audit', 'suggestions', 'todos', 'tasks', 'event',
+  'training', 'calendar', 'notifications', 'systems', 'reports', 'people', 'admin', 'audit', 'suggestions', 'todos', 'tasks', 'thanks', 'event',
 ];
 
 /** Ids in the address are encoded, since a department's page is named by the department. */
@@ -662,6 +664,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         refreshAll();
         // Emoji may have arrived while the connection was down (see src/components/online).
         window.dispatchEvent(new Event(KUDOS_EVENT));
+        window.dispatchEvent(new Event(THANKS_EVENT));
       }
       connectedBefore = true;
       // «همکاران آنلاین» keeps its own list.
@@ -673,6 +676,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const { resource } = JSON.parse((e as MessageEvent).data) as { resource: string };
         if (resource === 'roles' || resource === 'employees') refreshSoon('me');
         if (resource === 'presence') window.dispatchEvent(new Event(PRESENCE_EVENT));
+        // «سپاس» keeps its own wallet and lists.
+        if (resource === 'recognition') window.dispatchEvent(new Event(THANKS_EVENT));
         if (resource in loaders) refreshSoon(resource as Resource);
       } catch {
         // Ignore malformed events.

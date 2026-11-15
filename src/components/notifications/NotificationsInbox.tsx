@@ -18,7 +18,8 @@ import {
   ClipboardList,
   NotebookPen,
   Megaphone,
-  Sparkles
+  Sparkles,
+  HandHeart
 } from 'lucide-react';
 import { PageHeader } from '../common/PageHeader';
 import { secondaryButtonClass } from '../common/Modal';
@@ -65,6 +66,8 @@ export const NotificationsInbox: React.FC = () => {
         return <MessageSquareText className="w-4 h-4 text-indigo-700" />;
       case 'kudos':
         return <Heart className="w-4 h-4 text-rose-600" />;
+      case 'recognition':
+        return <HandHeart className="w-4 h-4 text-amber-600" />;
       case 'system':
         return <ServerCog className="w-4 h-4 text-amber-700" />;
       case 'task':

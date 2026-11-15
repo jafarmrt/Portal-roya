@@ -17,6 +17,7 @@ import { MobileFold } from './MobileFold';
 import { MyTasksCard } from './MyTasksCard';
 import { PersonalTodosCard } from './PersonalTodosCard';
 import { OnlineColleaguesCard } from '../online/OnlineColleaguesCard';
+import { ThanksCard } from '../thanks/ThanksCard';
 import { ProfileNudge } from './ProfileNudge';
 import { FirstWeekCard } from './FirstWeekCard';
 import { NoticeBoard } from '../notices/NoticeBoard';
@@ -321,6 +322,13 @@ export const DashboardModule: React.FC = () => {
           {!isGuest && (
             <div style={place('todos')}>
               <ProfileNudge />
+            </div>
+          )}
+
+          {/* «سپاس»: this month's coins, a recognition for a colleague, and what arrived for this person */}
+          {on('thanks') && !isGuest && (
+            <div style={place('thanks')}>
+              <ThanksCard />
             </div>
           )}
 

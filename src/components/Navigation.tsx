@@ -30,7 +30,9 @@ import {
   ClipboardList,
   Sparkles,
   Ellipsis,
+  HandHeart,
 } from 'lucide-react';
+import { useThanks } from './thanks/thanksStore';
 import { unreadTotal, useSuggestionSummary } from '../lib/suggestionSummary';
 import { tabLabelBadge, tabOn } from '../lib/features';
 
@@ -224,6 +226,7 @@ function useFittingCount(count: number, signature: string) {
 export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onCloseMobileNav }) => {
   const { activeTab, setActiveTab, currentUser, isGuest, requestLogin, appSettings, can, isAdmin, polls, news, documents: portalDocuments, todos, tasks, specialEvent, featureOn } = usePortal();
   useEscapeKey(onCloseMobileNav, isMobileNavOpen);
+  const { wallet: thanksWallet } = useThanks();
 
   // Read/vote badges are personal, so guests don't get them.
   const activePollsCount = isGuest ? 0 : polls.filter(p => p.isActive && p.forMe && !p.hasVoted).length;
@@ -283,6 +286,18 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
         label: 'کارهای ارجاعی',
         icon: <ClipboardList className="w-4 h-4" />,
         badge: newTaskCount > 0 ? `${toPersianDigits(newTaskCount)} تازه` : undefined,
+        badgeColor: 'bg-amber-400 text-amber-950',
+        compact: true
+      }];
+  // «سپاس»: the colleague's wallet and recognitions; sealed ones waiting for them show as a number.
+  const sealedThanks = isGuest ? 0 : (thanksWallet?.received.sealed ?? 0);
+  const thanksItem: NavItem[] = isGuest
+    ? []
+    : [{
+        id: 'thanks',
+        label: 'سپاس',
+        icon: <HandHeart className="w-4 h-4" />,
+        badge: sealedThanks > 0 ? `${toPersianDigits(sealedThanks)} تازه` : undefined,
         badgeColor: 'bg-amber-400 text-amber-950',
         compact: true
       }];
@@ -355,6 +370,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
     { kind: 'item', item: calendar },
     ...shown(todosItem).map((item): NavEntry => ({ kind: 'item', item })),
     ...shown(tasksItem).map((item): NavEntry => ({ kind: 'item', item })),
+    ...shown(thanksItem).map((item): NavEntry => ({ kind: 'item', item })),
     ...shown(suggestions).map((item): NavEntry => ({ kind: 'item', item })),
     ...shown(eventFirst ? [] : eventItem).map((item): NavEntry => ({ kind: 'item', item })),
   ];
@@ -384,7 +400,7 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
 
   // The phone drawer has room for everything, with management pages under their own heading.
   const mobileSections: { title?: string; items: NavItem[] }[] = [
-    { items: shown([dashboard, ...(eventFirst ? eventItem : []), systems, newsItem, pollsItem, documents, guides, ...colleagueItems, training, calendar, ...todosItem, ...tasksItem, ...suggestions, ...(eventFirst ? [] : eventItem)]) },
+    { items: shown([dashboard, ...(eventFirst ? eventItem : []), systems, newsItem, pollsItem, documents, guides, ...colleagueItems, training, calendar, ...todosItem, ...tasksItem, ...thanksItem, ...suggestions, ...(eventFirst ? [] : eventItem)]) },
     ...(adminItems.length > 0 ? [{ title: 'مدیریت', items: adminItems }] : []),
   ];
 

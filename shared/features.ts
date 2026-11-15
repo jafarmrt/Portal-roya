@@ -226,13 +226,14 @@ export const FEATURES = [
       'از امروز اعلان‌های پرتال، علاوه بر زنگولهٔ بالای صفحه، روی گوشی و کامپیوتر شما هم می‌آید؛ حتی وقتی پرتال باز نیست. کافی است یک بار روی «روشن کردن» بزنید و به مرورگر اجازه بدهید. هر نوع اعلان را هم که نخواستید، در صفحهٔ «اعلان‌های من» خاموش کنید. روی آیفون، اول پرتال را روی صفحهٔ اصلی نصب کنید.',
   },
   {
-    // Built in steps. The tables and the API come first, switched off and without a switch on the settings
-    // page; the pages, the dashboard card and the preview with a pilot unit follow.
+    // Built in steps, switched off and without a switch on the settings page until it is whole: the tables
+    // and the API, then giving and receiving (the dashboard card and the «سپاس» page), then the wall, the
+    // settings and the preview with a pilot unit.
     key: 'recognition',
     label: 'سپاس',
     hint: 'قدردانی همکاران از هم با «سکهٔ سپاس»: هر نفر اول هر ماه شمسی سهمیه‌ای سکه می‌گیرد که فقط همراه یک پیام تشکر می‌تواند ببخشد. ماندهٔ سهمیه آخر ماه می‌سوزد و سکه‌های دریافتی می‌ماند. دیوار سپاس عدد سکه را نشان نمی‌دهد و رتبه‌بندی ندارد.',
-    tabs: [],
-    cards: [],
+    tabs: ['thanks'],
+    cards: ['thanks'],
     notificationTypes: ['recognition'],
     defaultState: 'off',
     unreleased: true,
