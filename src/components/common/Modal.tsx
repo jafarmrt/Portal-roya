@@ -70,6 +70,13 @@ export const ModalShell: React.FC<ModalShellProps> = ({ onClose, children, size 
         aria-labelledby={labelledBy}
         aria-label={labelledBy ? undefined : label}
         tabIndex={-1}
+        // The panel only clips its rounded corners; its parts do the scrolling. A browser may still scroll
+        // a clipped box to bring a focused field into view, which would push the whole dialog out of
+        // sight with no way back, so it is put back at once.
+        onScroll={(e) => {
+          const panel = e.currentTarget;
+          if (e.target === panel && (panel.scrollTop !== 0 || panel.scrollLeft !== 0)) panel.scrollTo(0, 0);
+        }}
         className={`relative bg-white shadow-2xl border border-line w-full ${SIZES[size]} rounded-t-3xl sm:rounded-3xl overflow-hidden text-right max-h-[92dvh] sm:max-h-[calc(100dvh-2rem)] flex flex-col outline-none ${className}`}
       >
         {children}
@@ -105,7 +112,8 @@ export const Modal: React.FC<ModalProps> = ({ title, subtitle, icon, onClose, ch
         </div>
         <ModalCloseButton onClose={onClose} />
       </div>
-      <div className="p-5 sm:p-6 overflow-y-auto overscroll-contain flex-1 min-h-0 text-xs">{children}</div>
+      {/* `relative`: fields hidden for screen readers only (sr-only) must scroll with the body, not sit on the panel. */}
+      <div className="relative p-5 sm:p-6 overflow-y-auto overscroll-contain flex-1 min-h-0 text-xs">{children}</div>
       {footer && (
         <div className="px-5 sm:px-6 py-3 sm:py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-surface border-t border-line flex flex-wrap justify-end gap-2 shrink-0">
           {footer}
