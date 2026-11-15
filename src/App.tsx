@@ -19,6 +19,7 @@ import { currentJalaliYear, toPersianDigits } from './lib/jalali';
 import { useTabBadge } from './lib/tabBadge';
 import { tabOn } from './lib/features';
 import { KudosListener } from './components/online/KudosListener';
+import { ThanksHost } from './components/thanks/ThanksHost';
 import { useAppearance } from './lib/appearance';
 
 // Secondary modules load on demand to keep the first download small.
@@ -45,6 +46,7 @@ const SuggestionsModule = named(() => import('./components/suggestions/Suggestio
 const TodosPage = named(() => import('./components/todos/TodosPage'), 'TodosPage');
 const TasksPage = named(() => import('./components/tasks/TasksPage'), 'TasksPage');
 const EventPage = named(() => import('./components/event/EventPage'), 'EventPage');
+const ThanksPage = named(() => import('./components/thanks/ThanksPage'), 'ThanksPage');
 
 const FullScreenLoader: React.FC<{ text: string }> = ({ text }) => (
   <div className="min-h-screen bg-page flex flex-col items-center justify-center gap-4" role="status">
@@ -167,6 +169,8 @@ const MainContent: React.FC = () => {
                   (isGuest ? <LoginRequired message="برای دیدن یادداشت‌های خود وارد حساب کاربری شوید." /> : <TodosPage />)}
                 {activeTab === 'tasks' &&
                   (isGuest ? <LoginRequired message="برای دیدن کارهای ارجاعی وارد حساب کاربری شوید." /> : <TasksPage />)}
+                {activeTab === 'thanks' &&
+                  (isGuest ? <LoginRequired message="برای دیدن قدردانی‌های خود وارد حساب کاربری شوید." /> : <ThanksPage />)}
                 {activeTab === 'systems' && <SystemsModule />}
                 {activeTab === 'event' && <EventPage />}
                 {activeTab === 'reports' && can('reports.view') && <ReportsModule />}
@@ -183,6 +187,7 @@ const MainContent: React.FC = () => {
 
       <MobileBottomBar />
       {currentUser && featureOn('onlineColleagues') && <KudosListener emojis={appSettings?.kudosEmojis ?? []} />}
+      {currentUser && featureOn('recognition') && <ThanksHost userId={currentUser.id} />}
       {isGuest && <LoginModal />}
 
       <footer className="bg-surface text-muted border-t border-line py-6 mt-12 text-xs">

@@ -22,6 +22,8 @@ export const DASHBOARD_LAYOUT = [
   { id: 'anniversary', label: 'تبریک تولد و سالگرد همکاری', zone: 'top' },
   { id: 'news', label: 'آخرین اخبار و اطلاعیه‌ها', zone: 'main' },
   { id: 'welcome', label: 'خوش‌آمد همکاران جدید', zone: 'main' },
+  // In the side column after the colleague's own cards; on a phone after the news.
+  { id: 'thanks', label: 'سپاس', zone: 'side' },
   { id: 'online', label: 'همکاران آنلاین', zone: 'side' },
   { id: 'calendar', label: 'تقویم', zone: 'main' },
   { id: 'birthdays', label: 'تولد همکاران', zone: 'side' },

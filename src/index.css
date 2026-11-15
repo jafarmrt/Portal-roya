@@ -2,6 +2,8 @@
 
 @theme {
   --font-sans: "Vazirmatn", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Display type for «سپاس» (its titles and the numbers on coins); bundled like Vazirmatn (src/components/thanks). */
+  --font-display: "Lalezar", "Vazirmatn", sans-serif;
 
   /* The portal's colours, in one place. Every screen uses these names (text-ink, bg-surface,
      border-line…) instead of a colour code, so dark mode and the personal colour only redefine them.

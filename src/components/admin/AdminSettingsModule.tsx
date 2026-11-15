@@ -37,6 +37,7 @@ import { RoyaLogo } from '../common/RoyaLogo';
 import { DASHBOARD_CARDS } from '../dashboard/dashboardCards';
 import { DashboardLayoutModal } from '../dashboard/DashboardLayoutModal';
 import { DASHBOARD_LAYOUT } from '../../../shared/dashboard';
+import { featureOfCard, featureReleased } from '../../../shared/features';
 import { FIRST_WEEK_EXTRA_LENGTH, FIRST_WEEK_EXTRA_MAX } from '../../../shared/firstWeek';
 import { FeatureSettings } from './FeatureSettings';
 import { KudosEmojiSettings } from './KudosEmojiSettings';
@@ -522,11 +523,12 @@ const DashboardCardsSettings: React.FC<{ settings: AppSettings }> = ({ settings 
         {settings.dashboardDefaultOrder?.length ? ' ترتیب کارت‌ها را خودتان برای همه چیده‌اید.' : ''}
       </p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-        {DASHBOARD_CARDS.map((card) => (
+        {/* A card of a part that is still being built has no switch yet. */}
+        {DASHBOARD_CARDS.filter((card) => featureReleased(featureOfCard(card.id))).map((card) => (
           <Toggle key={card.id} label={card.label} hint={card.hint} checked={settings.dashboardCards?.[card.id] !== false} disabled={busy} onChange={(value) => set(card.id, value)} />
         ))}
       </div>
-      {arranging && <DashboardLayoutModal mode="everyone" shown={DASHBOARD_LAYOUT.map((c) => c.id)} onClose={() => setArranging(false)} />}
+      {arranging && <DashboardLayoutModal mode="everyone" shown={DASHBOARD_LAYOUT.map((c) => c.id).filter((id) => featureReleased(featureOfCard(id)))} onClose={() => setArranging(false)} />}
     </section>
   );
 };

@@ -33,6 +33,8 @@ export default async function globalSetup(config: FullConfig) {
     data: { title: 'ناهار جمعه', questions: [{ text: 'ناهار جمعه چه باشد؟', type: 'single', options: [{ text: 'کباب' }, { text: 'سبزی' }] }] },
   }));
   await ok(await admin.post('/api/calendar_events', { data: { title: 'جلسهٔ ماهانه', date: '1405/08/20', type: 'meeting' } }));
+  // «سپاس» is still being built and has no switch on the settings page; the tests switch it on to try it.
+  await ok(await admin.put('/api/settings/features/recognition', { data: { state: 'on' } }));
   await admin.storageState({ path: `${AUTH_DIR}/admin.json` });
 
   const employee = await request.newContext({ baseURL });
