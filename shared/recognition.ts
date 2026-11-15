@@ -9,11 +9,8 @@ import { toPersianDigits } from './jalali.js';
 // It is a different thing from the ready-made emoji of «همکاران آنلاین» (shared/kudos.ts), which stays
 // as the quick, light thank-you.
 
-/** Coins come in fives: one small coin in the wallet is five. */
-export const RECOGNITION_STEP = 5;
-
 /** «من هم»: a colleague who saw the same work adds this much of their own allowance to a card on the wall. */
-export const RECOGNITION_JOIN_AMOUNT = 5;
+export const RECOGNITION_JOIN_AMOUNT = 2;
 
 /** The message is required; spaces do not count towards its length. */
 export const RECOGNITION_MESSAGE_MIN = 15;
@@ -24,6 +21,9 @@ export const RECOGNITION_UNDO_MS = 5 * 60 * 1000;
 
 /** The same coins and message to the same colleague again within this long are the same click twice, not a second recognition. */
 export const RECOGNITION_REPEAT_MS = 15 * 1000;
+
+/** What the receiver adds when they report a recognition to the programme's owner; it may be left empty. */
+export const RECOGNITION_REPORT_NOTE_MAX = 300;
 
 /** Why the programme's owner reversed a recognition; told to both people. */
 export const RECOGNITION_REASON_MIN = 5;
@@ -39,44 +39,61 @@ export const RECOGNITION_PAGE = 30;
 export interface RecognitionRules {
   /** Coins each colleague may give away in a month. */
   allowance: number;
-  /** The smallest and largest single recognition. */
-  minAmount: number;
-  maxAmount: number;
+  /** What one recognition can be: the amounts the form offers, smallest first. */
+  amounts: number[];
+  /** The amount the form starts on. */
+  defaultAmount: number;
   /** The most one colleague may give the same person in a month, «من هم» included. */
   perPersonMax: number;
   /** Recognitions one colleague may write in a day («من هم» is not counted: it carries no message). */
   dailyMax: number;
 }
 
+/**
+ * Few coins, so each one weighs something: the amount says how big the thing was, from a small thanks
+ * (1) to a month's work (20, as much as one colleague can be given in a month).
+ */
 export const DEFAULT_RECOGNITION_RULES: RecognitionRules = {
-  allowance: 100,
-  minAmount: 5,
-  maxAmount: 25,
-  perPersonMax: 40,
+  allowance: 50,
+  amounts: [1, 2, 3, 5, 10, 20],
+  defaultAmount: 5,
+  perPersonMax: 20,
   dailyMax: 10,
 };
 
 export const RECOGNITION_ALLOWANCE_MAX = 1000;
+export const RECOGNITION_AMOUNTS_MAX = 8;
 export const RECOGNITION_DAILY_LIMIT_MAX = 50;
 
 const fa = (n: number) => toPersianDigits(n);
-const inFives = (n: number) => Number.isInteger(n) && n > 0 && n % RECOGNITION_STEP === 0;
+const coins = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n > 0;
+
+/** `۱، ۲، ۳، ۵، ۱۰ یا ۲۰`: the amounts as a sentence names them. */
+export function amountsText(amounts: readonly number[]): string {
+  const names = amounts.map(fa);
+  return names.length > 1 ? `${names.slice(0, -1).join('، ')} یا ${names.at(-1)}` : (names[0] ?? '');
+}
 
 /** What is wrong with a set of rules, in words for whoever is editing them; null when they hold together. */
 export function rulesProblem(rules: RecognitionRules): string | null {
-  const { allowance, minAmount, maxAmount, perPersonMax, dailyMax } = rules;
-  if (![allowance, minAmount, maxAmount, perPersonMax].every(inFives)) {
-    return `سهمیه و سقف‌های سکه باید مضرب ${fa(RECOGNITION_STEP)} باشند.`;
+  const { allowance, amounts, defaultAmount, perPersonMax, dailyMax } = rules;
+  if (!coins(allowance) || allowance > RECOGNITION_ALLOWANCE_MAX) return `سهمیهٔ ماهانه باید بین ۱ و ${fa(RECOGNITION_ALLOWANCE_MAX)} سکه باشد.`;
+  if (!Array.isArray(amounts) || amounts.length === 0 || amounts.length > RECOGNITION_AMOUNTS_MAX || !amounts.every(coins)) {
+    return `مقدارهای قدردانی باید ۱ تا ${fa(RECOGNITION_AMOUNTS_MAX)} عدد درست باشند.`;
   }
-  if (allowance > RECOGNITION_ALLOWANCE_MAX) return `سهمیهٔ ماهانه حداکثر ${fa(RECOGNITION_ALLOWANCE_MAX)} سکه است.`;
-  if (minAmount > maxAmount) return 'کمترین مقدار هر قدردانی نمی‌تواند از بیشترین آن بزرگ‌تر باشد.';
-  if (maxAmount > perPersonMax) return 'سقف یک نفر در ماه نمی‌تواند از بیشترین مقدار هر قدردانی کمتر باشد.';
+  if (amounts.some((n, i) => i > 0 && n <= amounts[i - 1])) return 'مقدارهای قدردانی باید از کوچک به بزرگ و بدون تکرار باشند.';
+  if (!amounts.includes(defaultAmount)) return 'مقدار پیش‌فرض باید یکی از مقدارهای قدردانی باشد.';
+  if (!coins(perPersonMax) || perPersonMax < amounts.at(-1)! || perPersonMax < RECOGNITION_JOIN_AMOUNT) {
+    return 'سقف یک نفر در ماه نمی‌تواند از بزرگ‌ترین مقدار قدردانی کمتر باشد.';
+  }
   if (perPersonMax > allowance) return 'سقف یک نفر در ماه نمی‌تواند از سهمیهٔ ماهانه بیشتر باشد.';
-  if (!Number.isInteger(dailyMax) || dailyMax < 1 || dailyMax > RECOGNITION_DAILY_LIMIT_MAX) {
-    return `سقف روزانه باید بین ۱ و ${fa(RECOGNITION_DAILY_LIMIT_MAX)} قدردانی باشد.`;
-  }
+  if (!coins(dailyMax) || dailyMax > RECOGNITION_DAILY_LIMIT_MAX) return `سقف روزانه باید بین ۱ و ${fa(RECOGNITION_DAILY_LIMIT_MAX)} قدردانی باشد.`;
   return null;
 }
+
+/** Rules that hold together, or the built-in ones for anything else (nothing saved yet, or an older shape). */
+const sound = (rules: RecognitionRules | null | undefined): RecognitionRules =>
+  rules && typeof rules === 'object' && rulesProblem(rules) === null ? rules : DEFAULT_RECOGNITION_RULES;
 
 /**
  * The rules as they are kept: those in force, and a change that waits for the start of a month so nobody
@@ -90,7 +107,7 @@ export interface StoredRecognitionRules {
 /** The rules of a Jalali month ('YYYY/MM'); the built-in ones until somebody sets their own. */
 export function rulesFor(stored: StoredRecognitionRules | null | undefined, month: string): RecognitionRules {
   if (!stored) return DEFAULT_RECOGNITION_RULES;
-  return stored.pending && month >= stored.pending.from ? stored.pending.rules : stored.rules;
+  return sound(stored.pending && month >= stored.pending.from ? stored.pending.rules : stored.rules);
 }
 
 /**
@@ -148,21 +165,13 @@ export function monthProgress(now: Date = new Date()) {
 
 /**
  * The allowance of a month for one colleague. Someone who joined the portal during that month gets the
- * share of the days that were left (the day they joined included), rounded to fives and never less than
- * one coin of five; everybody else gets all of it.
+ * share of the days that were left (the day they joined included), in whole coins and never less than
+ * one; everybody else gets all of it.
  */
 export function monthAllowance(allowance: number, month: string, joinedAt: Date | string | null | undefined): number {
   if (!joinedAt || recognitionMonth(joinedAt) !== month) return allowance;
   const { daysInMonth, daysLeft } = monthProgress(new Date(joinedAt));
-  const share = Math.round((allowance * daysLeft) / daysInMonth / RECOGNITION_STEP) * RECOGNITION_STEP;
-  return Math.min(allowance, Math.max(RECOGNITION_STEP, share));
-}
-
-/** The ready-made amounts of the form: every five from the smallest to the largest recognition. */
-export function amountChoices(rules: Pick<RecognitionRules, 'minAmount' | 'maxAmount'>): number[] {
-  const choices: number[] = [];
-  for (let n = rules.minAmount; n <= rules.maxAmount; n += RECOGNITION_STEP) choices.push(n);
-  return choices;
+  return Math.min(allowance, Math.max(1, Math.round((allowance * daysLeft) / daysInMonth)));
 }
 
 /** How long a message is for the minimum: its letters, without spaces and line breaks. */

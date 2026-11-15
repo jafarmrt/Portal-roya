@@ -4,7 +4,7 @@ import { featureVisible } from '../shared/features.js';
 import { toPersianDigits } from '../shared/jalali.js';
 import type { ReactionCount } from '../shared/reactions.js';
 import {
-  amountChoices,
+  amountsText,
   messageLength,
   monthAllowance,
   monthProgress,
@@ -24,6 +24,7 @@ import { db } from './db/index.js';
 import { employees, recognitions } from './db/schema.js';
 import { broadcastChange, signalUser } from './events.js';
 import { featureConfig } from './features.js';
+import { idsWithPermission } from './roles.js';
 import { HttpError, newId } from './http.js';
 import { createNotifications } from './notify.js';
 import { reactionCounts } from './routes/reactions.js';
@@ -36,6 +37,7 @@ import { ensureSettings } from './settings.js';
 // Who reads what:
 // - the amount of a recognition: only its sender and its receiver, never the wall;
 // - a recognition «فقط ما دو نفر»: only the two of them, the administrator included;
+// - one its receiver reported («گزارش»): the programme's owner as well, that one only;
 // - a sealed one (not opened yet): the receiver sees who it is from, and the rest once they open it.
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -129,8 +131,9 @@ export async function walletOf(viewer: Pick<Viewer, 'id' | 'createdAt'>, now = n
     given,
     left: Math.max(0, allowance - given),
     ...monthProgress(now),
-    rules: { minAmount: rules.minAmount, maxAmount: rules.maxAmount, perPersonMax: rules.perPersonMax, dailyMax: rules.dailyMax },
-    amounts: amountChoices(rules),
+    rules: { perPersonMax: rules.perPersonMax, dailyMax: rules.dailyMax },
+    amounts: rules.amounts,
+    defaultAmount: rules.defaultAmount,
     joinAmount: RECOGNITION_JOIN_AMOUNT,
     writtenToday: await writtenToday(viewer.id, now),
     values: recognitionValues(settings.recognitionValues),
@@ -223,9 +226,7 @@ export async function giveRecognition(viewer: Viewer, input: GiveInput, now = ne
   const rules = rulesFor(settings.recognitionRules, recognitionMonth(now));
   const value = recognitionValues(settings.recognitionValues).find((v) => v.id === input.valueId);
   if (!value) throw new HttpError(400, 'این ارزش دیگر در فهرست نیست؛ صفحه را دوباره باز کنید.');
-  if (!amountChoices(rules).includes(input.amount)) {
-    throw new HttpError(400, `هر قدردانی بین ${fa(rules.minAmount)} و ${fa(rules.maxAmount)} سکه است، پنج‌تا پنج‌تا.`);
-  }
+  if (!rules.amounts.includes(input.amount)) throw new HttpError(400, `هر قدردانی ${amountsText(rules.amounts)} سکه است.`);
   const message = input.message.trim();
   if (messageLength(message) < RECOGNITION_MESSAGE_MIN) {
     throw new HttpError(400, `پیام را کمی کامل‌تر بنویسید (حداقل ${fa(RECOGNITION_MESSAGE_MIN)} حرف): چه کاری کرد و چه اثری داشت؟`);
@@ -533,6 +534,8 @@ function receivedCard({ r, from }: Joined, joins: { name: string; amount: number
     hidden: r.hiddenAt !== null,
     openedAt: r.openedAt.toISOString(),
     reaction: r.reaction,
+    // The receiver asked the programme's owner to look at it.
+    reported: r.reportedAt !== null,
   };
 }
 
@@ -630,6 +633,11 @@ export async function reverseRecognition(actor: SessionUser, id: string, reason:
     .set({ reversedAt: now, reversedById: actor.id, reverseReason: reason })
     .where(and(or(eq(recognitions.id, id), eq(recognitions.parentId, id)), standing))
     .returning({ id: recognitions.id, fromId: recognitions.fromId, deliveredAt: recognitions.deliveredAt });
+  // A report on it is dealt with by this.
+  await db
+    .update(recognitions)
+    .set({ reportClosedAt: now, reportClosedById: actor.id })
+    .where(and(eq(recognitions.id, id), isNotNull(recognitions.reportedAt), isNull(recognitions.reportClosedAt)));
   const { r, from, to } = found;
   const subject = `قدردانی ${fullName(from)} از ${fullName(to)}`;
   await audit(actor, { action: 'delete', entity: 'message', id, title: subject, detail: `برگردانده شد. دلیل: ${reason}` });
@@ -651,4 +659,74 @@ export async function reverseRecognition(actor: SessionUser, id: string, reason:
   for (const userId of new Set([...told, r.toId, ...joiners])) signalUser(userId, 'recognition');
   if (r.isPublic) broadcastChange('recognition');
   return { id, reversed: reversed.length };
+}
+
+/**
+ * «گزارش»: the receiver asks the programme's owner to look at a recognition they have read. It is the one
+ * way anyone but the two of them comes to read a private one, and it is the receiver who decides it.
+ * The sender is not told.
+ */
+export async function reportRecognition(viewer: Viewer, id: string, note: string, now = new Date()) {
+  const found = await receivedBy(viewer, id);
+  if (!found.r.openedAt) throw new HttpError(400, 'اول قدردانی را باز کنید.');
+  if (found.r.reportedAt) throw new HttpError(400, 'این قدردانی را قبلاً گزارش کرده‌اید.');
+  await db.update(recognitions).set({ reportedAt: now, reportNote: note }).where(eq(recognitions.id, id));
+  found.r.reportedAt = now;
+  const owners = (await idsWithPermission('recognition.manage')).filter((userId) => userId !== viewer.id);
+  // Who reported whom, never the message: that is read on the list of reports.
+  await createNotifications(owners, {
+    title: 'یک قدردانی برای بررسی گزارش شد',
+    message: `${fullName(viewer)} قدردانی‌ای را که از ${fullName(found.from)} گرفته گزارش کرده است.`,
+    type: 'recognition',
+    linkTab: 'thanks',
+    linkId: id,
+  });
+  for (const userId of owners) signalUser(userId, 'recognition');
+  signalUser(viewer.id, 'recognition');
+  return cardFor(viewer, found);
+}
+
+/** The reports the programme's owner has to look at (or all of them), newest first, each with its message. */
+export async function recognitionReports(includeClosed = false) {
+  const rows = await withPeople()
+    .where(and(isNotNull(recognitions.reportedAt), includeClosed ? undefined : isNull(recognitions.reportClosedAt)))
+    .orderBy(desc(recognitions.reportedAt), desc(recognitions.id))
+    .limit(100);
+  return rows.map(({ r, from, to }) => ({
+    id: r.id,
+    from: person(from),
+    to: person(to),
+    value: valueOf(r),
+    message: r.message,
+    isPublic: r.isPublic,
+    at: r.deliverAt.toISOString(),
+    reportedAt: r.reportedAt!.toISOString(),
+    note: r.reportNote,
+    closed: r.reportClosedAt !== null,
+    reversed: r.reversedAt !== null,
+  }));
+}
+
+/** The owner has looked at a report and leaves the recognition as it is. The colleague who reported it is told. */
+export async function closeRecognitionReport(actor: SessionUser, id: string, now = new Date()) {
+  const [found] = await withPeople().where(and(eq(recognitions.id, id), isNotNull(recognitions.reportedAt)));
+  if (!found) throw new HttpError(404, 'گزارش یافت نشد.');
+  if (found.r.reportClosedAt) throw new HttpError(400, 'این گزارش قبلاً بسته شده است.');
+  await db.update(recognitions).set({ reportClosedAt: now, reportClosedById: actor.id }).where(eq(recognitions.id, id));
+  await audit(actor, {
+    action: 'update',
+    entity: 'message',
+    id,
+    title: `گزارش قدردانی ${fullName(found.from)} از ${fullName(found.to)}`,
+    detail: 'بررسی و بسته شد.',
+  });
+  await createNotifications([found.r.toId], {
+    title: 'گزارش شما بررسی شد',
+    message: `مسئول برنامهٔ «سپاس» قدردانی‌ای را که از ${fullName(found.from)} گزارش کرده بودید بررسی کرد.`,
+    type: 'recognition',
+    linkTab: 'thanks',
+    linkId: id,
+  });
+  for (const userId of await idsWithPermission('recognition.manage')) signalUser(userId, 'recognition');
+  return { id };
 }

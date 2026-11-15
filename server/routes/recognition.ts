@@ -5,10 +5,13 @@ import { WISH_REACTIONS } from '../../shared/celebrations.js';
 import { featureState } from '../../shared/features.js';
 import { jalaliMonthLabel, toPersianDigits } from '../../shared/jalali.js';
 import {
+  amountsText,
   DEFAULT_RECOGNITION_VALUES,
+  RECOGNITION_AMOUNTS_MAX,
   RECOGNITION_MESSAGE_MAX,
   RECOGNITION_REASON_MAX,
   RECOGNITION_REASON_MIN,
+  RECOGNITION_REPORT_NOTE_MAX,
   RECOGNITION_TONES,
   RECOGNITION_VALUE_LABEL_MAX,
   RECOGNITION_VALUES_MAX,
@@ -28,6 +31,7 @@ import { featureConfig } from '../features.js';
 import { HttpError, currentUser, parse, route } from '../http.js';
 import {
   answerRecognition,
+  closeRecognitionReport,
   giveRecognition,
   hideRecognition,
   joinRecognition,
@@ -35,7 +39,9 @@ import {
   openRecognition,
   parseCursor,
   recognisable,
+  recognitionReports,
   recognitionWall,
+  reportRecognition,
   reverseRecognition,
   walletOf,
   withdrawRecognition,
@@ -155,6 +161,33 @@ recognitionRouter.put(
   }),
 );
 
+/** «گزارش»: the receiver asks the programme's owner to look at one; from then on the owner can read it. */
+recognitionRouter.post(
+  '/recognitions/:id/report',
+  route(async (req, res) => {
+    const { note } = parse(z.object({ note: z.string().trim().max(RECOGNITION_REPORT_NOTE_MAX).default('') }), req.body ?? {});
+    res.json(await reportRecognition(currentUser(req), idParam(req.params.id), note));
+  }),
+);
+
+/** The reports waiting for the programme's owner (`?all=1`: the ones already dealt with too). */
+recognitionRouter.get(
+  '/recognitions/reports',
+  requirePermission('recognition.manage'),
+  route(async (req, res) => {
+    res.json(await recognitionReports(req.query.all === '1'));
+  }),
+);
+
+/** The owner has looked at it and leaves the recognition as it is. */
+recognitionRouter.post(
+  '/recognitions/:id/report/close',
+  requirePermission('recognition.manage'),
+  route(async (req, res) => {
+    res.json(await closeRecognitionReport(currentUser(req), idParam(req.params.id)));
+  }),
+);
+
 /** The programme's owner reverses one, with a reason both people read. */
 recognitionRouter.post(
   '/recognitions/:id/reverse',
@@ -173,8 +206,8 @@ recognitionRouter.post(
 
 const rulesSchema = z.object({
   allowance: z.number().int(),
-  minAmount: z.number().int(),
-  maxAmount: z.number().int(),
+  amounts: z.array(z.number().int()).max(RECOGNITION_AMOUNTS_MAX),
+  defaultAmount: z.number().int(),
   perPersonMax: z.number().int(),
   dailyMax: z.number().int(),
 });
@@ -215,7 +248,7 @@ recognitionRouter.get(
 );
 
 const rulesText = (r: RecognitionRules) =>
-  toPersianDigits(`سهمیه ${r.allowance}، هر قدردانی ${r.minAmount} تا ${r.maxAmount}، هر نفر ${r.perPersonMax} در ماه، ${r.dailyMax} قدردانی در روز`);
+  toPersianDigits(`سهمیه ${r.allowance}، هر قدردانی ${amountsText(r.amounts)} (پیش‌فرض ${r.defaultAmount})، هر نفر ${r.perPersonMax} در ماه، ${r.dailyMax} قدردانی در روز`);
 
 recognitionRouter.put(
   '/settings/recognition',
@@ -228,6 +261,8 @@ recognitionRouter.put(
     const changes: Partial<typeof settings.$inferInsert> = {};
     const entries: { title: string; detail: string }[] = [];
     if (body.rules) {
+      // In any order and with repeats, as someone might type them.
+      body.rules.amounts = [...new Set(body.rules.amounts)].sort((a, b) => a - b);
       const problem = rulesProblem(body.rules);
       if (problem) throw new HttpError(400, problem);
       const atOnce = featureState(await featureConfig(), 'recognition') === 'off';
