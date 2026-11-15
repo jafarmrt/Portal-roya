@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { CheckCircle2, Send, ShieldCheck, UserCheck } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { CheckCircle2, History, Send, ShieldCheck, UserCheck } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { toPersianDigits } from '../../lib/jalali';
+import { clearPollDraft, readPollDraft, writePollDraft } from '../../lib/pollDraft';
 import type { Poll, PollAnswer, PollQuestion } from '../../types';
 import { inputClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 
@@ -73,7 +74,7 @@ const QuestionField: React.FC<{
             return (
               <label
                 key={value}
-                className={`flex flex-col items-center gap-0.5 py-2 rounded-xl border text-center ${checked ? 'border-red-600 bg-red-700 text-white' : 'border-line bg-white text-ink'} ${disabled ? '' : 'cursor-pointer hover:border-red-300'}`}
+                className={`relative flex flex-col items-center gap-0.5 py-2 rounded-xl border text-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-red-400 ${checked ? 'border-red-600 bg-red-700 text-white' : 'border-line bg-white text-ink'} ${disabled ? '' : 'cursor-pointer hover:border-red-300'}`}
               >
                 <input type="radio" name={name} checked={checked} disabled={disabled} onChange={() => onChange({ ...answer, rating: value })} className="sr-only" />
                 <span className="text-base font-black">{toPersianDigits(value)}</span>
@@ -107,17 +108,32 @@ const QuestionField: React.FC<{
 
 /** Fills in a poll, or (once answered) shows the answers that were sent. */
 export const PollAnswerModal: React.FC<{ poll: Poll; onClose: () => void }> = ({ poll, onClose }) => {
-  const { votePoll } = usePortal();
+  const { votePoll, currentUser } = usePortal();
   const sent = poll.hasVoted;
+  const userId = currentUser?.id ?? null;
+  // Answers that were given before but never sent (the form was closed or the page reloaded) come back.
+  const [restored, setRestored] = useState(() => (sent || !userId ? null : readPollDraft(userId, poll)));
   const [answers, setAnswers] = useState<Record<string, PollAnswer>>(() =>
-    Object.fromEntries(poll.questions.map((q) => [q.id, poll.myAnswers?.[q.id] ?? emptyAnswer()])),
+    Object.fromEntries(poll.questions.map((q) => [q.id, poll.myAnswers?.[q.id] ?? restored?.[q.id] ?? emptyAnswer()])),
   );
   const [missing, setMissing] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  // A question added to the poll while the form is open has no answer yet.
+  const answerOf = (id: string) => answers[id] ?? emptyAnswer();
+
+  useEffect(() => {
+    if (!sent && userId) writePollDraft(userId, poll.id, answers);
+  }, [answers, sent, userId, poll.id]);
+
+  const startOver = () => {
+    setAnswers(Object.fromEntries(poll.questions.map((q) => [q.id, emptyAnswer()])));
+    setMissing([]);
+    setRestored(null);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const empty = poll.questions.filter((q) => q.required && !isAnswered(q, answers[q.id])).map((q) => q.id);
+    const empty = poll.questions.filter((q) => q.required && !isAnswered(q, answerOf(q.id))).map((q) => q.id);
     setMissing(empty);
     if (empty.length > 0) {
       document.querySelector(`[name="q-${empty[0]}"]`)?.closest('fieldset')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -127,11 +143,14 @@ export const PollAnswerModal: React.FC<{ poll: Poll; onClose: () => void }> = ({
     const ok = await votePoll(
       poll.id,
       poll.questions
-        .filter((q) => isAnswered(q, answers[q.id]))
-        .map((q) => ({ questionId: q.id, optionIds: answers[q.id].optionIds, rating: answers[q.id].rating, text: answers[q.id].text.trim() })),
+        .filter((q) => isAnswered(q, answerOf(q.id)))
+        .map((q) => ({ questionId: q.id, optionIds: answerOf(q.id).optionIds, rating: answerOf(q.id).rating, text: answerOf(q.id).text.trim() })),
     );
     setBusy(false);
-    if (ok) onClose();
+    if (ok) {
+      if (userId) clearPollDraft(userId, poll.id);
+      onClose();
+    }
   };
 
   return (
@@ -166,12 +185,21 @@ export const PollAnswerModal: React.FC<{ poll: Poll; onClose: () => void }> = ({
             {!sent && ' پاسخ ثبت‌شده را بعداً نمی‌توان تغییر داد.'}
           </span>
         </p>
+        {restored && !sent && (
+          <p className="flex flex-wrap items-center gap-2 p-3 rounded-xl text-xs leading-relaxed bg-sky-50 text-sky-900 border border-sky-200" role="status">
+            <History className="w-4 h-4 shrink-0" />
+            <span className="flex-1 min-w-40">پاسخ‌هایی که قبلاً داده بودید و ثبت نشده بود، برگردانده شد. تا «ثبت پاسخ» را نزنید فرستاده نمی‌شود.</span>
+            <button type="button" onClick={startOver} className="font-bold underline underline-offset-2 hover:text-sky-700">
+              از اول شروع می‌کنم
+            </button>
+          </p>
+        )}
         {poll.questions.map((q, i) => (
           <QuestionField
             key={q.id}
             question={q}
             index={i}
-            answer={answers[q.id]}
+            answer={answerOf(q.id)}
             disabled={sent}
             missing={missing.includes(q.id)}
             onChange={(next) => {

@@ -14,7 +14,7 @@ const Rating: React.FC<{ name: string; legend: string; value: number; onChange: 
       {RATING_LABELS.map((label, i) => (
         <label
           key={label}
-          className={`flex flex-col items-center gap-1 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-red-400 ${
+          className={`relative flex flex-col items-center gap-1 py-2 rounded-xl border text-xs font-bold cursor-pointer transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-red-400 ${
             value === i + 1 ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-line-strong text-ink-soft hover:border-red-300'
           }`}
         >

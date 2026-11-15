@@ -12,6 +12,7 @@ import type { TaskAnswer } from '../../shared/tasks';
 import type { SpecialEventPayload } from '../components/event/types';
 import { featureOn as isFeatureOn } from '../lib/features';
 import { announcePushChange, disablePushHere, showLocal } from '../lib/push';
+import { clearPollDrafts } from '../lib/pollDraft';
 import type {
   ExternalSystem,
   ActiveTab,
@@ -478,6 +479,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // A shared computer must not show the next person's colleague notifications of this one.
     await disablePushHere();
     await api.post('/api/auth/logout').catch(() => undefined);
+    clearPollDrafts();
     setCurrentUser(null);
     toast.success('از حساب کاربری خود خارج شدید');
   };
@@ -490,6 +492,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       toast.error(errorMessage(err));
       return;
     }
+    clearPollDrafts();
     setCurrentUser(null);
     toast.success('از حساب کاربری خود در همهٔ دستگاه‌ها خارج شدید');
   };
