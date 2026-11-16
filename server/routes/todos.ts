@@ -228,42 +228,50 @@ todosRouter.patch(
   route(async (req, res) => {
     const viewer = currentUser(req);
     const input = parse(updateSchema, req.body);
-    const existing = await ownTodo(viewer.id, req.params.id);
-    const changes: Partial<TodoRow> = {};
-    if (input.title !== undefined) changes.title = input.title;
-    if (input.note !== undefined) changes.note = input.note;
-    if (input.important !== undefined) changes.important = input.important;
-    if (input.remind !== undefined) changes.remind = input.remind;
-    if (input.repeat !== undefined) changes.repeat = input.repeat;
-    if (input.steps !== undefined) changes.steps = withIds(input.steps);
-    if (input.dueDate !== undefined && input.dueDate !== existing.dueDate) {
-      changes.dueDate = input.dueDate;
-      Object.assign(changes, remindersFor(input.dueDate));
-    }
-    const repeatAfter = changes.repeat !== undefined ? changes.repeat : existing.repeat;
-    const dueAfter = changes.dueDate !== undefined ? changes.dueDate : existing.dueDate;
-    if (repeatAfter && !dueAfter) {
-      throw new HttpError(400, 'یادداشت تکراری تاریخ سررسید می‌خواهد.');
-    }
-    // A monthly note keeps the day it is set for; choosing a new date (or making it monthly) sets that day.
-    if (repeatAfter !== 'monthly') {
-      if (existing.repeatDay !== null) changes.repeatDay = null;
-    } else if (changes.dueDate !== undefined || existing.repeat !== 'monthly' || existing.repeatDay === null) {
-      changes.repeatDay = dayOfMonth(dueAfter!);
-    }
-    const ticked = input.done === true && !existing.doneAt;
-    const unticked = input.done === false && Boolean(existing.doneAt);
-    if (ticked) changes.doneAt = new Date();
-    // A note brought back to open is on the page again, never left in the archive.
-    if (unticked) Object.assign(changes, { doneAt: null, archivedAt: null });
-    const doneAfter = ticked || (Boolean(existing.doneAt) && !unticked);
-    if (input.archived === true && !existing.archivedAt) {
-      if (!doneAfter) throw new HttpError(400, 'فقط یادداشت انجام‌شده بایگانی می‌شود.');
-      changes.archivedAt = new Date();
-    }
-    // Brought back by hand: the automatic archiving counts its days again from now.
-    if (input.archived === false && existing.archivedAt && !unticked) Object.assign(changes, { archivedAt: null, restoredAt: new Date() });
+    // Two changes to one note can arrive at the same moment (a quick second click, two open tabs). The
+    // note's row is locked while one is worked out and written, so the next one starts from its result:
+    // a note ticked twice writes one following note, not two.
     const row = await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(personalTodos)
+        .where(and(eq(personalTodos.id, req.params.id), eq(personalTodos.userId, viewer.id)))
+        .for('update');
+      if (!existing) throw new HttpError(404, 'این یادداشت پیدا نشد.');
+      const changes: Partial<TodoRow> = {};
+      if (input.title !== undefined) changes.title = input.title;
+      if (input.note !== undefined) changes.note = input.note;
+      if (input.important !== undefined) changes.important = input.important;
+      if (input.remind !== undefined) changes.remind = input.remind;
+      if (input.repeat !== undefined) changes.repeat = input.repeat;
+      if (input.steps !== undefined) changes.steps = withIds(input.steps);
+      if (input.dueDate !== undefined && input.dueDate !== existing.dueDate) {
+        changes.dueDate = input.dueDate;
+        Object.assign(changes, remindersFor(input.dueDate));
+      }
+      const repeatAfter = changes.repeat !== undefined ? changes.repeat : existing.repeat;
+      const dueAfter = changes.dueDate !== undefined ? changes.dueDate : existing.dueDate;
+      if (repeatAfter && !dueAfter) {
+        throw new HttpError(400, 'یادداشت تکراری تاریخ سررسید می‌خواهد.');
+      }
+      // A monthly note keeps the day it is set for; choosing a new date (or making it monthly) sets that day.
+      if (repeatAfter !== 'monthly') {
+        if (existing.repeatDay !== null) changes.repeatDay = null;
+      } else if (changes.dueDate !== undefined || existing.repeat !== 'monthly' || existing.repeatDay === null) {
+        changes.repeatDay = dayOfMonth(dueAfter!);
+      }
+      const ticked = input.done === true && !existing.doneAt;
+      const unticked = input.done === false && Boolean(existing.doneAt);
+      if (ticked) changes.doneAt = new Date();
+      // A note brought back to open is on the page again, never left in the archive.
+      if (unticked) Object.assign(changes, { doneAt: null, archivedAt: null });
+      const doneAfter = ticked || (Boolean(existing.doneAt) && !unticked);
+      if (input.archived === true && !existing.archivedAt) {
+        if (!doneAfter) throw new HttpError(400, 'فقط یادداشت انجام‌شده بایگانی می‌شود.');
+        changes.archivedAt = new Date();
+      }
+      // Brought back by hand: the automatic archiving counts its days again from now.
+      if (input.archived === false && existing.archivedAt && !unticked) Object.assign(changes, { archivedAt: null, restoredAt: new Date() });
       const [updated] = Object.keys(changes).length
         ? await tx.update(personalTodos).set(changes).where(eq(personalTodos.id, existing.id)).returning()
         : [existing];

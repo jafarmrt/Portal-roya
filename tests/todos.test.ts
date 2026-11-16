@@ -365,4 +365,37 @@ describe('«یادداشت‌های من»: private to-do notes with a morning r
     expect(await ids('/api/todos/archive')).toEqual([oldId, recentId].sort());
     expect((await db.select().from(personalTodos)).length).toBe(3);
   });
+
+  it('takes two changes to one note that arrive together one after the other', async () => {
+    await db.delete(personalTodos);
+    const today = toJalali(new Date());
+    const add = async (body: object) => (await owner.agent.post('/api/todos').send({ dueDate: today, ...body }).expect(201)).body.id as string;
+    const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    // A tick, and «بایگانی» pressed before the tick was saved. While the note is held, both requests
+    // wait; the second then starts from the first one's result and finds the note done.
+    const id = await add({ title: 'تیک و بایگانی با هم' });
+    let tick: Promise<{ status: number }> | undefined;
+    let archive: Promise<{ status: number }> | undefined;
+    await db.transaction(async (tx) => {
+      await tx.select().from(personalTodos).where(eq(personalTodos.id, id)).for('update');
+      tick = owner.agent.patch(`/api/todos/${id}`).send({ done: true }).then((res) => res);
+      await pause(150);
+      archive = owner.agent.patch(`/api/todos/${id}`).send({ archived: true }).then((res) => res);
+      await pause(150);
+    });
+    expect((await tick!).status).toBe(200);
+    const archived = await archive!;
+    expect(archived.status).toBe(200);
+    expect((await owner.agent.get('/api/todos').expect(200)).body).toEqual([]);
+    expect((await owner.agent.get('/api/todos/archive').expect(200)).body.map((t: { id: string }) => t.id)).toEqual([id]);
+
+    // Two ticks of a repeating note at the same moment (a double click, two tabs) write one next note.
+    const weekly = await add({ title: 'جلسهٔ هفتگی', repeat: 'weekly' });
+    const ticks = await Promise.all([1, 2, 3].map(() => owner.agent.patch(`/api/todos/${weekly}`).send({ done: true })));
+    expect(ticks.map((res) => res.status)).toEqual([200, 200, 200]);
+    const open = (await owner.agent.get('/api/todos').expect(200)).body as { id: string; title: string; doneAt: string | null }[];
+    expect(open.filter((t) => t.title === 'جلسهٔ هفتگی' && !t.doneAt)).toHaveLength(1);
+    expect(open.filter((t) => t.title === 'جلسهٔ هفتگی')).toHaveLength(2);
+  });
 });

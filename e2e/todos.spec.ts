@@ -131,6 +131,52 @@ test.describe('personal to-do notes', () => {
     await context.close();
   });
 
+  test('quick clicks on one note all hold: a tick then «بایگانی», and two steps in a row', async ({ browser }) => {
+    const { context, page } = await asRole(browser, 'employee');
+    const dueDate = moment().add(3, 'day').format('jYYYY/jMM/jDD');
+    await page.goto('/#dashboard');
+    for (const data of [
+      { title: 'یادداشت عجله‌ای', dueDate },
+      { title: 'یادداشت دوگامی', dueDate, steps: [{ text: 'گام الف' }, { text: 'گام ب' }] },
+    ]) {
+      expect((await page.request.post('/api/todos', { data })).ok()).toBe(true);
+    }
+    // A slow connection: every change to a note takes most of a second to be saved.
+    const refused: string[] = [];
+    page.on('response', (res) => {
+      if (res.url().includes('/api/todos/') && res.status() >= 400) refused.push(`${res.request().method()} ${res.status()}`);
+    });
+    await page.route('**/api/todos/*', async (route) => {
+      if (route.request().method() === 'PATCH') await new Promise((resolve) => setTimeout(resolve, 700));
+      await route.continue();
+    });
+    await page.goto('/#todos');
+
+    // Ticked, and archived before the tick was saved.
+    const hasty = page.getByRole('listitem', { name: 'یادداشت عجله‌ای', exact: true });
+    await hasty.getByRole('checkbox', { name: 'انجام شد: یادداشت عجله‌ای' }).click();
+    await hasty.getByRole('button', { name: 'بایگانی یادداشت عجله‌ای' }).click();
+    await expect(hasty).toHaveCount(0);
+
+    // Two steps ticked one right after the other: the second does not undo the first.
+    const steps = page.getByRole('listitem', { name: 'یادداشت دوگامی', exact: true });
+    await steps.getByRole('checkbox', { name: 'گام الف' }).click();
+    await steps.getByRole('checkbox', { name: 'گام ب' }).click();
+    await expect(steps).toContainText('۲ از ۲ گام');
+    await expect(steps.getByRole('checkbox', { name: 'گام الف' })).toBeChecked();
+    await page.waitForTimeout(1800);
+    expect(refused).toEqual([]);
+
+    // What the server kept is the same.
+    await page.unroute('**/api/todos/*');
+    await page.reload();
+    await expect(page.getByRole('listitem', { name: 'یادداشت دوگامی', exact: true })).toContainText('۲ از ۲ گام');
+    await expect(page.getByRole('listitem', { name: 'یادداشت عجله‌ای', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'آرشیو', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'برگرداندن یادداشت عجله‌ای از آرشیو' })).toBeVisible();
+    await context.close();
+  });
+
   test('is gone everywhere once the administrator switches it off', async ({ browser }) => {
     const admin = await asRole(browser, 'admin');
     expect((await admin.page.request.put('/api/settings/features/todos', { data: { state: 'off' } })).ok()).toBe(true);

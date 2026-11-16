@@ -882,14 +882,40 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return created;
   };
 
+  // Changes to one note go to the server one after the other, in the order they were made. A tick shows
+  // at once, so «بایگانی» can be pressed before the tick is saved; sent side by side, the server would
+  // get the second while the note was still open and refuse it.
+  const todoQueue = useRef(new Map<string, Promise<unknown>>());
+  const inTodoOrder = <T,>(id: string, job: () => Promise<T>): Promise<T> => {
+    const run = (todoQueue.current.get(id) ?? Promise.resolve()).then(job, job);
+    const tail = run.catch(() => undefined);
+    todoQueue.current.set(id, tail);
+    void tail.then(() => {
+      if (todoQueue.current.get(id) === tail) todoQueue.current.delete(id);
+    });
+    return run;
+  };
+
   const updateTodo: PortalContextType['updateTodo'] = async (id, changes) => {
-    // Ticking a note shows at once; the server's copy replaces it (or the list reloads if it failed).
-    if (changes.done !== undefined) {
-      const doneAt = changes.done ? new Date().toISOString() : null;
-      setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, doneAt } : t)));
+    // A tick, a star and a ticked step show at once, so the next click starts from them; the server's
+    // copy replaces it (or the list reloads if it failed).
+    const shown = changes.done !== undefined || changes.important !== undefined || changes.steps !== undefined;
+    if (shown) {
+      setTodos((prev) =>
+        prev.map((t) => {
+          if (t.id !== id) return t;
+          const next = { ...t };
+          if (changes.done !== undefined) next.doneAt = changes.done ? new Date().toISOString() : null;
+          if (changes.important !== undefined) next.important = changes.important;
+          // Only the ticks of the steps it already has; steps written or removed in the form come with the server's copy.
+          const steps = changes.steps;
+          if (steps && steps.length === t.steps.length) next.steps = t.steps.map((step, i) => ({ ...step, done: steps[i].done }));
+          return next;
+        }),
+      );
     }
-    const updated = await attempt(() => api.patch<PersonalTodo>(`/api/todos/${id}`, changes));
-    if (!updated && changes.done !== undefined) void refresh('todos');
+    const updated = await inTodoOrder(id, () => attempt(() => api.patch<PersonalTodo>(`/api/todos/${id}`, changes)));
+    if (!updated && shown) void refresh('todos');
     // An archived note leaves the page; one taken out of the archive comes back to it.
     if (updated) setTodos((prev) => (updated.archivedAt ? prev.filter((t) => t.id !== id) : [...prev.filter((t) => t.id !== id), updated]));
     // Ticking a repeating note off writes the next one, and un-ticking takes it back.
@@ -903,12 +929,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       message: todo ? `«${todo.title.length > 30 ? `${todo.title.slice(0, 30)}…` : todo.title}» پاک شد.` : 'یادداشت پاک شد.',
       hide: () => setTodos((prev) => prev.filter((t) => t.id !== id)),
       restore: () => void refresh('todos'),
-      commit: async () => Boolean(await attempt(() => api.delete(`/api/todos/${id}`).then(() => true))),
+      commit: async () => Boolean(await inTodoOrder(id, () => attempt(() => api.delete(`/api/todos/${id}`).then(() => true)))),
     });
   };
 
   const deleteTodo: PortalContextType['deleteTodo'] = async (id) => {
-    const ok = await attempt(() => api.delete(`/api/todos/${id}`).then(() => true));
+    const ok = await inTodoOrder(id, () => attempt(() => api.delete(`/api/todos/${id}`).then(() => true)));
     if (ok) setTodos((prev) => prev.filter((t) => t.id !== id));
     return Boolean(ok);
   };
@@ -917,6 +943,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     featureOn('todos') ? todos.filter((t) => !t.doneAt && t.dueDate === date) : [];
 
   const archiveDoneTodos: PortalContextType['archiveDoneTodos'] = async (ids) => {
+    // A note ticked a moment ago is done on the server only once its own change has been saved.
+    await Promise.all(todoQueue.current.values());
     const result = await attempt(() => api.post<{ archived: number }>('/api/todos/archive', ids ? { ids } : {}), 'به آرشیو رفت.');
     if (result) setTodos((prev) => prev.filter((t) => !t.doneAt || (ids && !ids.includes(t.id))));
     return Boolean(result);
