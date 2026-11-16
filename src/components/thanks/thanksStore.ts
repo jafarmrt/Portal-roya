@@ -1,10 +1,11 @@
 import { useSyncExternalStore } from 'react';
 import toast from 'react-hot-toast';
+import type { ReactionCount } from '../../../shared/reactions';
 import { api, errorMessage } from '../../lib/api';
 
-// «سپاس» on the client: the month's wallet and the colleague's own recognitions, kept in one place for
-// the dashboard card, the page and the two dialogs (giving one, opening a sealed one). The server
-// tells every page when something changed (THANKS_EVENT); <ThanksHost> then loads this again.
+// «سپاس» on the client: the month's wallet, the colleague's own recognitions and the wall, kept in one
+// place for the dashboard card, the page and the two dialogs (giving one, opening a sealed one). The
+// server tells every page when something changed (THANKS_EVENT); <ThanksHost> then loads this again.
 
 export interface ThanksPerson {
   id: string;
@@ -92,6 +93,43 @@ export interface Colleague extends ThanksPerson {
   givenThisMonth: number;
 }
 
+/** A public recognition on the wall. It never carries an amount. */
+export interface WallCard {
+  id: string;
+  from: ThanksPerson;
+  to: ThanksPerson;
+  /** Null (with an empty message) while it is the viewer's own and still sealed. */
+  value: ThanksValue | null;
+  message: string;
+  at: string;
+  /** The receiver's own answer, and everybody else's emoji. */
+  reaction: string;
+  reactions: ReactionCount[];
+  /** Colleagues who added coins of their own («من هم»). */
+  joiners: { id: string; name: string }[];
+  joined: boolean;
+  /** The viewer's own «من هم», and until when it can still be taken back. */
+  join: { id: string; withdrawUntil: string | null } | null;
+  mine: 'sender' | 'receiver' | null;
+  sealed: boolean;
+}
+
+export interface WallFilter {
+  /** A value's id, or '' for all of them. */
+  value: string;
+  /** The unit of the colleague who was recognised, or '' for all. */
+  department: string;
+}
+
+interface Wall {
+  items: WallCard[];
+  next: string | null;
+  loaded: boolean;
+  filter: WallFilter;
+  /** The wall is on screen, so it is loaded again when something changes. */
+  watching: boolean;
+}
+
 interface Mine {
   received: ReceivedCard[];
   receivedNext: string | null;
@@ -106,7 +144,10 @@ interface State extends Mine {
   giving: { to?: string } | null;
   /** The recognition whose envelope is on screen. */
   revealing: string | null;
+  wall: Wall;
 }
+
+const emptyWall = (): Wall => ({ items: [], next: null, loaded: false, filter: { value: '', department: '' }, watching: false });
 
 let state: State = {
   wallet: null,
@@ -117,6 +158,7 @@ let state: State = {
   loaded: false,
   giving: null,
   revealing: null,
+  wall: emptyWall(),
 };
 
 const listeners = new Set<() => void>();
@@ -154,9 +196,67 @@ export async function loadThanks() {
   }
 }
 
+const wallUrl = (filter: WallFilter, before?: string) => {
+  const query = new URLSearchParams();
+  if (filter.value) query.set('value', filter.value);
+  if (filter.department) query.set('department', filter.department);
+  if (before) query.set('before', before);
+  const text = query.toString();
+  return `/api/recognitions/wall${text ? `?${text}` : ''}`;
+};
+
+// Answers that arrive after the filter changed belong to a wall nobody is looking at any more.
+let wallRequest = 0;
+
+/** Loads the wall's first page again, keeping the older cards already loaded with «بیشتر». */
+export async function loadWall() {
+  const request = ++wallRequest;
+  const { filter } = state.wall;
+  try {
+    const page = await api.get<{ items: WallCard[]; next: string | null }>(wallUrl(filter));
+    if (request !== wallRequest) return;
+    const merged = merge(page.items, page.next, state.wall.items, state.wall.next);
+    set({ wall: { ...state.wall, items: merged.items, next: merged.next, loaded: true } });
+  } catch {
+    // Quiet, like the lists above; the wall stays as it was.
+    if (request === wallRequest && !state.wall.loaded) set({ wall: { ...state.wall, loaded: true } });
+  }
+}
+
+/** After the server said something changed: the wallet and the lists, and the wall while it is on screen. */
+export function refreshThanks() {
+  void loadThanks();
+  if (state.wall.watching) void loadWall();
+}
+
+/** The wall view tells the store while it is on screen; it loads on arriving. */
+export function watchWall(watching: boolean) {
+  set({ wall: { ...state.wall, watching } });
+  if (watching) void loadWall();
+}
+
+export function setWallFilter(patch: Partial<WallFilter>) {
+  set({ wall: { ...state.wall, filter: { ...state.wall.filter, ...patch }, items: [], next: null, loaded: false } });
+  void loadWall();
+}
+
+export async function loadMoreWall() {
+  const { next, filter } = state.wall;
+  if (!next) return;
+  const request = wallRequest;
+  try {
+    const page = await api.get<{ items: WallCard[]; next: string | null }>(wallUrl(filter, next));
+    if (request !== wallRequest) return;
+    set({ wall: { ...state.wall, items: [...state.wall.items, ...page.items.filter((c) => !state.wall.items.some((o) => o.id === c.id))], next: page.next } });
+  } catch (err) {
+    toast.error(errorMessage(err));
+  }
+}
+
 /** Forgets everything (signing out, or the part was switched off). */
 export function resetThanks() {
-  set({ wallet: null, received: [], receivedNext: null, given: [], givenNext: null, loaded: false, giving: null, revealing: null });
+  wallRequest++;
+  set({ wallet: null, received: [], receivedNext: null, given: [], givenNext: null, loaded: false, giving: null, revealing: null, wall: emptyWall() });
 }
 
 export async function loadMoreThanks(list: 'received' | 'given') {
@@ -204,10 +304,41 @@ export async function withdrawThanks(id: string) {
   try {
     const { wallet } = await api.post<{ wallet: Wallet }>(`/api/recognitions/${id}/withdraw`);
     set({ wallet, given: state.given.filter((g) => g.id !== id) });
+    if (state.wall.watching) void loadWall();
     return true;
   } catch (err) {
     toast.error(errorMessage(err));
     void loadThanks();
+    return false;
+  }
+}
+
+/** «من هم»: a few coins of one's own on a card of the wall; true when they went. */
+export async function joinThanks(id: string) {
+  try {
+    const sent = await api.post<{ id: string; withdrawUntil: string; wallet: Wallet }>(`/api/recognitions/${id}/join`);
+    const me = { id: sent.id, withdrawUntil: sent.withdrawUntil };
+    // It shows at once; the wall's own answer (with the viewer's name among the others) follows.
+    set({ wallet: sent.wallet, wall: { ...state.wall, items: state.wall.items.map((c) => (c.id === id ? { ...c, joined: true, join: me } : c)) } });
+    void loadThanks();
+    void loadWall();
+    return true;
+  } catch (err) {
+    toast.error(errorMessage(err));
+    void loadWall();
+    return false;
+  }
+}
+
+/** The receiver takes a public recognition off the wall, or puts it back; true when it is done. */
+export async function hideThanks(id: string, hidden: boolean) {
+  try {
+    replaceReceived(await api.put<OpenedCard>(`/api/recognitions/${id}/hidden`, { hidden }));
+    if (hidden) set({ wall: { ...state.wall, items: state.wall.items.filter((c) => c.id !== id) } });
+    if (state.wall.watching) void loadWall();
+    return true;
+  } catch (err) {
+    toast.error(errorMessage(err));
     return false;
   }
 }

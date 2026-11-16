@@ -28,11 +28,6 @@ export interface FeatureInfo {
   intro: string;
   /** The section this part is one switch of (each suggestion box has its own); the section has no switch itself. */
   group?: string;
-  /**
-   * Still being built: its pages are not in the portal yet, so the settings page shows no switch for it
-   * and the access levels no permission of it. It stays switched off until this mark is taken away.
-   */
-  unreleased?: boolean;
 }
 
 export const FEATURES = [
@@ -226,9 +221,8 @@ export const FEATURES = [
       'از امروز اعلان‌های پرتال، علاوه بر زنگولهٔ بالای صفحه، روی گوشی و کامپیوتر شما هم می‌آید؛ حتی وقتی پرتال باز نیست. کافی است یک بار روی «روشن کردن» بزنید و به مرورگر اجازه بدهید. هر نوع اعلان را هم که نخواستید، در صفحهٔ «اعلان‌های من» خاموش کنید. روی آیفون، اول پرتال را روی صفحهٔ اصلی نصب کنید.',
   },
   {
-    // Built in steps, switched off and without a switch on the settings page until it is whole: the tables
-    // and the API, then giving and receiving (the dashboard card and the «سپاس» page), then the wall, the
-    // settings and the preview with a pilot unit.
+    // Built in steps and switched off until the administrator tries it: giving and receiving (the dashboard
+    // card and the «سپاس» page) and the wall are here; its settings page, the reminders and the report follow.
     key: 'recognition',
     label: 'سپاس',
     hint: 'قدردانی همکاران از هم با «سکهٔ سپاس»: هر نفر اول هر ماه شمسی سهمیه‌ای سکه می‌گیرد که فقط همراه یک پیام تشکر می‌تواند ببخشد. ماندهٔ سهمیه آخر ماه می‌سوزد و سکه‌های دریافتی می‌ماند. دیوار سپاس عدد سکه را نشان نمی‌دهد و رتبه‌بندی ندارد.',
@@ -236,7 +230,6 @@ export const FEATURES = [
     cards: ['thanks'],
     notificationTypes: ['recognition'],
     defaultState: 'off',
-    unreleased: true,
     intro:
       'از امروز در پرتال بخش «سپاس» را می‌بینید. اول هر ماه سهمیه‌ای «سکهٔ سپاس» می‌گیرید که فقط می‌توانید همراه یک پیام تشکر به همکارانتان ببخشید: بنویسید چه کاری کرد و چه اثری داشت. سکه‌هایی که نبخشید آخر ماه می‌سوزد و سکه‌هایی که می‌گیرید برای همیشه مال خودتان است.',
   },
@@ -247,9 +240,6 @@ export type FeatureKey = (typeof FEATURES)[number]['key'];
 export const isFeatureKey = (value: string): value is FeatureKey => FEATURES.some((f) => f.key === value);
 
 export const featureInfo = (key: FeatureKey): FeatureInfo => FEATURES.find((f) => f.key === key)!;
-
-/** False for a part that is still being built (see `unreleased`), and for whatever belongs only to it. */
-export const featureReleased = (key: string | undefined) => !key || !isFeatureKey(key) || !featureInfo(key).unreleased;
 
 /** The switches a section is made of, e.g. the two suggestion boxes; empty for a part with a switch of its own. */
 export const groupMembers = (key: FeatureKey): FeatureKey[] =>

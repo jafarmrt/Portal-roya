@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, Plus, ShieldCheck, Trash2 } from 'lucide-react';
-import { featureReleased } from '../../../shared/features';
-import { PERMISSIONS } from '../../../shared/permissions';
+import { OFFERED_PERMISSIONS } from '../../../shared/permissions';
 import { usePortal } from '../../context/PortalContext';
 import { toPersianDigits } from '../../lib/jalali';
 import type { Permission, RoleInfo } from '../../types';
@@ -60,8 +59,7 @@ const RoleCard: React.FC<{ role: RoleInfo }> = ({ role }) => {
       ) : (
         <fieldset className="space-y-1.5">
           <legend className="sr-only">دسترسی‌های {role.name}</legend>
-          {/* A permission of a part that is still being built is not offered yet. */}
-          {PERMISSIONS.filter((p) => featureReleased('feature' in p ? p.feature : undefined)).map((p) => (
+          {OFFERED_PERMISSIONS.map((p) => (
             <label key={p.key} className="flex items-start gap-2 p-2 rounded-xl hover:bg-surface cursor-pointer">
               <input type="checkbox" checked={permissions.includes(p.key)} onChange={() => toggle(p.key)} className="mt-0.5 accent-red-700" />
               <span>

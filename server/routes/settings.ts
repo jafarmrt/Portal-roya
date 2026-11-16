@@ -7,7 +7,6 @@ import {
   type FeatureKey,
   type FeatureState,
   featureInfo,
-  featureReleased,
   featureState,
   featureVisible,
   introCardsAllowed,
@@ -394,7 +393,7 @@ function featureLabel(row: SettingsRow, key: FeatureKey) {
 async function featureSettings() {
   const row = await ensureSettings();
   return {
-    features: FEATURES.filter((f) => switchable(f.key) && featureReleased(f.key)).map((f) => ({
+    features: FEATURES.filter((f) => switchable(f.key)).map((f) => ({
       key: f.key,
       label: featureLabel(row, f.key),
       hint: f.hint,
