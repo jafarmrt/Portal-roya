@@ -39,7 +39,7 @@ describe('switching parts of the portal off until they are introduced', () => {
     const settings = (await colleague.agent.get('/api/settings').expect(200)).body;
     // «کارهای ارجاعی» alone starts in preview, to be tried with one unit first; colleagues do not see it.
     // Notifications on phones and computers also start in preview, for the administrator to try first.
-    // «سپاس» is still being built: switched off, and without a switch on the settings page (tests/recognition.test.ts).
+    // «سپاس» starts switched off, for the administrator to try before anyone else sees it (tests/recognition.test.ts).
     expect(FEATURES.filter((f) => f.defaultState !== 'on').map((f) => f.key)).toEqual(['tasks', 'pushNotifications', 'recognition']);
     expect(Object.keys(settings.features).sort()).toEqual(
       FEATURES.map((f) => f.key).filter((k) => k !== 'tasks' && k !== 'pushNotifications' && k !== 'recognition').sort(),

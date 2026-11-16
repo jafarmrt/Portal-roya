@@ -623,6 +623,114 @@ a:hover > .sp-mini-env { transform: rotate(-6deg) translateY(-2px); }
     linear-gradient(180deg, var(--color-surface-soft), var(--color-surface));
 }
 
+/* ---- The wall: public recognitions, each pinned by a small coin ---- */
+.sp-wall {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 1.5rem;
+  border: 1px solid color-mix(in oklab, var(--sp-gold-3) 22%, var(--color-line));
+  /* A soft weave, like a pin board, in whatever the page's own colours are. */
+  background:
+    radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--sp-gold-4) 16%, transparent) 1px, transparent 1.6px) 0 0 / 14px 14px,
+    linear-gradient(180deg, color-mix(in oklab, var(--sp-gold-1) 38%, var(--sp-card)), var(--sp-card) 62%);
+}
+.dark .sp-wall {
+  background:
+    radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--sp-gold-2) 12%, transparent) 1px, transparent 1.6px) 0 0 / 14px 14px,
+    linear-gradient(180deg, color-mix(in oklab, var(--sp-gold-3) 9%, var(--sp-card)), var(--sp-card) 62%);
+}
+@media (min-width: 640px) {
+  .sp-wall { padding: 1.25rem; }
+}
+
+.sp-pin {
+  position: relative;
+  perspective: 1100px;
+  scroll-margin-block: 6rem;
+}
+.sp-pin-inner {
+  position: relative;
+  border-radius: 1.25rem;
+  transform-style: preserve-3d;
+  transform-origin: 50% 0;
+  transition: transform 0.22s ease-out, box-shadow 0.22s ease-out;
+}
+/* The pin: a small coin holding the card at its top edge. */
+.sp-pin-head {
+  position: absolute;
+  z-index: 2;
+  top: -0.7rem;
+  left: 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-left: -0.75rem;
+  border-radius: 50%;
+  filter: drop-shadow(0 3px 2px rgb(60 40 0 / 0.35));
+  pointer-events: none;
+}
+.sp-pin .sp-tilt-glare { z-index: 1; }
+
+/* On a computer a card hangs from its pin: it swings in, and comes towards whoever points at it. */
+.sp[data-fx='full'] .sp-pin-inner { animation: sp-pin-in 0.9s cubic-bezier(0.3, 0.9, 0.3, 1) backwards; animation-delay: calc(var(--sp-i, 0) * 55ms); }
+.sp[data-fx='full'] .sp-pin-head { transform: translateZ(26px); }
+.sp[data-fx='full'] .sp-pin:hover .sp-pin-inner {
+  transform: translateY(-5px) rotateX(var(--sp-rx, 0deg)) rotateY(var(--sp-ry, 0deg));
+  box-shadow: 0 22px 36px -22px rgb(20 24 30 / 0.5);
+}
+.sp[data-fx='full'] .sp-pin:hover .sp-tilt-glare { opacity: 1; }
+@keyframes sp-pin-in {
+  0% { opacity: 0; transform: translateY(-22px) rotateX(-28deg) rotateZ(-5deg); }
+  45% { opacity: 1; transform: rotateX(6deg) rotateZ(2.4deg); }
+  70% { transform: rotateX(-2deg) rotateZ(-1.1deg); }
+  100% { opacity: 1; transform: none; }
+}
+/* On a phone or tablet it only fades in. */
+.sp[data-fx='light'] .sp-pin-inner { animation: sp-fade 0.35s ease-out backwards; animation-delay: calc(var(--sp-i, 0) * 30ms); }
+
+/* A card that arrived while the wall was open, or the one a link pointed at. */
+.sp-pin.is-fresh .sp-pin-inner,
+.sp-pin.is-focused .sp-pin-inner { box-shadow: 0 0 0 2px var(--sp-gold-3), 0 0 0 7px color-mix(in oklab, var(--sp-gold-2) 35%, transparent); }
+.sp[data-fx='full'] .sp-pin.is-fresh .sp-pin-inner { animation: sp-pin-in 0.9s cubic-bezier(0.3, 0.9, 0.3, 1) backwards, sp-fresh 1.6s ease-in-out 0.9s 3; }
+.sp[data-fx='light'] .sp-pin.is-fresh .sp-pin-inner { animation: sp-fade 0.35s ease-out backwards, sp-fresh 1.6s ease-in-out 0.35s 2; }
+@keyframes sp-fresh {
+  0%, 100% { box-shadow: 0 0 0 2px var(--sp-gold-3), 0 0 0 7px color-mix(in oklab, var(--sp-gold-2) 35%, transparent); }
+  50% { box-shadow: 0 0 0 2px var(--sp-gold-3), 0 0 0 13px color-mix(in oklab, var(--sp-gold-2) 0%, transparent); }
+}
+
+/* «من هم» landed: the pin takes the coins. */
+.sp[data-fx='full'] .sp-pin.is-stamped .sp-pin-head { animation: sp-pin-stamp 0.6s cubic-bezier(0.3, 1.5, 0.5, 1); }
+.sp[data-fx='light'] .sp-pin.is-stamped .sp-pin-head { animation: sp-pin-stamp-flat 0.4s ease-out; }
+@keyframes sp-pin-stamp {
+  0% { transform: translateZ(26px) scale(1); }
+  40% { transform: translateZ(70px) scale(1.9) rotate(-14deg); }
+  100% { transform: translateZ(26px) scale(1); }
+}
+@keyframes sp-pin-stamp-flat {
+  50% { transform: scale(1.5); }
+}
+
+.sp-join {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem 0.3rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--sp-gold-5);
+  background: linear-gradient(180deg, var(--sp-gold-1), color-mix(in oklab, var(--sp-gold-2) 55%, var(--sp-gold-1)));
+  border: 1px solid color-mix(in oklab, var(--sp-gold-3) 70%, transparent);
+  box-shadow: 0 2px 0 color-mix(in oklab, var(--sp-gold-4) 55%, transparent);
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s, filter 0.18s;
+}
+.sp-join:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 0 color-mix(in oklab, var(--sp-gold-4) 55%, transparent), 0 10px 14px -8px rgb(120 80 0 / 0.5); }
+.sp-join:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+.sp-join:disabled { filter: grayscale(1); opacity: 0.5; cursor: not-allowed; }
+.dark .sp-join { color: var(--sp-gold-1); background: color-mix(in oklab, var(--sp-gold-3) 30%, var(--color-card)); }
+
 /* Nothing moves at all at this level. */
 .sp[data-fx='none'] *,
 .sp[data-fx='none'] *::before,

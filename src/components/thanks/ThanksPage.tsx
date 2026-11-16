@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { ChevronLeft, HandHeart, Inbox, Send, Sparkles, Undo2 } from 'lucide-react';
+import { ChevronLeft, Eye, EyeOff, HandHeart, Inbox, Newspaper, Send, Sparkles } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { timeAgo, toPersianDigits } from '../../lib/jalali';
 import { PageHeader } from '../common/PageHeader';
@@ -9,52 +9,21 @@ import { CoinBadge, CoinFace, CoinTray, MiniEnvelope } from './Coin';
 import { effectsWanted, setEffectsWanted, useEffectsLevel } from './effects';
 import { MonthLine } from './ThanksCard';
 import { ThanksCardFace } from './ThanksCardFace';
+import { ThanksWall } from './ThanksWall';
+import { Withdraw } from './Withdraw';
 import {
+  hideThanks,
   loadMoreThanks,
   openGive,
   openReveal,
   useThanks,
-  withdrawThanks,
   type GivenCard,
+  type OpenedCard,
   type ReceivedCard,
   type ThanksPerson,
 } from './thanksStore';
 
 const fa = toPersianDigits;
-
-/** «پس گرفتن», with the time left for it; it is gone when the time is. */
-const Withdraw: React.FC<{ card: GivenCard }> = ({ card }) => {
-  const until = card.withdrawUntil ? new Date(card.withdrawUntil).getTime() : 0;
-  const [now, setNow] = useState(() => Date.now());
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    if (until <= Date.now()) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [until]);
-  const seconds = Math.max(0, Math.round((until - now) / 1000));
-  if (seconds <= 0) return <span className="text-xs text-faint">در راه است…</span>;
-  return (
-    <button
-      type="button"
-      disabled={busy}
-      onClick={() => {
-        setBusy(true);
-        void withdrawThanks(card.id).then((ok) => {
-          if (ok) toast.success('قدردانی پس گرفته شد و سکه‌ها برگشت.');
-          else setBusy(false);
-        });
-      }}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-line-strong bg-white hover:bg-surface text-xs font-bold text-ink"
-    >
-      <Undo2 className="w-3.5 h-3.5" />
-      پس گرفتن
-      <span className="tabular-nums text-faint">
-        {fa(Math.floor(seconds / 60))}:{fa(String(seconds % 60).padStart(2, '0'))}
-      </span>
-    </button>
-  );
-};
 
 const givenState = (card: GivenCard) => {
   if (!card.delivered) return null;
@@ -78,7 +47,7 @@ const Given: React.FC<{ card: GivenCard; me: ThanksPerson }> = ({ card, me }) =>
       {card.reversed ? (
         <span className="text-xs font-bold text-danger-700">برگردانده شد</span>
       ) : card.withdrawUntil ? (
-        <Withdraw card={card} />
+        <Withdraw id={card.id} until={card.withdrawUntil} done="قدردانی پس گرفته شد و سکه‌ها برگشت." after={<span className="text-xs text-faint">در راه است…</span>} />
       ) : (
         <span className="text-xs text-muted">{givenState(card) ?? 'در راه است…'}</span>
       )}
@@ -86,6 +55,25 @@ const Given: React.FC<{ card: GivenCard; me: ThanksPerson }> = ({ card, me }) =>
     {card.reversed && card.reverseReason && <p className="text-xs text-muted leading-relaxed">دلیل مسئول برنامه: {card.reverseReason}</p>}
   </ThanksCardFace>
 );
+
+/** Whether a public recognition is on the wall, and the receiver's way to take it off or put it back. */
+const OnWall: React.FC<{ card: OpenedCard }> = ({ card }) => {
+  const [busy, setBusy] = useState(false);
+  const toggle = async () => {
+    setBusy(true);
+    if (await hideThanks(card.id, !card.hidden)) toast.success(card.hidden ? 'دوباره روی دیوار است.' : 'از دیوار برداشته شد.');
+    setBusy(false);
+  };
+  return (
+    <p className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-line/70 text-xs text-muted">
+      <span>{card.hidden ? 'روی دیوار نیست؛ فقط شما و فرستنده آن را می‌بینید.' : 'روی دیوار سپاس است.'}</span>
+      <button type="button" onClick={() => void toggle()} disabled={busy} className="inline-flex items-center gap-1 font-bold text-ink-soft hover:text-ink">
+        {card.hidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+        {card.hidden ? 'به دیوار برگردان' : 'از دیوار بردار'}
+      </button>
+    </p>
+  );
+};
 
 const Received: React.FC<{ card: ReceivedCard; me: ThanksPerson; focused: boolean }> = ({ card, me, focused }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -124,20 +112,24 @@ const Received: React.FC<{ card: ReceivedCard; me: ThanksPerson; focused: boolea
           </button>
         </div>
         {card.joiners.length > 0 && <p className="text-xs text-muted">{card.joiners.map((j) => j.name).join('، ')} هم همراه شدند.</p>}
+        {card.isPublic && <OnWall card={card} />}
       </ThanksCardFace>
     </div>
   );
 };
 
+type Tab = 'wall' | 'received' | 'given';
+
 /**
- * The «سپاس» page: the month's wallet and the colleague's own recognitions, the ones they received
- * (sealed until they open them) and the ones they gave (with «پس گرفتن» for the first minutes).
+ * The «سپاس» page: the month's wallet, the wall everyone sees, and the colleague's own recognitions:
+ * the ones they received (sealed until they open them) and the ones they gave (with «پس گرفتن» for the
+ * first minutes).
  */
 export const ThanksPage: React.FC = () => {
   const { currentUser, focusId } = usePortal();
   const { wallet, received, receivedNext, given, givenNext, loaded } = useThanks();
   const fx = useEffectsLevel();
-  const [tab, setTab] = useState<'received' | 'given'>('received');
+  const [chosen, setTab] = useState<Tab | null>(null);
   const [wanted, setWanted] = useState(effectsWanted);
   const [more, setMore] = useState(false);
 
@@ -148,8 +140,16 @@ export const ThanksPage: React.FC = () => {
     handled.current = focusId;
     const card = received.find((c) => c.id === focusId);
     if (card?.sealed) openReveal(card.id);
-    else if (!card && given.some((g) => g.id === focusId)) setTab('given');
+    if (card) setTab('received');
+    else if (given.some((g) => g.id === focusId)) setTab('given');
+    else setTab('wall');
   }, [loaded, focusId, received, given]);
+
+  // The page opens on what waits for the colleague: their sealed envelopes if there are any, else the wall.
+  const sealedCount = received.filter((c) => c.sealed).length;
+  const opening = useRef<Tab | null>(null);
+  if (loaded && !opening.current) opening.current = sealedCount > 0 ? 'received' : 'wall';
+  const tab: Tab = chosen ?? opening.current ?? 'wall';
 
   if (!currentUser) return null;
   const me: ThanksPerson = {
@@ -159,8 +159,7 @@ export const ThanksPage: React.FC = () => {
     position: currentUser.position,
     department: currentUser.department,
   };
-  const sealedCount = received.filter((c) => c.sealed).length;
-  const next = tab === 'received' ? receivedNext : givenNext;
+  const next = tab === 'received' ? receivedNext : tab === 'given' ? givenNext : null;
 
   return (
     <div className="sp space-y-6" data-fx={fx}>
@@ -227,8 +226,9 @@ export const ThanksPage: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="inline-flex p-1 bg-surface rounded-2xl" role="tablist" aria-label="قدردانی‌های من">
+            <div className="inline-flex p-1 bg-surface rounded-2xl" role="tablist" aria-label="بخش‌های سپاس">
               {[
+                { id: 'wall' as const, label: 'دیوار', icon: <Newspaper className="w-4 h-4" />, badge: 0 },
                 { id: 'received' as const, label: 'دریافتی‌ها', icon: <Inbox className="w-4 h-4" />, badge: sealedCount },
                 { id: 'given' as const, label: 'داده‌ها', icon: <Send className="w-4 h-4" />, badge: 0 },
               ].map((t) => (
@@ -262,7 +262,9 @@ export const ThanksPage: React.FC = () => {
             </label>
           </div>
 
-          {tab === 'received' ? (
+          {tab === 'wall' ? (
+            <ThanksWall fx={fx} wallet={wallet} focusId={focusId ?? null} />
+          ) : tab === 'received' ? (
             received.length === 0 ? (
               <EmptyState icon={<Inbox />} title="هنوز قدردانی‌ای برایتان نرسیده است" hint="وقتی همکاری از شما قدردانی کند، مثل یک پاکت مهرشده همین‌جا می‌آید." />
             ) : (
@@ -299,7 +301,7 @@ export const ThanksPage: React.FC = () => {
                 disabled={more}
                 onClick={() => {
                   setMore(true);
-                  void loadMoreThanks(tab).finally(() => setMore(false));
+                  void loadMoreThanks(tab === 'given' ? 'given' : 'received').finally(() => setMore(false));
                 }}
                 className="px-5 py-2 text-xs font-bold text-ink bg-white hover:bg-surface border border-line-strong rounded-xl"
               >

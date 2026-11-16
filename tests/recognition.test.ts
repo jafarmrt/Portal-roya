@@ -3,7 +3,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { db, pool } from '../server/db/index';
 import { employees, notifications, recognitions } from '../server/db/schema';
 import { deliverDueRecognitions, giveRecognition, parseCursor, walletOf, withdrawRecognition } from '../server/recognition';
-import { FEATURES, featureReleased } from '../shared/features';
+import { FEATURES } from '../shared/features';
+import { OFFERED_PERMISSIONS, PERMISSIONS } from '../shared/permissions';
 import { jalaliToDate } from '../shared/jalali';
 import {
   amountsText,
@@ -146,10 +147,12 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
   });
   afterAll(() => pool.end());
 
-  it('is out of reach of everyone, with no switch or permission shown, while it is being built', async () => {
-    expect(FEATURES.find((f) => f.key === 'recognition')).toMatchObject({ defaultState: 'off', unreleased: true });
-    expect(featureReleased('recognition')).toBe(false);
-    expect(featureReleased('tasks')).toBe(true);
+  it('is out of reach of everyone until the administrator switches it on; its permission is not offered yet', async () => {
+    expect(FEATURES.find((f) => f.key === 'recognition')).toMatchObject({ defaultState: 'off' });
+    // The settings of «سپاس» have no page yet, so no access level can be given the permission for them.
+    expect(PERMISSIONS.map((p) => p.key)).toContain('recognition.manage');
+    expect(OFFERED_PERMISSIONS.map((p) => p.key)).not.toContain('recognition.manage');
+    expect(OFFERED_PERMISSIONS).toHaveLength(PERMISSIONS.length - 1);
     for (const who of [admin, ali.agent]) {
       await who.get('/api/recognitions/wallet').expect(404);
       await who.get('/api/recognitions/wall').expect(404);
@@ -160,9 +163,9 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
       expect(portalSettings).not.toHaveProperty('recognitionRules');
       expect(portalSettings).not.toHaveProperty('recognitionValues');
     }
-    const switches = (await admin.get('/api/settings/features').expect(200)).body.features.map((f: { key: string }) => f.key);
-    expect(switches).not.toContain('recognition');
-    expect(switches).toContain('tasks');
+    // The administrator has its switch on the settings page, switched off.
+    const switches = (await admin.get('/api/settings/features').expect(200)).body.features as { key: string; state: string }[];
+    expect(switches.find((f) => f.key === 'recognition')).toMatchObject({ label: 'سپاس', state: 'off' });
     // Its settings can be written before it is switched on, by its owner and the administrator only.
     await ali.agent.get('/api/settings/recognition').expect(403);
     const settings = (await hr.agent.get('/api/settings/recognition').expect(200)).body;
@@ -314,7 +317,7 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
       reactions: [],
     });
     expect((await wall(ali)).items[0].mine).toBe('sender');
-    expect((await wall(sara)).items[0].mine).toBe('receiver');
+    expect((await wall(sara)).items[0]).toMatchObject({ mine: 'receiver', sealed: false, message: MESSAGE });
     // No amount anywhere on the wall, for the two of them either.
     for (const who of [reza, ali, sara]) expect(JSON.stringify(await wall(who))).not.toMatch(/amount|total|coins/);
 
@@ -344,8 +347,13 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     const joined = (await reza.agent.post(`/api/recognitions/${publicId}/join`).expect(201)).body;
     expect(joined.wallet).toMatchObject({ given: 2, left: 48, writtenToday: 0 });
     // Their own shows at once; the others see it when it is handed over.
-    expect((await wall(reza)).items[0]).toMatchObject({ joined: true, joiners: [{ id: reza.id, name: 'همکار rec.reza' }] });
-    expect((await wall(mina)).items[0]).toMatchObject({ joined: false, joiners: [] });
+    // The wall also tells them until when they can still take it back.
+    expect((await wall(reza)).items[0]).toMatchObject({
+      joined: true,
+      join: { id: joined.id, withdrawUntil: joined.withdrawUntil },
+      joiners: [{ id: reza.id, name: 'همکار rec.reza' }],
+    });
+    expect((await wall(mina)).items[0]).toMatchObject({ joined: false, join: null, joiners: [] });
     expect((await reza.agent.post(`/api/recognitions/${publicId}/join`).expect(400)).body.error).toContain('قبلاً');
     // Not one's own, and not one written for oneself.
     await ali.agent.post(`/api/recognitions/${publicId}/join`).expect(400);
@@ -360,6 +368,7 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     expect(await deliverDueRecognitions(afterUndo())).toBe(2);
     expect((await wall(omid)).items[0].joiners.map((j: { name: string }) => j.name)).toEqual(['همکار rec.reza', 'همکار rec.mina']);
     await reza.agent.post(`/api/recognitions/${joined.id}/withdraw`).expect(400);
+    expect((await wall(reza)).items[0].join).toEqual({ id: joined.id, withdrawUntil: null });
     // The receiver is told who joined, sees them on the card, and the coins count without a seal to open.
     const told = await recognitionNotifications(sara.id);
     expect(told).toHaveLength(4);
@@ -386,6 +395,25 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     expect((await omid.agent.post(`/api/recognitions/${publicId}/join`).expect(400)).body.error).toContain('به سقف ۲۰ سکه');
     expect((await wallet(omid)).left).toBe(30);
     expect(await deliverDueRecognitions(afterUndo())).toBe(2);
+  });
+
+  it('keeps a public recognition sealed for its receiver on the wall until they open it', async () => {
+    type Card = { id: string; to: { id: string }; sealed: boolean };
+    const unopened = (await wall(sara)).items.filter((c: Card) => c.to.id === sara.id && c.id !== publicId);
+    // The two that were just handed over: who they are from, and nothing of what they say.
+    expect(unopened).toHaveLength(2);
+    for (const card of unopened) {
+      expect(card).toMatchObject({ sealed: true, mine: 'receiver', message: '', value: null, reactions: [], joiners: [], from: { name: expect.any(String) } });
+    }
+    // Everybody else reads them on the wall meanwhile, and can react to them.
+    const [first] = unopened;
+    expect((await wall(reza)).items.find((c: Card) => c.id === first.id)).toMatchObject({ sealed: false, message: MESSAGE, value: { id: 'teamwork' } });
+    await reza.agent.put('/api/reactions').send({ target: 'recognition', id: first.id, emoji: '👍' }).expect(200);
+    expect((await wall(sara)).items.find((c: Card) => c.id === first.id)).toMatchObject({ sealed: true, reactions: [] });
+    // Once its seal is broken it reads on the wall like any other.
+    await sara.agent.post(`/api/recognitions/${first.id}/open`).expect(200);
+    expect((await wall(sara)).items.find((c: Card) => c.id === first.id)).toMatchObject({ sealed: false, message: MESSAGE, reactions: [{ emoji: '👍', count: 1 }] });
+    await reza.agent.put('/api/reactions').send({ target: 'recognition', id: first.id, emoji: '' }).expect(200);
   });
 
   it('takes the reactions of colleagues on the wall, and the receiver’s own answer on the card', async () => {

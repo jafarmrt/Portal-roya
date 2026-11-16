@@ -386,7 +386,7 @@ export async function deliverDueRecognitions(now = new Date()) {
 
 /** The standing «من هم»s of the given cards. The viewer's own shows at once; the others once handed over. */
 async function joinsOf(ids: string[], viewerId: string) {
-  const byCard = new Map<string, { id: string; fromId: string; name: string; amount: number; delivered: boolean }[]>();
+  const byCard = new Map<string, { id: string; fromId: string; name: string; amount: number; delivered: boolean; deliverAt: Date }[]>();
   if (ids.length === 0) return byCard;
   const rows = await db
     .select({ r: recognitions, firstName: sender.firstName, lastName: sender.lastName })
@@ -396,7 +396,7 @@ async function joinsOf(ids: string[], viewerId: string) {
     .orderBy(recognitions.createdAt);
   for (const { r, firstName, lastName } of rows) {
     const list = byCard.get(r.parentId!) ?? [];
-    list.push({ id: r.id, fromId: r.fromId, name: fullName({ firstName, lastName }), amount: r.amount, delivered: r.deliveredAt !== null });
+    list.push({ id: r.id, fromId: r.fromId, name: fullName({ firstName, lastName }), amount: r.amount, delivered: r.deliveredAt !== null, deliverAt: r.deliverAt });
     byCard.set(r.parentId!, list);
   }
   return byCard;
@@ -447,7 +447,7 @@ export interface WallFilter {
  * The wall: public recognitions that were handed over, newest first, without any amount. Cards of a
  * colleague who has left are kept but not shown.
  */
-export async function recognitionWall(viewer: Pick<Viewer, 'id'>, filter: WallFilter = {}) {
+export async function recognitionWall(viewer: Pick<Viewer, 'id'>, filter: WallFilter = {}, now = new Date()) {
   const rows = await withPeople()
     .where(
       and(
@@ -465,11 +465,19 @@ export async function recognitionWall(viewer: Pick<Viewer, 'id'>, filter: WallFi
   const { items, next } = page(rows, (r) => r.deliverAt);
   const ids = items.map((i) => i.r.id);
   const [joins, reactions] = await Promise.all([joinsOf(ids, viewer.id), reactionCounts('recognition', ids, viewer.id)]);
-  return { items: items.map((i) => wallCard(i, viewer.id, joins.get(i.r.id) ?? [], reactions.get(i.r.id) ?? [])), next };
+  return { items: items.map((i) => wallCard(i, viewer.id, joins.get(i.r.id) ?? [], reactions.get(i.r.id) ?? [], now)), next };
 }
 
-function wallCard({ r, from, to }: Joined, viewerId: string, joins: { fromId: string; name: string }[], reactions: ReactionCount[]) {
-  return {
+function wallCard(
+  { r, from, to }: Joined,
+  viewerId: string,
+  joins: { id: string; fromId: string; name: string; delivered: boolean; deliverAt: Date }[],
+  reactions: ReactionCount[],
+  now: Date,
+) {
+  const mine = r.fromId === viewerId ? ('sender' as const) : r.toId === viewerId ? ('receiver' as const) : null;
+  const own = joins.find((j) => j.fromId === viewerId);
+  const card = {
     id: r.id,
     from: person(from),
     to: person(to),
@@ -480,9 +488,15 @@ function wallCard({ r, from, to }: Joined, viewerId: string, joins: { fromId: st
     reaction: r.reaction,
     reactions,
     joiners: joins.map((j) => ({ id: j.fromId, name: j.name })),
-    joined: joins.some((j) => j.fromId === viewerId),
-    mine: r.fromId === viewerId ? ('sender' as const) : r.toId === viewerId ? ('receiver' as const) : null,
+    joined: own !== undefined,
+    // The viewer's own «من هم», and until when it can still be taken back.
+    join: own ? { id: own.id, withdrawUntil: !own.delivered && own.deliverAt > now ? own.deliverAt.toISOString() : null } : null,
+    mine,
+    sealed: false,
   };
+  // The receiver reads it for the first time by breaking its seal, not in passing on the wall.
+  if (mine === 'receiver' && !r.openedAt) return { ...card, value: null, message: '', reactions: [], joiners: [], sealed: true };
+  return card;
 }
 
 /**

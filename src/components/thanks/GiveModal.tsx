@@ -9,7 +9,7 @@ import { toPersianDigits } from '../../lib/jalali';
 import { Modal, inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { SearchableSelect } from '../common/SearchableSelect';
 import { Coin3D, CoinTray } from './Coin';
-import { useEffectsLevel, type EffectsLevel } from './effects';
+import { flyCoins, useEffectsLevel } from './effects';
 import { ThanksCardFace, toneClass } from './ThanksCardFace';
 import { closeGive, giveThanks, loadColleagues, useThanks, withdrawThanks, type Colleague, type ThanksPerson } from './thanksStore';
 
@@ -48,31 +48,6 @@ function sentToast(id: string, name: string, undoMs: number) {
 }
 
 const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
-
-/** The lifted coins fly from the wallet to the card, on a computer; elsewhere nothing flies. */
-async function flyCoins(from: DOMRect[], target: Element | null, fx: EffectsLevel) {
-  if (fx !== 'full' || !target || from.length === 0) return;
-  const to = target.getBoundingClientRect();
-  const flights = from.slice(-8).map((box, i) => {
-    const coin = document.createElement('span');
-    coin.className = 'sp-flying';
-    coin.style.left = `${box.left + box.width / 2 - 13}px`;
-    coin.style.top = `${box.top + box.height / 2 - 13}px`;
-    document.body.appendChild(coin);
-    const dx = to.left + to.width / 2 - (box.left + box.width / 2);
-    const dy = to.top + to.height / 2 - (box.top + box.height / 2);
-    const flight = coin.animate(
-      [
-        { transform: 'translate(0, 0) scale(1) rotateY(0deg)', opacity: 1 },
-        { transform: `translate(${dx * 0.45}px, ${dy * 0.45 - 110}px) scale(1.6) rotateY(400deg)`, opacity: 1, offset: 0.55 },
-        { transform: `translate(${dx}px, ${dy}px) scale(0.8) rotateY(720deg)`, opacity: 0.3 },
-      ],
-      { duration: 780, delay: i * 70, easing: 'cubic-bezier(0.3, 0.1, 0.3, 1)', fill: 'both' },
-    );
-    return flight.finished.catch(() => undefined).then(() => coin.remove());
-  });
-  await Promise.all(flights);
-}
 
 /**
  * «قدردانی کن»: to whom, how many coins, for which value, and the message. Next to the form the month's
