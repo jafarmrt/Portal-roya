@@ -23,6 +23,38 @@ export interface RecognitionReport {
   reversed: boolean;
 }
 
+/** The numbers of one Jalali month: counts only, never one person's own. */
+export interface MonthReport {
+  month: string;
+  monthLabel: string;
+  /** The month is still running: what is unspent may still be given. */
+  current: boolean;
+  months: { month: string; label: string }[];
+  people: number;
+  givers: number;
+  receivers: number;
+  giversShare: number;
+  receiversShare: number;
+  recognitions: number;
+  joins: number;
+  publicShare: number;
+  acrossUnits: number;
+  coins: { allowance: number; given: number; unspent: number };
+  reported: number;
+  reversed: number;
+  departments: { name: string; people: number; givers: number; receivers: number; recognitions: number; giversShare: number; receiversShare: number }[];
+  values: { id: string; label: string; tone: string; count: number }[];
+}
+
+export async function loadMonthReport(month?: string) {
+  try {
+    return await api.get<MonthReport>(`/api/recognitions/report${month ? `?month=${encodeURIComponent(month)}` : ''}`);
+  } catch (err) {
+    toast.error(errorMessage(err));
+    return null;
+  }
+}
+
 export interface ProgrammeSettings {
   rules: RecognitionRules;
   /** A change of the rules that waits for the first day of a month. */

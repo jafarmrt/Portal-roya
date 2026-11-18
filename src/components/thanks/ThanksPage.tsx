@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { ChevronLeft, Eye, EyeOff, HandHeart, Inbox, Newspaper, Send, Sparkles } from 'lucide-react';
+import { BellRing, ChevronLeft, Eye, EyeOff, HandHeart, Inbox, Newspaper, Send, Sparkles } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { timeAgo, toPersianDigits } from '../../lib/jalali';
 import { PageHeader } from '../common/PageHeader';
@@ -16,6 +16,7 @@ import {
   loadMoreThanks,
   openGive,
   openReveal,
+  setThanksReminders,
   useThanks,
   type GivenCard,
   type OpenedCard,
@@ -248,18 +249,24 @@ export const ThanksPage: React.FC = () => {
                 </button>
               ))}
             </div>
-            <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
-              <input
-                type="checkbox"
-                checked={wanted}
-                onChange={(e) => {
-                  setWanted(e.target.checked);
-                  setEffectsWanted(e.target.checked);
-                }}
-                className="accent-red-600"
-              />
-              <Sparkles className="w-3.5 h-3.5" /> جلوه‌های حرکتی
-            </label>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <label className="flex items-center gap-2 text-xs text-muted cursor-pointer" title="یکی وسط ماه و یکی سه روز مانده به آخر ماه، فقط اگر سکهٔ نبخشیده داشته باشید">
+                <input type="checkbox" checked={wallet.reminders} onChange={(e) => void setThanksReminders(e.target.checked)} className="accent-red-600" />
+                <BellRing className="w-3.5 h-3.5" /> یادآوری ماهانه
+              </label>
+              <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={wanted}
+                  onChange={(e) => {
+                    setWanted(e.target.checked);
+                    setEffectsWanted(e.target.checked);
+                  }}
+                  className="accent-red-600"
+                />
+                <Sparkles className="w-3.5 h-3.5" /> جلوه‌های حرکتی
+              </label>
+            </div>
           </div>
 
           {tab === 'wall' ? (

@@ -239,6 +239,28 @@ test.describe('«سپاس»: giving, receiving and the wall', () => {
     await dialog.getByRole('button', { name: 'برگرداندن', exact: true }).click();
     await expect(dialog).toHaveCount(0);
     await expect(card).toHaveCount(0);
+    // The month's numbers: counts only, with an Excel copy.
+    await page.goto('/#thanks-admin');
+    await page.getByRole('tab', { name: 'گزارش ماه' }).click();
+    const numbers = page.getByRole('region', { name: 'گزارش ماه' });
+    await expect(numbers).toContainText('قدردانی کردند');
+    await expect(numbers).toContainText('ماه جاری، هنوز تمام نشده');
+    await expect(numbers.getByRole('row', { name: /فروش/ })).toBeVisible();
+    await expect(numbers).not.toContainText('سارا احمدی');
+    const download = page.waitForEvent('download');
+    await numbers.getByRole('button', { name: 'خروجی Excel' }).click();
+    expect((await download).suggestedFilename()).toMatch(/^sepas-\d{4}-\d{2}\.csv$/);
+
+    // Each colleague can switch the two monthly reminders off on their «سپاس» page.
+    await sara.page.goto('/#thanks');
+    const reminders = sara.page.getByRole('checkbox', { name: 'یادآوری ماهانه' });
+    await expect(reminders).toBeChecked();
+    await reminders.uncheck();
+    await expect(sara.page.getByText('یادآوری‌های ماهانهٔ سپاس خاموش شد.')).toBeVisible();
+    await sara.page.reload();
+    await expect(reminders).not.toBeChecked();
+    await reminders.check();
+
     // A colleague without the permission has no such button and no such page.
     await sara.page.goto('/#thanks');
     await sara.page.getByRole('tab', { name: /دیوار/ }).click();

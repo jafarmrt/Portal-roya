@@ -39,10 +39,12 @@ import {
   openRecognition,
   parseCursor,
   recognisable,
+  recognitionReport,
   recognitionReports,
   recognitionWall,
   reportRecognition,
   reverseRecognition,
+  setRecognitionReminders,
   walletOf,
   withdrawRecognition,
 } from '../recognition.js';
@@ -132,6 +134,28 @@ recognitionRouter.post(
     const viewer = currentUser(req);
     await withdrawRecognition(viewer, idParam(req.params.id));
     res.json({ wallet: await walletOf(viewer) });
+  }),
+);
+
+/** The colleague's two monthly reminders, on or off. */
+recognitionRouter.put(
+  '/recognitions/reminders',
+  route(async (req, res) => {
+    const { on } = parse(z.object({ on: z.boolean() }), req.body);
+    res.json(await setRecognitionReminders(currentUser(req), on));
+  }),
+);
+
+/** The owner's numbers of one Jalali month: counts by unit and value, never anyone's own. */
+recognitionRouter.get(
+  '/recognitions/report',
+  requirePermission('recognition.manage'),
+  route(async (req, res) => {
+    const now = new Date();
+    const { month } = parse(z.object({ month: z.string().regex(/^\d{4}\/\d{2}$/, 'ماه درست نیست').optional() }), req.query);
+    const asked = month ?? recognitionMonth(now);
+    if (asked > recognitionMonth(now)) throw new HttpError(400, 'این ماه هنوز نرسیده است.');
+    res.json(await recognitionReport(asked, now));
   }),
 );
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Check, Coins, Eye, Flag, HandHeart, History, Lock, Plus, RotateCcw, Save, Tags, Trash2, Undo2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, BarChart3, Check, Coins, Eye, Flag, HandHeart, History, Lock, Plus, RotateCcw, Save, Tags, Trash2, Undo2 } from 'lucide-react';
 import {
   DEFAULT_RECOGNITION_RULES,
   DEFAULT_RECOGNITION_VALUES,
@@ -19,6 +19,7 @@ import { timeAgo, toPersianDigits } from '../../lib/jalali';
 import { EmptyState, SkeletonRows } from '../common/Placeholder';
 import { PageHeader } from '../common/PageHeader';
 import { inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
+import { MonthNumbers } from './MonthNumbers';
 import { ReverseDialog } from './ReverseDialog';
 import { ThanksCardFace, toneClass } from './ThanksCardFace';
 import { closeReport, loadHistory, loadProgrammeSettings, saveProgrammeSettings, useProgramme, type RecognitionReport } from './ownerStore';
@@ -390,7 +391,7 @@ const ValuesForm: React.FC<{ values: RecognitionValue[] }> = ({ values }) => {
 
 // ---- The page ---------------------------------------------------------------------------------------
 
-type Section = 'reports' | 'rules' | 'values';
+type Section = 'reports' | 'numbers' | 'rules' | 'values';
 
 /**
  * «برنامهٔ سپاس»: the page of whoever looks after «سپاس» (permission `recognition.manage`). The reports
@@ -411,11 +412,12 @@ export const ProgrammePage: React.FC = () => {
   // Opens on the reports when some wait, else on the rules; decided once, so dealing with the last
   // report does not move the page away under the owner's hands.
   const opening = useRef<Section | null>(null);
-  if (reportsLoaded && !opening.current) opening.current = reports.length > 0 ? 'reports' : 'rules';
+  if (reportsLoaded && !opening.current) opening.current = reports.length > 0 ? 'reports' : 'numbers';
   const shown: Section = section ?? opening.current ?? 'reports';
   const sections = useMemo(
     () => [
       { id: 'reports' as const, label: 'گزارش‌ها', icon: <Flag className="w-4 h-4" />, badge: reports.length },
+      { id: 'numbers' as const, label: 'گزارش ماه', icon: <BarChart3 className="w-4 h-4" />, badge: 0 },
       { id: 'rules' as const, label: 'قواعد سکه', icon: <Coins className="w-4 h-4" />, badge: 0 },
       { id: 'values' as const, label: 'ارزش‌ها', icon: <Tags className="w-4 h-4" />, badge: 0 },
     ],
@@ -424,7 +426,7 @@ export const ProgrammePage: React.FC = () => {
 
   return (
     <div className="sp space-y-6" data-fx="none">
-      <PageHeader icon={<HandHeart />} title="برنامهٔ سپاس" description="گزارش‌های همکاران، قواعد سکه و ارزش‌های قدردانی." />
+      <PageHeader icon={<HandHeart />} title="برنامهٔ سپاس" description="گزارش‌های همکاران، آمار هر ماه، قواعد سکه و ارزش‌های قدردانی." />
 
       <div className="inline-flex flex-wrap p-1 bg-surface rounded-2xl" role="tablist" aria-label="بخش‌های برنامهٔ سپاس">
         {sections.map((s) => (
@@ -444,6 +446,7 @@ export const ProgrammePage: React.FC = () => {
       </div>
 
       {shown === 'reports' && <Reports />}
+      {shown === 'numbers' && <MonthNumbers />}
       {shown === 'rules' &&
         (settings ? (
           <RulesForm key={JSON.stringify([settings.rules, settings.pending?.rules])} rules={settings.rules} pending={settings.pending} atOnce={settings.rulesApplyAtOnce} />

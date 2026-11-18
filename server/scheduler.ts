@@ -19,7 +19,7 @@ import { releaseAnonymousSuggestions } from './routes/suggestions.js';
 import { indexMissingDocumentTexts } from './textExtract.js';
 import { announceNews, processAckDeadlines } from './routes/news.js';
 import { processMonthlySummary } from './reports.js';
-import { deliverDueRecognitions } from './recognition.js';
+import { deliverDueRecognitions, processRecognitionReminders } from './recognition.js';
 import { fullName } from './serializers.js';
 import { ensureSettings } from './settings.js';
 
@@ -159,6 +159,7 @@ export function startScheduler() {
     processTaskOverdue().catch((err) => console.error('Task overdue reminder error:', err));
     startDueNotices().catch((err) => console.error('Notice board error:', err));
     deliverDueRecognitions().catch((err) => console.error('Recognition delivery error:', err));
+    processRecognitionReminders().catch((err) => console.error('Recognition reminder error:', err));
     processSpecialEvents().catch((err) => console.error('Special event error:', err));
     removeStaleScreens().catch((err) => console.error('Event screen cleanup error:', err));
     releaseAnonymousSuggestions().catch((err) => console.error('Suggestion release error:', err));
