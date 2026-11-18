@@ -12,6 +12,8 @@ import type { TaskAnswer } from '../../shared/tasks';
 import type { SpecialEventPayload } from '../components/event/types';
 import { featureOn as isFeatureOn } from '../lib/features';
 import { announcePushChange, disablePushHere, showLocal } from '../lib/push';
+import { reportServerBuild } from '../lib/appUpdate';
+import { clearDrafts } from '../lib/drafts';
 import { clearPollDrafts } from '../lib/pollDraft';
 import type {
   ExternalSystem,
@@ -450,7 +452,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           visitorAddress?: string;
           directoryLogin?: boolean;
           logoUrl?: string;
+          clientBuild?: string | null;
         }>('/api/system/status');
+        reportServerBuild(status.clientBuild);
         setLogoUrl(status.logoUrl ?? '');
         setIsSetupComplete(status.isSetupComplete);
         setGuestAccess(Boolean(status.guestAccess));
@@ -482,6 +486,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await disablePushHere();
     await api.post('/api/auth/logout').catch(() => undefined);
     clearPollDrafts();
+    clearDrafts();
     setCurrentUser(null);
     toast.success('از حساب کاربری خود خارج شدید');
   };
@@ -495,6 +500,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
     clearPollDrafts();
+    clearDrafts();
     setCurrentUser(null);
     toast.success('از حساب کاربری خود در همهٔ دستگاه‌ها خارج شدید');
   };
@@ -701,6 +707,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     source.addEventListener('notification', () => {
       void refresh('notifications');
     });
+    // The first thing on every connection, also the one made again after an update restarted the server.
+    source.addEventListener('hello', (e) => {
+      try {
+        reportServerBuild((JSON.parse((e as MessageEvent).data) as { clientBuild?: unknown }).clientBuild);
+      } catch {
+        // Ignore malformed events.
+      }
+    });
     // Someone liked or unliked a news item: only its count changed.
     source.addEventListener('news-likes', (e) => {
       try {
@@ -733,8 +747,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (now - lastAsked < 2000) return;
       lastAsked = now;
       try {
-        const status = await api.get<{ companyNetwork?: boolean; visitorAddress?: string }>('/api/system/status');
+        const status = await api.get<{ companyNetwork?: boolean; visitorAddress?: string; clientBuild?: string | null }>('/api/system/status');
         if (stopped) return;
+        // The same answer says which build of the page the server hands out now (src/lib/appUpdate.ts).
+        reportServerBuild(status.clientBuild);
         setCompanyNetwork(status.companyNetwork !== false);
         setVisitorAddress(status.visitorAddress ?? '');
       } catch {

@@ -43,6 +43,7 @@ import { ensureSettings, logoFile } from '../settings.js';
 import { createNotifications } from '../notify.js';
 import { ensureRoles, idsWithPermission } from '../roles.js';
 import { jalaliDateValue, optionalText, password, requiredText, username } from '../validation.js';
+import { clientBuild } from '../version.js';
 
 export const authRouter = Router();
 
@@ -95,6 +96,8 @@ authRouter.get(
       visitorAddress: visitorAddress(req),
       directoryLogin: isDirectoryEnabled(),
       logoUrl: logo ? `/uploads/${logo}` : '',
+      // Which build of the page this server hands out; a page of another build offers to refresh itself.
+      clientBuild: clientBuild(),
     });
   }),
 );

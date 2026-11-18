@@ -4,7 +4,9 @@ import toast from 'react-hot-toast';
 import { CalendarClock, CheckCircle2, Eye, FileText, Image as ImageIcon, Newspaper, Paperclip, PenLine, Save, Trash2 } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import type { Attachment, NewsInput, NewsItem } from '../../types';
+import { readDraft, useDraft } from '../../lib/drafts';
 import { toJalali, formatFileSize } from '../../lib/jalali';
+import { DraftNote } from '../common/DraftNote';
 import { loadModule } from '../common/ErrorBoundary';
 import { DOCUMENT_ACCEPT, FileUpload, IMAGE_ACCEPT } from '../common/FileUpload';
 import { JalaliDateInput } from '../common/JalaliDateInput';
@@ -75,16 +77,35 @@ function initialState(item: NewsItem | undefined, defaultCategory: string): News
 export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) => {
   const { saveNews, appSettings, currentUser } = usePortal();
   const categories = appSettings?.newsCategories ?? [];
-  const [form, setForm] = useState<NewsInput>(() => initialState(item, categories[0] ?? 'اخبار سازمان'));
+  // What was being written and not saved (the editor was closed, the page refreshed) comes back: one
+  // unsaved text for a new item, and one for each item being edited.
+  const draftName = `news.${item?.id ?? 'new'}`;
+  const [start] = useState(() => initialState(item, categories[0] ?? 'اخبار سازمان'));
+  const [restored, setRestored] = useState(() => {
+    const saved = readDraft<{ form?: Partial<NewsInput>; tagsText?: string }>(currentUser?.id, draftName);
+    return saved?.form && typeof saved.form.title === 'string' && typeof saved.form.content === 'string' ? saved : null;
+  });
+  const [form, setForm] = useState<NewsInput>(() => (restored?.form ? { ...start, ...restored.form } : start));
   const isDraft = !item || item.status === 'draft';
   // The editor reads its text once; a new key reloads it after a template or the blanks change the text.
   const [editorKey, setEditorKey] = useState(0);
   const [templateName, setTemplateName] = useState('');
   const [contentEmpty, setContentEmpty] = useState(() => !form.content.replace(/<[^>]*>/g, '').trim() && !form.content.includes('<img'));
   const [preview, setPreview] = useState(false);
-  const [tagsText, setTagsText] = useState(form.tags.join('، '));
+  const [tagsText, setTagsText] = useState(typeof restored?.tagsText === 'string' ? restored.tagsText : form.tags.join('، '));
   const [scheduleOpen, setScheduleOpen] = useState(Boolean(form.publishDate || form.expiresDate));
   const [busy, setBusy] = useState(false);
+  // Only what differs from how the editor opened is worth keeping.
+  const changed = form !== start && (JSON.stringify(form) !== JSON.stringify(start) || tagsText !== start.tags.join('، '));
+  const unsaved = useDraft(currentUser?.id, draftName, { form, tagsText }, changed);
+  const startOver = () => {
+    setForm(start);
+    setTagsText(start.tags.join('، '));
+    setContentEmpty(!start.content.replace(/<[^>]*>/g, '').trim() && !start.content.includes('<img'));
+    setScheduleOpen(Boolean(start.publishDate || start.expiresDate));
+    setEditorKey((k) => k + 1);
+    setRestored(null);
+  };
 
   const set = <K extends keyof NewsInput>(key: K, value: NewsInput[K]) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -96,7 +117,10 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
     const message = draft ? 'پیش‌نویس ذخیره شد.' : !isDraft ? 'تغییرات ذخیره شد.' : form.publishDate ? 'انتشار خبر زمان‌بندی شد.' : 'خبر منتشر شد.';
     const ok = await saveNews(data, item?.id, message);
     setBusy(false);
-    if (ok) onClose();
+    if (ok) {
+      unsaved.discard();
+      onClose();
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -162,6 +186,7 @@ export const AddNewsModal: React.FC<NewsEditorModalProps> = ({ onClose, item }) 
         </div>
       )}
       <form id="news-editor" onSubmit={handleSubmit} className={`space-y-5 ${preview ? 'hidden' : ''}`}>
+        {restored && <DraftNote onDiscard={startOver}>متنی که قبلاً می‌نوشتید و ذخیره نشده بود، برگردانده شد.</DraftNote>}
         {!item && (
           <TemplatePicker
             onPick={(t) => {

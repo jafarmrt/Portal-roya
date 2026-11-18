@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePortal } from '../context/PortalContext';
 import { RoyaLogo } from './common/RoyaLogo';
+import { UpdateMark } from './common/UpdateNotice';
 import { CommandPalette } from './common/CommandPalette';
 import { Avatar } from './common/Avatar';
 import { ChangePasswordModal } from './ChangePasswordModal';
@@ -204,6 +205,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileNav, isMobileNavOp
                       )}
                     </div>
                   )}
+
+                  <UpdateMark />
 
                   {/* Notification Bell Dropdown */}
                   <div className="relative">

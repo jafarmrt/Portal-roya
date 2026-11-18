@@ -4,8 +4,10 @@ import { Check, Globe, HandHeart, Loader2, Lock, Send, Undo2 } from 'lucide-reac
 import { messageLength } from '../../../shared/recognition';
 import { usePortal } from '../../context/PortalContext';
 import { errorMessage } from '../../lib/api';
+import { readDraft, useDraft } from '../../lib/drafts';
 import { haptic } from '../../lib/feedback';
 import { toPersianDigits } from '../../lib/jalali';
+import { DraftNote } from '../common/DraftNote';
 import { Modal, inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { SearchableSelect } from '../common/SearchableSelect';
 import { Coin3D, CoinTray } from './Coin';
@@ -49,6 +51,16 @@ function sentToast(id: string, name: string, undoMs: number) {
 
 const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
+const DRAFT_NAME = 'thanks';
+
+interface GiveDraft {
+  to: string;
+  amount: number | null;
+  valueId: string;
+  message: string;
+  isPublic: boolean;
+}
+
 /**
  * «قدردانی کن»: to whom, how many coins, for which value, and the message. Next to the form the month's
  * wallet lifts the coins being given and a card shows the recognition as the colleague will get it.
@@ -58,11 +70,26 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
   const { wallet } = useThanks();
   const fx = useEffectsLevel();
   const [colleagues, setColleagues] = useState<Colleague[] | null>(null);
-  const [to, setTo] = useState(initialTo ?? '');
-  const [amount, setAmount] = useState<number | null>(null);
-  const [valueId, setValueId] = useState('');
-  const [message, setMessage] = useState('');
-  const [isPublic, setIsPublic] = useState(true);
+  // A message that was being written and not sent (the form was closed, the page refreshed) comes back,
+  // unless the form was opened for somebody else.
+  const [restored, setRestored] = useState(() => {
+    const saved = readDraft<Partial<GiveDraft>>(currentUser?.id, DRAFT_NAME);
+    return saved && typeof saved.message === 'string' && (!initialTo || saved.to === initialTo) ? saved : null;
+  });
+  const [to, setTo] = useState(initialTo ?? (typeof restored?.to === 'string' ? restored.to : ''));
+  const [amount, setAmount] = useState<number | null>(typeof restored?.amount === 'number' ? restored.amount : null);
+  const [valueId, setValueId] = useState(typeof restored?.valueId === 'string' ? restored.valueId : '');
+  const [message, setMessage] = useState(restored?.message ?? '');
+  const [isPublic, setIsPublic] = useState(restored?.isPublic !== false);
+  const draft = useDraft(currentUser?.id, DRAFT_NAME, { to, amount, valueId, message, isPublic }, message.trim() !== '');
+  const startOver = () => {
+    setTo(initialTo ?? '');
+    setAmount(null);
+    setValueId('');
+    setMessage('');
+    setIsPublic(true);
+    setRestored(null);
+  };
   const [busy, setBusy] = useState(false);
   const [stamped, setStamped] = useState(false);
   const [sent, setSent] = useState(false);
@@ -124,6 +151,7 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
       setBusy(false);
       return;
     }
+    draft.discard();
     haptic(12);
     setSent(true);
     await flyCoins(lifted, coinRef.current, fx);
@@ -223,6 +251,7 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
         </div>
 
         <div className="order-2 lg:order-1 space-y-4 min-w-0">
+          {restored && !sent && <DraftNote onDiscard={startOver}>قدردانی‌ای که قبلاً می‌نوشتید و فرستاده نشده بود، برگردانده شد.</DraftNote>}
           <div>
             <label htmlFor="thanks-to" className={labelClass}>
               از چه کسی قدردانی می‌کنید؟

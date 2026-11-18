@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { addUnsavedCheck } from '../../lib/unsavedWork';
 
 // Settings sections with edits that are not saved yet. Switching to another settings tab closes the
 // open one, so the page asks first instead of losing the edits.
@@ -17,6 +18,9 @@ export function useUnsavedChanges(id: string, dirty: boolean) {
 }
 
 export const hasUnsavedChanges = () => dirtySections.size > 0;
+
+// The portal does not refresh itself for a new version while a section holds edits.
+addUnsavedCheck(hasUnsavedChanges);
 
 /** True when there is nothing unsaved, or the person agrees to leave it. */
 export const confirmDiscard = () =>

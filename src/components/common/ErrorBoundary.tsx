@@ -1,5 +1,7 @@
 import React from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { announceUpdate } from '../../lib/appUpdate';
+import { hasUnsavedWork } from '../../lib/unsavedWork';
 
 const RELOAD_KEY = 'portal:chunk-reload-at';
 
@@ -12,9 +14,15 @@ export function isChunkLoadError(err: unknown): boolean {
 /**
  * After an update, a page opened earlier still asks for the previous release's code chunks, which no
  * longer exist. Reloading once picks up the new release; the timestamp stops a reload loop when the
- * server itself is unreachable.
+ * server itself is unreachable. With unsaved work on the page it is not reloaded: the person is told
+ * that a new version is waiting, and refreshes when they are ready.
  */
 export function reloadForNewRelease(): boolean {
+  // Not under something the person has not saved: the card of <UpdateNotice> offers the refresh instead.
+  if (hasUnsavedWork()) {
+    announceUpdate();
+    return false;
+  }
   try {
     const last = Number(sessionStorage.getItem(RELOAD_KEY) ?? 0);
     if (Date.now() - last < 30_000) return false;

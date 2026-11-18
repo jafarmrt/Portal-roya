@@ -12,6 +12,34 @@ export interface BuildInfo {
   startedAt: string;
 }
 
+/**
+ * The name of the build of the page this server hands out (dist/build-id.json, written by the build:
+ * see vite.config.ts). Open pages compare it with their own to learn that the portal was updated.
+ * Null where there is no built page (development, tests). Read again at most every 30 seconds, so a
+ * page rebuilt in place without restarting the server is noticed too.
+ */
+let cachedClientBuild: string | null | undefined;
+let readAt = 0;
+let fixedForTests = false;
+export function clientBuild(): string | null {
+  if (cachedClientBuild !== undefined && (fixedForTests || Date.now() - readAt < 30_000)) return cachedClientBuild;
+  readAt = Date.now();
+  cachedClientBuild = null;
+  try {
+    const { id } = JSON.parse(fs.readFileSync(path.resolve('dist', 'build-id.json'), 'utf8')) as { id?: unknown };
+    if (typeof id === 'string' && id) cachedClientBuild = id;
+  } catch {
+    // No built page here.
+  }
+  return cachedClientBuild;
+}
+
+/** For tests: another build of the page was installed. */
+export function setClientBuildForTests(id: string | null | undefined) {
+  cachedClientBuild = id;
+  fixedForTests = id !== undefined;
+}
+
 export interface ChangelogEntry {
   version: string;
   date: string;

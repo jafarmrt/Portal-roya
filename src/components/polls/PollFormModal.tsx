@@ -3,8 +3,10 @@ import { SearchableSelect } from '../common/SearchableSelect';
 import { ArrowDown, ArrowUp, CheckCircle2, Lock, Pencil, Plus, Trash2, Vote, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usePortal } from '../../context/PortalContext';
+import { readDraft, useDraft } from '../../lib/drafts';
 import { toPersianDigits } from '../../lib/jalali';
 import type { Poll, PollInput, PollQuestionInput, PollQuestionType, PollResultsVisibility } from '../../types';
+import { DraftNote } from '../common/DraftNote';
 import { JalaliDateInput } from '../common/JalaliDateInput';
 import { inputClass, labelClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { AudiencePicker } from '../news/AudiencePicker';
@@ -159,24 +161,59 @@ export const PollFormModal: React.FC<{ poll?: Poll; onClose: () => void }> = ({ 
   const { addPoll, updatePoll, currentUser } = usePortal();
   const answered = Boolean(poll && poll.responseCount > 0);
 
-  const [title, setTitle] = useState(poll?.title ?? '');
-  const [description, setDescription] = useState(poll?.description ?? '');
-  const [expiryDate, setExpiryDate] = useState(poll?.expiryDate ?? '');
-  const [anonymous, setAnonymous] = useState(poll?.anonymous ?? true);
-  const [visibility, setVisibility] = useState<PollResultsVisibility>(poll?.resultsVisibility ?? 'after_answer');
-  const [showTextAnswers, setShowTextAnswers] = useState(poll?.showTextAnswers ?? false);
-  const [audience, setAudience] = useState({
-    departments: poll?.targetDepartments ?? [],
-    locations: poll?.targetLocations ?? [],
-    roles: poll?.targetRoles ?? [],
-    userIds: poll?.targetUserIds ?? [],
-  });
-  const [questions, setQuestions] = useState<Draft[]>(() =>
-    poll
+  // A poll that was being built and not saved (the form was closed, the page refreshed) comes back: one
+  // for a new poll, and one for each poll being edited. Only while nobody has answered the one edited,
+  // since its answered questions must not change underneath.
+  const draftName = `poll-form.${poll?.id ?? 'new'}`;
+  const [start] = useState(() => ({
+    title: poll?.title ?? '',
+    description: poll?.description ?? '',
+    expiryDate: poll?.expiryDate ?? '',
+    anonymous: poll?.anonymous ?? true,
+    visibility: poll?.resultsVisibility ?? ('after_answer' as PollResultsVisibility),
+    showTextAnswers: poll?.showTextAnswers ?? false,
+    audience: {
+      departments: poll?.targetDepartments ?? [],
+      locations: poll?.targetLocations ?? [],
+      roles: poll?.targetRoles ?? [],
+      userIds: poll?.targetUserIds ?? [],
+    },
+    questions: poll
       ? poll.questions.map((q) => ({ key: q.id, id: q.id, type: q.type, text: q.text, required: q.required, options: q.options.map((o) => ({ id: o.id, text: o.text })) }))
       : [newQuestion('single')],
-  );
+  }));
+  type Saved = typeof start;
+  const [restored, setRestored] = useState(() => {
+    if (answered) return null;
+    const saved = readDraft<Partial<Saved>>(currentUser?.id, draftName);
+    const typesOk = Array.isArray(saved?.questions) && saved.questions.every((q) => q && QUESTION_TYPES.some((t) => t.type === q.type) && Array.isArray(q.options));
+    return saved && typeof saved.title === 'string' && typesOk ? saved : null;
+  });
+  const from = { ...start, ...(restored ?? {}) } as Saved;
+
+  const [title, setTitle] = useState(from.title);
+  const [description, setDescription] = useState(from.description);
+  const [expiryDate, setExpiryDate] = useState(from.expiryDate);
+  const [anonymous, setAnonymous] = useState(from.anonymous);
+  const [visibility, setVisibility] = useState<PollResultsVisibility>(from.visibility);
+  const [showTextAnswers, setShowTextAnswers] = useState(from.showTextAnswers);
+  const [audience, setAudience] = useState(from.audience);
+  const [questions, setQuestions] = useState<Draft[]>(() => from.questions.map((q) => ({ ...q, key: q.id ?? `new-${nextKey++}` })));
   const [busy, setBusy] = useState(false);
+  const current: Saved = { title, description, expiryDate, anonymous, visibility, showTextAnswers, audience, questions };
+  const changed = !answered && JSON.stringify(current) !== JSON.stringify(start);
+  const unsaved = useDraft(currentUser?.id, answered ? null : draftName, current, changed);
+  const startOver = () => {
+    setTitle(start.title);
+    setDescription(start.description);
+    setExpiryDate(start.expiryDate);
+    setAnonymous(start.anonymous);
+    setVisibility(start.visibility);
+    setShowTextAnswers(start.showTextAnswers);
+    setAudience(start.audience);
+    setQuestions(start.questions);
+    setRestored(null);
+  };
 
   const hasText = questions.some((q) => q.type === 'text');
   const update = (key: string, next: Draft) => setQuestions((qs) => qs.map((q) => (q.key === key ? next : q)));
@@ -223,7 +260,10 @@ export const PollFormModal: React.FC<{ poll?: Poll; onClose: () => void }> = ({ 
     setBusy(true);
     const ok = poll ? await updatePoll(poll.id, input) : await addPoll(input);
     setBusy(false);
-    if (ok) onClose();
+    if (ok) {
+      unsaved.discard();
+      onClose();
+    }
   };
 
   return (
@@ -244,6 +284,7 @@ export const PollFormModal: React.FC<{ poll?: Poll; onClose: () => void }> = ({ 
       }
     >
       <form id="poll-form" onSubmit={submit} className="space-y-5" noValidate>
+        {restored && <DraftNote onDiscard={startOver}>نظرسنجی‌ای که قبلاً می‌ساختید و ذخیره نشده بود، برگردانده شد.</DraftNote>}
         <div>
           <label htmlFor="poll-title" className={labelClass}>عنوان <span className="text-red-600">*</span></label>
           <input id="poll-title" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} placeholder="مثلاً: نظرسنجی رضایت از سرویس ایاب و ذهاب" className={inputClass} />
