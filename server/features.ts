@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import type { NextFunction, Request, Response } from 'express';
-import type { AuthedRequest } from './auth.js';
+import { type AuthedRequest, can } from './auth.js';
+import type { Permission } from '../shared/permissions.js';
 import { db } from './db/index.js';
 import { settings } from './db/schema.js';
 import { type FeatureConfig, type FeatureKey, FEATURES, featureOfNotification, featureVisible } from '../shared/features.js';
@@ -28,7 +29,13 @@ export const hiddenNotification = (hidden: Set<FeatureKey>, type: string) => {
 
 // The API of each switchable part. While a part is hidden from someone, the lists the portal loads on
 // every page come back empty (so an open page keeps working) and everything else answers "not found".
-const FEATURE_ROUTES: { key: FeatureKey; pattern: RegExp; emptyReads: Record<string, unknown> }[] = [
+const FEATURE_ROUTES: {
+  key: FeatureKey;
+  pattern: RegExp;
+  emptyReads: Record<string, unknown>;
+  /** What the part's owner looks after stays in their reach even where the part is hidden from them. */
+  owner?: { permission: Permission; pattern: RegExp };
+}[] = [
   { key: 'suggestions', pattern: /^\/suggestions(\/|$)/, emptyReads: {} },
   { key: 'polls', pattern: /^\/polls(\/|$)/, emptyReads: { '/polls': [] } },
   { key: 'training', pattern: /^\/trainings(\/|$)/, emptyReads: { '/trainings': [] } },
@@ -46,7 +53,13 @@ const FEATURE_ROUTES: { key: FeatureKey; pattern: RegExp; emptyReads: Record<str
   },
   { key: 'pushNotifications', pattern: /^\/push(\/|$)/, emptyReads: {} },
   // Its settings (/settings/recognition) stay in reach, so they can be written before it is switched on.
-  { key: 'recognition', pattern: /^\/recognitions(\/|$)/, emptyReads: {} },
+  // The reports and «برگرداندن» are the owner's even when they are not in the preview's pilot group.
+  {
+    key: 'recognition',
+    pattern: /^\/recognitions(\/|$)/,
+    emptyReads: {},
+    owner: { permission: 'recognition.manage', pattern: /^\/recognitions\/(reports$|[^/]+\/(report\/close|reverse)$)/ },
+  },
 ];
 
 /** Keeps a hidden part out of reach even for someone who types its address. */
@@ -58,7 +71,7 @@ export async function requireVisibleFeature(req: Request, res: Response, next: N
       return;
     }
     const viewer = (req as AuthedRequest).user ?? null;
-    if (featureVisible(await featureConfig(), route.key, viewer)) {
+    if (featureVisible(await featureConfig(), route.key, viewer) || (route.owner && route.owner.pattern.test(req.path) && can(viewer, route.owner.permission))) {
       next();
       return;
     }

@@ -177,6 +177,79 @@ test.describe('«سپاس»: giving, receiving and the wall', () => {
     await negarContext.close();
   });
 
+  test('«برنامهٔ سپاس»: the owner deals with a report, changes the rules and the values, and takes one back from the wall', async ({ browser }) => {
+    const admin = await asRole(browser, 'admin');
+    const sara = await asRole(browser, 'employee');
+    const page = admin.page;
+
+    // The report from the first test waits; the menu says so.
+    await page.goto('/#thanks-admin');
+    await expect(page.getByRole('heading', { name: 'برنامهٔ سپاس' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /گزارش‌ها/ })).toContainText('۱');
+    const report = page.getByRole('region', { name: 'گزارش‌ها' });
+    // Only now, and only this one, the owner reads the private message; never the coins.
+    await expect(report).toContainText('کارگاه دیروزت خیلی به کار تیم فروش آمد. ممنون.');
+    await expect(report).toContainText('فقط ما دو نفر');
+    await expect(report.locator('.sp-card')).not.toContainText('سکه');
+    await report.getByRole('button', { name: 'دیدم، بماند' }).click();
+    await expect(report).toContainText('گزارشی منتظر بررسی نیست');
+    await expect(page.getByRole('tab', { name: /گزارش‌ها/ })).not.toContainText('۱');
+    await report.getByRole('button', { name: 'گزارش‌های بررسی‌شده' }).click();
+    await expect(report).toContainText('بررسی شد؛ ماند');
+
+    // The rules: «سپاس» is on, so a change waits for the next month, and can be called off.
+    await page.getByRole('tab', { name: 'قواعد سکه' }).click();
+    await expect(page.getByText('از اول ماه بعد اعمال می‌شود')).toBeVisible();
+    const allowance = page.getByLabel('سهمیهٔ ماهانهٔ هر همکار');
+    await expect(allowance).toHaveValue('50');
+    await allowance.fill('10');
+    await expect(page.getByRole('alert')).toContainText('سقف یک نفر در ماه نمی‌تواند از سهمیهٔ ماهانه بیشتر باشد');
+    await expect(page.getByRole('button', { name: 'ذخیرهٔ قواعد' })).toBeDisabled();
+    await allowance.fill('40');
+    await page.getByRole('button', { name: 'ذخیرهٔ قواعد' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'سهمیهٔ ۴۰ سکه' })).toContainText('تا آن روز: سهمیهٔ ۵۰ سکه');
+    await page.getByRole('button', { name: 'لغو تغییر' }).click();
+    await expect(page.getByText('سهمیهٔ ۴۰ سکه')).toHaveCount(0);
+    await expect(allowance).toHaveValue('50');
+
+    // A value of the company's own: in the give form at once; then back to the five samples.
+    await page.getByRole('tab', { name: 'ارزش‌ها' }).click();
+    await page.getByRole('button', { name: 'ارزش تازه' }).click();
+    await page.getByLabel('نام ارزش ۶').fill('کیفیت');
+    await page.getByRole('radiogroup', { name: 'رنگ کیفیت' }).getByRole('radio', { name: 'آلویی' }).click();
+    await page.getByRole('button', { name: 'ذخیرهٔ ارزش‌ها' }).click();
+    await expect(page.getByText('ارزش‌ها ذخیره شد.')).toBeVisible();
+    await sara.page.goto('/#thanks');
+    await sara.page.getByRole('button', { name: 'قدردانی کن' }).first().click();
+    await expect(sara.page.getByRole('dialog').getByRole('button', { name: 'کیفیت' })).toBeVisible();
+    await sara.page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'پنج ارزش نمونه' }).click();
+    await page.getByRole('button', { name: 'ذخیرهٔ ارزش‌ها' }).click();
+    await expect(page.getByRole('button', { name: 'ارزش تازه' })).toBeVisible();
+    await expect(page.getByLabel('نام ارزش ۶')).toHaveCount(0);
+
+    // From the wall: one that should not be there goes back, with the reason both people read.
+    await page.goto('/#thanks');
+    await page.getByRole('tab', { name: /دیوار/ }).click();
+    const card = page.getByRole('region', { name: 'دیوار سپاس' }).locator('.sp-pin', { hasText: 'راه‌اندازی سامانهٔ تازه' });
+    await card.getByRole('button', { name: 'برگرداندن…' }).click();
+    const dialog = page.getByRole('dialog', { name: 'برگرداندن قدردانی' });
+    await expect(dialog.getByRole('button', { name: 'برگرداندن', exact: true })).toBeDisabled();
+    await dialog.getByLabel('دلیل (برای هر دو نفر)').fill('برای آزمون ثبت شده بود.');
+    await dialog.getByRole('button', { name: 'برگرداندن', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(card).toHaveCount(0);
+    // A colleague without the permission has no such button and no such page.
+    await sara.page.goto('/#thanks');
+    await sara.page.getByRole('tab', { name: /دیوار/ }).click();
+    await expect(sara.page.getByRole('button', { name: 'برگرداندن…' })).toHaveCount(0);
+    await sara.page.goto('/#thanks-admin');
+    await expect(sara.page.getByRole('heading', { name: 'برنامهٔ سپاس' })).toHaveCount(0);
+
+    await admin.context.close();
+    await sara.context.close();
+  });
+
   test('nothing moves when the device asks for less motion', async ({ browser }) => {
     const { context, page } = await asRole(browser, 'admin', { reducedMotion: 'reduce' });
     await page.goto('/#dashboard');

@@ -32,6 +32,7 @@ import {
   Ellipsis,
   HandHeart,
 } from 'lucide-react';
+import { useOpenReports } from './thanks/ownerStore';
 import { useThanks } from './thanks/thanksStore';
 import { unreadTotal, useSuggestionSummary } from '../lib/suggestionSummary';
 import { tabLabelBadge, tabOn } from '../lib/features';
@@ -349,10 +350,20 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
           : { ...item, badge: 'پیش‌نمایش', badgeColor: 'bg-white/25 text-white' };
       });
 
+  const openReports = useOpenReports(Boolean(currentUser) && can('recognition.manage'));
   const adminItems: NavItem[] = [];
   if (can('users.manage')) adminItems.push({ id: 'people', label: 'مدیریت کارکنان', icon: <UserCog className="w-4 h-4" /> });
   if (can('reports.view')) adminItems.push({ id: 'reports', label: 'گزارش‌ها', icon: <BarChart2 className="w-4 h-4" /> });
   if (isAdmin || can('settings.manage')) adminItems.push({ id: 'admin', label: 'تنظیمات', icon: <Settings className="w-4 h-4" /> });
+  // Whoever looks after «سپاس» reaches its page even while «سپاس» itself is switched off.
+  if (can('recognition.manage')) {
+    adminItems.push({
+      id: 'thanks-admin',
+      label: 'برنامهٔ سپاس',
+      icon: <HandHeart className="w-4 h-4" />,
+      ...(openReports > 0 ? { badge: toPersianDigits(openReports), badgeColor: 'bg-amber-300 text-amber-950' } : {}),
+    });
+  }
   if (isAdmin) adminItems.push({ id: 'audit', label: 'تاریخچهٔ تغییرات', icon: <History className="w-4 h-4" /> });
 
   // Desktop bar: the org apps already have their own "سامانه‌ها" button in the header, and related

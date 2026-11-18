@@ -16,13 +16,8 @@ export const PERMISSIONS = [
   { key: 'suggestions.hr', label: 'خواندن صندوق انتقادات و پیشنهادات منابع انسانی', hint: 'دیدن و پاسخ دادن به پیام‌هایی که همکاران برای واحد منابع انسانی می‌فرستند' },
   { key: 'events.manage', label: 'مدیریت رویدادهای ویژه', hint: 'ساختن رویدادهایی مثل شب یلدا، تعیین تاریخ‌ها، برگزارکنندگان و هیئت داوران، و فعال کردن صفحهٔ رویداد برای همه' },
   { key: 'settings.manage', label: 'تنظیمات پرتال', hint: 'لوگوی شرکت، واحدهای سازمانی و دسته‌بندی‌ها' },
-  // `unreleased`: what it opens (the settings of «سپاس» and its reports) has no page yet, so the access
-  // levels do not offer it. The administrator holds it like every other permission.
-  { key: 'recognition.manage', label: 'مسئول برنامهٔ «سپاس»', hint: 'ارزش‌ها، سهمیه و سقف‌های قدردانی، گزارش‌های آن و برگرداندن یک قدردانی با ذکر دلیل', unreleased: true },
+  { key: 'recognition.manage', label: 'مسئول برنامهٔ «سپاس»', hint: 'صفحهٔ «برنامهٔ سپاس»: ارزش‌ها، سهمیه و سقف‌های سکه، گزارش‌های همکاران و برگرداندن یک قدردانی با ذکر دلیل' },
 ] as const;
-
-/** The permissions the access levels offer: all but those whose pages are still being built. */
-export const OFFERED_PERMISSIONS = PERMISSIONS.filter((p) => !('unreleased' in p && p.unreleased));
 
 export type Permission = (typeof PERMISSIONS)[number]['key'];
 
