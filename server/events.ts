@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import { clientBuild } from './version.js';
 
 // Server-Sent Events hub. Clients receive lightweight "changed" signals and
 // refetch the affected resource, so permission filtering stays in the REST API.
@@ -68,6 +69,10 @@ export function addClient(userId: string, res: Response) {
   // Tell nginx not to buffer the stream.
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
+
+  // First thing on every connection, also the one a page makes again after an update restarted the
+  // server: which build of the page is current, so a page opened earlier learns it within seconds.
+  send(res, 'hello', { clientBuild: clientBuild() });
 
   const client: Client = { userId, res };
   clients.add(client);

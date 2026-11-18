@@ -615,6 +615,18 @@
   to { opacity: 1; }
 }
 
+/* «نسخهٔ تازهٔ پرتال آماده است»: the card comes up from its corner once. */
+.update-notice {
+  animation: update-notice-in 320ms cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+@keyframes update-notice-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .update-notice { animation: none; }
+}
+
 /* A ticked note: a line is drawn through the text from right to left. */
 .strike {
   background-image: linear-gradient(currentColor, currentColor);

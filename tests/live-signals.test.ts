@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import type { Response } from 'express';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { COALESCE_MS, addClient, broadcastChange, broadcastEvent } from '../server/events';
+import { setClientBuildForTests } from '../server/version';
 
 /** A page of the portal left open, and what the server sent it. */
 class OpenPage extends EventEmitter {
@@ -46,7 +47,17 @@ describe('live signals to open pages', () => {
     const page = new OpenPage();
     addClient('signals.user', page as unknown as Response);
     broadcastEvent('news-likes', { id: 'news-1', likesCount: 4 });
-    expect(page.written).toEqual(['event: news-likes\ndata: {"id":"news-1","likesCount":4}\n\n']);
+    // After the greeting every connection starts with (below), only the change itself.
+    expect(page.written.slice(1)).toEqual(['event: news-likes\ndata: {"id":"news-1","likesCount":4}\n\n']);
     page.emit('close');
+  });
+
+  it('greets every connection with the build of the page the server hands out', () => {
+    setClientBuildForTests('build-two');
+    const page = new OpenPage();
+    addClient('signals.user', page as unknown as Response);
+    expect(page.written[0]).toBe('event: hello\ndata: {"clientBuild":"build-two"}\n\n');
+    page.emit('close');
+    setClientBuildForTests(undefined);
   });
 });

@@ -1,10 +1,19 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import packageJson from '../package.json';
-import { parseChangelog } from '../server/version';
+import { parseChangelog, setClientBuildForTests } from '../server/version';
 import { app } from './helpers';
 
 describe('version and what is new', () => {
+  it('tells open pages which build of the page is current, so an older one offers to refresh', async () => {
+    // No built page in tests: nothing to compare.
+    setClientBuildForTests(null);
+    expect((await request(app).get('/api/system/status').expect(200)).body.clientBuild).toBeNull();
+    setClientBuildForTests('mn3k2x-abcd1234');
+    expect((await request(app).get('/api/system/status').expect(200)).body.clientBuild).toBe('mn3k2x-abcd1234');
+    setClientBuildForTests(undefined);
+  });
+
   it('tells anyone, even before signing in, which version runs', async () => {
     const res = await request(app).get('/api/version').expect(200);
     expect(res.body).toMatchObject({ version: packageJson.version, build: null });

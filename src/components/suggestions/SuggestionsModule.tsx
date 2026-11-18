@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { Archive, ArchiveRestore, CheckCircle2, Copy, Inbox, Loader2, Mail, MessageSquareText, Search, Send, ShieldCheck, Trash2, UserRound, VenetianMask } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { api, errorMessage } from '../../lib/api';
+import { readDraft, useDraft } from '../../lib/drafts';
 import { formatDate, formatDateTime, toPersianDigits } from '../../lib/jalali';
 import { suggestionsChanged, useSuggestionSummary } from '../../lib/suggestionSummary';
 import {
@@ -15,6 +16,7 @@ import {
   type SuggestionKind,
 } from '../../../shared/suggestions';
 import { Avatar } from '../common/Avatar';
+import { DraftNote } from '../common/DraftNote';
 import { PageHeader } from '../common/PageHeader';
 
 const releaseHour = toPersianDigits(ANONYMOUS_RELEASE_HOUR);
@@ -86,24 +88,46 @@ const useOpenBoxes = () => {
   return SUGGESTION_BOXES.filter((b) => featureOn(b.feature)).map((b) => b.id);
 };
 
+const DRAFT_NAME = 'suggestion';
+
+interface MessageDraft {
+  box: SuggestionBox;
+  kind: SuggestionKind;
+  subject: string;
+  body: string;
+  anonymous: boolean;
+}
+
 const SendForm: React.FC<{ onSent: (trackingCode: string | null) => void }> = ({ onSent }) => {
   const names = useBoxNames();
   const openBoxes = useOpenBoxes();
-  const [chosen, setBox] = useState<SuggestionBox>('management');
+  const { currentUser } = usePortal();
+  // A message that was being written and not sent (the page was refreshed or left) comes back.
+  const [restored, setRestored] = useState(() => readDraft<Partial<MessageDraft>>(currentUser?.id, DRAFT_NAME));
+  const [chosen, setBox] = useState<SuggestionBox>(() => (SUGGESTION_BOXES.some((b) => b.id === restored?.box) ? restored!.box! : 'management'));
   const box = openBoxes.includes(chosen) ? chosen : openBoxes[0];
-  const [kind, setKind] = useState<SuggestionKind>('suggestion');
-  const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
-  const [anonymous, setAnonymous] = useState(false);
+  const [kind, setKind] = useState<SuggestionKind>(() => (SUGGESTION_KINDS.some((k) => k.id === restored?.kind) ? restored!.kind! : 'suggestion'));
+  const [subject, setSubject] = useState(() => (typeof restored?.subject === 'string' ? restored.subject : ''));
+  const [body, setBody] = useState(() => (typeof restored?.body === 'string' ? restored.body : ''));
+  const [anonymous, setAnonymous] = useState(() => restored?.anonymous === true);
   const [saving, setSaving] = useState(false);
+  const draft = useDraft(currentUser?.id, DRAFT_NAME, { box: chosen, kind, subject, body, anonymous }, subject.trim() !== '' || body.trim() !== '');
+  const startOver = () => {
+    setSubject('');
+    setBody('');
+    setAnonymous(false);
+    setRestored(null);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
       const res = await api.post<{ trackingCode: string | null }>('/api/suggestions', { box, kind, subject, body, anonymous });
+      draft.discard();
       setSubject('');
       setBody('');
+      setRestored(null);
       onSent(res.trackingCode);
     } catch (err) {
       toast.error(errorMessage(err));
@@ -116,6 +140,7 @@ const SendForm: React.FC<{ onSent: (trackingCode: string | null) => void }> = ({
 
   return (
     <form onSubmit={submit} className={`${cardClass} space-y-5`}>
+      {restored && <DraftNote onDiscard={startOver}>پیامی که قبلاً می‌نوشتید و فرستاده نشده بود، برگردانده شد.</DraftNote>}
       {openBoxes.length > 1 ? (
         <fieldset className="space-y-2">
           <legend className="text-xs font-bold text-ink mb-2">پیام برای چه کسی است؟</legend>

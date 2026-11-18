@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { readDraft, useDraft } from '../../lib/drafts';
+import { DraftNote } from '../common/DraftNote';
 import { MessageSquareHeart } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { toPersianDigits } from '../../lib/jalali';
@@ -27,20 +29,41 @@ const Rating: React.FC<{ name: string; legend: string; value: number; onChange: 
   </fieldset>
 );
 
+interface FeedbackDraft {
+  satisfaction?: number;
+  usefulness?: number;
+  comment?: string;
+}
+
+const rating = (value: unknown) => (typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 5 ? value : 0);
+
 /** The two-question survey after a course; answers reach the organisers and the instructor without names. */
 export const TrainingFeedbackModal: React.FC<{ training: TrainingProgram; onClose: () => void }> = ({ training, onClose }) => {
-  const { sendTrainingFeedback } = usePortal();
-  const [satisfaction, setSatisfaction] = useState(0);
-  const [usefulness, setUsefulness] = useState(0);
-  const [comment, setComment] = useState('');
+  const { sendTrainingFeedback, currentUser } = usePortal();
+  // What was chosen and written before but not sent (the form was closed, the page refreshed) comes back.
+  const draftName = `training-feedback.${training.id}`;
+  const [restored, setRestored] = useState(() => readDraft<FeedbackDraft>(currentUser?.id, draftName));
+  const [satisfaction, setSatisfaction] = useState(() => rating(restored?.satisfaction));
+  const [usefulness, setUsefulness] = useState(() => rating(restored?.usefulness));
+  const [comment, setComment] = useState(() => (typeof restored?.comment === 'string' ? restored.comment : ''));
   const [busy, setBusy] = useState(false);
+  const draft = useDraft(currentUser?.id, draftName, { satisfaction, usefulness, comment }, satisfaction > 0 || usefulness > 0 || comment.trim() !== '');
+  const startOver = () => {
+    setSatisfaction(0);
+    setUsefulness(0);
+    setComment('');
+    setRestored(null);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     const ok = await sendTrainingFeedback(training.id, { satisfaction, usefulness, comment });
     setBusy(false);
-    if (ok) onClose();
+    if (ok) {
+      draft.discard();
+      onClose();
+    }
   };
 
   return (
@@ -58,6 +81,7 @@ export const TrainingFeedbackModal: React.FC<{ training: TrainingProgram; onClos
       }
     >
       <form id="training-feedback" onSubmit={submit} className="space-y-5">
+        {restored && <DraftNote onDiscard={startOver}>نظری که قبلاً نوشته بودید و ثبت نشده بود، برگردانده شد.</DraftNote>}
         <p className="text-xs text-muted leading-relaxed">
           {training.myFeedback ? 'قبلاً نظر داده‌اید؛ با ثبت دوباره، نظر قبلی‌تان عوض می‌شود. ' : ''}
           پاسخ شما بدون نام به مسئول آموزش و مدرس نشان داده می‌شود.

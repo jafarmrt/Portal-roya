@@ -11,6 +11,7 @@ import { ForcePasswordChangePage } from './components/ChangePasswordModal';
 import { CompleteProfilePage } from './components/CompleteProfilePage';
 import { DashboardModule } from './components/dashboard/DashboardModule';
 import { ErrorBoundary, loadModule } from './components/common/ErrorBoundary';
+import { UpdateNotice } from './components/common/UpdateNotice';
 import { SiteBanner } from './components/common/SiteBanner';
 import { PushPrompt } from './components/notifications/DevicePush';
 import { InstallApp } from './components/common/InstallApp';
@@ -122,7 +123,14 @@ const MainContent: React.FC = () => {
   if (!authChecked) return <FullScreenLoader text="در حال اتصال به پرتال..." />;
   if (error && isSetupComplete === null) return <ErrorScreen message={error} />;
   if (isSetupComplete === false) return <Setup />;
-  if (!currentUser && !isGuest) return <LoginPage />;
+  if (!currentUser && !isGuest) {
+    return (
+      <>
+        <LoginPage />
+        <UpdateNotice />
+      </>
+    );
+  }
   if (currentUser?.mustChangePassword) return <ForcePasswordChangePage />;
   if (currentUser?.needsProfile) return <CompleteProfilePage />;
   // Keep the page on screen while it reloads after signing in or out.
@@ -189,6 +197,7 @@ const MainContent: React.FC = () => {
       {currentUser && featureOn('onlineColleagues') && <KudosListener emojis={appSettings?.kudosEmojis ?? []} />}
       {currentUser && featureOn('recognition') && <ThanksHost userId={currentUser.id} />}
       {isGuest && <LoginModal />}
+      <UpdateNotice page={activeTab} />
 
       <footer className="bg-surface text-muted border-t border-line py-6 mt-12 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right">
