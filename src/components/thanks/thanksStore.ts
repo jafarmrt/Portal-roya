@@ -40,6 +40,8 @@ export interface Wallet {
   messageMax: number;
   /** Coins of the recognitions already opened, and how many still wait sealed. */
   received: { coins: number; sealed: number };
+  /** The two monthly reminders (the middle of the month, three days before it ends) are on. */
+  reminders: boolean;
 }
 
 /** Not opened yet: who it is from, and nothing else. */
@@ -310,6 +312,18 @@ export async function withdrawThanks(id: string) {
     toast.error(errorMessage(err));
     void loadThanks();
     return false;
+  }
+}
+
+/** Switches the colleague's two monthly reminders on or off. */
+export async function setThanksReminders(on: boolean) {
+  if (state.wallet) set({ wallet: { ...state.wallet, reminders: on } });
+  try {
+    await api.put('/api/recognitions/reminders', { on });
+    toast.success(on ? 'یادآوری‌های ماهانهٔ سپاس روشن شد.' : 'یادآوری‌های ماهانهٔ سپاس خاموش شد.');
+  } catch (err) {
+    toast.error(errorMessage(err));
+    void loadThanks();
   }
 }
 

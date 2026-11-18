@@ -1,13 +1,15 @@
+import moment from 'moment-jalaali';
 import { and, count, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { featureVisible } from '../shared/features.js';
-import { toPersianDigits } from '../shared/jalali.js';
+import { jalaliMonthLabel, toPersianDigits } from '../shared/jalali.js';
 import type { ReactionCount } from '../shared/reactions.js';
 import {
   amountsText,
   messageLength,
   monthAllowance,
   monthProgress,
+  nextRecognitionMonth,
   RECOGNITION_JOIN_AMOUNT,
   RECOGNITION_MESSAGE_MAX,
   RECOGNITION_MESSAGE_MIN,
@@ -21,7 +23,7 @@ import {
 import { audit } from './audit.js';
 import type { SessionUser } from './auth.js';
 import { db } from './db/index.js';
-import { employees, recognitions } from './db/schema.js';
+import { employees, recognitionReminders, recognitions } from './db/schema.js';
 import { broadcastChange, signalUser } from './events.js';
 import { featureConfig } from './features.js';
 import { idsWithPermission } from './roles.js';
@@ -141,6 +143,8 @@ export async function walletOf(viewer: Pick<Viewer, 'id' | 'createdAt'>, now = n
     messageMin: RECOGNITION_MESSAGE_MIN,
     messageMax: RECOGNITION_MESSAGE_MAX,
     received: { coins: received?.coins ?? 0, sealed: sealed?.n ?? 0 },
+    // The two monthly reminders, unless the colleague switched them off.
+    reminders: await recognitionRemindersOf(viewer),
   };
 }
 
@@ -743,4 +747,207 @@ export async function closeRecognitionReport(actor: SessionUser, id: string, now
   });
   for (const userId of await idsWithPermission('recognition.manage')) signalUser(userId, 'recognition');
   return { id };
+}
+
+// ---- Reminders ----------------------------------------------------------------------------------------
+
+/** Not at night: a reminder waits for the working day. */
+const REMINDER_HOURS = { from: 10, until: 19 };
+/** The middle of the month: from this day of it. */
+export const RECOGNITION_MID_DAY = 15;
+/** «۳ روز مانده»: the last reminder, from this many days before the month ends (today counted). */
+export const RECOGNITION_LAST_DAYS = 3;
+
+/**
+ * Two gentle reminders a month, only to colleagues who still have coins of this month to give: one in
+ * the middle of the month and one three days before it ends, when what is left would otherwise burn.
+ * Each goes once (a row in recognition_reminders), only during working hours, only to those who see
+ * «سپاس», and never to someone who switched reminders off on the «سپاس» page.
+ */
+export async function processRecognitionReminders(now = new Date()) {
+  const hour = now.getHours();
+  if (hour < REMINDER_HOURS.from || hour >= REMINDER_HOURS.until) return 0;
+  const { day, daysLeft } = monthProgress(now);
+  const kind = daysLeft <= RECOGNITION_LAST_DAYS ? 'last' : day >= RECOGNITION_MID_DAY ? 'mid' : null;
+  if (!kind) return 0;
+  const month = recognitionMonth(now);
+
+  const people = await reachable();
+  if (people.length === 0) return 0;
+  const details = await db
+    .select({ id: employees.id, createdAt: employees.createdAt, reminders: employees.recognitionReminders })
+    .from(employees)
+    .where(inArray(employees.id, people.map((p) => p.id)));
+  const already = new Set(
+    (await db.select({ userId: recognitionReminders.userId }).from(recognitionReminders).where(and(eq(recognitionReminders.month, month), eq(recognitionReminders.kind, kind)))).map(
+      (r) => r.userId,
+    ),
+  );
+  const given = new Map(
+    (
+      await db
+        .select({ fromId: recognitions.fromId, amount: total })
+        .from(recognitions)
+        .where(and(eq(recognitions.month, month), standing))
+        .groupBy(recognitions.fromId)
+    ).map((r) => [r.fromId, r.amount]),
+  );
+  const rules = rulesFor((await ensureSettings()).recognitionRules, month);
+  const due = details
+    .filter((p) => p.reminders && !already.has(p.id))
+    .map((p) => ({ id: p.id, left: monthAllowance(rules.allowance, month, p.createdAt) - (given.get(p.id) ?? 0) }))
+    .filter((p) => p.left > 0);
+  if (due.length === 0) return 0;
+
+  // Claimed first, so two servers (or two ticks) never send the same one twice.
+  const claimed = await db
+    .insert(recognitionReminders)
+    .values(due.map((p) => ({ userId: p.id, month, kind })))
+    .onConflictDoNothing()
+    .returning({ userId: recognitionReminders.userId });
+  const mine = new Set(claimed.map((c) => c.userId));
+  // One notification per amount left, since the text says how many coins.
+  const byLeft = new Map<number, string[]>();
+  for (const p of due) if (mine.has(p.id)) byLeft.set(p.left, [...(byLeft.get(p.left) ?? []), p.id]);
+  for (const [left, ids] of byLeft) {
+    await createNotifications(
+      ids,
+      kind === 'mid'
+        ? {
+            title: `هنوز ${fa(left)} سکهٔ قدردانی دارید 🌟`,
+            message: 'نیمی از ماه گذشت. کار خوبِ کدام همکار را دیده‌اید؟ چند خط تشکر کافی است.',
+            type: 'recognition',
+            linkTab: 'thanks',
+          }
+        : {
+            title: `${fa(left)} سکهٔ این ماه شما آخر ماه می‌سوزد`,
+            message: `${fa(daysLeft)} روز تا پایان ماه مانده. سکه‌هایی که بخشیده نشوند به ماه بعد نمی‌روند.`,
+            type: 'recognition',
+            linkTab: 'thanks',
+          },
+    );
+  }
+  return mine.size;
+}
+
+/** The colleague's own choice on the «سپاس» page: the two monthly reminders, or none. */
+export async function setRecognitionReminders(viewer: Pick<Viewer, 'id'>, on: boolean) {
+  await db.update(employees).set({ recognitionReminders: on }).where(eq(employees.id, viewer.id));
+  return { reminders: on };
+}
+
+export async function recognitionRemindersOf(viewer: Pick<Viewer, 'id'>) {
+  const [row] = await db.select({ on: employees.recognitionReminders }).from(employees).where(eq(employees.id, viewer.id));
+  return row?.on ?? true;
+}
+
+// ---- The owner's monthly numbers ----------------------------------------------------------------------
+
+const UNKNOWN_DEPARTMENT = 'بدون واحد';
+const share = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+
+/**
+ * How «سپاس» went in a Jalali month, for its owner: how many colleagues gave and received, by unit and
+ * by value, how many coins were given and how many burnt. Only counts: no names, no amounts per person
+ * and no ranking of anyone, so nobody is measured by it. The colleagues counted are those who see «سپاس»
+ * now and had joined the portal by the end of that month.
+ */
+export async function recognitionReport(month: string, now = new Date()) {
+  const current = recognitionMonth(now);
+  const rules = rulesFor((await ensureSettings()).recognitionRules, month);
+  const endOfMonth = moment(`${nextRecognitionMonth(month)}/01`, 'jYYYY/jMM/jDD').toDate();
+  const audience = (await reachable()).map((p) => p.id);
+  const people = audience.length
+    ? await db
+        .select({ id: employees.id, department: employees.department, createdAt: employees.createdAt })
+        .from(employees)
+        .where(and(inArray(employees.id, audience), lt(employees.createdAt, endOfMonth)))
+    : [];
+  const departmentOf = new Map(people.map((p) => [p.id, p.department?.trim() || UNKNOWN_DEPARTMENT]));
+
+  const rows = await db
+    .select({
+      fromId: recognitions.fromId,
+      toId: recognitions.toId,
+      amount: recognitions.amount,
+      parentId: recognitions.parentId,
+      isPublic: recognitions.isPublic,
+      valueId: recognitions.valueId,
+      valueLabel: recognitions.valueLabel,
+      valueTone: recognitions.valueTone,
+      reportedAt: recognitions.reportedAt,
+      reversedAt: recognitions.reversedAt,
+    })
+    .from(recognitions)
+    .where(and(eq(recognitions.month, month), isNull(recognitions.withdrawnAt)));
+  const kept = rows.filter((r) => !r.reversedAt);
+  const written = kept.filter((r) => !r.parentId);
+
+  const givers = new Set(kept.map((r) => r.fromId));
+  const receivers = new Set(kept.map((r) => r.toId));
+  const coinsGiven = kept.reduce((sum, r) => sum + r.amount, 0);
+  const givenBy = new Map<string, number>();
+  for (const r of kept) givenBy.set(r.fromId, (givenBy.get(r.fromId) ?? 0) + r.amount);
+  const allowance = people.reduce((sum, p) => sum + monthAllowance(rules.allowance, month, p.createdAt), 0);
+  // What each colleague left unspent; for the month that is still running, what is still to give.
+  const unspent = people.reduce((sum, p) => sum + Math.max(0, monthAllowance(rules.allowance, month, p.createdAt) - (givenBy.get(p.id) ?? 0)), 0);
+
+  const departments = new Map<string, { people: number; givers: Set<string>; receivers: Set<string>; written: number }>();
+  const unit = (name: string) => {
+    let d = departments.get(name);
+    if (!d) departments.set(name, (d = { people: 0, givers: new Set(), receivers: new Set(), written: 0 }));
+    return d;
+  };
+  for (const p of people) unit(departmentOf.get(p.id)!).people++;
+  for (const r of kept) {
+    const from = departmentOf.get(r.fromId);
+    const to = departmentOf.get(r.toId);
+    if (from) unit(from).givers.add(r.fromId);
+    if (to) unit(to).receivers.add(r.toId);
+    if (from && !r.parentId) unit(from).written++;
+  }
+  // Recognitions that went from one unit to another: what such a programme is mostly for.
+  const acrossUnits = written.filter((r) => departmentOf.has(r.fromId) && departmentOf.has(r.toId) && departmentOf.get(r.fromId) !== departmentOf.get(r.toId)).length;
+
+  const values = new Map<string, { id: string; label: string; tone: string; count: number }>();
+  for (const r of written) {
+    const v = values.get(r.valueId) ?? { id: r.valueId, label: r.valueLabel, tone: r.valueTone, count: 0 };
+    v.count++;
+    values.set(r.valueId, v);
+  }
+
+  // The months there is something to show for, newest first (at most a year), and the current one.
+  const months = (await db.selectDistinct({ month: recognitions.month }).from(recognitions)).map((r) => r.month);
+  const choices = [...new Set([current, ...months])].filter((m) => m <= current).sort().reverse().slice(0, 12);
+
+  return {
+    month,
+    monthLabel: jalaliMonthLabel(month),
+    current: month === current,
+    months: choices.map((m) => ({ month: m, label: jalaliMonthLabel(m) })),
+    people: people.length,
+    givers: givers.size,
+    receivers: receivers.size,
+    giversShare: share([...givers].filter((id) => departmentOf.has(id)).length, people.length),
+    receiversShare: share([...receivers].filter((id) => departmentOf.has(id)).length, people.length),
+    recognitions: written.length,
+    joins: kept.length - written.length,
+    publicShare: share(written.filter((r) => r.isPublic).length, written.length),
+    acrossUnits,
+    coins: { allowance, given: coinsGiven, unspent },
+    reported: rows.filter((r) => r.reportedAt).length,
+    reversed: rows.filter((r) => r.reversedAt).length,
+    departments: [...departments.entries()]
+      .map(([name, d]) => ({
+        name,
+        people: d.people,
+        givers: d.givers.size,
+        receivers: d.receivers.size,
+        recognitions: d.written,
+        giversShare: share(d.givers.size, d.people),
+        receiversShare: share(d.receivers.size, d.people),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fa')),
+    values: [...values.values()].sort((a, b) => b.count - a.count),
+  };
 }
