@@ -738,3 +738,15 @@ a:hover > .sp-mini-env { transform: rotate(-6deg) translateY(-2px); }
   animation: none !important;
   transition: none !important;
 }
+
+/* «برنامهٔ سپاس»: a value's colour to choose, and its name shown as on the wall. */
+.sp-swatch {
+  background: linear-gradient(135deg, var(--sp-a), var(--sp-b));
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.08);
+  transition: transform 0.15s ease-out;
+}
+.sp-value.sp-value-sample {
+  color: #fff;
+  background: linear-gradient(to left, var(--sp-a), var(--sp-b));
+  border-color: transparent;
+}

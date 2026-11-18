@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { ChevronLeft, EyeOff, Filter, HandHeart, Loader2, Newspaper } from 'lucide-react';
+import { ChevronLeft, EyeOff, Undo2, Filter, HandHeart, Loader2, Newspaper } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { haptic } from '../../lib/feedback';
 import { timeAgo, toPersianDigits } from '../../lib/jalali';
@@ -9,7 +9,8 @@ import { EmptyState, SkeletonRows } from '../common/Placeholder';
 import { CoinFace, MiniEnvelope } from './Coin';
 import { flyCoins, type EffectsLevel } from './effects';
 import { ThanksCardFace, toneClass } from './ThanksCardFace';
-import { hideThanks, joinThanks, loadMoreWall, openGive, openReveal, setWallFilter, useThanks, watchWall, type Wallet, type WallCard } from './thanksStore';
+import { hideThanks, joinThanks, loadMoreWall, loadWall, openGive, openReveal, setWallFilter, useThanks, watchWall, type Wallet, type WallCard } from './thanksStore';
+import { ReverseDialog } from './ReverseDialog';
 import { Withdraw } from './Withdraw';
 
 const fa = toPersianDigits;
@@ -41,7 +42,17 @@ const Burst: React.FC = () => {
  * One recognition pinned to the wall: the card in its value's colour, the receiver's own answer and
  * colleagues' emoji under it, and «من هم» for whoever saw the same work. Never an amount.
  */
-const WallItem: React.FC<{ card: WallCard; index: number; fx: EffectsLevel; wallet: Wallet; meId: string; focused: boolean; fresh: boolean }> = ({ card, index, fx, wallet, meId, focused, fresh }) => {
+const WallItem: React.FC<{ card: WallCard; index: number; fx: EffectsLevel; wallet: Wallet; meId: string; focused: boolean; fresh: boolean; owner: boolean }> = ({
+  card,
+  index,
+  fx,
+  wallet,
+  meId,
+  focused,
+  fresh,
+  owner,
+}) => {
+  const [reversing, setReversing] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const pin = useRef<HTMLSpanElement>(null);
   const joinButton = useRef<HTMLButtonElement>(null);
@@ -167,7 +178,7 @@ const WallItem: React.FC<{ card: WallCard; index: number; fx: EffectsLevel; wall
             </p>
           )}
 
-          {(card.mine !== null || canJoin || card.join?.withdrawUntil) && (
+          {(card.mine !== null || canJoin || card.join?.withdrawUntil || owner) && (
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs text-faint">{card.mine === 'sender' ? 'قدردانی شما' : card.mine === 'receiver' ? 'قدردانی از شما' : ''}</span>
               {canJoin && (
@@ -192,10 +203,27 @@ const WallItem: React.FC<{ card: WallCard; index: number; fx: EffectsLevel; wall
                   <EyeOff className="w-3.5 h-3.5" /> از دیوار بردار
                 </button>
               )}
+              {/* The programme's owner can take back one that should not be there, with a reason. */}
+              {owner && (
+                <button type="button" onClick={() => setReversing(true)} className="inline-flex items-center gap-1 text-xs font-bold text-muted hover:text-red-700">
+                  <Undo2 className="w-3.5 h-3.5" /> برگرداندن…
+                </button>
+              )}
             </div>
           )}
         </ThanksCardFace>
         <span className="sp-tilt-glare" />
+        {reversing && (
+          <ReverseDialog
+            id={card.id}
+            from={card.from.name}
+            to={card.to.name}
+            onClose={(done) => {
+              setReversing(false);
+              if (done) void loadWall();
+            }}
+          />
+        )}
       </div>
     </div>
   );
@@ -206,7 +234,7 @@ const WallItem: React.FC<{ card: WallCard; index: number; fx: EffectsLevel; wall
  * one value or to the unit of the colleagues who were recognised. No amounts, and no ranking of anyone.
  */
 export const ThanksWall: React.FC<{ fx: EffectsLevel; wallet: Wallet; focusId: string | null }> = ({ fx, wallet, focusId }) => {
-  const { appSettings, currentUser } = usePortal();
+  const { appSettings, currentUser, can } = usePortal();
   const { wall } = useThanks();
   const [more, setMore] = useState(false);
 
@@ -304,7 +332,7 @@ export const ThanksWall: React.FC<{ fx: EffectsLevel; wallet: Wallet; focusId: s
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-6 items-start pt-3">
           {wall.items.map((card, i) => (
-            <WallItem key={card.id} card={card} index={i} fx={fx} wallet={wallet} meId={currentUser?.id ?? ''} focused={card.id === focusId} fresh={fresh.includes(card.id)} />
+            <WallItem key={card.id} card={card} index={i} fx={fx} wallet={wallet} meId={currentUser?.id ?? ''} focused={card.id === focusId} fresh={fresh.includes(card.id)} owner={can('recognition.manage')} />
           ))}
         </div>
       )}

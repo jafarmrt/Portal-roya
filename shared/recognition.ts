@@ -110,6 +110,14 @@ export function rulesFor(stored: StoredRecognitionRules | null | undefined, mont
   return sound(stored.pending && month >= stored.pending.from ? stored.pending.rules : stored.rules);
 }
 
+export const sameRules = (a: RecognitionRules, b: RecognitionRules) =>
+  a.allowance === b.allowance &&
+  a.defaultAmount === b.defaultAmount &&
+  a.perPersonMax === b.perPersonMax &&
+  a.dailyMax === b.dailyMax &&
+  a.amounts.length === b.amounts.length &&
+  a.amounts.every((n, i) => n === b.amounts[i]);
+
 /**
  * The stored rules after a change made in `month`: at once while the part is still switched off (it is
  * being set up), otherwise from the first day of the month after. A change that was already waiting and
@@ -121,8 +129,10 @@ export function withRulesChange(
   month: string,
   atOnce: boolean,
 ): StoredRecognitionRules {
-  if (atOnce) return { rules, pending: null };
-  return { rules: rulesFor(stored, month), pending: { rules, from: nextRecognitionMonth(month) } };
+  const current = rulesFor(stored, month);
+  // The rules in force again: a change that was waiting is called off.
+  if (atOnce || sameRules(rules, current)) return { rules, pending: null };
+  return { rules: current, pending: { rules, from: nextRecognitionMonth(month) } };
 }
 
 /** The look of a value's cards on the wall: a colour and a motif of its own, drawn by the client. */

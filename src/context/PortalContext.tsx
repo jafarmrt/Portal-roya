@@ -354,7 +354,7 @@ const PortalContext = createContext<PortalContextType | undefined>(undefined);
 
 const VALID_TABS: ActiveTab[] = [
   'dashboard', 'polls', 'colleagues', 'orgchart', 'departments', 'search', 'news', 'documents', 'guides',
-  'training', 'calendar', 'notifications', 'systems', 'reports', 'people', 'admin', 'audit', 'suggestions', 'todos', 'tasks', 'thanks', 'event',
+  'training', 'calendar', 'notifications', 'systems', 'reports', 'people', 'admin', 'audit', 'suggestions', 'todos', 'tasks', 'thanks', 'thanks-admin', 'event',
 ];
 
 /** Ids in the address are encoded, since a department's page is named by the department. */

@@ -48,6 +48,7 @@ const TodosPage = named(() => import('./components/todos/TodosPage'), 'TodosPage
 const TasksPage = named(() => import('./components/tasks/TasksPage'), 'TasksPage');
 const EventPage = named(() => import('./components/event/EventPage'), 'EventPage');
 const ThanksPage = named(() => import('./components/thanks/ThanksPage'), 'ThanksPage');
+const ProgrammePage = named(() => import('./components/thanks/ProgrammePage'), 'ProgrammePage');
 
 const FullScreenLoader: React.FC<{ text: string }> = ({ text }) => (
   <div className="min-h-screen bg-page flex flex-col items-center justify-center gap-4" role="status">
@@ -185,6 +186,7 @@ const MainContent: React.FC = () => {
                 {activeTab === 'people' && can('users.manage') && <PeopleManagement />}
                 {activeTab === 'admin' && (isAdmin || can('settings.manage')) && <AdminSettingsModule />}
                 {activeTab === 'audit' && isAdmin && <AuditLogModule />}
+                {activeTab === 'thanks-admin' && can('recognition.manage') && <ProgrammePage />}
               </div>
             ) : (
               <NotAvailable />

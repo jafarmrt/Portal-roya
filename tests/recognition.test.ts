@@ -4,7 +4,7 @@ import { db, pool } from '../server/db/index';
 import { employees, notifications, recognitions } from '../server/db/schema';
 import { deliverDueRecognitions, giveRecognition, parseCursor, walletOf, withdrawRecognition } from '../server/recognition';
 import { FEATURES } from '../shared/features';
-import { OFFERED_PERMISSIONS, PERMISSIONS } from '../shared/permissions';
+import { PERMISSIONS } from '../shared/permissions';
 import { jalaliToDate } from '../shared/jalali';
 import {
   amountsText,
@@ -97,6 +97,8 @@ describe('«سپاس»: the rules of the coins', () => {
     const again = withRulesChange(waiting, { ...smaller, allowance: 40 }, '1405/11', false);
     expect(rulesFor(again, '1405/11').allowance).toBe(30);
     expect(rulesFor(again, '1405/12').allowance).toBe(40);
+    // Saving the rules in force again calls off the change that was waiting.
+    expect(withRulesChange(waiting, DEFAULT_RECOGNITION_RULES, '1405/09', false)).toEqual({ rules: DEFAULT_RECOGNITION_RULES, pending: null });
   });
 
   it('measures a message without its spaces and reads a list cursor', () => {
@@ -147,12 +149,10 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
   });
   afterAll(() => pool.end());
 
-  it('is out of reach of everyone until the administrator switches it on; its permission is not offered yet', async () => {
+  it('is out of reach of everyone until the administrator switches it on; its owner’s permission can be given', async () => {
     expect(FEATURES.find((f) => f.key === 'recognition')).toMatchObject({ defaultState: 'off' });
-    // The settings of «سپاس» have no page yet, so no access level can be given the permission for them.
-    expect(PERMISSIONS.map((p) => p.key)).toContain('recognition.manage');
-    expect(OFFERED_PERMISSIONS.map((p) => p.key)).not.toContain('recognition.manage');
-    expect(OFFERED_PERMISSIONS).toHaveLength(PERMISSIONS.length - 1);
+    expect(PERMISSIONS.find((p) => p.key === 'recognition.manage')).toMatchObject({ label: 'مسئول برنامهٔ «سپاس»' });
+    expect('unreleased' in PERMISSIONS.find((p) => p.key === 'recognition.manage')!).toBe(false);
     for (const who of [admin, ali.agent]) {
       await who.get('/api/recognitions/wallet').expect(404);
       await who.get('/api/recognitions/wall').expect(404);
@@ -699,6 +699,20 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     // Back again, their cards are on the wall as before.
     await admin.patch(`/api/employees/${sara.id}`).send({ isActive: true }).expect(200);
     expect((await wall(reza)).items.filter((c: { to: { id: string } }) => c.to.id === sara.id)).toHaveLength(cardsOfSara.length);
+  });
+
+  it('keeps the owner’s reports in their reach while the part is hidden from them, and nobody else’s', async () => {
+    // A preview whose pilot group the owner is not in: the part itself is hidden from them.
+    await admin.put('/api/settings/features/recognition').send({ state: 'preview', pilotRoles: [], pilotUserIds: [] }).expect(200);
+    await hr.agent.get('/api/recognitions/wallet').expect(404);
+    await hr.agent.get('/api/recognitions/reports').expect(200);
+    await hr.agent.post('/api/recognitions/no-such-one/report/close').expect(404);
+    expect((await hr.agent.post('/api/recognitions/no-such-one/reverse').send({ reason: 'به اشتباه ثبت شده بود.' }).expect(404)).body.error).not.toBe('مسیر یافت نشد.');
+    // Everyone else still finds nothing there, and the other paths stay hidden from the owner too.
+    await ali.agent.get('/api/recognitions/reports').expect(404);
+    await hr.agent.get('/api/recognitions/wall').expect(404);
+    await hr.agent.post(`/api/recognitions/${publicId}/join`).expect(404);
+    await setState('on');
   });
 
   it('keeps everything while the part is switched off, and goes on from there when it is back', async () => {

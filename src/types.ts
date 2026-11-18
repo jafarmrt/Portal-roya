@@ -661,6 +661,7 @@ export type ActiveTab =
   | 'todos'
   | 'tasks'
   | 'thanks'
+  | 'thanks-admin'
   | 'event';
 
 export interface SearchResultItem {
