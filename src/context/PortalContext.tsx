@@ -569,6 +569,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     [],
   );
 
+  // The changes to each personal note still on their way to the server (see inTodoOrder below).
+  const todoQueue = useRef(new Map<string, Promise<unknown>>());
+
   const loaders = useMemo(() => {
     const raw = {
       settings: () => api.get<AppSettings>('/api/settings').then(setAppSettings),
@@ -591,7 +594,19 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       guides: () => api.get<Guide[]>('/api/guides').then(setGuides),
       department_pages: () => api.get<DepartmentPage[]>('/api/department_pages').then(setDepartmentPages),
       moods: () => api.get<UserMood[]>('/api/moods/me').then(setUserMoods),
-      todos: () => api.get<PersonalTodo[]>('/api/todos').then(setTodos),
+      // A list loaded while a note's change is still on its way does not know of that change yet: such a
+      // note stays as it is on screen (or gone from it) until its own answer comes back with the server's copy.
+      // A note whose change was on its way when the list was asked for counts too: the list may still be older than it.
+      todos: () => {
+        const pendingAtStart = new Set(todoQueue.current.keys());
+        return api.get<PersonalTodo[]>('/api/todos').then((list) => {
+          setTodos((prev) => {
+            const keep = (id: string) => pendingAtStart.has(id) || todoQueue.current.has(id);
+            if (pendingAtStart.size === 0 && todoQueue.current.size === 0) return list;
+            return [...list.filter((t) => !keep(t.id)), ...prev.filter((t) => keep(t.id))];
+          });
+        });
+      },
       notices: () => api.get<Notice[]>('/api/notices').then(setNotices),
       tasks: () => api.get<TaskLists>('/api/tasks').then(setTasks),
       special_event: () => api.get<SpecialEventPayload>('/api/special_events/current').then(setSpecialEventState),
@@ -884,8 +899,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Changes to one note go to the server one after the other, in the order they were made. A tick shows
   // at once, so «بایگانی» can be pressed before the tick is saved; sent side by side, the server would
-  // get the second while the note was still open and refuse it.
-  const todoQueue = useRef(new Map<string, Promise<unknown>>());
+  // get the second while the note was still open and refuse it. (`todoQueue` itself is declared above
+  // the loaders, which keep a note with changes on their way as it is on screen.)
   const inTodoOrder = <T,>(id: string, job: () => Promise<T>): Promise<T> => {
     const run = (todoQueue.current.get(id) ?? Promise.resolve()).then(job, job);
     const tail = run.catch(() => undefined);

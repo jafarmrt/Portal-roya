@@ -177,6 +177,43 @@ test.describe('personal to-do notes', () => {
     await context.close();
   });
 
+  test('a list refreshed from the server while a tick is on its way does not take the tick back', async ({ browser }) => {
+    const { context, page } = await asRole(browser, 'employee');
+    const dueDate = moment().add(4, 'day').format('jYYYY/jMM/jDD');
+    await page.goto('/#dashboard');
+    const created = await page.request.post('/api/todos', { data: { title: 'یادداشت سه‌گامی', dueDate, steps: [{ text: 'گام یک' }, { text: 'گام دو' }, { text: 'گام سه' }] } });
+    expect(created.ok()).toBe(true);
+    const other = await page.request.post('/api/todos', { data: { title: 'یادداشت دیگری', dueDate } });
+    expect(other.ok()).toBe(true);
+    // Every change from the page takes a while to be saved.
+    await page.route('**/api/todos/*', async (route) => {
+      if (route.request().method() === 'PATCH') await new Promise((resolve) => setTimeout(resolve, 2500));
+      await route.continue();
+    });
+    await page.goto('/#todos');
+    const note = page.getByRole('listitem', { name: 'یادداشت سه‌گامی', exact: true });
+    await note.getByRole('checkbox', { name: 'گام یک' }).click();
+    await expect(note).toContainText('۱ از ۳ گام');
+
+    // Meanwhile another note changes (here from another tab): the page loads its list again from the
+    // server, which does not know of the first tick yet.
+    const reloaded = page.waitForResponse((res) => res.url().endsWith('/api/todos') && res.request().method() === 'GET');
+    expect((await context.request.patch(`/api/todos/${(await other.json()).id}`, { data: { important: true } })).ok()).toBe(true);
+    await reloaded;
+    // Looked at straight away, as a quick next click would: the first tick is still being saved.
+    await page.waitForTimeout(150);
+    expect(await note.getByRole('checkbox', { name: 'گام یک' }).isChecked()).toBe(true);
+
+    // The next tick starts from what is on screen, and both are kept.
+    await note.getByRole('checkbox', { name: 'گام دو' }).click();
+    await expect(note).toContainText('۲ از ۳ گام');
+    await page.unroute('**/api/todos/*');
+    await expect
+      .poll(async () => ((await (await page.request.get('/api/todos')).json()) as { title: string; steps: { done: boolean }[] }[]).find((t) => t.title === 'یادداشت سه‌گامی')?.steps.map((s) => s.done), { timeout: 10_000 })
+      .toEqual([true, true, false]);
+    await context.close();
+  });
+
   test('is gone everywhere once the administrator switches it off', async ({ browser }) => {
     const admin = await asRole(browser, 'admin');
     expect((await admin.page.request.put('/api/settings/features/todos', { data: { state: 'off' } })).ok()).toBe(true);
