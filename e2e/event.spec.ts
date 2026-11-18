@@ -66,6 +66,8 @@ test.describe('special event', () => {
 
     await page.getByRole('button', { name: 'قهرمان', exact: true }).click();
     await expect(screen.getByText('قهرمان پینگ‌پنگ')).toBeVisible();
+    // A dozen steps, a dozen «… ثبت شد.»: only the newest few stay, so none covers the page for good.
+    await expect.poll(() => page.locator('.portal-toaster [role="status"]').count()).toBeLessThanOrEqual(3);
     await page.getByRole('tab', { name: 'مسابقه‌ها' }).click();
     await expect(card.getByText('قهرمان', { exact: true })).toBeVisible();
     await tv.close();

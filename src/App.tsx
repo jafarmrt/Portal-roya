@@ -22,6 +22,7 @@ import { tabOn } from './lib/features';
 import { KudosListener } from './components/online/KudosListener';
 import { ThanksHost } from './components/thanks/ThanksHost';
 import { useAppearance } from './lib/appearance';
+import { useToastLimit } from './lib/toastLimit';
 
 // Secondary modules load on demand to keep the first download small.
 const named = <T,>(loader: () => Promise<T>, key: keyof T) =>
@@ -224,11 +225,18 @@ const AppearanceSync: React.FC = () => {
   return null;
 };
 
+/** At most a few short messages on screen at once (src/lib/toastLimit.ts). */
+const ToastLimit: React.FC = () => {
+  useToastLimit();
+  return null;
+};
+
 export default function App() {
   return (
     <ErrorBoundary fullScreen>
       <PortalProvider>
         <Toaster position="bottom-left" containerClassName="portal-toaster" toastOptions={{ style: { background: '#333', color: '#fff', fontFamily: 'inherit' } }} />
+        <ToastLimit />
         <AppearanceSync />
         <MainContent />
       </PortalProvider>
