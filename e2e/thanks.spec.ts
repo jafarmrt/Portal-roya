@@ -43,7 +43,7 @@ test.describe('«سپاس»: giving, receiving and the wall', () => {
     await dialog.locator('#thanks-message').fill('ممنون');
     await expect(send).toBeDisabled();
     await dialog.locator('#thanks-message').fill(MESSAGE);
-    await expect(dialog).toContainText('خوب است.');
+    await expect(dialog).toContainText('کافی است.');
     await send.click();
     await expect(page.getByText('قدردانی برای سارا احمدی در راه است.')).toBeVisible();
     await expect(dialog).toBeHidden();

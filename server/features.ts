@@ -53,12 +53,13 @@ const FEATURE_ROUTES: {
   },
   { key: 'pushNotifications', pattern: /^\/push(\/|$)/, emptyReads: {} },
   // Its settings (/settings/recognition) stay in reach, so they can be written before it is switched on.
-  // The reports and «برگرداندن» are the owner's even when they are not in the preview's pilot group.
+  // The reports and «برگرداندن» are the owner's even when they are not in the preview's pilot group, and so
+  // is the tutorial's progress, for the owner's own tour of «برنامهٔ سپاس».
   {
     key: 'recognition',
     pattern: /^\/recognitions(\/|$)/,
     emptyReads: {},
-    owner: { permission: 'recognition.manage', pattern: /^\/recognitions\/(reports$|report$|[^/]+\/(report\/close|reverse)$)/ },
+    owner: { permission: 'recognition.manage', pattern: /^\/recognitions\/(reports$|report$|tutorial$|[^/]+\/(report\/close|reverse)$)/ },
   },
 ];
 

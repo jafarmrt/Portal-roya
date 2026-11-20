@@ -4,6 +4,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import { featureVisible } from '../shared/features.js';
 import { jalaliMonthLabel, toPersianDigits } from '../shared/jalali.js';
 import type { ReactionCount } from '../shared/reactions.js';
+import { cleanTutorial, type RecognitionMissions, type RecognitionTutorial, withTutorialChange } from '../shared/recognitionTutorial.js';
 import {
   amountsText,
   messageLength,
@@ -16,6 +17,7 @@ import {
   RECOGNITION_PAGE,
   RECOGNITION_REPEAT_MS,
   RECOGNITION_UNDO_MS,
+  recognitionLimits,
   recognitionMonth,
   recognitionValues,
   rulesFor,
@@ -23,7 +25,7 @@ import {
 import { audit } from './audit.js';
 import type { SessionUser } from './auth.js';
 import { db } from './db/index.js';
-import { employees, recognitionReminders, recognitions } from './db/schema.js';
+import { employees, reactions as reactionRows, recognitionReminders, recognitions } from './db/schema.js';
 import { broadcastChange, signalUser } from './events.js';
 import { featureConfig } from './features.js';
 import { idsWithPermission } from './roles.js';
@@ -133,7 +135,8 @@ export async function walletOf(viewer: Pick<Viewer, 'id' | 'createdAt'>, now = n
     given,
     left: Math.max(0, allowance - given),
     ...monthProgress(now),
-    rules: { perPersonMax: rules.perPersonMax, dailyMax: rules.dailyMax },
+    // `allowance` is the whole month's, for everyone; the wallet's own `allowance` is less in the month someone joined.
+    rules: { allowance: rules.allowance, perPersonMax: rules.perPersonMax, dailyMax: rules.dailyMax },
     amounts: rules.amounts,
     defaultAmount: rules.defaultAmount,
     joinAmount: RECOGNITION_JOIN_AMOUNT,
@@ -188,15 +191,13 @@ async function spend(
     await check(tx);
     const given = await givenIn(viewer.id, month, tx);
     const left = allowance - given.all;
-    if (left <= 0) throw new HttpError(400, 'سهمیهٔ این ماه شما تمام شده است؛ اول ماه بعد سکه‌های تازه می‌رسد.');
-    if (values.amount > left) throw new HttpError(400, `از سهمیهٔ این ماه ${fa(left)} سکه برایتان مانده است.`);
+    if (left <= 0) throw new HttpError(400, recognitionLimits.monthDone());
+    if (values.amount > left) throw new HttpError(400, recognitionLimits.notEnough(left));
     const room = rules.perPersonMax - (given.byPerson.get(target.id) ?? 0);
     if (values.amount > room) {
       throw new HttpError(
         400,
-        room <= 0
-          ? `این ماه به سقف ${fa(rules.perPersonMax)} سکه برای ${fullName(target)} رسیده‌اید.`
-          : `به هر همکار در ماه حداکثر ${fa(rules.perPersonMax)} سکه می‌شود داد؛ برای ${fullName(target)} ${fa(room)} سکهٔ دیگر جا دارید.`,
+        room <= 0 ? recognitionLimits.perPerson(rules.perPersonMax, fullName(target)) : recognitionLimits.perPersonRoom(rules.perPersonMax, fullName(target), room),
       );
     }
     const [row] = await tx
@@ -233,7 +234,7 @@ export async function giveRecognition(viewer: Viewer, input: GiveInput, now = ne
   if (!rules.amounts.includes(input.amount)) throw new HttpError(400, `هر قدردانی ${amountsText(rules.amounts)} سکه است.`);
   const message = input.message.trim();
   if (messageLength(message) < RECOGNITION_MESSAGE_MIN) {
-    throw new HttpError(400, `پیام را کمی کامل‌تر بنویسید (حداقل ${fa(RECOGNITION_MESSAGE_MIN)} حرف): چه کاری کرد و چه اثری داشت؟`);
+    throw new HttpError(400, recognitionLimits.shortMessage(RECOGNITION_MESSAGE_MIN, fullName(target)));
   }
   const row = await spend(
     viewer,
@@ -259,7 +260,7 @@ export async function giveRecognition(viewer: Viewer, input: GiveInput, now = ne
         .limit(1);
       if (same) throw new HttpError(409, 'همین قدردانی چند لحظه پیش ثبت شد.');
       if ((await writtenToday(viewer.id, now, tx)) >= rules.dailyMax) {
-        throw new HttpError(429, `امروز ${fa(rules.dailyMax)} قدردانی نوشته‌اید؛ فردا دوباره می‌توانید.`);
+        throw new HttpError(429, recognitionLimits.daily(rules.dailyMax));
       }
     },
   );
@@ -270,7 +271,7 @@ export async function giveRecognition(viewer: Viewer, input: GiveInput, now = ne
 /** A card the wall still shows: public, handed over, not taken off by its receiver and not reversed. */
 const onWall = and(original, eq(recognitions.isPublic, true), isNotNull(recognitions.deliveredAt), standing, isNull(recognitions.hiddenAt));
 
-const JOINED_ALREADY = 'قبلاً با این قدردانی همراه شده‌اید.';
+const JOINED_ALREADY = recognitionLimits.joinedAlready();
 
 /** «من هم»: adds a few coins of the viewer's own allowance to a card on the wall, once per card. */
 export async function joinRecognition(viewer: Viewer, parentId: string, now = new Date()) {
@@ -322,7 +323,7 @@ export async function withdrawRecognition(viewer: Pick<Viewer, 'id'>, id: string
   if (!taken) {
     const [row] = await db.select({ id: recognitions.id }).from(recognitions).where(and(eq(recognitions.id, id), eq(recognitions.fromId, viewer.id)));
     if (!row) throw new HttpError(404, 'قدردانی یافت نشد.');
-    throw new HttpError(400, 'زمان پس‌گرفتن این قدردانی گذشته است.');
+    throw new HttpError(400, recognitionLimits.undoPassed(Math.round(RECOGNITION_UNDO_MS / 60_000)));
   }
   signalUser(viewer.id, 'recognition');
 }
@@ -950,4 +951,55 @@ export async function recognitionReport(month: string, now = new Date()) {
       .sort((a, b) => a.name.localeCompare(b.name, 'fa')),
     values: [...values.values()].sort((a, b) => b.count - a.count),
   };
+}
+
+// ---- Tutorials and missions -------------------------------------------------------------------------
+
+/**
+ * The five missions of the «سپاس» page, read from what the colleague actually did, so what they did before
+ * the tutorial existed counts too. Nothing is rewarded for them, and none of it reaches the owner's report.
+ */
+export async function recognitionMissions(viewer: Pick<Viewer, 'id'>, now = new Date()): Promise<RecognitionMissions> {
+  const kept = isNull(recognitions.withdrawnAt);
+  const [sent] = await db
+    .select({ n: count() })
+    .from(recognitions)
+    // Sent, and the minutes for taking it back are over.
+    .where(and(eq(recognitions.fromId, viewer.id), original, kept, lte(recognitions.deliverAt, now)));
+  const [opened] = await db.select({ n: count() }).from(recognitions).where(and(eq(recognitions.toId, viewer.id), isNotNull(recognitions.openedAt)));
+  const [joined] = await db.select({ n: count() }).from(recognitions).where(and(eq(recognitions.fromId, viewer.id), isNotNull(recognitions.parentId), kept));
+  const [reacted] = await db.select({ n: count() }).from(reactionRows).where(and(eq(reactionRows.userId, viewer.id), eq(reactionRows.targetType, 'recognition')));
+  const [values] = await db
+    .select({ n: sql<number>`count(distinct ${recognitions.valueId})::int` })
+    .from(recognitions)
+    .where(and(eq(recognitions.fromId, viewer.id), original, kept));
+  return {
+    sent: (sent?.n ?? 0) > 0,
+    opened: (opened?.n ?? 0) > 0,
+    joined: (joined?.n ?? 0) > 0,
+    reacted: (reacted?.n ?? 0) > 0,
+    twoValues: (values?.n ?? 0) >= 2,
+  };
+}
+
+export async function recognitionTutorialOf(viewer: Pick<Viewer, 'id'>) {
+  const [row] = await db.select({ t: employees.recognitionTutorial }).from(employees).where(eq(employees.id, viewer.id));
+  return cleanTutorial(row?.t);
+}
+
+/** Where the colleague is in each tutorial, and which missions are done. */
+export async function recognitionTutorial(viewer: Pick<Viewer, 'id'>, now = new Date()) {
+  const [progress, missions] = await Promise.all([recognitionTutorialOf(viewer), recognitionMissions(viewer, now)]);
+  return { progress, missions };
+}
+
+/** Saves a step of a tutorial; the parts not named stay as they were. */
+export async function setRecognitionTutorial(viewer: Pick<Viewer, 'id'>, change: RecognitionTutorial) {
+  return db.transaction(async (tx) => {
+    // Two pages saving at once (a step on the phone, another on the computer) should not lose either.
+    const [row] = await tx.select({ t: employees.recognitionTutorial }).from(employees).where(eq(employees.id, viewer.id)).for('update');
+    const next = withTutorialChange(cleanTutorial(row?.t), change);
+    await tx.update(employees).set({ recognitionTutorial: next }).where(eq(employees.id, viewer.id));
+    return next;
+  });
 }

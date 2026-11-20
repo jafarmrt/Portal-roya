@@ -19,6 +19,8 @@ export interface ThanksValue {
   id: string;
   label: string;
   tone: string;
+  /** What the value means in practice, from «برنامهٔ سپاس»; cards on the wall and in the lists have none. */
+  description?: string;
 }
 
 export interface Wallet {
@@ -29,7 +31,8 @@ export interface Wallet {
   day: number;
   daysInMonth: number;
   daysLeft: number;
-  rules: { perPersonMax: number; dailyMax: number };
+  /** `allowance`: the whole month's, which is more than the wallet's own in the month a colleague joined. */
+  rules: { allowance: number; perPersonMax: number; dailyMax: number };
   amounts: number[];
   defaultAmount: number;
   joinAmount: number;
@@ -147,6 +150,28 @@ interface State extends Mine {
   /** The recognition whose envelope is on screen. */
   revealing: string | null;
   wall: Wall;
+  /** Where the give form is, for the tutorial that walks through it (null while it is closed). */
+  form: GiveFormState | null;
+  /** The last recognition sent from this page, for the tutorial's step on taking it back. */
+  lastSent: { id: string; name: string; withdrawUntil: string; withdrawn: boolean } | null;
+  /** The «سپاس» page's tab, when something other than a click asks for one (the tutorial, a mission). */
+  tabRequest: { tab: ThanksTab; n: number } | null;
+  /** A tutorial is on screen: it shows «پس گرفتن» itself, so the form does not add its own message. */
+  touring: boolean;
+}
+
+export type ThanksTab = 'wall' | 'received' | 'given';
+
+export interface GiveFormState {
+  /** The colleagues to choose from, once loaded. */
+  colleagues: number | null;
+  to: string;
+  name: string;
+  valueId: string;
+  letters: number;
+  enough: boolean;
+  /** A message written earlier and not sent came back into the form. */
+  restored: boolean;
 }
 
 const emptyWall = (): Wall => ({ items: [], next: null, loaded: false, filter: { value: '', department: '' }, watching: false });
@@ -161,6 +186,10 @@ let state: State = {
   giving: null,
   revealing: null,
   wall: emptyWall(),
+  form: null,
+  lastSent: null,
+  tabRequest: null,
+  touring: false,
 };
 
 const listeners = new Set<() => void>();
@@ -258,7 +287,7 @@ export async function loadMoreWall() {
 /** Forgets everything (signing out, or the part was switched off). */
 export function resetThanks() {
   wallRequest++;
-  set({ wallet: null, received: [], receivedNext: null, given: [], givenNext: null, loaded: false, giving: null, revealing: null, wall: emptyWall() });
+  set({ wallet: null, received: [], receivedNext: null, given: [], givenNext: null, loaded: false, giving: null, revealing: null, wall: emptyWall(), form: null, lastSent: null, tabRequest: null });
 }
 
 export async function loadMoreThanks(list: 'received' | 'given') {
@@ -274,7 +303,13 @@ export async function loadMoreThanks(list: 'received' | 'given') {
 }
 
 export const openGive = (to?: string) => set({ giving: { to } });
-export const closeGive = () => set({ giving: null });
+export const closeGive = () => set({ giving: null, form: null });
+export const setGiveForm = (form: GiveFormState | null) => set({ form });
+export const showThanksTab = (tab: ThanksTab) => set({ tabRequest: { tab, n: (state.tabRequest?.n ?? 0) + 1 } });
+export const setTouring = (touring: boolean) => {
+  if (state.touring !== touring) set({ touring });
+};
+export const forgetLastSent = () => set({ lastSent: null });
 export const openReveal = (id: string) => set({ revealing: id });
 export const closeReveal = () => set({ revealing: null });
 
@@ -282,6 +317,8 @@ export const loadColleagues = () => api.get<Colleague[]>('/api/recognitions/coll
 
 export interface GiveInput {
   to: string;
+  /** The colleague's name, for the page only; not sent. */
+  name?: string;
   amount: number;
   valueId: string;
   message: string;
@@ -291,8 +328,9 @@ export interface GiveInput {
 /** Sends a recognition; the new one's id, or null (with the reason shown) when it did not go. */
 export async function giveThanks(input: GiveInput) {
   try {
-    const sent = await api.post<{ id: string; withdrawUntil: string; wallet: Wallet }>('/api/recognitions', input);
-    set({ wallet: sent.wallet });
+    const { name = '', ...body } = input;
+    const sent = await api.post<{ id: string; withdrawUntil: string; wallet: Wallet }>('/api/recognitions', body);
+    set({ wallet: sent.wallet, lastSent: { id: sent.id, name, withdrawUntil: sent.withdrawUntil, withdrawn: false } });
     void loadThanks();
     return sent;
   } catch (err) {
@@ -305,7 +343,8 @@ export async function giveThanks(input: GiveInput) {
 export async function withdrawThanks(id: string) {
   try {
     const { wallet } = await api.post<{ wallet: Wallet }>(`/api/recognitions/${id}/withdraw`);
-    set({ wallet, given: state.given.filter((g) => g.id !== id) });
+    const lastSent = state.lastSent?.id === id ? { ...state.lastSent, withdrawn: true } : state.lastSent;
+    set({ wallet, lastSent, given: state.given.filter((g) => g.id !== id) });
     if (state.wall.watching) void loadWall();
     return true;
   } catch (err) {

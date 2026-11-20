@@ -32,6 +32,9 @@ export const RECOGNITION_REASON_MAX = 300;
 /** The organisation's values are few on purpose. */
 export const RECOGNITION_VALUES_MAX = 8;
 export const RECOGNITION_VALUE_LABEL_MAX = 40;
+/** A value's description is a short line under its name; about 80 letters is plenty, 120 at most. */
+export const RECOGNITION_VALUE_DESCRIPTION_HINT = 80;
+export const RECOGNITION_VALUE_DESCRIPTION_MAX = 120;
 
 /** Cards the wall and a person's own lists hand over at once. */
 export const RECOGNITION_PAGE = 30;
@@ -143,20 +146,31 @@ export interface RecognitionValue {
   id: string;
   label: string;
   tone: RecognitionTone;
+  /**
+   * A short line on what the value means in practice, shown under its name where a recognition is given
+   * and on the wall's filter. Optional; '' when the owner left it empty. Cards keep only the name and
+   * colour of their time, never this line.
+   */
+  description?: string;
 }
 
 /** The five values everyone has until the programme's owner writes the company's own list. */
 export const DEFAULT_RECOGNITION_VALUES: RecognitionValue[] = [
-  { id: 'teamwork', label: 'همکاری', tone: 'sage' },
-  { id: 'ownership', label: 'مسئولیت‌پذیری', tone: 'crimson' },
-  { id: 'learning', label: 'یادگیری', tone: 'sky' },
-  { id: 'customer', label: 'مشتری‌مداری', tone: 'terracotta' },
-  { id: 'initiative', label: 'ابتکار', tone: 'gold' },
+  { id: 'teamwork', label: 'همکاری', tone: 'sage', description: 'کار را همراه دیگران پیش برد، نه تنها.' },
+  { id: 'ownership', label: 'مسئولیت‌پذیری', tone: 'crimson', description: 'کاری را که به عهده گرفت تا آخر رساند.' },
+  { id: 'learning', label: 'یادگیری', tone: 'sky', description: 'چیز تازه‌ای یاد گرفت یا به دیگران یاد داد.' },
+  { id: 'customer', label: 'مشتری‌مداری', tone: 'terracotta', description: 'نیاز مشتری یا همکار را جدی گرفت.' },
+  { id: 'initiative', label: 'ابتکار', tone: 'gold', description: 'راه تازه یا بهتری پیدا کرد.' },
 ];
 
-/** The list in use: the saved one, or the built-in five while none is saved. */
+/**
+ * The list in use: the saved one, or the built-in five while none is saved. A value saved before values
+ * had a description (the key is missing, not '') and named like one of the samples gets the sample's line.
+ */
 export const recognitionValues = (saved: readonly RecognitionValue[] | null | undefined): RecognitionValue[] =>
-  saved && saved.length > 0 ? [...saved] : DEFAULT_RECOGNITION_VALUES;
+  saved && saved.length > 0
+    ? saved.map((v) => ({ ...v, description: v.description ?? DEFAULT_RECOGNITION_VALUES.find((d) => d.label === v.label.trim())?.description ?? '' }))
+    : DEFAULT_RECOGNITION_VALUES;
 
 /** The Jalali month ('YYYY/MM', server local time) whose allowance a recognition sent at this moment uses. */
 export const recognitionMonth = (date: Date | string | number = new Date()) => moment(date).format('jYYYY/jMM');
@@ -186,3 +200,20 @@ export function monthAllowance(allowance: number, month: string, joinedAt: Date 
 
 /** How long a message is for the minimum: its letters, without spaces and line breaks. */
 export const messageLength = (text: string) => text.replace(/\s+/g, '').length;
+
+/**
+ * The reasons a recognition cannot go, in the same words on the server (its errors) and on the page (the
+ * form's notes, the tutorial). Each says why the limit is there, not only that it was reached.
+ */
+export const recognitionLimits = {
+  monthDone: () => 'سکه‌های این ماه‌تان تمام شده است؛ اول ماه بعد سکه‌های تازه می‌رسد.',
+  notEnough: (left: number) => `فقط ${fa(left)} سکه برایتان مانده است؛ مقدار کمتری انتخاب کنید.`,
+  perPerson: (max: number, name: string) =>
+    `این ماه ${fa(max)} سکه به ${name} داده‌اید که سقف ماهانه است («من هم» هم حساب می‌شود). این سقف هست تا سکه‌ها بین همه پخش شود؛ ماه بعد دوباره می‌توانید.`,
+  perPersonRoom: (max: number, name: string, room: number) =>
+    `به هر همکار در ماه حداکثر ${fa(max)} سکه می‌شود داد؛ برای ${name} ${fa(room)} سکهٔ دیگر جا دارید.`,
+  daily: (max: number) => `امروز ${fa(max)} قدردانی نوشته‌اید؛ فردا دوباره می‌توانید. «من هم» در این شمار نیست.`,
+  shortMessage: (min: number, name: string) => `کمی بیشتر بنویسید: دست‌کم ${fa(min)} حرف، تا ${name} بداند برای چه کاری از او قدردانی کردید.`,
+  undoPassed: (minutes: number) => `${fa(minutes)} دقیقه گذشته و این قدردانی دیگر برنمی‌گردد.`,
+  joinedAlready: () => 'قبلاً روی این کارت «من هم» زده‌اید.',
+};

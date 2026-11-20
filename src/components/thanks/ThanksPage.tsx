@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import toast from 'react-hot-toast';
-import { BellRing, ChevronLeft, Eye, EyeOff, HandHeart, Inbox, Newspaper, Send, Sparkles } from 'lucide-react';
-import { usePortal } from '../../context/PortalContext';
+import { BellRing, ChevronLeft, HandHeart, Inbox, Newspaper, Send, Sparkles } from 'lucide-react';
+import { THANKS_EVENT, usePortal } from '../../context/PortalContext';
+import { addUnsavedCheck } from '../../lib/unsavedWork';
 import { timeAgo, toPersianDigits } from '../../lib/jalali';
 import { PageHeader } from '../common/PageHeader';
 import { EmptyState, SkeletonRows } from '../common/Placeholder';
@@ -9,17 +9,23 @@ import { CoinBadge, CoinFace, CoinTray, MiniEnvelope } from './Coin';
 import { effectsWanted, setEffectsWanted, useEffectsLevel } from './effects';
 import { MonthLine } from './ThanksCard';
 import { ThanksCardFace } from './ThanksCardFace';
+import { OnWall } from './RevealModal';
 import { ThanksWall } from './ThanksWall';
 import { Withdraw } from './Withdraw';
+import { HelpMenu } from './tour/HelpMenu';
+import { MainTour, resumeStep } from './tour/MainTour';
+import { Missions } from './tour/Missions';
+import { ReceivedTour } from './tour/ReceivedTour';
+import { closeLaterNote, loadTutorial, pauseTour, startTour, tourState, useTour } from './tour/tourStore';
 import {
-  hideThanks,
   loadMoreThanks,
   openGive,
   openReveal,
   setThanksReminders,
+  setTouring,
   useThanks,
   type GivenCard,
-  type OpenedCard,
+  type ThanksTab,
   type ReceivedCard,
   type ThanksPerson,
 } from './thanksStore';
@@ -32,7 +38,8 @@ const givenState = (card: GivenCard) => {
   return 'رسید؛ هنوز باز نشده';
 };
 
-const Given: React.FC<{ card: GivenCard; me: ThanksPerson }> = ({ card, me }) => (
+const Given: React.FC<{ card: GivenCard; me: ThanksPerson; tour: boolean }> = ({ card, me, tour }) => (
+  <div data-tour={tour ? 'sent-card' : undefined}>
   <ThanksCardFace
     value={card.value}
     from={me}
@@ -55,35 +62,17 @@ const Given: React.FC<{ card: GivenCard; me: ThanksPerson }> = ({ card, me }) =>
     </div>
     {card.reversed && card.reverseReason && <p className="text-xs text-muted leading-relaxed">دلیل مسئول برنامه: {card.reverseReason}</p>}
   </ThanksCardFace>
+  </div>
 );
 
-/** Whether a public recognition is on the wall, and the receiver's way to take it off or put it back. */
-const OnWall: React.FC<{ card: OpenedCard }> = ({ card }) => {
-  const [busy, setBusy] = useState(false);
-  const toggle = async () => {
-    setBusy(true);
-    if (await hideThanks(card.id, !card.hidden)) toast.success(card.hidden ? 'دوباره روی دیوار است.' : 'از دیوار برداشته شد.');
-    setBusy(false);
-  };
-  return (
-    <p className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-line/70 text-xs text-muted">
-      <span>{card.hidden ? 'روی دیوار نیست؛ فقط شما و فرستنده آن را می‌بینید.' : 'روی دیوار سپاس است.'}</span>
-      <button type="button" onClick={() => void toggle()} disabled={busy} className="inline-flex items-center gap-1 font-bold text-ink-soft hover:text-ink">
-        {card.hidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-        {card.hidden ? 'به دیوار برگردان' : 'از دیوار بردار'}
-      </button>
-    </p>
-  );
-};
-
-const Received: React.FC<{ card: ReceivedCard; me: ThanksPerson; focused: boolean }> = ({ card, me, focused }) => {
+const Received: React.FC<{ card: ReceivedCard; me: ThanksPerson; focused: boolean; first: boolean }> = ({ card, me, focused, first }) => {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (focused) ref.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, [focused]);
   if (card.sealed) {
     return (
-      <div ref={ref}>
+      <div ref={ref} data-tour={first ? 'sealed' : undefined}>
         <button
           type="button"
           onClick={() => openReveal(card.id)}
@@ -119,7 +108,52 @@ const Received: React.FC<{ card: ReceivedCard; me: ThanksPerson; focused: boolea
   );
 };
 
-type Tab = 'wall' | 'received' | 'given';
+type Tab = ThanksTab;
+
+/**
+ * The tutorials: the main one opens by itself on the first visit (or carries on from where it was left,
+ * on any device); the short one of a first recognition opens when one waits sealed. Leaving the page
+ * pauses them; while one is on screen, the app does not reload itself for a new version.
+ */
+function useTours(sealed: boolean) {
+  const { wallet, loaded, lastSent } = useThanks();
+  const tour = useTour();
+  useEffect(() => {
+    void loadTutorial();
+    // The missions follow what the colleague does, here or on another device.
+    let timer = 0;
+    const again = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => void loadTutorial(), 400);
+    };
+    window.addEventListener(THANKS_EVENT, again);
+    const unsaved = addUnsavedCheck(() => tourState().active !== null);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener(THANKS_EVENT, again);
+      unsaved();
+      pauseTour();
+      setTouring(false);
+    };
+  }, []);
+  // A recognition sent here changes the missions too (its minutes for taking it back count).
+  useEffect(() => {
+    if (lastSent) void loadTutorial();
+  }, [lastSent]);
+
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current || !tour.loaded || !loaded || !wallet || tour.active) return;
+    started.current = true;
+    const main = tour.progress.main;
+    if (!main) startTour('main', 0);
+    else if (main.state === 'active') startTour('main', resumeStep(main.step));
+    else if (sealed && !tour.progress.received) startTour('received', 0);
+  }, [tour.loaded, tour.progress, tour.active, loaded, wallet, sealed]);
+
+  useEffect(() => setTouring(tour.active?.kind === 'main'), [tour.active]);
+  return tour;
+}
 
 /**
  * The «سپاس» page: the month's wallet, the wall everyone sees, and the colleague's own recognitions:
@@ -128,7 +162,7 @@ type Tab = 'wall' | 'received' | 'given';
  */
 export const ThanksPage: React.FC = () => {
   const { currentUser, focusId } = usePortal();
-  const { wallet, received, receivedNext, given, givenNext, loaded } = useThanks();
+  const { wallet, received, receivedNext, given, givenNext, loaded, tabRequest, lastSent } = useThanks();
   const fx = useEffectsLevel();
   const [chosen, setTab] = useState<Tab | null>(null);
   const [wanted, setWanted] = useState(effectsWanted);
@@ -152,6 +186,12 @@ export const ThanksPage: React.FC = () => {
   if (loaded && !opening.current) opening.current = sealedCount > 0 ? 'received' : 'wall';
   const tab: Tab = chosen ?? opening.current ?? 'wall';
 
+  // The tutorial or a mission asks for a tab.
+  useEffect(() => {
+    if (tabRequest) setTab(tabRequest.tab);
+  }, [tabRequest]);
+  const { laterNote } = useTours(sealedCount > 0);
+
   if (!currentUser) return null;
   const me: ThanksPerson = {
     id: currentUser.id,
@@ -169,9 +209,11 @@ export const ThanksPage: React.FC = () => {
         title="سپاس"
         description="قدردانی همکاران از هم، با «سکهٔ سپاس» و یک پیام. سکه‌های هر ماه فقط برای بخشیدن است؛ آنچه می‌گیرید برای همیشه می‌ماند."
       >
+        <HelpMenu />
         <button
           type="button"
           onClick={() => openGive()}
+          data-tour="give"
           disabled={!wallet || wallet.left <= 0}
           className="px-4 py-2.5 bg-brand hover:bg-brand-hover disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md shadow-brand/20 transition-colors flex items-center gap-1.5"
         >
@@ -179,12 +221,21 @@ export const ThanksPage: React.FC = () => {
         </button>
       </PageHeader>
 
+      {laterNote && (
+        <p className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl bg-sky-50 border border-sky-200 text-xs text-sky-900" role="status">
+          هر وقت خواستید، آموزش را از دکمهٔ «؟» بالای صفحه شروع کنید.
+          <button type="button" onClick={closeLaterNote} className="tap-area font-bold">
+            باشد
+          </button>
+        </p>
+      )}
+
       {!loaded || !wallet ? (
         <SkeletonRows rows={4} tall />
       ) : (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <section className="lg:col-span-2 bg-white border border-line/70 shadow-card rounded-3xl p-4 sm:p-5 grid sm:grid-cols-2 gap-4 items-center" aria-label="کیف این ماه">
+            <section className="lg:col-span-2 bg-white border border-line/70 shadow-card rounded-3xl p-4 sm:p-5 grid sm:grid-cols-2 gap-4 items-center" aria-label="کیف این ماه" data-tour="wallet">
               <div className="sp-wallet-stage px-3 pt-1 pb-3">
                 <CoinTray allowance={wallet.allowance} left={wallet.left} size="md" fx={fx} filling />
               </div>
@@ -225,6 +276,8 @@ export const ThanksPage: React.FC = () => {
               </p>
             </section>
           </div>
+
+          <Missions fx={fx} />
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="inline-flex p-1 bg-surface rounded-2xl" role="tablist" aria-label="بخش‌های سپاس">
@@ -277,8 +330,8 @@ export const ThanksPage: React.FC = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {/* What still waits to be opened comes first. */}
-                {[...received.filter((c) => c.sealed), ...received.filter((c) => !c.sealed)].map((card) => (
-                  <Received key={card.id} card={card} me={me} focused={card.id === focusId} />
+                {[...received.filter((c) => c.sealed), ...received.filter((c) => !c.sealed)].map((card, i) => (
+                  <Received key={card.id} card={card} me={me} focused={card.id === focusId} first={i === 0} />
                 ))}
               </div>
             )
@@ -296,7 +349,7 @@ export const ThanksPage: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {given.map((card) => (
-                <Given key={card.id} card={card} me={me} />
+                <Given key={card.id} card={card} me={me} tour={card.id === lastSent?.id} />
               ))}
             </div>
           )}
@@ -316,6 +369,9 @@ export const ThanksPage: React.FC = () => {
               </button>
             </div>
           )}
+
+          <MainTour wallet={wallet} fx={fx} />
+          <ReceivedTour fx={fx} />
         </>
       )}
     </div>

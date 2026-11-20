@@ -5,6 +5,7 @@ import { THANKS_EVENT } from '../../context/PortalContext';
 import { GiveModal } from './GiveModal';
 import { RevealModal } from './RevealModal';
 import { loadThanks, refreshThanks, resetThanks, useThanks } from './thanksStore';
+import { resetTutorial } from './tour/tourStore';
 
 /**
  * Mounted once while «سپاس» is switched on for this colleague: loads the wallet and their lists, loads
@@ -27,6 +28,7 @@ export const ThanksHost: React.FC<{ userId: string }> = ({ userId }) => {
       clearTimeout(timer);
       window.removeEventListener(THANKS_EVENT, onChange);
       resetThanks();
+      resetTutorial();
     };
   }, [userId]);
 

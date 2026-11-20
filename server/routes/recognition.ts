@@ -13,6 +13,7 @@ import {
   RECOGNITION_REASON_MIN,
   RECOGNITION_REPORT_NOTE_MAX,
   RECOGNITION_TONES,
+  RECOGNITION_VALUE_DESCRIPTION_MAX,
   RECOGNITION_VALUE_LABEL_MAX,
   RECOGNITION_VALUES_MAX,
   type RecognitionRules,
@@ -22,6 +23,7 @@ import {
   rulesProblem,
   withRulesChange,
 } from '../../shared/recognition.js';
+import { MAIN_TOUR_LAST_STEP } from '../../shared/recognitionTutorial.js';
 import { audit } from '../audit.js';
 import { requirePermission } from '../auth.js';
 import { db } from '../db/index.js';
@@ -41,10 +43,12 @@ import {
   recognisable,
   recognitionReport,
   recognitionReports,
+  recognitionTutorial,
   recognitionWall,
   reportRecognition,
   reverseRecognition,
   setRecognitionReminders,
+  setRecognitionTutorial,
   walletOf,
   withdrawRecognition,
 } from '../recognition.js';
@@ -134,6 +138,31 @@ recognitionRouter.post(
     const viewer = currentUser(req);
     await withdrawRecognition(viewer, idParam(req.params.id));
     res.json({ wallet: await walletOf(viewer) });
+  }),
+);
+
+const tourState = z.enum(['active', 'later', 'skipped', 'done']);
+const shortTour = z.enum(['done', 'skipped']);
+const tutorialSchema = z.object({
+  main: z.object({ state: tourState, step: z.number().int().min(0).max(MAIN_TOUR_LAST_STEP) }).optional(),
+  received: shortTour.optional(),
+  owner: shortTour.optional(),
+  missions: z.object({ hidden: z.boolean().optional(), celebrated: z.boolean().optional() }).optional(),
+});
+
+/** How far the colleague got in the tutorials, and which of the five missions are done. */
+recognitionRouter.get(
+  '/recognitions/tutorial',
+  route(async (req, res) => {
+    res.json(await recognitionTutorial(currentUser(req)));
+  }),
+);
+
+/** A step of a tutorial; parts not named stay as they were. */
+recognitionRouter.put(
+  '/recognitions/tutorial',
+  route(async (req, res) => {
+    res.json({ progress: await setRecognitionTutorial(currentUser(req), parse(tutorialSchema, req.body)) });
   }),
 );
 
@@ -240,6 +269,7 @@ const valueSchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/, 'شناسهٔ ارزش فقط حروف کوچک انگلیسی، عدد و خط تیره است'),
   label: z.string().trim().min(1).max(RECOGNITION_VALUE_LABEL_MAX),
   tone: z.enum(RECOGNITION_TONES),
+  description: z.string().trim().max(RECOGNITION_VALUE_DESCRIPTION_MAX, `توضیح هر ارزش حداکثر ${toPersianDigits(RECOGNITION_VALUE_DESCRIPTION_MAX)} حرف است.`).default(''),
 });
 
 const settingsSchema = z.object({
@@ -306,6 +336,8 @@ recognitionRouter.put(
       await db.update(settings).set(changes).where(eq(settings.id, 'global'));
       for (const entry of entries) await audit(viewer, { action: 'update', entity: 'settings', ...entry });
       broadcastChange('settings');
+      // Open «سپاس» pages show the new values (and their descriptions) without a reload.
+      broadcastChange('recognition');
     }
     res.json(await recognitionSettings(now));
   }),

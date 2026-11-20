@@ -220,7 +220,7 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     await give(ali, sara, { amount: 0 }).expect(400);
     await give(ali, sara, { amount: 2.5 }).expect(400);
     expect((await give(ali, sara, { valueId: 'nope' }).expect(400)).body.error).toContain('ارزش');
-    expect((await give(ali, sara, { message: 'ممنون' }).expect(400)).body.error).toContain('حداقل ۱۵ حرف');
+    expect((await give(ali, sara, { message: 'ممنون' }).expect(400)).body.error).toContain('دست‌کم ۱۵ حرف');
     // Spaces do not make a message longer.
     await give(ali, sara, { message: `ممنون${' '.repeat(30)}عزیز` }).expect(400);
     await give(ali, sara, { message: undefined }).expect(400);
@@ -389,10 +389,10 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     expect(tooMuch).toContain('حداکثر ۲۰ سکه');
     expect(tooMuch).toContain('۵ سکهٔ دیگر');
     await give(ali, sara, { amount: 5 }).expect(201);
-    expect((await give(ali, sara, { amount: 5, message: `${MESSAGE} باز هم ممنون.` }).expect(400)).body.error).toContain('به سقف ۲۰ سکه');
+    expect((await give(ali, sara, { amount: 5, message: `${MESSAGE} باز هم ممنون.` }).expect(400)).body.error).toContain('۲۰ سکه به همکار rec.sara داده‌اید که سقف ماهانه است');
     // «من هم» counts for it as well.
     await give(omid, sara, { amount: 20 }).expect(201);
-    expect((await omid.agent.post(`/api/recognitions/${publicId}/join`).expect(400)).body.error).toContain('به سقف ۲۰ سکه');
+    expect((await omid.agent.post(`/api/recognitions/${publicId}/join`).expect(400)).body.error).toContain('۲۰ سکه به همکار rec.sara داده‌اید که سقف ماهانه است');
     expect((await wallet(omid)).left).toBe(30);
     expect(await deliverDueRecognitions(afterUndo())).toBe(2);
   });
@@ -608,8 +608,9 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     const quality = { id: 'quality', label: 'کیفیت', tone: 'teal' };
     await hr.agent.put('/api/settings/recognition').send({ values: [quality, { ...quality, id: 'quality-2' }] }).expect(400);
     await hr.agent.put('/api/settings/recognition').send({ values: [{ ...quality, tone: 'pink' }] }).expect(400);
-    expect((await hr.agent.put('/api/settings/recognition').send({ values: [quality] }).expect(200)).body.values).toEqual([quality]);
-    expect((await wallet(mina)).values).toEqual([quality]);
+    // Without a description it has none (stage 6b), even when it is left out.
+    expect((await hr.agent.put('/api/settings/recognition').send({ values: [quality] }).expect(200)).body.values).toEqual([{ ...quality, description: '' }]);
+    expect((await wallet(mina)).values).toEqual([{ ...quality, description: '' }]);
     await give(mina, ali).expect(400);
     await give(mina, ali, { valueId: 'quality', amount: 5 }).expect(201);
     expect((await mine(ali)).given.at(-1).value.label).toBe('همکاری');

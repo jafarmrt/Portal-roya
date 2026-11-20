@@ -42,7 +42,7 @@ const Burst: React.FC = () => {
  * One recognition pinned to the wall: the card in its value's colour, the receiver's own answer and
  * colleagues' emoji under it, and «من هم» for whoever saw the same work. Never an amount.
  */
-const WallItem: React.FC<{ card: WallCard; index: number; fx: EffectsLevel; wallet: Wallet; meId: string; focused: boolean; fresh: boolean; owner: boolean }> = ({
+const WallItem: React.FC<{ card: WallCard; index: number; fx: EffectsLevel; wallet: Wallet; meId: string; focused: boolean; fresh: boolean; owner: boolean; tour: boolean }> = ({
   card,
   index,
   fx,
@@ -51,6 +51,7 @@ const WallItem: React.FC<{ card: WallCard; index: number; fx: EffectsLevel; wall
   focused,
   fresh,
   owner,
+  tour,
 }) => {
   const [reversing, setReversing] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -146,7 +147,7 @@ const WallItem: React.FC<{ card: WallCard; index: number; fx: EffectsLevel; wall
   const canJoin = card.mine === null && !card.joined;
   const short = wallet.left < wallet.joinAmount;
   return (
-    <div ref={root} className={`sp-pin ${state}`} style={style} id={`wall-${card.id}`} onPointerMove={onTilt} onPointerLeave={offTilt}>
+    <div ref={root} className={`sp-pin ${state}`} style={style} id={`wall-${card.id}`} onPointerMove={onTilt} onPointerLeave={offTilt} data-tour={tour ? 'wall-card' : undefined}>
       <div className="sp-pin-inner">
         <span ref={pin} className="sp-pin-head" aria-hidden="true">
           <CoinFace plain />
@@ -264,9 +265,12 @@ export const ThanksWall: React.FC<{ fx: EffectsLevel; wallet: Wallet; focusId: s
 
   const departments = appSettings?.departments ?? [];
   const filtered = wall.filter.value !== '' || wall.filter.department !== '';
+  const chosenValue = wallet.values.find((v) => v.id === wall.filter.value) ?? null;
+  // The tutorial points at the first card one can join or react to.
+  const shownToTour = wall.items.find((c) => !c.sealed && c.mine === null)?.id ?? wall.items.find((c) => !c.sealed)?.id;
 
   return (
-    <section className="sp-wall" aria-label="دیوار سپاس">
+    <section className="sp-wall" aria-label="دیوار سپاس" data-tour="wall">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="ارزش">
           <button type="button" aria-pressed={wall.filter.value === ''} onClick={() => setWallFilter({ value: '' })} className="sp-value sp-tone-slate px-3.5 py-1.5 rounded-full text-xs font-bold">
@@ -278,6 +282,7 @@ export const ThanksWall: React.FC<{ fx: EffectsLevel; wallet: Wallet; focusId: s
               type="button"
               aria-pressed={wall.filter.value === v.id}
               onClick={() => setWallFilter({ value: wall.filter.value === v.id ? '' : v.id })}
+              title={v.description || undefined}
               className={`sp-value ${toneClass(v.tone)} px-3.5 py-1.5 rounded-full text-xs font-bold`}
             >
               {v.label}
@@ -303,6 +308,13 @@ export const ThanksWall: React.FC<{ fx: EffectsLevel; wallet: Wallet; focusId: s
           </label>
         )}
       </div>
+
+      {/* What the chosen value means, from «برنامهٔ سپاس». */}
+      {chosenValue?.description && (
+        <p className="text-xs text-muted leading-relaxed" aria-live="polite">
+          <strong className="text-ink-soft">{chosenValue.label}:</strong> {chosenValue.description}
+        </p>
+      )}
 
       {!wall.loaded ? (
         <SkeletonRows rows={3} tall />
@@ -332,7 +344,18 @@ export const ThanksWall: React.FC<{ fx: EffectsLevel; wallet: Wallet; focusId: s
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-6 items-start pt-3">
           {wall.items.map((card, i) => (
-            <WallItem key={card.id} card={card} index={i} fx={fx} wallet={wallet} meId={currentUser?.id ?? ''} focused={card.id === focusId} fresh={fresh.includes(card.id)} owner={can('recognition.manage')} />
+            <WallItem
+              key={card.id}
+              card={card}
+              index={i}
+              fx={fx}
+              wallet={wallet}
+              meId={currentUser?.id ?? ''}
+              focused={card.id === focusId}
+              fresh={fresh.includes(card.id)}
+              owner={can('recognition.manage')}
+              tour={card.id === shownToTour}
+            />
           ))}
         </div>
       )}
