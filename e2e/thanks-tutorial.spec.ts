@@ -175,14 +175,20 @@ test.describe('«سپاس»: the tutorials', () => {
     const reza = await colleague(browser, 'tour.reza', 'رضا', 'تازه‌وارد', { context: { reducedMotion: 'reduce' } });
     const page = reza.page;
     const wallet = await (await page.request.get('/api/recognitions/wallet')).json();
-    expect(wallet.allowance).toBeLessThan(wallet.rules.allowance);
-    const spent = await page.request.post('/api/recognitions', { data: { to: tina.id, amount: wallet.left, valueId: 'learning', message: MESSAGE, isPublic: false } });
-    expect(spent.ok(), await spent.text()).toBe(true);
+    // On the month's first day a newcomer's share is the whole month's.
+    const newcomer = wallet.allowance < wallet.rules.allowance;
+    // Everything given already, to Tina (one row: on the month's first day it is more than one person's cap).
+    await sql(
+      `insert into recognitions (id, from_id, to_id, amount, month, value_id, value_label, value_tone, message, is_public, deliver_at, delivered_at, created_at)
+       values ($1, $2, $3, $4, $5, 'learning', 'یادگیری', 'sky', $6, false, now(), now(), now())`,
+      [`tour-spent-${Date.now()}`, reza.id, tina.id, wallet.left, wallet.month, MESSAGE],
+    );
+    expect((await (await page.request.get('/api/recognitions/wallet')).json()).left).toBe(0);
 
     await page.goto('/#thanks');
     await expect(page.locator('.sp-tour')).toHaveAttribute('data-fx', 'none');
     await box(page, 'به «سپاس» خوش آمدید').getByRole('button', { name: 'شروع کنیم' }).click();
-    await expect(box(page, 'کیف سکهٔ شما')).toContainText('چون این ماه به جمع ما پیوستید');
+    await expect(box(page, 'کیف سکهٔ شما')).toContainText(newcomer ? 'چون این ماه به جمع ما پیوستید' : 'هر ماه ۵۰ سکه می‌گیرید');
     await box(page, 'کیف سکهٔ شما').getByRole('button', { name: 'بعدی' }).click();
     const empty = box(page, 'سکه‌های این ماه تمام شده');
     await expect(empty).toContainText('اول ماه بعد دوباره ۵۰ سکه می‌گیرید');

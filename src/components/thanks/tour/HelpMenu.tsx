@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { CircleHelp } from 'lucide-react';
 import { usePortal } from '../../../context/PortalContext';
+import { forgetLastSent } from '../thanksStore';
 import { askOwnerTour, showMissions, startTour } from './tourStore';
 
 // «؟» on the «سپاس» page (plan: section هـ): the tutorials again, and the missions card when it was hidden.
@@ -34,7 +35,14 @@ export const HelpMenu: React.FC = () => {
   }, [open]);
 
   const items = [
-    { label: 'آموزش سپاس را دوباره ببینم', run: () => startTour('main', 0) },
+    {
+      label: 'آموزش سپاس را دوباره ببینم',
+      run: () => {
+        // A recognition sent before this run of the tour is not «اولین قدردانی شما» at its end.
+        forgetLastSent();
+        startTour('main', 0);
+      },
+    },
     { label: 'آموزش دریافت قدردانی', run: () => startTour('received', 0) },
     {
       label: 'مأموریت‌های سپاس',
