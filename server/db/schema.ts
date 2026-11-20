@@ -17,6 +17,7 @@ import type { AuditAction, AuditEntity } from '../../shared/audit.js';
 import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
 import type { KudosEmoji } from '../../shared/kudos.js';
 import type { RecognitionValue, StoredRecognitionRules } from '../../shared/recognition.js';
+import type { RecognitionTutorial } from '../../shared/recognitionTutorial.js';
 import type { MonthlySummary } from '../../shared/reports.js';
 import type { EntryKind, EventPhase, EventStatus, EventTheme, Format, IdeaKind, QuizState, RankBy, ScheduleItem, Scoring, ScreenState, StagePolicy, TieRule, WishStatus } from '../../shared/specialEvents.js';
 import type { SuggestionBoxNames } from '../../shared/suggestions.js';
@@ -145,6 +146,8 @@ export const employees = pgTable('employees', {
   pushMuted: text('push_muted').array().notNull().default([]),
   /** The colleague wants the two monthly reminders of «سپاس» (the middle of the month, three days before its end). */
   recognitionReminders: boolean('recognition_reminders').notNull().default(true),
+  /** How far the colleague got in the tutorials of «سپاس» (shared/recognitionTutorial.ts), kept here so a phone and a computer agree. */
+  recognitionTutorial: jsonb('recognition_tutorial').$type<RecognitionTutorial>().notNull().default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

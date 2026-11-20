@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Flag, Loader2, MailOpen } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Eye, EyeOff, Flag, Loader2, MailOpen } from 'lucide-react';
 import { WISH_REACTIONS } from '../../../shared/celebrations';
 import { RECOGNITION_REPORT_NOTE_MAX } from '../../../shared/recognition';
 import { usePortal } from '../../context/PortalContext';
@@ -9,7 +10,7 @@ import { ModalCloseButton, ModalShell, inputClass, primaryButtonClass, secondary
 import { Coin3D, CoinFace } from './Coin';
 import { useCountUp, useEffectsLevel, type EffectsLevel } from './effects';
 import { ThanksCardFace, toneClass } from './ThanksCardFace';
-import { answerThanks, closeReveal, openThanks, reportThanks, useThanks, type OpenedCard, type ThanksPerson } from './thanksStore';
+import { answerThanks, closeReveal, hideThanks, openThanks, reportThanks, useThanks, type OpenedCard, type ThanksPerson } from './thanksStore';
 
 const fa = toPersianDigits;
 const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
@@ -94,6 +95,25 @@ const Report: React.FC<{ card: OpenedCard }> = ({ card }) => {
   );
 };
 
+/** Whether a public recognition is on the wall, and the receiver's way to take it off or put it back. */
+export const OnWall: React.FC<{ card: OpenedCard }> = ({ card }) => {
+  const [busy, setBusy] = useState(false);
+  const toggle = async () => {
+    setBusy(true);
+    if (await hideThanks(card.id, !card.hidden)) toast.success(card.hidden ? 'دوباره روی دیوار است.' : 'از دیوار برداشته شد.');
+    setBusy(false);
+  };
+  return (
+    <p className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-line/70 text-xs text-muted">
+      <span>{card.hidden ? 'روی دیوار نیست؛ فقط شما و فرستنده آن را می‌بینید.' : 'روی دیوار سپاس است.'}</span>
+      <button type="button" onClick={() => void toggle()} disabled={busy} className="inline-flex items-center gap-1 font-bold text-ink-soft hover:text-ink">
+        {card.hidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+        {card.hidden ? 'به دیوار برگردان' : 'از دیوار بردار'}
+      </button>
+    </p>
+  );
+};
+
 /** The opened recognition: the card, its coins counted up, the receiver's own answer and «گزارش». */
 const Opened: React.FC<{ card: OpenedCard; me: ThanksPerson; fresh: boolean; fx: EffectsLevel }> = ({ card, me, fresh, fx }) => {
   const count = useCountUp(card.total, fx === 'full' ? 1100 : 500, fresh && fx !== 'none');
@@ -123,7 +143,7 @@ const Opened: React.FC<{ card: OpenedCard; me: ThanksPerson; fresh: boolean; fx:
         )}
       </ThanksCardFace>
 
-      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="پاسخ شما به این قدردانی">
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="پاسخ شما به این قدردانی" data-tour="reveal-reactions">
         <span className="text-xs font-bold text-ink-soft">پاسخ شما:</span>
         {WISH_REACTIONS.map((r) => (
           <button
@@ -143,8 +163,14 @@ const Opened: React.FC<{ card: OpenedCard; me: ThanksPerson; fresh: boolean; fx:
         ))}
       </div>
 
+      {card.isPublic && (
+        <div data-tour="reveal-wall">
+          <OnWall card={card} />
+        </div>
+      )}
+
       <div className="flex flex-wrap items-end justify-between gap-3 pt-1">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1" data-tour="reveal-report">
           <Report card={card} />
         </div>
         <button type="button" onClick={closeReveal} className={secondaryButtonClass}>
@@ -218,7 +244,7 @@ export const RevealModal: React.FC<{ id: string }> = ({ id }) => {
                   <span />
                   <span />
                 </span>
-                <button type="button" className="sp-seal" onClick={() => void breakSeal()} disabled={busy} aria-label="باز کردن مهر">
+                <button type="button" className="sp-seal" onClick={() => void breakSeal()} disabled={busy} aria-label="باز کردن مهر" data-tour="seal">
                   <Coin3D size={70} />
                 </button>
                 {stage === 'breaking' && fx === 'full' && <Sparks />}

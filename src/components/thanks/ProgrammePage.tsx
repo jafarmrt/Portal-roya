@@ -5,6 +5,8 @@ import {
   DEFAULT_RECOGNITION_VALUES,
   RECOGNITION_AMOUNTS_MAX,
   RECOGNITION_TONES,
+  RECOGNITION_VALUE_DESCRIPTION_HINT,
+  RECOGNITION_VALUE_DESCRIPTION_MAX,
   RECOGNITION_VALUE_LABEL_MAX,
   RECOGNITION_VALUES_MAX,
   amountsText,
@@ -17,6 +19,10 @@ import {
 import { usePortal } from '../../context/PortalContext';
 import { timeAgo, toPersianDigits } from '../../lib/jalali';
 import { EmptyState, SkeletonRows } from '../common/Placeholder';
+import { addUnsavedCheck } from '../../lib/unsavedWork';
+import { useEffectsLevel } from './effects';
+import { OwnerTour, type ProgrammeSection } from './tour/OwnerTour';
+import { askOwnerTour, loadTutorialProgress, pauseTour, startTour, tourState, useTour } from './tour/tourStore';
 import { PageHeader } from '../common/PageHeader';
 import { inputClass, labelClass, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { MonthNumbers } from './MonthNumbers';
@@ -284,6 +290,28 @@ const RulesForm: React.FC<{ rules: RecognitionRules; pending: { rules: Recogniti
 
 const newId = () => `v-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 
+/** A value's short line under its name; about 80 letters reads well, 120 at most. */
+const DescriptionField: React.FC<{ index: number; value: string; onChange: (text: string) => void }> = ({ index, value, onChange }) => {
+  const long = value.trim().length > RECOGNITION_VALUE_DESCRIPTION_HINT;
+  return (
+    <label className="block">
+      <span className="sr-only">توضیح ارزش {fa(index + 1)}</span>
+      <input
+        value={value}
+        maxLength={RECOGNITION_VALUE_DESCRIPTION_MAX}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${inputClass} !text-xs`}
+        placeholder="یک جملهٔ کوتاه: این ارزش در کار روزانه یعنی چه؟ (اختیاری)"
+      />
+      {value.trim() !== '' && (
+        <span className={`block mt-1 text-[11px] ${long ? 'text-amber-800' : 'text-faint'}`}>
+          {fa(value.trim().length)} حرف{long ? `؛ بهتر است کوتاه‌تر از ${fa(RECOGNITION_VALUE_DESCRIPTION_HINT)} حرف باشد.` : ''}
+        </span>
+      )}
+    </label>
+  );
+};
+
 const ValuesForm: React.FC<{ values: RecognitionValue[] }> = ({ values }) => {
   const [draft, setDraft] = useState<RecognitionValue[]>(values);
   const [busy, setBusy] = useState(false);
@@ -314,7 +342,7 @@ const ValuesForm: React.FC<{ values: RecognitionValue[] }> = ({ values }) => {
             <Tags className="w-5 h-5 text-brand" /> ارزش‌ها
           </h2>
           <p className="text-xs text-muted leading-relaxed mt-1 max-w-2xl">
-            هر قدردانی برای یکی از این ارزش‌هاست و کارتش رنگ و نقش همان ارزش را دارد. تغییر ارزش‌ها همین حالا اعمال می‌شود؛ قدردانی‌های گذشته نام و رنگ زمانِ خودشان را نگه می‌دارند.
+            هر قدردانی برای یکی از این ارزش‌هاست و کارتش رنگ و نقش همان ارزش را دارد. توضیح کوتاه هر ارزش را همکاران موقع قدردانی زیر نام آن می‌بینند. تغییر ارزش‌ها همین حالا اعمال می‌شود؛ قدردانی‌های گذشته نام و رنگ زمانِ خودشان را نگه می‌دارند.
             بهتر است ارزش‌ها کم و آشنا باشند (حداکثر {fa(RECOGNITION_VALUES_MAX)}).
           </p>
         </div>
@@ -327,44 +355,47 @@ const ValuesForm: React.FC<{ values: RecognitionValue[] }> = ({ values }) => {
 
       <ol className="space-y-3">
         {draft.map((v, i) => (
-          <li key={v.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-2xl border border-line bg-surface/60">
-            <span className={`sp-value sp-value-sample ${toneClass(v.tone)} self-start sm:self-auto shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold min-w-24 text-center`} aria-hidden="true">
-              {v.label.trim() || '…'}
-            </span>
-            <label className="flex-1 min-w-0">
-              <span className="sr-only">نام ارزش {fa(i + 1)}</span>
-              <input value={v.label} maxLength={RECOGNITION_VALUE_LABEL_MAX} onChange={(e) => update(i, { label: e.target.value })} className={inputClass} placeholder="مثلاً همکاری" />
-            </label>
-            <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label={`رنگ ${v.label || `ارزش ${fa(i + 1)}`}`}>
-              {RECOGNITION_TONES.map((tone) => (
-                <button
-                  key={tone}
-                  type="button"
-                  role="radio"
-                  aria-checked={v.tone === tone}
-                  aria-label={TONE_NAMES[tone]}
-                  title={TONE_NAMES[tone]}
-                  onClick={() => update(i, { tone })}
-                  className={`sp-swatch ${toneClass(tone)} w-6 h-6 rounded-full border-2 ${v.tone === tone ? 'border-ink scale-110' : 'border-white'}`}
-                />
-              ))}
+          <li key={v.id} className="p-3 rounded-2xl border border-line bg-surface/60 space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <span className={`sp-value sp-value-sample ${toneClass(v.tone)} self-start sm:self-auto shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold min-w-24 text-center`} aria-hidden="true">
+                {v.label.trim() || '…'}
+              </span>
+              <label className="flex-1 min-w-0">
+                <span className="sr-only">نام ارزش {fa(i + 1)}</span>
+                <input value={v.label} maxLength={RECOGNITION_VALUE_LABEL_MAX} onChange={(e) => update(i, { label: e.target.value })} className={inputClass} placeholder="مثلاً همکاری" />
+              </label>
+              <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label={`رنگ ${v.label || `ارزش ${fa(i + 1)}`}`}>
+                {RECOGNITION_TONES.map((tone) => (
+                  <button
+                    key={tone}
+                    type="button"
+                    role="radio"
+                    aria-checked={v.tone === tone}
+                    aria-label={TONE_NAMES[tone]}
+                    title={TONE_NAMES[tone]}
+                    onClick={() => update(i, { tone })}
+                    className={`sp-swatch ${toneClass(tone)} w-6 h-6 rounded-full border-2 ${v.tone === tone ? 'border-ink scale-110' : 'border-white'}`}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-1 self-end sm:self-auto">
+                <button type="button" disabled={i === 0} onClick={() => move(i, -1)} className="p-1.5 rounded-lg hover:bg-white disabled:opacity-30" aria-label="بالاتر">
+                  <ArrowUp className="w-4 h-4" />
+                </button>
+                <button type="button" disabled={i === draft.length - 1} onClick={() => move(i, 1)} className="p-1.5 rounded-lg hover:bg-white disabled:opacity-30" aria-label="پایین‌تر">
+                  <ArrowDown className="w-4 h-4" />
+                </button>
+                <button type="button" onClick={() => setDraft((d) => d.filter((_, j) => j !== i))} className="p-1.5 rounded-lg text-faint hover:text-red-700 hover:bg-white" aria-label={`حذف ${v.label}`}>
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-1 self-end sm:self-auto">
-              <button type="button" disabled={i === 0} onClick={() => move(i, -1)} className="p-1.5 rounded-lg hover:bg-white disabled:opacity-30" aria-label="بالاتر">
-                <ArrowUp className="w-4 h-4" />
-              </button>
-              <button type="button" disabled={i === draft.length - 1} onClick={() => move(i, 1)} className="p-1.5 rounded-lg hover:bg-white disabled:opacity-30" aria-label="پایین‌تر">
-                <ArrowDown className="w-4 h-4" />
-              </button>
-              <button type="button" onClick={() => setDraft((d) => d.filter((_, j) => j !== i))} className="p-1.5 rounded-lg text-faint hover:text-red-700 hover:bg-white" aria-label={`حذف ${v.label}`}>
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+            <DescriptionField index={i} value={v.description ?? ''} onChange={(description) => update(i, { description })} />
           </li>
         ))}
       </ol>
       {draft.length < RECOGNITION_VALUES_MAX && (
-        <button type="button" onClick={() => setDraft((d) => [...d, { id: newId(), label: '', tone: unusedTone }])} className={secondaryButtonClass}>
+        <button type="button" onClick={() => setDraft((d) => [...d, { id: newId(), label: '', tone: unusedTone, description: '' }])} className={secondaryButtonClass}>
           <Plus className="w-3.5 h-3.5" /> ارزش تازه
         </button>
       )}
@@ -378,7 +409,7 @@ const ValuesForm: React.FC<{ values: RecognitionValue[] }> = ({ values }) => {
           disabled={!changed || problem !== null || busy}
           onClick={() => {
             setBusy(true);
-            void saveProgrammeSettings({ values: draft.map((v) => ({ ...v, label: v.label.trim() })) }, 'ارزش‌ها ذخیره شد.').finally(() => setBusy(false));
+            void saveProgrammeSettings({ values: draft.map((v) => ({ ...v, label: v.label.trim(), description: (v.description ?? '').trim() })) }, 'ارزش‌ها ذخیره شد.').finally(() => setBusy(false));
           }}
           className={primaryButtonClass}
         >
@@ -391,7 +422,30 @@ const ValuesForm: React.FC<{ values: RecognitionValue[] }> = ({ values }) => {
 
 // ---- The page ---------------------------------------------------------------------------------------
 
-type Section = 'reports' | 'numbers' | 'rules' | 'values';
+type Section = ProgrammeSection;
+
+/**
+ * The owner's short tour (tour/OwnerTour.tsx): the first time they open the page, or when asked from the
+ * «؟» of «سپاس». Leaving the page pauses it; it counts as unsaved work while it is on screen.
+ */
+function useOwnerTour() {
+  const tour = useTour();
+  useEffect(() => {
+    void loadTutorialProgress();
+    const unsaved = addUnsavedCheck(() => tourState().active !== null);
+    return () => {
+      unsaved();
+      pauseTour();
+    };
+  }, []);
+  useEffect(() => {
+    if (!tour.loaded || tour.active) return;
+    if (tour.ownerAsked || !tour.progress.owner) {
+      askOwnerTour(false);
+      startTour('owner', 0);
+    }
+  }, [tour.loaded, tour.active, tour.ownerAsked, tour.progress.owner]);
+}
 
 /**
  * «برنامهٔ سپاس»: the page of whoever looks after «سپاس» (permission `recognition.manage`). The reports
@@ -402,6 +456,8 @@ export const ProgrammePage: React.FC = () => {
   const { reports, reportsLoaded, settings } = useProgramme();
   const { appSettings } = usePortal();
   const [section, setSection] = useState<Section | null>(null);
+  const fx = useEffectsLevel();
+  useOwnerTour();
 
   // The reports are kept fresh for the menu's badge already (useOpenReports); the settings are loaded
   // here, and again when somebody else saved them (the portal's settings change with them).
@@ -434,6 +490,7 @@ export const ProgrammePage: React.FC = () => {
             key={s.id}
             type="button"
             role="tab"
+            data-tour={`prog-${s.id}`}
             aria-selected={shown === s.id}
             onClick={() => setSection(s.id)}
             className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors ${shown === s.id ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
@@ -454,6 +511,8 @@ export const ProgrammePage: React.FC = () => {
           <SkeletonRows rows={2} tall />
         ))}
       {shown === 'values' && (settings ? <ValuesForm key={JSON.stringify(settings.values)} values={settings.values} /> : <SkeletonRows rows={2} tall />)}
+
+      <OwnerTour fx={fx} onSection={setSection} />
     </div>
   );
 };

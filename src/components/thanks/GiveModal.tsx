@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Check, Globe, HandHeart, Loader2, Lock, Send, Undo2 } from 'lucide-react';
-import { messageLength } from '../../../shared/recognition';
+import { messageLength, recognitionLimits } from '../../../shared/recognition';
 import { usePortal } from '../../context/PortalContext';
 import { errorMessage } from '../../lib/api';
 import { readDraft, useDraft } from '../../lib/drafts';
@@ -13,7 +13,7 @@ import { SearchableSelect } from '../common/SearchableSelect';
 import { Coin3D, CoinTray } from './Coin';
 import { flyCoins, useEffectsLevel } from './effects';
 import { ThanksCardFace, toneClass } from './ThanksCardFace';
-import { closeGive, giveThanks, loadColleagues, useThanks, withdrawThanks, type Colleague, type ThanksPerson } from './thanksStore';
+import { closeGive, giveThanks, loadColleagues, setGiveForm, useThanks, withdrawThanks, type Colleague, type ThanksPerson } from './thanksStore';
 
 const fa = toPersianDigits;
 
@@ -67,7 +67,7 @@ interface GiveDraft {
  */
 export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
   const { currentUser } = usePortal();
-  const { wallet } = useThanks();
+  const { wallet, touring } = useThanks();
   const fx = useEffectsLevel();
   const [colleagues, setColleagues] = useState<Colleague[] | null>(null);
   // A message that was being written and not sent (the form was closed, the page refreshed) comes back,
@@ -110,6 +110,15 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
     };
   }, []);
 
+  // The tutorial follows the form: who was chosen, which value, whether the message is long enough.
+  const formName = colleagues?.find((c) => c.id === to)?.name ?? '';
+  const formLetters = messageLength(message);
+  const formEnough = formLetters >= (wallet?.messageMin ?? Infinity);
+  useEffect(() => {
+    setGiveForm({ colleagues: colleagues?.length ?? null, to, name: formName, valueId, letters: formLetters, enough: formEnough, restored: Boolean(restored) });
+  }, [colleagues, to, formName, valueId, formLetters, formEnough, restored]);
+  useEffect(() => () => setGiveForm(null), []);
+
   if (!wallet || !currentUser) return null;
 
   const me: ThanksPerson = {
@@ -133,11 +142,11 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
 
   const blocked =
     wallet.left <= 0
-      ? 'سهمیهٔ این ماه شما تمام شده است؛ اول ماه بعد سکه‌های تازه می‌رسد.'
+      ? recognitionLimits.monthDone()
       : dayDone
-        ? `امروز ${fa(wallet.rules.dailyMax)} قدردانی نوشته‌اید؛ فردا دوباره می‌توانید.`
+        ? recognitionLimits.daily(wallet.rules.dailyMax)
         : person && room <= 0
-          ? `این ماه به سقف ${fa(wallet.rules.perPersonMax)} سکه برای ${person.name} رسیده‌اید.`
+          ? recognitionLimits.perPerson(wallet.rules.perPersonMax, person.name)
           : null;
   const canSend = Boolean(person && chosen !== null && value && enough && !blocked && !busy);
 
@@ -146,7 +155,7 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
     setBusy(true);
     // Where the lifted coins are now; once the wallet answers they are no longer in it.
     const lifted = [...(trayRef.current?.querySelectorAll('.sp-disc.is-picked') ?? [])].map((el) => el.getBoundingClientRect());
-    const sent = await giveThanks({ to: person.id, amount: chosen, valueId: value.id, message: message.trim(), isPublic });
+    const sent = await giveThanks({ to: person.id, name: person.name, amount: chosen, valueId: value.id, message: message.trim(), isPublic });
     if (!sent) {
       setBusy(false);
       return;
@@ -160,7 +169,8 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
       await wait(fx === 'full' ? 520 : 320);
     }
     closeGive();
-    sentToast(sent.id, person.name, wallet.undoMs);
+    // During the tutorial its own step shows the way back, on the «سپاس» page.
+    if (!touring) sentToast(sent.id, person.name, wallet.undoMs);
   };
 
   // The card leans towards the mouse, and a light follows it.
@@ -202,7 +212,7 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
           <button type="button" onClick={closeGive} className={secondaryButtonClass}>
             انصراف
           </button>
-          <button type="button" onClick={() => void send()} disabled={!canSend} className={primaryButtonClass}>
+          <button type="button" onClick={() => void send()} disabled={!canSend} className={primaryButtonClass} data-tour="give-send">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             بفرست
           </button>
@@ -252,7 +262,7 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
 
         <div className="order-2 lg:order-1 space-y-4 min-w-0">
           {restored && !sent && <DraftNote onDiscard={startOver}>قدردانی‌ای که قبلاً می‌نوشتید و فرستاده نشده بود، برگردانده شد.</DraftNote>}
-          <div>
+          <div data-tour="give-to">
             <label htmlFor="thanks-to" className={labelClass}>
               از چه کسی قدردانی می‌کنید؟
             </label>
@@ -279,7 +289,7 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
             )}
           </div>
 
-          <div>
+          <div data-tour="give-amount">
             <p className={labelClass} id="thanks-amount-label">
               چند سکه؟
             </p>
@@ -305,27 +315,35 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
             {blocked && <p className="mt-2 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">{blocked}</p>}
           </div>
 
-          <div>
+          <div data-tour="give-values">
             <p className={labelClass} id="thanks-value-label">
               برای کدام ارزش؟
             </p>
-            <div className="flex flex-wrap gap-2" role="group" aria-labelledby="thanks-value-label">
+            {/* Each value with its line from «برنامهٔ سپاس», so it is clear which one fits the work. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="group" aria-labelledby="thanks-value-label">
               {wallet.values.map((v) => (
                 <button
                   key={v.id}
                   type="button"
-                  className={`sp-value ${toneClass(v.tone)} px-3.5 py-1.5 rounded-full text-xs font-bold`}
+                  className={`sp-value sp-value-card ${toneClass(v.tone)} px-3.5 py-2 rounded-2xl text-right`}
                   aria-pressed={valueId === v.id}
+                  aria-label={v.label}
+                  aria-describedby={v.description ? `thanks-value-${v.id}` : undefined}
                   disabled={busy}
                   onClick={() => setValueId(v.id)}
                 >
-                  {v.label}
+                  <span className="block text-xs font-bold">{v.label}</span>
+                  {v.description && (
+                    <span id={`thanks-value-${v.id}`} className="block text-xs font-normal opacity-80 leading-relaxed mt-0.5">
+                      {v.description}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
           </div>
 
-          <div>
+          <div data-tour="give-message">
             <label htmlFor="thanks-message" className={labelClass}>
               پیام تشکر
             </label>
@@ -342,17 +360,17 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
             <p className={`mt-1 text-xs flex items-center gap-1 ${enough ? 'text-emerald-700' : 'text-faint'}`} aria-live="polite">
               {enough ? (
                 <>
-                  <Check className="w-3.5 h-3.5" /> خوب است.
+                  <Check className="w-3.5 h-3.5" /> کافی است.
                 </>
               ) : (
                 <>
-                  حداقل {fa(wallet.messageMin)} حرف ({fa(letters)} از {fa(wallet.messageMin)})
+                  {fa(letters)} از {fa(wallet.messageMin)} حرف
                 </>
               )}
             </p>
           </div>
 
-          <div>
+          <div data-tour="give-visibility">
             <p className={labelClass} id="thanks-visibility-label">
               چه کسی این قدردانی را ببیند؟
             </p>
