@@ -319,7 +319,7 @@ test.describe('«سپاس»: the tutorials', () => {
     await expect(first).toHaveValue('کار را همراه دیگران پیش برد، نه تنها.');
     await first.fill('گره کار دیگران را هم باز کرد.');
     await page.getByRole('button', { name: 'ذخیرهٔ ارزش‌ها' }).click();
-    await expect(page.getByText('ارزش‌ها ذخیره شد.')).toBeVisible();
+    await expect(page.getByText('ارزش‌ها ذخیره شد.').last()).toBeVisible();
     await page.goto('/#thanks');
     await page.getByRole('button', { name: 'قدردانی کن' }).first().click();
     const form = page.getByRole('dialog', { name: 'قدردانی از یک همکار' });
@@ -334,7 +334,7 @@ test.describe('«سپاس»: the tutorials', () => {
     await page.getByRole('tab', { name: 'ارزش‌ها' }).click();
     await page.getByRole('button', { name: 'پنج ارزش نمونه' }).click();
     await page.getByRole('button', { name: 'ذخیرهٔ ارزش‌ها' }).click();
-    await expect(page.getByText('ارزش‌ها ذخیره شد.')).toBeVisible();
+    await expect(page.getByText('ارزش‌ها ذخیره شد.').last()).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'توضیح ارزش ۱' })).toHaveValue('کار را همراه دیگران پیش برد، نه تنها.');
 
     // From «؟» on the «سپاس» page, the owner's tour again.

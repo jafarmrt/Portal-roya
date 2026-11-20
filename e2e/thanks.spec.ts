@@ -116,6 +116,8 @@ test.describe('«سپاس»: giving, receiving and the wall', () => {
     const negarContext = await browser.newContext();
     await negarContext.request.post('/api/auth/login', { data: { username: 'wall.negar', password: created.temporaryPassword } });
     await negarContext.request.post('/api/auth/change-password', { data: { currentPassword: created.temporaryPassword, newPassword: 'Negar-wall-123' } });
+    // She has seen the tutorials (e2e/thanks-tutorial.spec.ts tries them).
+    await negarContext.request.put('/api/recognitions/tutorial', { data: { main: { state: 'done', step: 12 }, received: 'done', missions: { hidden: true } } });
     const negar = await negarContext.newPage();
 
     const me = (await (await admin.page.request.get('/api/auth/me')).json()).user.id as string;
