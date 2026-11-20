@@ -221,6 +221,10 @@ test.describe('«سپاس»: giving, receiving and the wall', () => {
     await page.getByRole('radiogroup', { name: 'رنگ کیفیت' }).getByRole('radio', { name: 'آلویی' }).click();
     await page.getByRole('button', { name: 'ذخیرهٔ ارزش‌ها' }).click();
     await expect(page.getByText('ارزش‌ها ذخیره شد.')).toBeVisible();
+    // Sara joined today: on the month's last day her newcomer's share is one coin, already given above,
+    // and the form would not open. Here she has been with us for long, with a whole month's coins.
+    const saraId = (await (await sara.page.request.get('/api/auth/me')).json()).user.id as string;
+    await sql(`update employees set created_at = '2024-01-01' where id = $1`, [saraId]);
     await sara.page.goto('/#thanks');
     await sara.page.getByRole('button', { name: 'قدردانی کن' }).first().click();
     await expect(sara.page.getByRole('dialog').getByRole('button', { name: 'کیفیت' })).toBeVisible();

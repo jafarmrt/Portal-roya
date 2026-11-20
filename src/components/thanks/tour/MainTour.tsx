@@ -23,7 +23,7 @@ export function resumeStep(step: number) {
 const cannotGive = (wallet: Wallet) => (wallet.left <= 0 ? 'coins' : wallet.writtenToday >= wallet.rules.dailyMax ? 'daily' : null);
 
 export const MainTour: React.FC<{ wallet: Wallet; fx: EffectsLevel }> = ({ wallet, fx }) => {
-  const { active, askingSkip, missions } = useTour();
+  const { active, askingSkip } = useTour();
   const { giving, form, lastSent, wall, given } = useThanks();
   const step = active?.kind === 'main' ? active.step : -1;
   const name = form?.name || lastSent?.name || 'همکارتان';
@@ -262,7 +262,8 @@ export const MainTour: React.FC<{ wallet: Wallet; fx: EffectsLevel }> = ({ walle
         </TourBox>
       );
     default: {
-      const sent = Boolean((lastSent && !lastSent.withdrawn) || missions?.sent);
+      // Sent during this tour (one sent before it, or taken back at step 9, does not count).
+      const sent = Boolean(lastSent && !lastSent.withdrawn);
       return (
         <TourBox
           fx={fx}
