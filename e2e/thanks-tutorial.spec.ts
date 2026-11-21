@@ -310,6 +310,9 @@ test.describe('«سپاس»: the tutorials', () => {
     await expect(box(page, 'گزارش‌ها')).toContainText('دیدم، بماند');
     await box(page, 'گزارش‌ها').getByRole('button', { name: 'بعدی' }).click();
     await box(page, 'گزارش ماه').getByRole('button', { name: 'بعدی' }).click();
+    await expect(page.getByRole('tab', { name: 'انصاف' })).toHaveAttribute('aria-selected', 'true');
+    await expect(box(page, 'انصاف')).toContainText('فقط برای شماست');
+    await box(page, 'انصاف').getByRole('button', { name: 'بعدی' }).click();
     await expect(page.getByRole('tab', { name: 'قواعد سکه' })).toHaveAttribute('aria-selected', 'true');
     await box(page, 'قواعد سکه').getByRole('button', { name: 'بعدی' }).click();
     await expect(page.getByRole('tab', { name: 'ارزش‌ها' })).toHaveAttribute('aria-selected', 'true');

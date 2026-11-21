@@ -1,0 +1,1 @@
+ALTER TABLE "settings" ADD COLUMN "recognition_flags_seen" jsonb DEFAULT '[]'::jsonb NOT NULL;

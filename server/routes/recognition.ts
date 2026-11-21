@@ -44,6 +44,7 @@ import {
   parseCursor,
   recognisable,
   profileBadges,
+  recognitionFairness,
   recognitionRecap,
   recognitionTreasury,
   recognitionReport,
@@ -52,6 +53,7 @@ import {
   recognitionWall,
   reportRecognition,
   reverseRecognition,
+  setRecognitionFlagSeen,
   setRecognitionPreference,
   setRecognitionReminders,
   setRecognitionTutorial,
@@ -216,6 +218,27 @@ recognitionRouter.put(
   route(async (req, res) => {
     const { on } = parse(z.object({ on: z.boolean() }), req.body);
     res.json(await setRecognitionReminders(currentUser(req), on));
+  }),
+);
+
+/** «انصاف»: who went unthanked, unit to unit, «up», and the flags. Names, so the owner's alone (2.6). */
+recognitionRouter.get(
+  '/recognitions/fairness',
+  requirePermission('recognition.manage'),
+  route(async (_req, res) => {
+    res.json(await recognitionFairness());
+  }),
+);
+
+/** «دیدم» on a fairness flag. */
+recognitionRouter.post(
+  '/recognitions/fairness/seen',
+  requirePermission('recognition.manage'),
+  route(async (req, res) => {
+    const { key } = parse(z.object({ key: z.string().trim().min(1).max(200) }), req.body);
+    await setRecognitionFlagSeen(key);
+    await audit(currentUser(req), { action: 'update', entity: 'settings', title: 'انصاف «سپاس»', detail: 'یک علامت دیده شد' });
+    res.json(await recognitionFairness());
   }),
 );
 

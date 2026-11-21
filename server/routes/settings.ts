@@ -61,6 +61,8 @@ export function publicSettings(row: typeof settings.$inferSelect, viewer: Sessio
     vapidPrivateKey: _vapidPrivate,
     recognitionRules: _recognitionRules,
     recognitionValues: _recognitionValues,
+    // The owner's fairness flags set aside: theirs, not every page's.
+    recognitionFlagsSeen: _recognitionFlagsSeen,
     ...rest
   } = row;
   const banner = rest.banner && new Date(rest.banner.expiresAt) > new Date() ? rest.banner : null;

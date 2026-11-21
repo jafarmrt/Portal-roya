@@ -193,4 +193,43 @@ test.describe('«سپاس», phase 2: preference and entry points', () => {
     await expect(yasi.page.getByRole('list', { name: 'نشان‌های سپاس' })).toContainText('پل');
     await expect(yasi.page.getByRole('list', { name: 'نشان‌های سپاس' })).toContainText('چشم باز');
   });
+
+  test('the same words to a third colleague: a gentle note in the form, and a flag for the owner', async ({ browser }) => {
+    const month = moment().utcOffset(210).format('jYYYY/jMM');
+    const words = 'ممنون که دیروز با حوصله گزارش فصل را با من مرور کردی.';
+    const created = await sql(`select id from employees where username in ('p2.b0', 'p2.b1')`);
+    for (const [i, to] of created.map((r) => r.id as string).entries()) {
+      await sql(
+        `insert into recognitions (id, from_id, to_id, amount, month, value_id, value_label, value_tone, message, is_public, deliver_at, delivered_at, created_at)
+         values ($1, $2, $3, 1, $4, 'teamwork', 'همکاری', 'sage', $5, false, now(), now(), now())`,
+        [`p2-same-${i}-${Date.now()}`, parsa.id, to, month, words],
+      );
+    }
+    await parsa.page.goto('/#thanks');
+    // A new hash does not load the page again: what was just written to the database comes with a reload.
+    await parsa.page.reload();
+    await parsa.page.getByRole('button', { name: 'قدردانی کن' }).first().click();
+    const dialog = form(parsa.page);
+    await dialog.locator('#thanks-to').click();
+    await parsa.page.getByRole('option', { name: /یاسمن خصوصی/ }).click();
+    await dialog.locator('#thanks-message').fill(words);
+    await expect(dialog.getByRole('note').filter({ hasText: 'این متن را این ماه برای همکار دیگری هم نوشته‌اید' })).toContainText('مخصوص یاسمن خصوصی');
+    // It does not stop the recognition.
+    await dialog.getByRole('button', { name: 'همکاری' }).click();
+    await dialog.getByRole('button', { name: 'بفرست' }).click();
+    await expect(dialog).toBeHidden();
+
+    // The owner (the administrator here) sees one flag, without the words.
+    const admin = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const page = await admin.newPage();
+    await page.goto('/#thanks-admin');
+    await page.getByRole('tab', { name: 'انصاف' }).click();
+    await expect(page.getByRole('heading', { name: 'سه ماه بدون قدردانی' })).toBeVisible();
+    const flag = page.getByRole('listitem').filter({ hasText: 'پارسا قدردان' }).filter({ hasText: 'یک متن را برای ۳ همکار' });
+    await expect(flag).toBeVisible();
+    await expect(page.getByRole('main')).not.toContainText('گزارش فصل');
+    await flag.getByRole('button', { name: 'دیدم' }).click();
+    await expect(flag).toContainText('دیده شد');
+    await admin.close();
+  });
 });

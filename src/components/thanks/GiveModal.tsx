@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Check, Globe, HandHeart, Loader2, Lock, Send, Undo2 } from 'lucide-react';
-import { messageLength, recognitionLimits } from '../../../shared/recognition';
+import { messageLength, recognitionLimits, recognitionMonth } from '../../../shared/recognition';
 import { usePortal } from '../../context/PortalContext';
 import { errorMessage } from '../../lib/api';
 import { readDraft, useDraft } from '../../lib/drafts';
@@ -69,7 +69,7 @@ interface GiveDraft {
  */
 export const GiveModal: React.FC<{ to?: string; suggestedValue?: string }> = ({ to: initialTo, suggestedValue }) => {
   const { currentUser } = usePortal();
-  const { wallet, touring } = useThanks();
+  const { wallet, touring, given } = useThanks();
   const fx = useEffectsLevel();
   const [colleagues, setColleagues] = useState<Colleague[] | null>(null);
   // A message that was being written and not sent (the form was closed, the page refreshed) comes back,
@@ -147,6 +147,11 @@ export const GiveModal: React.FC<{ to?: string; suggestedValue?: string }> = ({ 
     department: currentUser.department,
   };
   const person = colleagues?.find((c) => c.id === to) ?? null;
+  // The same words already sent to someone else this month (2.6): a gentle note, never a block.
+  const words = message.replace(/\s+/g, ' ').trim();
+  const repeated =
+    words.length >= wallet.messageMin &&
+    given.some((g) => !g.joinOf && g.to.id !== to && recognitionMonth(g.at) === wallet.month && g.message.replace(/\s+/g, ' ').trim() === words);
   const value = wallet.values.find((v) => v.id === valueId) ?? null;
   // What can still go to this colleague: the month's rest, and the month's limit for one person.
   const room = wallet.rules.perPersonMax - (person?.givenThisMonth ?? 0);
@@ -386,6 +391,11 @@ export const GiveModal: React.FC<{ to?: string; suggestedValue?: string }> = ({ 
                 </>
               )}
             </p>
+            {repeated && person && (
+              <p className="mt-1 text-xs text-amber-800" role="note">
+                این متن را این ماه برای همکار دیگری هم نوشته‌اید. شاید بخواهید آن را مخصوص {person.name} کنید.
+              </p>
+            )}
           </div>
 
           <div data-tour="give-visibility">

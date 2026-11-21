@@ -24,6 +24,7 @@ import { idsWithPermission } from './roles.js';
 import { audienceOf } from './routes/news.js';
 import { fullName } from './serializers.js';
 import { kudosCount } from './routes/kudos.js';
+import { recognitionSummary } from './recognition.js';
 
 type Person = typeof employees.$inferSelect;
 
@@ -322,6 +323,7 @@ export async function monthlySummary(month: string, now = new Date()): Promise<M
     },
     idle: (await idlePeople(now)).length,
     kudos: await kudosCount(jalaliToDate(from)!, new Date(jalaliToDate(to)!.getTime() + 24 * 60 * MINUTE_MS)),
+    recognition: await recognitionSummary(month, now),
   };
 }
 
