@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BellRing, ChevronLeft, HandHeart, Inbox, Newspaper, Send, Sparkles } from 'lucide-react';
+import { BellRing, ChevronLeft, Globe, HandHeart, Inbox, Newspaper, Send, Sparkles } from 'lucide-react';
 import { THANKS_EVENT, usePortal } from '../../context/PortalContext';
+import type { RecognitionPreference } from '../../../shared/recognition';
 import { addUnsavedCheck } from '../../lib/unsavedWork';
 import { timeAgo, toPersianDigits } from '../../lib/jalali';
 import { PageHeader } from '../common/PageHeader';
@@ -21,6 +22,7 @@ import {
   loadMoreThanks,
   openGive,
   openReveal,
+  setThanksPreference,
   setThanksReminders,
   setTouring,
   useThanks,
@@ -303,6 +305,19 @@ export const ThanksPage: React.FC = () => {
               ))}
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              {/* How they would rather be thanked: the default of others' forms, nothing more (2.1). */}
+              <label className="flex items-center gap-2 text-xs text-muted" title="همکاران موقع قدردانی از شما این را می‌بینند و پیش‌فرض فرمشان می‌شود؛ انتخاب آخر با خودشان است.">
+                <Globe className="w-3.5 h-3.5" /> قدردانی از من را
+                <select
+                  value={wallet.preference}
+                  onChange={(e) => void setThanksPreference(e.target.value as RecognitionPreference)}
+                  className="px-2 py-1 rounded-lg border border-line-strong bg-white text-xs text-ink"
+                >
+                  <option value="any">فرقی نمی‌کند</option>
+                  <option value="public">روی دیوار ترجیح می‌دهم</option>
+                  <option value="private">خصوصی ترجیح می‌دهم</option>
+                </select>
+              </label>
               <label className="flex items-center gap-2 text-xs text-muted cursor-pointer" title="یکی وسط ماه و یکی سه روز مانده به آخر ماه، فقط اگر سکهٔ نبخشیده داشته باشید">
                 <input type="checkbox" checked={wallet.reminders} onChange={(e) => void setThanksReminders(e.target.checked)} className="accent-red-600" />
                 <BellRing className="w-3.5 h-3.5" /> یادآوری ماهانه

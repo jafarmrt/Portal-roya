@@ -59,13 +59,15 @@ interface GiveDraft {
   valueId: string;
   message: string;
   isPublic: boolean;
+  /** The sender chose who sees it themselves; a colleague's preference no longer changes it. */
+  visibilityChosen?: boolean;
 }
 
 /**
  * «قدردانی کن»: to whom, how many coins, for which value, and the message. Next to the form the month's
  * wallet lifts the coins being given and a card shows the recognition as the colleague will get it.
  */
-export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
+export const GiveModal: React.FC<{ to?: string; suggestedValue?: string }> = ({ to: initialTo, suggestedValue }) => {
   const { currentUser } = usePortal();
   const { wallet, touring } = useThanks();
   const fx = useEffectsLevel();
@@ -78,16 +80,26 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
   });
   const [to, setTo] = useState(initialTo ?? (typeof restored?.to === 'string' ? restored.to : ''));
   const [amount, setAmount] = useState<number | null>(typeof restored?.amount === 'number' ? restored.amount : null);
-  const [valueId, setValueId] = useState(typeof restored?.valueId === 'string' ? restored.valueId : '');
+  // A value suggested where the form was opened from (a referral task done, a course held), if there is one like it.
+  const [valueId, setValueId] = useState(() =>
+    typeof restored?.valueId === 'string' && restored.valueId !== ''
+      ? restored.valueId
+      : suggestedValue && wallet?.values.some((v) => v.id === suggestedValue)
+        ? suggestedValue
+        : '',
+  );
   const [message, setMessage] = useState(restored?.message ?? '');
   const [isPublic, setIsPublic] = useState(restored?.isPublic !== false);
-  const draft = useDraft(currentUser?.id, DRAFT_NAME, { to, amount, valueId, message, isPublic }, message.trim() !== '');
+  // Once the sender has chosen who sees it themselves, a colleague's preference no longer changes it.
+  const [visibilityChosen, setVisibilityChosen] = useState(restored?.visibilityChosen === true);
+  const draft = useDraft(currentUser?.id, DRAFT_NAME, { to, amount, valueId, message, isPublic, visibilityChosen }, message.trim() !== '');
   const startOver = () => {
     setTo(initialTo ?? '');
     setAmount(null);
     setValueId('');
     setMessage('');
     setIsPublic(true);
+    setVisibilityChosen(false);
     setRestored(null);
   };
   const [busy, setBusy] = useState(false);
@@ -109,6 +121,12 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
       alive = false;
     };
   }, []);
+
+  // How the chosen colleague would rather be thanked sets the default (2.1); the sender still chooses.
+  const prefers = colleagues?.find((c) => c.id === to)?.prefers ?? 'any';
+  useEffect(() => {
+    if (!visibilityChosen && to) setIsPublic(prefers !== 'private');
+  }, [to, prefers, visibilityChosen]);
 
   // The tutorial follows the form: who was chosen, which value, whether the message is long enough.
   const formName = colleagues?.find((c) => c.id === to)?.name ?? '';
@@ -384,7 +402,10 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
                   type="button"
                   aria-pressed={isPublic === choice.on}
                   disabled={busy}
-                  onClick={() => setIsPublic(choice.on)}
+                  onClick={() => {
+                    setVisibilityChosen(true);
+                    setIsPublic(choice.on);
+                  }}
                   className={`flex items-start gap-2 p-3 rounded-2xl border text-right transition-colors ${
                     isPublic === choice.on ? 'border-red-600 bg-red-50 text-red-900' : 'border-line-strong bg-white text-ink-soft hover:bg-surface'
                   }`}
@@ -397,6 +418,11 @@ export const GiveModal: React.FC<{ to?: string }> = ({ to: initialTo }) => {
                 </button>
               ))}
             </div>
+            {person && prefers !== 'any' && (
+              <p className="mt-2 text-xs text-muted" role="note">
+                {prefers === 'private' ? `${person.name} ترجیح می‌دهد قدردانی‌اش خصوصی بماند.` : `${person.name} دوست دارد قدردانی‌اش روی دیوار بیاید.`}
+              </p>
+            )}
           </div>
         </div>
       </div>

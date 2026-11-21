@@ -1,6 +1,7 @@
-import { useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import toast from 'react-hot-toast';
 import type { ReactionCount } from '../../../shared/reactions';
+import type { RecognitionPreference } from '../../../shared/recognition';
 import { api, errorMessage } from '../../lib/api';
 
 // «سپاس» on the client: the month's wallet, the colleague's own recognitions and the wall, kept in one
@@ -44,6 +45,8 @@ export interface Wallet {
   /** Coins of the recognitions already opened, and how many still wait sealed. */
   received: { coins: number; sealed: number };
   /** The two monthly reminders (the middle of the month, three days before it ends) are on. */
+  /** How the colleague would rather be thanked by others (2.1). */
+  preference: RecognitionPreference;
   reminders: boolean;
 }
 
@@ -96,6 +99,8 @@ export interface GivenCard {
 
 export interface Colleague extends ThanksPerson {
   givenThisMonth: number;
+  /** How they would rather be thanked; the form's default for them (2.1). */
+  prefers?: RecognitionPreference;
 }
 
 /** A public recognition on the wall. It never carries an amount. */
@@ -146,7 +151,8 @@ interface State extends Mine {
   wallet: Wallet | null;
   loaded: boolean;
   /** The give dialog is open, perhaps for one colleague already. */
-  giving: { to?: string } | null;
+  /** The give form: for whom, and a value to suggest (an entry point beside the work itself, 2.2). */
+  giving: { to?: string; valueId?: string } | null;
   /** The recognition whose envelope is on screen. */
   revealing: string | null;
   wall: Wall;
@@ -158,6 +164,8 @@ interface State extends Mine {
   tabRequest: { tab: ThanksTab; n: number } | null;
   /** A tutorial is on screen: it shows «پس گرفتن» itself, so the form does not add its own message. */
   touring: boolean;
+  /** Who can be recognised now (they see «سپاس» too), for the buttons beside the work itself (2.2). */
+  thankable: { ids: Set<string>; at: number } | null;
 }
 
 export type ThanksTab = 'wall' | 'received' | 'given';
@@ -190,6 +198,7 @@ let state: State = {
   lastSent: null,
   tabRequest: null,
   touring: false,
+  thankable: null,
 };
 
 const listeners = new Set<() => void>();
@@ -287,7 +296,7 @@ export async function loadMoreWall() {
 /** Forgets everything (signing out, or the part was switched off). */
 export function resetThanks() {
   wallRequest++;
-  set({ wallet: null, received: [], receivedNext: null, given: [], givenNext: null, loaded: false, giving: null, revealing: null, wall: emptyWall(), form: null, lastSent: null, tabRequest: null });
+  set({ wallet: null, received: [], receivedNext: null, given: [], givenNext: null, loaded: false, giving: null, revealing: null, wall: emptyWall(), form: null, lastSent: null, tabRequest: null, thankable: null });
 }
 
 export async function loadMoreThanks(list: 'received' | 'given') {
@@ -302,7 +311,7 @@ export async function loadMoreThanks(list: 'received' | 'given') {
   }
 }
 
-export const openGive = (to?: string) => set({ giving: { to } });
+export const openGive = (to?: string, options: { valueId?: string } = {}) => set({ giving: { to, valueId: options.valueId } });
 export const closeGive = () => set({ giving: null, form: null });
 export const setGiveForm = (form: GiveFormState | null) => set({ form });
 export const showThanksTab = (tab: ThanksTab) => set({ tabRequest: { tab, n: (state.tabRequest?.n ?? 0) + 1 } });
@@ -313,7 +322,36 @@ export const forgetLastSent = () => set({ lastSent: null });
 export const openReveal = (id: string) => set({ revealing: id });
 export const closeReveal = () => set({ revealing: null });
 
-export const loadColleagues = () => api.get<Colleague[]>('/api/recognitions/colleagues');
+export const loadColleagues = () =>
+  api.get<Colleague[]>('/api/recognitions/colleagues').then((list) => {
+    set({ thankable: { ids: new Set(list.map((c) => c.id)), at: Date.now() } });
+    return list;
+  });
+
+/** Who can be recognised changes rarely (the pilot group, a new account): asked again after a minute. */
+let askingThankable: Promise<unknown> | null = null;
+function ensureThankable() {
+  if (askingThankable || (state.thankable && Date.now() - state.thankable.at < 60_000)) return;
+  askingThankable = loadColleagues()
+    .catch(() => undefined)
+    .finally(() => {
+      askingThankable = null;
+    });
+}
+
+/**
+ * Whether a «قدردانی کن» beside the work itself (a referral task done, a course held, an online
+ * colleague) should show for this colleague: «سپاس» is on for both, and this month's coins are not all
+ * given yet. Null or one's own id: never.
+ */
+export function useCanThank(id: string | null | undefined, meId?: string | null) {
+  const { wallet, thankable } = useThanks();
+  const on = wallet !== null;
+  useEffect(() => {
+    if (on) ensureThankable();
+  }, [on]);
+  return Boolean(id && id !== meId && wallet && wallet.left > 0 && thankable?.ids.has(id));
+}
 
 export interface GiveInput {
   to: string;
@@ -355,6 +393,18 @@ export async function withdrawThanks(id: string) {
 }
 
 /** Switches the colleague's two monthly reminders on or off. */
+/** «قدردانی از من را…»: how the colleague would rather be thanked by others. */
+export async function setThanksPreference(preference: RecognitionPreference) {
+  if (state.wallet) set({ wallet: { ...state.wallet, preference } });
+  try {
+    await api.put('/api/recognitions/preference', { preference });
+    toast.success('ذخیره شد. همکاران این را موقع قدردانی از شما می‌بینند.');
+  } catch (err) {
+    toast.error(errorMessage(err));
+    void loadThanks();
+  }
+}
+
 export async function setThanksReminders(on: boolean) {
   if (state.wallet) set({ wallet: { ...state.wallet, reminders: on } });
   try {

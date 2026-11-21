@@ -6,6 +6,7 @@ import { normalizeForSearch } from '../../lib/search';
 import { featureInPreview } from '../../lib/features';
 import { toPersianDigits } from '../../lib/jalali';
 import { Avatar } from '../common/Avatar';
+import { ThanksButton } from '../thanks/ThanksButton';
 import { OnlineChoices } from './OnlineChoices';
 import { usePresence } from './usePresence';
 
@@ -189,6 +190,8 @@ export const OnlineColleaguesCard: React.FC = () => {
                     ))}
                   </div>
                 )}
+                {/* For more than an emoji: a recognition with a message and coins (2.2). */}
+                <ThanksButton to={picked.id} name={nameOf(picked)} label="قدردانی با سکهٔ سپاس" />
               </div>
             )}
           </>

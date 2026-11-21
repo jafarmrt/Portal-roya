@@ -5,6 +5,7 @@ import type { TrainingProgram } from '../../types';
 import { Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { AddTrainingModal } from './AddTrainingModal';
 import { EnrollmentsModal } from './EnrollmentsModal';
+import { ThanksButton } from '../thanks/ThanksButton';
 import { TrainingFeedbackModal } from './TrainingFeedbackModal';
 import { AddToTodosButton } from '../todos/AddToTodosButton';
 import {
@@ -264,6 +265,12 @@ export const TrainingModule: React.FC = () => {
                         <MessageSquareHeart className="w-4 h-4" />
                         {program.myFeedback ? 'نظر شما ثبت شد (تغییر نظر)' : 'دوره چطور بود؟ نظر بدهید'}
                       </button>
+                    )}
+                    {/* «سپاس» for the trainer, from those who took part (2.2). */}
+                    {currentUser && tookPart(program) && program.instructorId && (
+                      <div className="flex justify-center">
+                        <ThanksButton to={program.instructorId} name={program.instructor} valueId="learning" label="از مدرس قدردانی کنید" />
+                      </div>
                     )}
 
                     <button

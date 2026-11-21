@@ -13,6 +13,7 @@ import {
   RECOGNITION_REASON_MIN,
   RECOGNITION_REPORT_NOTE_MAX,
   RECOGNITION_TONES,
+  RECOGNITION_PREFERENCES,
   RECOGNITION_VALUE_DESCRIPTION_MAX,
   RECOGNITION_VALUE_LABEL_MAX,
   RECOGNITION_VALUES_MAX,
@@ -47,6 +48,7 @@ import {
   recognitionWall,
   reportRecognition,
   reverseRecognition,
+  setRecognitionPreference,
   setRecognitionReminders,
   setRecognitionTutorial,
   walletOf,
@@ -163,6 +165,15 @@ recognitionRouter.put(
   '/recognitions/tutorial',
   route(async (req, res) => {
     res.json({ progress: await setRecognitionTutorial(currentUser(req), parse(tutorialSchema, req.body)) });
+  }),
+);
+
+/** How the colleague would rather be thanked: only the default of the form for whoever thanks them. */
+recognitionRouter.put(
+  '/recognitions/preference',
+  route(async (req, res) => {
+    const { preference } = parse(z.object({ preference: z.enum(RECOGNITION_PREFERENCES) }), req.body);
+    res.json(await setRecognitionPreference(currentUser(req), preference));
   }),
 );
 

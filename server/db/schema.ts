@@ -16,7 +16,7 @@ import type { AboutMe } from '../../shared/aboutMe.js';
 import type { AuditAction, AuditEntity } from '../../shared/audit.js';
 import type { FeatureLaunch, FeatureState } from '../../shared/features.js';
 import type { KudosEmoji } from '../../shared/kudos.js';
-import type { RecognitionValue, StoredRecognitionRules } from '../../shared/recognition.js';
+import type { RecognitionPreference, RecognitionValue, StoredRecognitionRules } from '../../shared/recognition.js';
 import type { RecognitionTutorial } from '../../shared/recognitionTutorial.js';
 import type { MonthlySummary } from '../../shared/reports.js';
 import type { EntryKind, EventPhase, EventStatus, EventTheme, Format, IdeaKind, QuizState, RankBy, ScheduleItem, Scoring, ScreenState, StagePolicy, TieRule, WishStatus } from '../../shared/specialEvents.js';
@@ -146,6 +146,8 @@ export const employees = pgTable('employees', {
   pushMuted: text('push_muted').array().notNull().default([]),
   /** The colleague wants the two monthly reminders of «سپاس» (the middle of the month, three days before its end). */
   recognitionReminders: boolean('recognition_reminders').notNull().default(true),
+  /** «قدردانی از من را…»: 'any', 'public' or 'private'; only the give form's default (shared/recognition.ts). */
+  recognitionPreference: text('recognition_preference').$type<RecognitionPreference>().notNull().default('any'),
   /** How far the colleague got in the tutorials of «سپاس» (shared/recognitionTutorial.ts), kept here so a phone and a computer agree. */
   /**
    * The first moment the colleague could see «سپاس» (noted by `markRecognitionStarts`; never moved later).

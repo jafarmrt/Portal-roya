@@ -1,0 +1,1 @@
+ALTER TABLE "employees" ADD COLUMN "recognition_preference" text DEFAULT 'any' NOT NULL;
