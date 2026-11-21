@@ -6,12 +6,12 @@ import { askSkip, endTour, goToStep, useTour } from './tourStore';
 // The short tour of «برنامهٔ سپاس» for whoever looks after the programme (plan: ب۲), the first time
 // they open the page, or from the «؟» menu of «سپاس». It works while «سپاس» is still switched off.
 
-export type ProgrammeSection = 'reports' | 'numbers' | 'rules' | 'values';
+export type ProgrammeSection = 'reports' | 'numbers' | 'fairness' | 'rules' | 'values';
 
 const STEPS: { section?: ProgrammeSection; title: string; text: React.ReactNode }[] = [
   {
     title: 'برنامهٔ سپاس در دست شماست',
-    text: <p>اینجا چهار بخش دارد: گزارش‌ها، گزارش ماه، قواعد سکه و ارزش‌ها. حتی وقتی «سپاس» هنوز خاموش است، می‌توانید همه‌چیز را آماده کنید.</p>,
+    text: <p>اینجا پنج بخش دارد: گزارش‌ها، گزارش ماه، انصاف، قواعد سکه و ارزش‌ها. حتی وقتی «سپاس» هنوز خاموش است، می‌توانید همه‌چیز را آماده کنید.</p>,
   },
   {
     section: 'reports',
@@ -31,6 +31,11 @@ const STEPS: { section?: ProgrammeSection; title: string; text: React.ReactNode 
     section: 'numbers',
     title: 'گزارش ماه',
     text: <p>هر ماه چند نفر قدردانی کردند و گرفتند، به تفکیک واحد و ارزش، و چند سکه بخشیده شد یا سوخت. فقط شمارش است: نه نامی، نه مقدار هر نفر، نه رتبه‌بندی‌ای.</p>,
+  },
+  {
+    section: 'fairness',
+    title: 'انصاف',
+    text: <p>کسانی که سه ماه قدردانی‌ای نگرفته‌اند، قدردانی میان واحدها و «رو به بالا»، و علامت‌ها (تبادل دوطرفهٔ پیاپی، متن تکراری). این بخش نام دارد و فقط برای شماست، نه مدیران واحدها؛ برای دیدن کار دیده‌نشده است، نه قضاوت.</p>,
   },
   {
     section: 'rules',

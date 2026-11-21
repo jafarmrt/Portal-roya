@@ -103,6 +103,11 @@ const SummaryModal: React.FC<{ summary: StoredMonthlySummary; onClose: () => voi
       <dl>
         <Row label={`همکارانی که ${toPersianDigits(IDLE_DAYS)} روز سر نزده بودند`}>{toPersianDigits(s.idle)}</Row>
         {s.kudos !== undefined && <Row label="ایموجی‌هایی که همکاران برای هم فرستادند">{toPersianDigits(s.kudos)}</Row>}
+        {s.recognition && (
+          <Row label="«سپاس»">
+            {toPersianDigits(s.recognition.recognitions)} قدردانی؛ {formatPercent(s.recognition.giversShare)} همکاران دست‌کم یک قدردانی کردند
+          </Row>
+        )}
       </dl>
     </div>
   </Modal>

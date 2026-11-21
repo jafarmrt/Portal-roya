@@ -739,6 +739,8 @@ export const settings = pgTable('settings', {
   recognitionRules: jsonb('recognition_rules').$type<StoredRecognitionRules | null>(),
   // The organisation's values a recognition is given for ([] = the built-in five).
   recognitionValues: jsonb('recognition_values').$type<RecognitionValue[]>().notNull().default([]),
+  /** Fairness flags the programme's owner has looked at («دیدم») (phase 2, 2.6). */
+  recognitionFlagsSeen: jsonb('recognition_flags_seen').$type<string[]>().notNull().default([]),
 });
 
 /** Who created, changed or deleted what in the portal's content, accounts and settings, for the admin. */

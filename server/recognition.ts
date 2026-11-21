@@ -1,7 +1,7 @@
 import moment from 'moment-jalaali';
 import { and, count, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
-import { featureVisible } from '../shared/features.js';
+import { featureState, featureVisible } from '../shared/features.js';
 import { jalaliMonthLabel, toPersianDigits } from '../shared/jalali.js';
 import type { ReactionCount } from '../shared/reactions.js';
 import {
@@ -39,7 +39,7 @@ import {
 import { audit } from './audit.js';
 import type { SessionUser } from './auth.js';
 import { db } from './db/index.js';
-import { employees, reactions as reactionRows, recognitionReminders, recognitions } from './db/schema.js';
+import { departmentPages, employees, reactions as reactionRows, recognitionReminders, recognitions, settings } from './db/schema.js';
 import { broadcastChange, signalUser } from './events.js';
 import { featureConfig } from './features.js';
 import { idsWithPermission } from './roles.js';
@@ -1222,4 +1222,150 @@ export async function recognitionTreasury(viewer: Pick<Viewer, 'id'>, now = new 
     recaps: months.filter((mm) => mm !== current && ((receivedIn.get(mm) ?? 0) > 0 || (givenIn.get(mm) ?? 0) > 0)).reverse(),
     ...(await recognitionBadges(viewer)),
   };
+}
+
+// ---- Fairness and flags, for the programme's owner (phase 2, 2.6) --------------------------------------
+
+const DAY = 24 * 60 * 60 * 1000;
+/** «سه ماه»: the window of the fairness report. */
+export const FAIRNESS_DAYS = 90;
+/** Two people giving each other more than half of what they gave, three months in a row. */
+const RECIPROCAL_SHARE = 0.5;
+const RECIPROCAL_MONTHS = 3;
+/** The same message to this many colleagues in one month. */
+const REPEAT_PEOPLE = 3;
+
+/** One message's words, for telling repeated texts apart from ones that only differ in spacing. */
+const normalised = (text: string) => text.replace(/\s+/g, ' ').trim();
+
+/**
+ * The owner's «انصاف» (fairness) section. Unlike «گزارش ماه» it names people, so it is for the owner
+ * alone, never for unit heads, and it never carries anyone's coins or the text of a private message:
+ * - colleagues who received nothing for three months (newcomers to «سپاس» left out), to see unseen work;
+ * - recognitions from unit to unit, and the share that went «up» to the giver's own unit head;
+ * - flags: two people who gave each other most of what they gave three months running, and the same text
+ *   sent to several colleagues in a month. A flag does nothing by itself; the owner looks and sets it aside.
+ */
+export async function recognitionFairness(now = new Date()) {
+  const since = new Date(now.getTime() - FAIRNESS_DAYS * DAY);
+  const people = await reachable();
+  const starts = await db.select({ id: employees.id, createdAt: employees.createdAt, since: employees.recognitionSince }).from(employees);
+  const startOfPerson = new Map(starts.map((s) => [s.id, recognitionStart(s.createdAt, s.since)]));
+
+  const recent = await db
+    .select({ id: recognitions.id, fromId: recognitions.fromId, toId: recognitions.toId, from: sender.department, to: receiver.department })
+    .from(recognitions)
+    .innerJoin(sender, eq(sender.id, recognitions.fromId))
+    .innerJoin(receiver, eq(receiver.id, recognitions.toId))
+    .where(and(original, standing, isNotNull(recognitions.deliveredAt), gte(recognitions.deliveredAt, since)));
+
+  // Nothing received for three months, among those who have had «سپاس» for at least that long.
+  const got = new Set(recent.map((r) => r.toId));
+  const unrecognised = people
+    .filter((p) => !got.has(p.id) && (startOfPerson.get(p.id)?.getTime() ?? now.getTime()) <= since.getTime())
+    .sort((a, b) => a.department.localeCompare(b.department, 'fa') || fullName(a).localeCompare(fullName(b), 'fa'))
+    .map((p) => ({ id: p.id, name: fullName(p), department: p.department, position: p.position }));
+
+  // From unit to unit.
+  const pairs = new Map<string, number>();
+  for (const r of recent) {
+    const key = `${r.from || UNKNOWN_DEPARTMENT}\u0000${r.to || UNKNOWN_DEPARTMENT}`;
+    pairs.set(key, (pairs.get(key) ?? 0) + 1);
+  }
+  const betweenUnits = [...pairs.entries()]
+    .map(([key, n]) => {
+      const [from, to] = key.split('\u0000');
+      return { from, to, recognitions: n };
+    })
+    .sort((a, b) => b.recognitions - a.recognitions);
+
+  // «Up»: to the head of the giver's own unit.
+  const heads = new Map((await db.select({ department: departmentPages.department, headId: departmentPages.headId }).from(departmentPages)).map((d) => [d.department, d.headId]));
+  const upward = recent.filter((r) => r.from && heads.get(r.from) === r.toId && r.fromId !== r.toId).length;
+
+  // Flags.
+  const current = recognitionMonth(now);
+  const months: string[] = [];
+  let m = previousRecognitionMonth(current);
+  for (let i = 0; i < RECIPROCAL_MONTHS; i++) {
+    months.unshift(m);
+    m = previousRecognitionMonth(m);
+  }
+  const flows = await db
+    .select({ fromId: recognitions.fromId, toId: recognitions.toId, month: recognitions.month, coins: total })
+    .from(recognitions)
+    .where(and(standing, inArray(recognitions.month, months)))
+    .groupBy(recognitions.fromId, recognitions.toId, recognitions.month);
+  const gaveIn = new Map<string, number>();
+  for (const f of flows) gaveIn.set(`${f.fromId}|${f.month}`, (gaveIn.get(`${f.fromId}|${f.month}`) ?? 0) + f.coins);
+  const to = new Map(flows.map((f) => [`${f.fromId}|${f.toId}|${f.month}`, f.coins]));
+  const mostTo = (a: string, b: string, month: string) => {
+    const all = gaveIn.get(`${a}|${month}`) ?? 0;
+    return all > 0 && (to.get(`${a}|${b}|${month}`) ?? 0) / all > RECIPROCAL_SHARE;
+  };
+  const names = new Map((await db.select({ ...personColumns(employees) }).from(employees)).map((e) => [e.id, e]));
+  const reciprocal: { key: string; people: { name: string; department: string }[] }[] = [];
+  const seenPair = new Set<string>();
+  for (const f of flows) {
+    const [a, b] = [f.fromId, f.toId].sort();
+    const key = `reciprocal:${a}:${b}:${months[months.length - 1]}`;
+    if (a === b || seenPair.has(key)) continue;
+    seenPair.add(key);
+    if (months.every((month) => mostTo(a, b, month) && mostTo(b, a, month))) {
+      reciprocal.push({ key, people: [a, b].map((id) => ({ name: names.get(id) ? fullName(names.get(id)!) : '', department: names.get(id)?.department ?? '' })) });
+    }
+  }
+
+  // The same words to several colleagues, in this month or the one before.
+  const texts = await db
+    .select({ fromId: recognitions.fromId, toId: recognitions.toId, month: recognitions.month, message: recognitions.message })
+    .from(recognitions)
+    .where(and(original, standing, inArray(recognitions.month, [previousRecognitionMonth(current), current])));
+  const byText = new Map<string, { fromId: string; month: string; to: Set<string> }>();
+  for (const t of texts) {
+    const key = `${t.fromId}|${t.month}|${normalised(t.message)}`;
+    const entry = byText.get(key) ?? { fromId: t.fromId, month: t.month, to: new Set<string>() };
+    entry.to.add(t.toId);
+    byText.set(key, entry);
+  }
+  const repeated = [...byText.entries()]
+    .filter(([, e]) => e.to.size >= REPEAT_PEOPLE)
+    .map(([key, e]) => ({
+      // A short fingerprint of the text, not the text: a private message stays between its two people.
+      key: `repeated:${e.fromId}:${e.month}:${[...key].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7).toString(36)}`,
+      person: { name: names.get(e.fromId) ? fullName(names.get(e.fromId)!) : '', department: names.get(e.fromId)?.department ?? '' },
+      month: e.month,
+      monthLabel: jalaliMonthLabel(e.month),
+      people: e.to.size,
+    }));
+
+  const seen = new Set((await ensureSettings()).recognitionFlagsSeen ?? []);
+  return {
+    days: FAIRNESS_DAYS,
+    people: people.length,
+    unrecognised,
+    betweenUnits,
+    recognitions: recent.length,
+    upwardShare: share(upward, recent.length),
+    flags: {
+      reciprocal: reciprocal.map((r) => ({ ...r, seen: seen.has(r.key) })),
+      repeated: repeated.map((r) => ({ ...r, seen: seen.has(r.key) })),
+    },
+  };
+}
+
+/** «دیدم»: a flag set aside by the owner; it stays listed, marked as seen. */
+export async function setRecognitionFlagSeen(key: string) {
+  const row = await ensureSettings();
+  const seen = new Set(row.recognitionFlagsSeen ?? []);
+  seen.add(key);
+  // Only the latest few hundred are kept.
+  await db.update(settings).set({ recognitionFlagsSeen: [...seen].slice(-500) }).where(eq(settings.id, 'global'));
+}
+
+/** A few numbers of «سپاس» for the portal's monthly summary; null while «سپاس» is off. */
+export async function recognitionSummary(month: string, now = new Date()) {
+  if (featureState(await featureConfig(), 'recognition') === 'off') return null;
+  const r = await recognitionReport(month, now);
+  return { giversShare: r.giversShare, recognitions: r.recognitions };
 }
