@@ -112,7 +112,7 @@ test.describe('«سپاس»: giving, receiving and the wall', () => {
     });
     expect(added.ok(), await added.text()).toBe(true);
     const created = await added.json();
-    await sql(`update employees set created_at = '2024-01-01' where id = $1`, [created.employee.id]);
+    await sql(`update employees set created_at = '2024-01-01', recognition_since = '2024-01-01' where id = $1`, [created.employee.id]);
     const negarContext = await browser.newContext();
     await negarContext.request.post('/api/auth/login', { data: { username: 'wall.negar', password: created.temporaryPassword } });
     await negarContext.request.post('/api/auth/change-password', { data: { currentPassword: created.temporaryPassword, newPassword: 'Negar-wall-123' } });
@@ -224,7 +224,7 @@ test.describe('«سپاس»: giving, receiving and the wall', () => {
     // Sara joined today: on the month's last day her newcomer's share is one coin, already given above,
     // and the form would not open. Here she has been with us for long, with a whole month's coins.
     const saraId = (await (await sara.page.request.get('/api/auth/me')).json()).user.id as string;
-    await sql(`update employees set created_at = '2024-01-01' where id = $1`, [saraId]);
+    await sql(`update employees set created_at = '2024-01-01', recognition_since = '2024-01-01' where id = $1`, [saraId]);
     await sara.page.goto('/#thanks');
     await sara.page.getByRole('button', { name: 'قدردانی کن' }).first().click();
     await expect(sara.page.getByRole('dialog').getByRole('button', { name: 'کیفیت' })).toBeVisible();

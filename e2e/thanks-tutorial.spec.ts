@@ -29,7 +29,7 @@ async function colleague(browser: Browser, username: string, firstName: string, 
   expect(added.ok(), await added.text()).toBe(true);
   const { temporaryPassword, employee } = await added.json();
   await admin.close();
-  if (options.longAgo) await sql(`update employees set created_at = '2024-01-01' where id = $1`, [employee.id]);
+  if (options.longAgo) await sql(`update employees set created_at = '2024-01-01', recognition_since = '2024-01-01' where id = $1`, [employee.id]);
   const context = await browser.newContext(options.context ?? {});
   await context.request.post('/api/auth/login', { data: { username, password: temporaryPassword } });
   await context.request.post('/api/auth/change-password', { data: { currentPassword: temporaryPassword, newPassword: `${username}-Pass-123` } });
@@ -188,7 +188,7 @@ test.describe('«سپاس»: the tutorials', () => {
     await page.goto('/#thanks');
     await expect(page.locator('.sp-tour')).toHaveAttribute('data-fx', 'none');
     await box(page, 'به «سپاس» خوش آمدید').getByRole('button', { name: 'شروع کنیم' }).click();
-    await expect(box(page, 'کیف سکهٔ شما')).toContainText(newcomer ? 'چون این ماه به جمع ما پیوستید' : 'هر ماه ۵۰ سکه می‌گیرید');
+    await expect(box(page, 'کیف سکهٔ شما')).toContainText(newcomer ? 'چون «سپاس» این ماه برای شما شروع شد' : 'هر ماه ۵۰ سکه می‌گیرید');
     await box(page, 'کیف سکهٔ شما').getByRole('button', { name: 'بعدی' }).click();
     const empty = box(page, 'سکه‌های این ماه تمام شده');
     await expect(empty).toContainText('اول ماه بعد دوباره ۵۰ سکه می‌گیرید');
