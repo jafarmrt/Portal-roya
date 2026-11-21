@@ -288,8 +288,9 @@ async function recognitionSettings(now = new Date()) {
     // Shown as «از اول آذر»; one whose month has come is simply the rules by now.
     pending: pending && pending.from > month ? { ...pending, fromLabel: jalaliMonthLabel(pending.from) } : null,
     values: recognitionValues(row.recognitionValues),
-    // While the part is still switched off a change of the rules applies at once; later, from next month.
-    rulesApplyAtOnce: featureState(await featureConfig(), 'recognition') === 'off',
+    // While the part is off or in preview (a pilot, not yet everyone's) a change of the rules applies at
+    // once; once it is on for everyone, from next month.
+    rulesApplyAtOnce: featureState(await featureConfig(), 'recognition') !== 'on',
   };
 }
 
@@ -319,7 +320,7 @@ recognitionRouter.put(
       body.rules.amounts = [...new Set(body.rules.amounts)].sort((a, b) => a - b);
       const problem = rulesProblem(body.rules);
       if (problem) throw new HttpError(400, problem);
-      const atOnce = featureState(await featureConfig(), 'recognition') === 'off';
+      const atOnce = featureState(await featureConfig(), 'recognition') !== 'on';
       changes.recognitionRules = withRulesChange(row.recognitionRules, body.rules, recognitionMonth(now), atOnce);
       const from = changes.recognitionRules.pending?.from;
       entries.push({ title: 'قواعد «سپاس»', detail: `${rulesText(body.rules)}${from ? ` (از ${jalaliMonthLabel(from)})` : ''}` });

@@ -147,6 +147,11 @@ export const employees = pgTable('employees', {
   /** The colleague wants the two monthly reminders of «سپاس» (the middle of the month, three days before its end). */
   recognitionReminders: boolean('recognition_reminders').notNull().default(true),
   /** How far the colleague got in the tutorials of «سپاس» (shared/recognitionTutorial.ts), kept here so a phone and a computer agree. */
+  /**
+   * The first moment the colleague could see «سپاس» (noted by `markRecognitionStarts`; never moved later).
+   * A month in which it falls gets a newcomer's share, like the month someone joins the portal.
+   */
+  recognitionSince: timestamp('recognition_since', { withTimezone: true }),
   recognitionTutorial: jsonb('recognition_tutorial').$type<RecognitionTutorial>().notNull().default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

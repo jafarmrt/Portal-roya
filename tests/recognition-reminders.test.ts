@@ -62,7 +62,7 @@ describe('«سپاس»: the monthly reminders and the owner’s numbers', () => 
     reza = await createEmployee(admin, { username: 'rem.reza', department: 'فروش' });
     mina = await createEmployee(admin, { username: 'rem.mina', department: 'تولید' });
     hr = await createEmployee(admin, { username: 'rem.hr', department: 'تولید', role: role.id });
-    await db.update(employees).set({ createdAt: new Date('2020-01-01T08:00:00Z') });
+    await db.update(employees).set({ createdAt: new Date('2020-01-01T08:00:00Z'), recognitionSince: new Date('2020-01-01T08:00:00Z') });
     everyone = [ali.id, sara.id, reza.id, mina.id, hr.id];
   });
   afterAll(() => pool.end());

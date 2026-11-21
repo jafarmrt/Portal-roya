@@ -1,0 +1,1 @@
+ALTER TABLE "employees" ADD COLUMN "recognition_since" timestamp with time zone;

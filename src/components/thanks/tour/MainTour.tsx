@@ -90,6 +90,7 @@ export const MainTour: React.FC<{ wallet: Wallet; fx: EffectsLevel }> = ({ walle
     </button>
   );
   const blocked = cannotGive(wallet);
+  // Joined this month, or «سپاس» began for them this month (pilot group, or switched on mid-month).
   const newcomer = wallet.allowance < wallet.rules.allowance;
   const firstOnWall = wall.items.some((c) => !c.sealed);
 
@@ -119,7 +120,7 @@ export const MainTour: React.FC<{ wallet: Wallet; fx: EffectsLevel }> = ({ walle
         <TourBox {...common} target="[data-tour='wallet']" title="کیف سکهٔ شما" actions={next(2)}>
           {newcomer ? (
             <p>
-              چون این ماه به جمع ما پیوستید، سهم این ماه شما {fa(wallet.allowance)} سکه است. از ماه بعد سهم کامل می‌گیرید. سکه‌هایی که تا آخر ماه نبخشید از بین می‌روند، ولی
+              چون «سپاس» این ماه برای شما شروع شد، سهم این ماه شما به اندازهٔ روزهای مانده، {fa(wallet.allowance)} سکه است. از ماه بعد سهم کامل می‌گیرید. سکه‌هایی که تا آخر ماه نبخشید از بین می‌روند، ولی
               سکه‌هایی که از دیگران می‌گیرید همیشه می‌ماند.
             </p>
           ) : (

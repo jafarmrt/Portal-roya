@@ -188,14 +188,26 @@ export function monthProgress(now: Date = new Date()) {
 }
 
 /**
- * The allowance of a month for one colleague. Someone who joined the portal during that month gets the
- * share of the days that were left (the day they joined included), in whole coins and never less than
- * one; everybody else gets all of it.
+ * The allowance of a month for one colleague. Someone for whom «سپاس» began during that month (see
+ * `recognitionStart`) gets the share of the days that were left (that day included), in whole coins and
+ * never less than one; everybody else gets all of it.
  */
 export function monthAllowance(allowance: number, month: string, joinedAt: Date | string | null | undefined): number {
   if (!joinedAt || recognitionMonth(joinedAt) !== month) return allowance;
   const { daysInMonth, daysLeft } = monthProgress(new Date(joinedAt));
   return Math.min(allowance, Math.max(1, Math.round((allowance * daysLeft) / daysInMonth)));
+}
+
+/**
+ * When «سپاس» began for a colleague, for their first month's share: the day they joined the portal, or
+ * the day they could first see «سپاس» if that came later (put in the pilot group mid-month, or «سپاس»
+ * switched on mid-month). Until that day is noted, the joining day stands.
+ */
+export function recognitionStart(createdAt: Date | string, since: Date | string | null | undefined): Date {
+  const joined = new Date(createdAt);
+  if (!since) return joined;
+  const seen = new Date(since);
+  return seen > joined ? seen : joined;
 }
 
 /** How long a message is for the minimum: its letters, without spaces and line breaks. */

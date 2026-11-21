@@ -47,7 +47,7 @@ describe('«سپاس»: tutorials, missions and value descriptions', () => {
     ali = await createEmployee(admin, { username: 'tut.ali' });
     sara = await createEmployee(admin, { username: 'tut.sara' });
     reza = await createEmployee(admin, { username: 'tut.reza' });
-    await db.update(employees).set({ createdAt: new Date('2020-01-01T08:00:00Z') });
+    await db.update(employees).set({ createdAt: new Date('2020-01-01T08:00:00Z'), recognitionSince: new Date('2020-01-01T08:00:00Z') });
     await admin.put('/api/settings/features/recognition').send({ state: 'on' }).expect(200);
   });
   afterAll(() => pool.end());

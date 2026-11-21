@@ -145,7 +145,7 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     neda = await createEmployee(admin, { username: 'rec.neda', department: 'تولید' });
     hr = await createEmployee(admin, { username: 'rec.hr', department: 'فروش', role: role.id });
     // Everyone has been here for years: a colleague who joined this month has a smaller first allowance.
-    await db.update(employees).set({ createdAt: new Date('2020-01-01T08:00:00Z') });
+    await db.update(employees).set({ createdAt: new Date('2020-01-01T08:00:00Z'), recognitionSince: new Date('2020-01-01T08:00:00Z') });
   });
   afterAll(() => pool.end());
 
@@ -209,7 +209,7 @@ describe('«سپاس»: giving coins with a message of thanks', () => {
     const first = await wallet(neda);
     expect(first.allowance).toBe(monthAllowance(50, recognitionMonth(), new Date()));
     expect(first.left).toBe(first.allowance);
-    await db.update(employees).set({ createdAt: new Date('2020-01-01T08:00:00Z') }).where(eq(employees.id, neda.id));
+    await db.update(employees).set({ createdAt: new Date('2020-01-01T08:00:00Z'), recognitionSince: new Date('2020-01-01T08:00:00Z') }).where(eq(employees.id, neda.id));
   });
 
   it('refuses a recognition to oneself, of a wrong amount, without a value or with a message too short', async () => {

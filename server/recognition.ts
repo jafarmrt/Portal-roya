@@ -20,6 +20,7 @@ import {
   recognitionLimits,
   recognitionMonth,
   recognitionValues,
+  recognitionStart,
   rulesFor,
 } from '../shared/recognition.js';
 import { audit } from './audit.js';
@@ -83,7 +84,7 @@ const shorten = (text: string, max = 80) => (text.length > max ? `${text.slice(0
 async function reachable() {
   const config = await featureConfig();
   const rows = await db
-    .select({ ...personColumns(employees), role: employees.role })
+    .select({ ...personColumns(employees), role: employees.role, recognitionSince: employees.recognitionSince })
     .from(employees)
     .where(and(eq(employees.isActive, true), eq(employees.hasAccount, true)));
   return rows.filter((e) => featureVisible(config, 'recognition', e));
@@ -109,6 +110,29 @@ async function writtenToday(userId: string, now: Date, tx: Tx | typeof db = db) 
 }
 
 /**
+ * Notes the moment «سپاس» began for everyone who can see it now and had no such moment yet. Run when the
+ * switch or the pilot group changes, and on every scheduler tick (a colleague moved to a pilot access
+ * level, a new account), so a first month's share is counted from the day it really began.
+ */
+export async function markRecognitionStarts(now = new Date()) {
+  const ids = (await reachable()).filter((p) => !p.recognitionSince).map((p) => p.id);
+  if (ids.length === 0) return 0;
+  await db.update(employees).set({ recognitionSince: now }).where(and(inArray(employees.id, ids), isNull(employees.recognitionSince)));
+  return ids.length;
+}
+
+/** When «سپاس» began for this colleague (see `recognitionStart`); noted now if it had not been yet. */
+async function startOf(viewer: Pick<Viewer, 'id' | 'createdAt'>, now: Date, tx: Tx | typeof db = db) {
+  const [row] = await tx.select({ createdAt: employees.createdAt, since: employees.recognitionSince }).from(employees).where(eq(employees.id, viewer.id));
+  if (row && !row.since) {
+    // Only someone who sees «سپاس» asks for a wallet; the tick has not noted them yet.
+    await tx.update(employees).set({ recognitionSince: now }).where(and(eq(employees.id, viewer.id), isNull(employees.recognitionSince)));
+    return recognitionStart(row.createdAt, now);
+  }
+  return row ? recognitionStart(row.createdAt, row.since) : new Date(viewer.createdAt);
+}
+
+/**
  * The colleague's wallet for the month `now` falls in. Nothing is stored for it: what is left is the
  * month's allowance less what they gave in it, so a new month starts full and last month's rest is
  * simply gone, whether or not the server was running at midnight.
@@ -117,7 +141,7 @@ export async function walletOf(viewer: Pick<Viewer, 'id' | 'createdAt'>, now = n
   const month = recognitionMonth(now);
   const settings = await ensureSettings();
   const rules = rulesFor(settings.recognitionRules, month);
-  const allowance = monthAllowance(rules.allowance, month, viewer.createdAt);
+  const allowance = monthAllowance(rules.allowance, month, await startOf(viewer, now));
   const given = (await givenIn(viewer.id, month)).all;
   // Coins received count once the colleague has opened the recognition (a «من هم» has no seal to open),
   // so the number does not give a sealed one away.
@@ -185,7 +209,7 @@ async function spend(
 ) {
   const month = recognitionMonth(now);
   const rules = rulesFor((await ensureSettings()).recognitionRules, month);
-  const allowance = monthAllowance(rules.allowance, month, viewer.createdAt);
+  const allowance = monthAllowance(rules.allowance, month, await startOf(viewer, now));
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`recognition:${viewer.id}`}))`);
     await check(tx);
@@ -776,7 +800,7 @@ export async function processRecognitionReminders(now = new Date()) {
   const people = await reachable();
   if (people.length === 0) return 0;
   const details = await db
-    .select({ id: employees.id, createdAt: employees.createdAt, reminders: employees.recognitionReminders })
+    .select({ id: employees.id, createdAt: employees.createdAt, since: employees.recognitionSince, reminders: employees.recognitionReminders })
     .from(employees)
     .where(inArray(employees.id, people.map((p) => p.id)));
   const already = new Set(
@@ -796,7 +820,7 @@ export async function processRecognitionReminders(now = new Date()) {
   const rules = rulesFor((await ensureSettings()).recognitionRules, month);
   const due = details
     .filter((p) => p.reminders && !already.has(p.id))
-    .map((p) => ({ id: p.id, left: monthAllowance(rules.allowance, month, p.createdAt) - (given.get(p.id) ?? 0) }))
+    .map((p) => ({ id: p.id, left: monthAllowance(rules.allowance, month, recognitionStart(p.createdAt, p.since)) - (given.get(p.id) ?? 0) }))
     .filter((p) => p.left > 0);
   if (due.length === 0) return 0;
 

@@ -18,6 +18,7 @@ import { boxNames, SUGGESTION_BOXES } from '../../shared/suggestions.js';
 import { dashboardOrder } from '../../shared/dashboard.js';
 import { KUDOS_EMOJI_MAX } from '../../shared/kudos.js';
 import { toPersianDigits } from '../../shared/jalali.js';
+import { markRecognitionStarts } from '../recognition.js';
 import { audit, fromTo } from '../audit.js';
 import { can, requirePermission, type SessionUser } from '../auth.js';
 import { db } from '../db/index.js';
@@ -471,6 +472,8 @@ settingsRouter.put(
     if (before !== body.state) {
       await audit(viewer, { action: 'update', entity: 'settings', title: `امکانات پرتال: ${label}`, detail: fromTo(stateLabel(before), stateLabel(body.state)) });
     }
+    // Whoever sees «سپاس» from now on has it from now: a first month's share counts from today.
+    if (key === 'recognition') await markRecognitionStarts();
     broadcastFeatures(group ? [key, group] : [key]);
     res.json({ ...(await featureSettings()), draftId });
   }),
@@ -497,6 +500,8 @@ settingsRouter.put(
       title: 'گروه آزمایشی',
       detail: `${toPersianDigits(roles.length)} سطح دسترسی و ${toPersianDigits(userIds.length)} همکار`,
     });
+    // Someone new in the pilot group sees «سپاس» (if it is in preview) from now on.
+    await markRecognitionStarts();
     broadcastFeatures(FEATURES.map((f) => f.key));
     res.json(await featureSettings());
   }),
