@@ -168,7 +168,7 @@ interface State extends Mine {
   thankable: { ids: Set<string>; at: number } | null;
 }
 
-export type ThanksTab = 'wall' | 'received' | 'given';
+export type ThanksTab = 'wall' | 'received' | 'given' | 'treasury';
 
 export interface GiveFormState {
   /** The colleagues to choose from, once loaded. */
@@ -315,6 +315,7 @@ export const openGive = (to?: string, options: { valueId?: string } = {}) => set
 export const closeGive = () => set({ giving: null, form: null });
 export const setGiveForm = (form: GiveFormState | null) => set({ form });
 export const showThanksTab = (tab: ThanksTab) => set({ tabRequest: { tab, n: (state.tabRequest?.n ?? 0) + 1 } });
+export const clearTabRequest = () => set({ tabRequest: null });
 export const setTouring = (touring: boolean) => {
   if (state.touring !== touring) set({ touring });
 };

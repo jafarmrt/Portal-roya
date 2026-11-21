@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BellRing, ChevronLeft, Globe, HandHeart, Inbox, Newspaper, Send, Sparkles } from 'lucide-react';
+import { BellRing, ChevronLeft, Gem, Globe, HandHeart, Inbox, Newspaper, Send, Sparkles } from 'lucide-react';
 import { THANKS_EVENT, usePortal } from '../../context/PortalContext';
 import type { RecognitionPreference } from '../../../shared/recognition';
 import { api } from '../../lib/api';
@@ -20,12 +20,14 @@ import { Missions } from './tour/Missions';
 import { ReceivedTour } from './tour/ReceivedTour';
 import { closeLaterNote, loadTutorial, pauseTour, saveTutorial, startTour, tourState, useTour } from './tour/tourStore';
 import { RecapDialog, type Recap } from './Recap';
+import { Treasury } from './Treasury';
 import {
   loadMoreThanks,
   openGive,
   openReveal,
   setThanksPreference,
   setThanksReminders,
+  clearTabRequest,
   setTouring,
   useThanks,
   type GivenCard,
@@ -218,7 +220,10 @@ export const ThanksPage: React.FC = () => {
 
   // The tutorial or a mission asks for a tab.
   useEffect(() => {
-    if (tabRequest) setTab(tabRequest.tab);
+    if (!tabRequest) return;
+    setTab(tabRequest.tab);
+    // Taken: the next visit to the page opens as usual.
+    clearTabRequest();
   }, [tabRequest]);
   const { laterNote } = useTours(sealedCount > 0);
   const { recap, close: closeRecap } = useRecap();
@@ -316,6 +321,7 @@ export const ThanksPage: React.FC = () => {
                 { id: 'wall' as const, label: 'دیوار', icon: <Newspaper className="w-4 h-4" />, badge: 0 },
                 { id: 'received' as const, label: 'دریافتی‌ها', icon: <Inbox className="w-4 h-4" />, badge: sealedCount },
                 { id: 'given' as const, label: 'داده‌ها', icon: <Send className="w-4 h-4" />, badge: 0 },
+                { id: 'treasury' as const, label: 'گنجینهٔ من', icon: <Gem className="w-4 h-4" />, badge: 0 },
               ].map((t) => (
                 <button
                   key={t.id}
@@ -366,7 +372,9 @@ export const ThanksPage: React.FC = () => {
             </div>
           </div>
 
-          {tab === 'wall' ? (
+          {tab === 'treasury' ? (
+            <Treasury fx={fx} />
+          ) : tab === 'wall' ? (
             <ThanksWall fx={fx} wallet={wallet} focusId={focusId ?? null} />
           ) : tab === 'received' ? (
             received.length === 0 ? (

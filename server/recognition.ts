@@ -4,7 +4,18 @@ import { alias } from 'drizzle-orm/pg-core';
 import { featureVisible } from '../shared/features.js';
 import { jalaliMonthLabel, toPersianDigits } from '../shared/jalali.js';
 import type { ReactionCount } from '../shared/reactions.js';
-import { cleanTutorial, type RecognitionMissions, type RecognitionTutorial, withTutorialChange } from '../shared/recognitionTutorial.js';
+import {
+  BADGE_INFO,
+  badgeTier,
+  cleanTutorial,
+  longestRun,
+  RECOGNITION_BADGES,
+  type BadgeTier,
+  type RecognitionBadge,
+  type RecognitionMissions,
+  type RecognitionTutorial,
+  withTutorialChange,
+} from '../shared/recognitionTutorial.js';
 import {
   amountsText,
   messageLength,
@@ -20,6 +31,7 @@ import {
   recognitionLimits,
   recognitionMonth,
   recognitionValues,
+  previousRecognitionMonth,
   recognitionStart,
   type RecognitionPreference,
   rulesFor,
@@ -1109,5 +1121,105 @@ export async function recognitionRecap(viewer: Pick<Viewer, 'id'>, month: string
       topValue: topValue ? { label: topValue.label, tone: topValue.tone } : null,
       quote: latest ? { message: latest.r.message, from: person(latest.from) } : null,
     },
+  };
+}
+
+// ---- «گنجینهٔ من» and badges (phase 2, 2.4 and 2.5) ----------------------------------------------------
+
+/** How far the colleague got towards each badge, from what they gave (and their «من هم»). */
+async function badgeCounts(viewer: Pick<Viewer, 'id'>) {
+  const given = await db
+    .select({ toId: recognitions.toId, department: receiver.department, valueId: recognitions.valueId, month: recognitions.month })
+    .from(recognitions)
+    .innerJoin(receiver, eq(receiver.id, recognitions.toId))
+    .where(and(eq(recognitions.fromId, viewer.id), original, standing));
+  const [joins] = await db
+    .select({ n: count() })
+    .from(recognitions)
+    .where(and(eq(recognitions.fromId, viewer.id), isNotNull(recognitions.parentId), standing));
+  const values = recognitionValues((await ensureSettings()).recognitionValues).map((v) => v.id);
+  const givenValues = new Set(given.map((g) => g.valueId));
+  return {
+    bridge: new Set(given.map((g) => g.department).filter(Boolean)).size,
+    steady: longestRun(given.map((g) => g.month)),
+    eyes: new Set(given.map((g) => g.toId)).size,
+    companion: joins?.n ?? 0,
+    values: values.filter((id) => givenValues.has(id)).length,
+    valuesOf: values.length,
+  };
+}
+
+/**
+ * The colleague's badges: the highest tier each ever reached (kept, so one earned is not lost when, say,
+ * a value is added), the count behind it, what the next tier needs, and whether it is new to them.
+ */
+export async function recognitionBadges(viewer: Pick<Viewer, 'id'>) {
+  const [counts, progress] = await Promise.all([badgeCounts(viewer), recognitionTutorialOf(viewer)]);
+  const earned: Partial<Record<RecognitionBadge, BadgeTier>> = {};
+  let raised = false;
+  const badges = RECOGNITION_BADGES.map((key) => {
+    const count = counts[key];
+    const tier = Math.max(progress.badges?.[key] ?? 0, badgeTier(key, count, counts.valuesOf)) as BadgeTier;
+    if (tier > 0) earned[key] = tier;
+    if (tier > (progress.badges?.[key] ?? 0)) raised = true;
+    const steps = BADGE_INFO[key].steps;
+    const next = key === 'values' ? (tier === 0 ? { tier: 3, at: counts.valuesOf } : null) : tier < 3 ? { tier: tier + 1, at: steps[tier] } : null;
+    return { key, ...BADGE_INFO[key], tier, count, next, fresh: tier > (progress.badgesSeen?.[key] ?? 0) };
+  });
+  if (raised) await setRecognitionTutorial(viewer, { badges: earned });
+  return { badges, onProfile: progress.badgesOnProfile === true };
+}
+
+/** A colleague's badges for their profile: only the ones earned, and only if they chose to show them. */
+export async function profileBadges(id: string) {
+  const progress = await recognitionTutorialOf({ id });
+  if (progress.badgesOnProfile !== true) return [];
+  return RECOGNITION_BADGES.filter((key) => (progress.badges?.[key] ?? 0) > 0).map((key) => ({ key, name: BADGE_INFO[key].name, about: BADGE_INFO[key].about, tier: progress.badges![key]! }));
+}
+
+/**
+ * «گنجینهٔ من»: what the colleague received, ever and month by month (with what they gave beside it),
+ * the values they were thanked for, the months that have a recap, and their badges. Theirs alone: it is
+ * always the signed-in colleague's own, and nobody else, not even the programme's owner, can ask for it.
+ */
+export async function recognitionTreasury(viewer: Pick<Viewer, 'id'>, now = new Date()) {
+  const counted = and(isNotNull(recognitions.deliveredAt), standing, or(isNotNull(recognitions.openedAt), isNotNull(recognitions.parentId)));
+  const received = await db
+    .select({ amount: recognitions.amount, month: recognitions.month, fromId: recognitions.fromId, department: sender.department, parentId: recognitions.parentId, valueLabel: recognitions.valueLabel, valueTone: recognitions.valueTone })
+    .from(recognitions)
+    .innerJoin(sender, eq(sender.id, recognitions.fromId))
+    .where(and(eq(recognitions.toId, viewer.id), counted));
+  const given = await db
+    .select({ month: recognitions.month, coins: total })
+    .from(recognitions)
+    .where(and(eq(recognitions.fromId, viewer.id), standing))
+    .groupBy(recognitions.month);
+
+  // The last twelve months, this one included.
+  const months: string[] = [];
+  let m = recognitionMonth(now);
+  for (let i = 0; i < 12; i++) {
+    months.unshift(m);
+    m = previousRecognitionMonth(m);
+  }
+  const receivedIn = new Map<string, number>();
+  for (const r of received) receivedIn.set(r.month, (receivedIn.get(r.month) ?? 0) + r.amount);
+  const givenIn = new Map(given.map((g) => [g.month, g.coins]));
+
+  const values = new Map<string, { label: string; tone: string; count: number }>();
+  for (const r of received.filter((x) => x.parentId === null)) {
+    const v = values.get(r.valueLabel) ?? { label: r.valueLabel, tone: r.valueTone, count: 0 };
+    v.count += 1;
+    values.set(r.valueLabel, v);
+  }
+  const departments = new Set(received.map((r) => r.department).filter(Boolean));
+  const current = recognitionMonth(now);
+  return {
+    total: { coins: received.reduce((s, r) => s + r.amount, 0), people: new Set(received.map((r) => r.fromId)).size, units: departments.size },
+    months: months.map((month) => ({ month, received: receivedIn.get(month) ?? 0, given: givenIn.get(month) ?? 0 })),
+    values: [...values.values()].sort((a, b) => b.count - a.count),
+    // Past months with something in them have a recap.
+    recaps: months.filter((mm) => mm !== current && ((receivedIn.get(mm) ?? 0) > 0 || (givenIn.get(mm) ?? 0) > 0)).reverse(),
+    ...(await recognitionBadges(viewer)),
   };
 }

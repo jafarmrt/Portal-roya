@@ -816,3 +816,50 @@ a:hover > .sp-mini-env { transform: rotate(-6deg) translateY(-2px); }
   from { filter: none; opacity: 1; }
   to { filter: grayscale(0.9) brightness(1.04); opacity: 0.62; }
 }
+
+/* ---- «گنجینهٔ من» (2.4): a column of coins for each month ---- */
+.sp-columns {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0.4rem;
+  align-items: end;
+  height: 9rem;
+}
+.sp-column { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; height: 100%; min-width: 0; }
+.sp-column-bars { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
+.sp-column-got,
+.sp-column-gave {
+  width: 42%;
+  max-width: 14px;
+  height: var(--h);
+  min-height: 2px;
+  border-radius: 6px 6px 2px 2px;
+}
+/* Received: real stacked coins, as on the wallet. */
+.sp-column-got {
+  background: repeating-linear-gradient(to top, #dea92b 0 3px, #f6d36b 3px 6px);
+  box-shadow: inset 0 0 0 1px rgb(169 121 15 / 0.35);
+}
+.sp-column-gave { border: 2px solid rgb(222 169 43 / 0.7); border-bottom-width: 1px; }
+.sp-column-label { font-size: 10px; color: var(--color-faint, #8a8f98); white-space: nowrap; }
+[data-fx='full'] .sp-column-got,
+[data-fx='light'] .sp-column-got { animation: sp-column-rise 0.9s cubic-bezier(0.3, 1.2, 0.5, 1) backwards; transform-origin: bottom; }
+@keyframes sp-column-rise {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+/* ---- Badges (2.5): shamseh medals ---- */
+.sp-medal { flex-shrink: 0; filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.12)); }
+.sp-medal-rim { fill: #d7d9de; }
+.sp-medal-face { fill: #eceef1; }
+.sp-medal-star { fill: #c3c7ce; }
+.sp-medal-1 .sp-medal-rim { fill: #9a5a2c; }
+.sp-medal-1 .sp-medal-face { fill: #d08a55; }
+.sp-medal-1 .sp-medal-star { fill: #f3c29a; }
+.sp-medal-2 .sp-medal-rim { fill: #8b95a3; }
+.sp-medal-2 .sp-medal-face { fill: #c9d1dc; }
+.sp-medal-2 .sp-medal-star { fill: #f4f7fb; }
+.sp-medal-3 .sp-medal-rim { fill: #a9790f; }
+.sp-medal-3 .sp-medal-face { fill: #f6d36b; }
+.sp-medal-3 .sp-medal-star { fill: #fff6d2; }

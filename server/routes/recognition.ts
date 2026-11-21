@@ -25,7 +25,7 @@ import {
   rulesProblem,
   withRulesChange,
 } from '../../shared/recognition.js';
-import { MAIN_TOUR_LAST_STEP } from '../../shared/recognitionTutorial.js';
+import { MAIN_TOUR_LAST_STEP, RECOGNITION_BADGES, type RecognitionTutorial } from '../../shared/recognitionTutorial.js';
 import { audit } from '../audit.js';
 import { requirePermission } from '../auth.js';
 import { db } from '../db/index.js';
@@ -43,7 +43,9 @@ import {
   openRecognition,
   parseCursor,
   recognisable,
+  profileBadges,
   recognitionRecap,
+  recognitionTreasury,
   recognitionReport,
   recognitionReports,
   recognitionTutorial,
@@ -152,6 +154,8 @@ const tutorialSchema = z.object({
   received: shortTour.optional(),
   owner: shortTour.optional(),
   recapSeen: z.string().regex(/^\d{4}\/\d{2}$/).optional(),
+  badgesSeen: z.partialRecord(z.enum(RECOGNITION_BADGES), z.number().int().min(1).max(3)).optional(),
+  badgesOnProfile: z.boolean().optional(),
   missions: z.object({ hidden: z.boolean().optional(), celebrated: z.boolean().optional() }).optional(),
 });
 
@@ -167,7 +171,8 @@ recognitionRouter.get(
 recognitionRouter.put(
   '/recognitions/tutorial',
   route(async (req, res) => {
-    res.json({ progress: await setRecognitionTutorial(currentUser(req), parse(tutorialSchema, req.body)) });
+    // Tiers are checked by the schema (1 to 3); cleanTutorial keeps only the known shapes.
+    res.json({ progress: await setRecognitionTutorial(currentUser(req), parse(tutorialSchema, req.body) as RecognitionTutorial) });
   }),
 );
 
@@ -186,6 +191,22 @@ recognitionRouter.get(
   route(async (req, res) => {
     const { month } = parse(z.object({ month: z.string().regex(/^\d{4}\/\d{2}$/, 'ماه درست نیست').optional() }), req.query);
     res.json({ recap: await recognitionRecap(currentUser(req), month ?? previousRecognitionMonth(recognitionMonth(new Date()))) });
+  }),
+);
+
+/** «گنجینهٔ من»: always the signed-in colleague's own (2.4). */
+recognitionRouter.get(
+  '/recognitions/treasury',
+  route(async (req, res) => {
+    res.json(await recognitionTreasury(currentUser(req)));
+  }),
+);
+
+/** A colleague's badges for their profile: none unless they chose to show them (2.5). */
+recognitionRouter.get(
+  '/recognitions/badges/:id',
+  route(async (req, res) => {
+    res.json({ badges: await profileBadges(String(req.params.id)) });
   }),
 );
 
