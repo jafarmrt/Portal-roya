@@ -178,6 +178,9 @@ export const recognitionMonth = (date: Date | string | number = new Date()) => m
 export const nextRecognitionMonth = (month: string) =>
   moment(`${month}/01`, 'jYYYY/jMM/jDD').add(1, 'jMonth').format('jYYYY/jMM');
 
+export const previousRecognitionMonth = (month: string) =>
+  moment(`${month}/01`, 'jYYYY/jMM/jDD').subtract(1, 'jMonth').format('jYYYY/jMM');
+
 /** Where a moment falls in its Jalali month (29, 30 or 31 days): for «چقدر از ماه گذشته» next to the wallet. */
 export function monthProgress(now: Date = new Date()) {
   const m = moment(now);

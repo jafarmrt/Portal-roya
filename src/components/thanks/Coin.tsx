@@ -88,8 +88,10 @@ export const CoinTray: React.FC<{
   fx: EffectsLevel;
   /** Plays the coins dropping in. */
   filling?: boolean;
+  /** The month's last day: the coins left turn slowly grey (no red, no warning). */
+  fading?: boolean;
   className?: string;
-}> = ({ allowance, left, picked = 0, size = 'sm', fx, filling, className = '' }) => {
+}> = ({ allowance, left, picked = 0, size = 'sm', fx, filling, fading, className = '' }) => {
   const ref = useRef<HTMLDivElement>(null);
   const unit = Math.max(1, Math.ceil(allowance / (PER_STACK * MAX_STACKS)));
   const stacks = Math.min(MAX_STACKS, Math.max(1, Math.ceil(allowance / unit / PER_STACK)));
@@ -107,7 +109,7 @@ export const CoinTray: React.FC<{
   return (
     <div
       ref={ref}
-      className={`sp-tray is-3d ${filling ? 'is-filling' : ''} ${className}`}
+      className={`sp-tray is-3d ${filling ? 'is-filling' : ''} ${fading ? 'is-fading' : ''} ${className}`}
       data-size={size}
       onPointerMove={onMove}
       onPointerLeave={onLeave}
@@ -149,3 +151,23 @@ export const MiniEnvelope: React.FC<{ waiting?: boolean }> = ({ waiting }) => (
     </span>
   </span>
 );
+
+/**
+ * The coins pour into the wallet once a month (2.3): the first time the wallet is seen in a month on
+ * this device, not every time the dashboard opens.
+ */
+export function useMonthFill(userId: string | undefined, month: string | undefined) {
+  const [fill, setFill] = React.useState(false);
+  React.useEffect(() => {
+    if (!userId || !month) return;
+    try {
+      const key = `sp-filled:${userId}`;
+      if (localStorage.getItem(key) === month) return;
+      localStorage.setItem(key, month);
+      setFill(true);
+    } catch {
+      // No storage (a private window): no pouring rather than pouring every time.
+    }
+  }, [userId, month]);
+  return fill;
+}

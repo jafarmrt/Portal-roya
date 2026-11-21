@@ -801,3 +801,18 @@ a:hover > .sp-mini-env { transform: rotate(-6deg) translateY(-2px); }
 }
 .sp-celebration-spark:nth-child(3n + 2) { background: #e05a47; box-shadow: none; }
 .sp-celebration-spark:nth-child(4n + 1) { background: #4f9d8a; box-shadow: none; }
+
+/* The month's last day (2.3): the coins not given turn slowly grey and go quiet. No red, no warning. */
+.sp-tray.is-fading .sp-disc:not(.is-picked) {
+  filter: grayscale(0.9) brightness(1.04);
+  opacity: 0.62;
+}
+.sp[data-fx='full'] .sp-tray.is-fading .sp-disc:not(.is-picked),
+.sp[data-fx='light'] .sp-tray.is-fading .sp-disc:not(.is-picked) {
+  animation: sp-fade-out 2.6s ease-out both;
+  animation-delay: calc(var(--n) * 12ms);
+}
+@keyframes sp-fade-out {
+  from { filter: none; opacity: 1; }
+  to { filter: grayscale(0.9) brightness(1.04); opacity: 0.62; }
+}
