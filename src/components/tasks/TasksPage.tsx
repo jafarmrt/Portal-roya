@@ -10,6 +10,7 @@ import { toPersianDigits, todayJalali } from '../../lib/jalali';
 import { shortDue } from '../todos/todoText';
 import { TASK_REPLY_MAX, taskOpen, taskStatus, type TaskAnswer } from '../../../shared/tasks';
 import type { AssignedTask, TaskPerson } from '../../types';
+import { ThanksButton } from '../thanks/ThanksButton';
 import { TaskFormModal } from './TaskFormModal';
 import { useAnswerTask } from './useAnswerTask';
 
@@ -390,6 +391,12 @@ const GivenCard: React.FC<{ copies: AssignedTask[] }> = ({ copies }) => {
               )}
             </div>
             {t.reply && <p className="ps-7 text-xs text-muted">«{t.reply}»</p>}
+            {/* «سپاس» beside the work: the one who asked for it thanks the one who did it (2.2). */}
+            {t.status === 'done' && (
+              <div className="ps-7">
+                <ThanksButton to={t.to.id} name={t.to.name} valueId="ownership" label={`از ${t.to.name} قدردانی کنید`} />
+              </div>
+            )}
             {t.status === 'declined' &&
               (t.reassignedTo ? (
                 <p className="ps-7 text-xs text-muted flex items-center gap-1">

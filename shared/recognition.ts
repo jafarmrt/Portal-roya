@@ -210,6 +210,14 @@ export function recognitionStart(createdAt: Date | string, since: Date | string 
   return seen > joined ? seen : joined;
 }
 
+/**
+ * How a colleague would rather be recognised (phase 2, 2.1): it only sets the form's default for whoever
+ * thanks them, with a line saying so; the sender still chooses, and the receiver can always take a card
+ * off the wall.
+ */
+export const RECOGNITION_PREFERENCES = ['any', 'public', 'private'] as const;
+export type RecognitionPreference = (typeof RECOGNITION_PREFERENCES)[number];
+
 /** How long a message is for the minimum: its letters, without spaces and line breaks. */
 export const messageLength = (text: string) => text.replace(/\s+/g, '').length;
 

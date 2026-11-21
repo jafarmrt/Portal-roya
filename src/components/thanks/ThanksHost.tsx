@@ -34,7 +34,7 @@ export const ThanksHost: React.FC<{ userId: string }> = ({ userId }) => {
 
   return (
     <>
-      {giving && <GiveModal key={giving.to ?? 'anyone'} to={giving.to} />}
+      {giving && <GiveModal key={giving.to ?? 'anyone'} to={giving.to} suggestedValue={giving.valueId} />}
       {revealing && <RevealModal key={revealing} id={revealing} />}
     </>
   );

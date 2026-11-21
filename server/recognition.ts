@@ -21,6 +21,7 @@ import {
   recognitionMonth,
   recognitionValues,
   recognitionStart,
+  type RecognitionPreference,
   rulesFor,
 } from '../shared/recognition.js';
 import { audit } from './audit.js';
@@ -84,7 +85,7 @@ const shorten = (text: string, max = 80) => (text.length > max ? `${text.slice(0
 async function reachable() {
   const config = await featureConfig();
   const rows = await db
-    .select({ ...personColumns(employees), role: employees.role, recognitionSince: employees.recognitionSince })
+    .select({ ...personColumns(employees), role: employees.role, recognitionSince: employees.recognitionSince, prefers: employees.recognitionPreference })
     .from(employees)
     .where(and(eq(employees.isActive, true), eq(employees.hasAccount, true)));
   return rows.filter((e) => featureVisible(config, 'recognition', e));
@@ -172,6 +173,8 @@ export async function walletOf(viewer: Pick<Viewer, 'id' | 'createdAt'>, now = n
     received: { coins: received?.coins ?? 0, sealed: sealed?.n ?? 0 },
     // The two monthly reminders, unless the colleague switched them off.
     reminders: await recognitionRemindersOf(viewer),
+    // How they would rather be thanked themselves (2.1).
+    preference: await recognitionPreferenceOf(viewer),
   };
 }
 
@@ -181,7 +184,8 @@ export async function recognisable(viewer: Pick<Viewer, 'id'>, now = new Date())
   return people
     .filter((p) => p.id !== viewer.id)
     .sort((a, b) => fullName(a).localeCompare(fullName(b), 'fa'))
-    .map((p) => ({ ...person(p), givenThisMonth: given.byPerson.get(p.id) ?? 0 }));
+    // How each would rather be thanked, for the form's default (2.1).
+    .map((p) => ({ ...person(p), givenThisMonth: given.byPerson.get(p.id) ?? 0, prefers: p.prefers }));
 }
 
 /** The colleague a recognition goes to, or the reason it cannot go to them. */
@@ -859,6 +863,17 @@ export async function processRecognitionReminders(now = new Date()) {
 export async function setRecognitionReminders(viewer: Pick<Viewer, 'id'>, on: boolean) {
   await db.update(employees).set({ recognitionReminders: on }).where(eq(employees.id, viewer.id));
   return { reminders: on };
+}
+
+/** «قدردانی از من را…»: how the colleague would rather be thanked; only the default of others' forms. */
+export async function setRecognitionPreference(viewer: Pick<Viewer, 'id'>, preference: RecognitionPreference) {
+  await db.update(employees).set({ recognitionPreference: preference }).where(eq(employees.id, viewer.id));
+  return { preference };
+}
+
+export async function recognitionPreferenceOf(viewer: Pick<Viewer, 'id'>): Promise<RecognitionPreference> {
+  const [row] = await db.select({ p: employees.recognitionPreference }).from(employees).where(eq(employees.id, viewer.id));
+  return row?.p ?? 'any';
 }
 
 export async function recognitionRemindersOf(viewer: Pick<Viewer, 'id'>) {
