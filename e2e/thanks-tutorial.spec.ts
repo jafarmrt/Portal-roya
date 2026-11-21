@@ -294,7 +294,7 @@ test.describe('«سپاس»: the tutorials', () => {
     await leila.close();
   });
 
-  test('the programme’s owner: their tour, and the values’ descriptions', async ({ browser }) => {
+  test('the programme’s owner: their tour, and the values’ descriptions to edit', async ({ browser }) => {
     const admin = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
     const role = await admin.request.post('/api/roles', { data: { name: 'مسئول آموزش سپاس', description: '', permissions: ['recognition.manage'] } });
     expect(role.ok(), await role.text()).toBe(true);
@@ -322,28 +322,9 @@ test.describe('«سپاس»: the tutorials', () => {
     await expect(page.getByRole('tab', { name: 'ارزش‌ها' })).toBeVisible();
     await expect(page.locator('.sp-tour')).toHaveCount(0);
 
-    // A description written here shows under the value in the form.
+    // Each value's description, as the samples come (written and restored in e2e/thanks.spec.ts, whose
+    // tests change the company's values one after the other, not at the same time as these).
     await page.getByRole('tab', { name: 'ارزش‌ها' }).click();
-    const first = page.getByRole('textbox', { name: 'توضیح ارزش ۱' });
-    await expect(first).toHaveValue('کار را همراه دیگران پیش برد، نه تنها.');
-    await first.fill('گره کار دیگران را هم باز کرد.');
-    await page.getByRole('button', { name: 'ذخیرهٔ ارزش‌ها' }).click();
-    await expect(page.getByText('ارزش‌ها ذخیره شد.').last()).toBeVisible();
-    await page.goto('/#thanks');
-    await page.getByRole('button', { name: 'قدردانی کن' }).first().click();
-    const form = page.getByRole('dialog', { name: 'قدردانی از یک همکار' });
-    await expect(form.getByRole('button', { name: 'همکاری' })).toContainText('گره کار دیگران را هم باز کرد.');
-    // And on the wall's filter.
-    await form.getByRole('button', { name: 'بستن' }).first().click();
-    await page.getByRole('group', { name: 'ارزش', exact: true }).getByRole('button', { name: 'همکاری', exact: true }).click();
-    await expect(page.getByText('همکاری: گره کار دیگران را هم باز کرد.')).toBeVisible();
-
-    // «پنج ارزش نمونه» brings the samples back with their descriptions.
-    await page.goto('/#thanks-admin');
-    await page.getByRole('tab', { name: 'ارزش‌ها' }).click();
-    await page.getByRole('button', { name: 'پنج ارزش نمونه' }).click();
-    await page.getByRole('button', { name: 'ذخیرهٔ ارزش‌ها' }).click();
-    await expect(page.getByText('ارزش‌ها ذخیره شد.').last()).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'توضیح ارزش ۱' })).toHaveValue('کار را همراه دیگران پیش برد، نه تنها.');
 
     // From «؟» on the «سپاس» page, the owner's tour again.

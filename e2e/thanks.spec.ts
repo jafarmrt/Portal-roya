@@ -218,6 +218,8 @@ test.describe('«سپاس»: giving, receiving and the wall', () => {
     await page.getByRole('tab', { name: 'ارزش‌ها' }).click();
     await page.getByRole('button', { name: 'ارزش تازه' }).click();
     await page.getByLabel('نام ارزش ۶').fill('کیفیت');
+    // With a description, shown under it in the form and on the wall's filter (6b).
+    await page.getByRole('textbox', { name: 'توضیح ارزش ۶' }).fill('کار را درست و بی‌نقص تحویل داد.');
     await page.getByRole('radiogroup', { name: 'رنگ کیفیت' }).getByRole('radio', { name: 'آلویی' }).click();
     await page.getByRole('button', { name: 'ذخیرهٔ ارزش‌ها' }).click();
     await expect(page.getByText('ارزش‌ها ذخیره شد.')).toBeVisible();
@@ -227,11 +229,16 @@ test.describe('«سپاس»: giving, receiving and the wall', () => {
     await sql(`update employees set created_at = '2024-01-01', recognition_since = '2024-01-01' where id = $1`, [saraId]);
     await sara.page.goto('/#thanks');
     await sara.page.getByRole('button', { name: 'قدردانی کن' }).first().click();
-    await expect(sara.page.getByRole('dialog').getByRole('button', { name: 'کیفیت' })).toBeVisible();
+    await expect(sara.page.getByRole('dialog').getByRole('button', { name: 'کیفیت' })).toContainText('کار را درست و بی‌نقص تحویل داد.');
     await sara.page.keyboard.press('Escape');
+    await sara.page.getByRole('group', { name: 'ارزش', exact: true }).getByRole('button', { name: 'کیفیت', exact: true }).click();
+    await expect(sara.page.getByText('کیفیت: کار را درست و بی‌نقص تحویل داد.')).toBeVisible();
     await page.getByRole('button', { name: 'پنج ارزش نمونه' }).click();
     await page.getByRole('button', { name: 'ذخیرهٔ ارزش‌ها' }).click();
     await expect(page.getByRole('button', { name: 'ارزش تازه' })).toBeVisible();
+    // The samples come back with their descriptions.
+    await expect(page.getByRole('textbox', { name: 'توضیح ارزش ۱' })).toHaveValue('کار را همراه دیگران پیش برد، نه تنها.');
+    await expect(page.getByRole('textbox', { name: 'توضیح ارزش ۶' })).toHaveCount(0);
     await expect(page.getByLabel('نام ارزش ۶')).toHaveCount(0);
 
     // From the wall: one that should not be there goes back, with the reason both people read.
