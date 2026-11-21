@@ -3,7 +3,7 @@ import { ChevronLeft, HandHeart } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { featureInPreview } from '../../lib/features';
 import { JALALI_MONTH_NAMES, toPersianDigits } from '../../lib/jalali';
-import { CoinFace, CoinTray, MiniEnvelope } from './Coin';
+import { CoinFace, CoinTray, MiniEnvelope, useMonthFill } from './Coin';
 import { useEffectsLevel } from './effects';
 import { toneClass } from './ThanksCardFace';
 import { openGive, openReveal, useThanks, type OpenedCard, type Wallet } from './thanksStore';
@@ -31,9 +31,10 @@ export const MonthLine: React.FC<{ wallet: Wallet }> = ({ wallet }) => (
  * button to recognise a colleague, and what has arrived for this colleague (sealed envelopes first).
  */
 export const ThanksCard: React.FC = () => {
-  const { appSettings, setActiveTab } = usePortal();
+  const { appSettings, setActiveTab, currentUser } = usePortal();
   const { wallet, received, loaded } = useThanks();
   const fx = useEffectsLevel();
+  const fill = useMonthFill(currentUser?.id, wallet?.month);
   if (!loaded || !wallet) return null;
 
   const sealed = received.filter((c) => c.sealed);
@@ -58,7 +59,7 @@ export const ThanksCard: React.FC = () => {
       </div>
 
       <div className="sp-wallet-stage px-3 pt-1 pb-3">
-        <CoinTray allowance={wallet.allowance} left={wallet.left} fx={fx} filling />
+        <CoinTray allowance={wallet.allowance} left={wallet.left} fx={fx} filling={fill} fading={wallet.daysLeft <= 1 && wallet.left > 0} />
         <p className="text-center text-xs text-muted">
           <strong className="font-display text-2xl text-ink align-middle">{fa(wallet.left)}</strong> سکه برای بخشیدن
           <span className="text-faint"> از {fa(wallet.allowance)}</span>

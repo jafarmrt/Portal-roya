@@ -2,11 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { BellRing, ChevronLeft, Globe, HandHeart, Inbox, Newspaper, Send, Sparkles } from 'lucide-react';
 import { THANKS_EVENT, usePortal } from '../../context/PortalContext';
 import type { RecognitionPreference } from '../../../shared/recognition';
+import { api } from '../../lib/api';
 import { addUnsavedCheck } from '../../lib/unsavedWork';
 import { timeAgo, toPersianDigits } from '../../lib/jalali';
 import { PageHeader } from '../common/PageHeader';
 import { EmptyState, SkeletonRows } from '../common/Placeholder';
-import { CoinBadge, CoinFace, CoinTray, MiniEnvelope } from './Coin';
+import { CoinBadge, CoinFace, CoinTray, MiniEnvelope, useMonthFill } from './Coin';
 import { effectsWanted, setEffectsWanted, useEffectsLevel } from './effects';
 import { MonthLine } from './ThanksCard';
 import { ThanksCardFace } from './ThanksCardFace';
@@ -17,7 +18,8 @@ import { HelpMenu } from './tour/HelpMenu';
 import { MainTour, resumeStep } from './tour/MainTour';
 import { Missions } from './tour/Missions';
 import { ReceivedTour } from './tour/ReceivedTour';
-import { closeLaterNote, loadTutorial, pauseTour, startTour, tourState, useTour } from './tour/tourStore';
+import { closeLaterNote, loadTutorial, pauseTour, saveTutorial, startTour, tourState, useTour } from './tour/tourStore';
+import { RecapDialog, type Recap } from './Recap';
 import {
   loadMoreThanks,
   openGive,
@@ -158,6 +160,31 @@ function useTours(sealed: boolean) {
 }
 
 /**
+ * «کارنامهٔ سپاس» (2.3): last month's card opens by itself once, the first time the page is seen in the
+ * new month, when no tutorial is on screen. Nothing opens for a month in which nothing happened.
+ */
+function useRecap() {
+  const tour = useTour();
+  const [recap, setRecap] = useState<Recap | null>(null);
+  const asked = useRef(false);
+  useEffect(() => {
+    if (asked.current || !tour.loaded || tour.active || tour.progress.main?.state === 'active' || !tour.progress.main) return;
+    asked.current = true;
+    api
+      .get<{ recap: Recap | null }>('/api/recognitions/recap')
+      .then(({ recap: r }) => {
+        if (r && tourState().progress.recapSeen !== r.month) setRecap(r);
+      })
+      .catch(() => undefined);
+  }, [tour.loaded, tour.active, tour.progress.main]);
+  const close = () => {
+    if (recap) saveTutorial({ recapSeen: recap.month });
+    setRecap(null);
+  };
+  return { recap, close };
+}
+
+/**
  * The «سپاس» page: the month's wallet, the wall everyone sees, and the colleague's own recognitions:
  * the ones they received (sealed until they open them) and the ones they gave (with «پس گرفتن» for the
  * first minutes).
@@ -166,6 +193,7 @@ export const ThanksPage: React.FC = () => {
   const { currentUser, focusId } = usePortal();
   const { wallet, received, receivedNext, given, givenNext, loaded, tabRequest, lastSent } = useThanks();
   const fx = useEffectsLevel();
+  const fill = useMonthFill(currentUser?.id, wallet?.month);
   const [chosen, setTab] = useState<Tab | null>(null);
   const [wanted, setWanted] = useState(effectsWanted);
   const [more, setMore] = useState(false);
@@ -193,6 +221,7 @@ export const ThanksPage: React.FC = () => {
     if (tabRequest) setTab(tabRequest.tab);
   }, [tabRequest]);
   const { laterNote } = useTours(sealedCount > 0);
+  const { recap, close: closeRecap } = useRecap();
 
   if (!currentUser) return null;
   const me: ThanksPerson = {
@@ -239,7 +268,7 @@ export const ThanksPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <section className="lg:col-span-2 bg-white border border-line/70 shadow-card rounded-3xl p-4 sm:p-5 grid sm:grid-cols-2 gap-4 items-center" aria-label="کیف این ماه" data-tour="wallet">
               <div className="sp-wallet-stage px-3 pt-1 pb-3">
-                <CoinTray allowance={wallet.allowance} left={wallet.left} size="md" fx={fx} filling />
+                <CoinTray allowance={wallet.allowance} left={wallet.left} size="md" fx={fx} filling={fill} fading={wallet.daysLeft <= 1 && wallet.left > 0} />
               </div>
               <div className="space-y-3">
                 <div>
@@ -385,6 +414,7 @@ export const ThanksPage: React.FC = () => {
             </div>
           )}
 
+          {recap && <RecapDialog recap={recap} fx={fx} onClose={closeRecap} />}
           <MainTour wallet={wallet} fx={fx} />
           <ReceivedTour fx={fx} />
         </>

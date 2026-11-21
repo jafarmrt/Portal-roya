@@ -1042,3 +1042,72 @@ export async function setRecognitionTutorial(viewer: Pick<Viewer, 'id'>, change:
     return next;
   });
 }
+
+// ---- The monthly recap (phase 2, 2.3) -----------------------------------------------------------------
+
+/**
+ * «کارنامهٔ سپاس»: one colleague's own month, for them alone. What they gave (to how many colleagues, in
+ * how many units, how many of those units for the first time, how many coins), what they received and
+ * opened (how many coins, the value they were thanked for most, one sentence from it). Null when they
+ * neither gave nor received anything that month: no empty card, no reproach.
+ */
+export async function recognitionRecap(viewer: Pick<Viewer, 'id'>, month: string) {
+  const givenRows = await db
+    .select({ amount: recognitions.amount, parentId: recognitions.parentId, toId: recognitions.toId, department: receiver.department })
+    .from(recognitions)
+    .innerJoin(receiver, eq(receiver.id, recognitions.toId))
+    .where(and(eq(recognitions.fromId, viewer.id), eq(recognitions.month, month), standing));
+  // Coins received count once opened (a «من هم» has no seal), as in the wallet.
+  const receivedRows = await db
+    .select({ r: recognitions, from: personColumns(sender) })
+    .from(recognitions)
+    .innerJoin(sender, eq(sender.id, recognitions.fromId))
+    .where(
+      and(
+        eq(recognitions.toId, viewer.id),
+        eq(recognitions.month, month),
+        isNotNull(recognitions.deliveredAt),
+        standing,
+        or(isNotNull(recognitions.openedAt), isNotNull(recognitions.parentId)),
+      ),
+    );
+  if (givenRows.length === 0 && receivedRows.length === 0) return null;
+
+  const units = new Set(givenRows.map((g) => g.department || ''));
+  units.delete('');
+  // Units thanked in an earlier month: what is left is new this month.
+  const before = await db
+    .selectDistinct({ department: receiver.department })
+    .from(recognitions)
+    .innerJoin(receiver, eq(receiver.id, recognitions.toId))
+    .where(and(eq(recognitions.fromId, viewer.id), lt(recognitions.month, month), standing));
+  const earlier = new Set(before.map((b) => b.department));
+
+  const originals = receivedRows.filter((x) => x.r.parentId === null);
+  const byValue = new Map<string, { label: string; tone: string; count: number }>();
+  for (const { r } of originals) {
+    const v = byValue.get(r.valueId) ?? { label: r.valueLabel, tone: r.valueTone, count: 0 };
+    v.count += 1;
+    byValue.set(r.valueId, v);
+  }
+  const topValue = [...byValue.values()].sort((a, b) => b.count - a.count)[0] ?? null;
+  // The most recent message they received and opened that month.
+  const latest = originals.sort((a, b) => (b.r.deliveredAt?.getTime() ?? 0) - (a.r.deliveredAt?.getTime() ?? 0))[0] ?? null;
+
+  return {
+    month,
+    gave: {
+      recognitions: givenRows.filter((g) => g.parentId === null).length,
+      people: new Set(givenRows.map((g) => g.toId)).size,
+      units: units.size,
+      newUnits: [...units].filter((u) => !earlier.has(u)).length,
+      coins: givenRows.reduce((sum, g) => sum + g.amount, 0),
+    },
+    received: {
+      recognitions: originals.length,
+      coins: receivedRows.reduce((sum, x) => sum + x.r.amount, 0),
+      topValue: topValue ? { label: topValue.label, tone: topValue.tone } : null,
+      quote: latest ? { message: latest.r.message, from: person(latest.from) } : null,
+    },
+  };
+}

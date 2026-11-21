@@ -18,6 +18,7 @@ import {
   RECOGNITION_VALUE_LABEL_MAX,
   RECOGNITION_VALUES_MAX,
   type RecognitionRules,
+  previousRecognitionMonth,
   recognitionMonth,
   recognitionValues,
   rulesFor,
@@ -42,6 +43,7 @@ import {
   openRecognition,
   parseCursor,
   recognisable,
+  recognitionRecap,
   recognitionReport,
   recognitionReports,
   recognitionTutorial,
@@ -149,6 +151,7 @@ const tutorialSchema = z.object({
   main: z.object({ state: tourState, step: z.number().int().min(0).max(MAIN_TOUR_LAST_STEP) }).optional(),
   received: shortTour.optional(),
   owner: shortTour.optional(),
+  recapSeen: z.string().regex(/^\d{4}\/\d{2}$/).optional(),
   missions: z.object({ hidden: z.boolean().optional(), celebrated: z.boolean().optional() }).optional(),
 });
 
@@ -174,6 +177,15 @@ recognitionRouter.put(
   route(async (req, res) => {
     const { preference } = parse(z.object({ preference: z.enum(RECOGNITION_PREFERENCES) }), req.body);
     res.json(await setRecognitionPreference(currentUser(req), preference));
+  }),
+);
+
+/** «کارنامهٔ سپاس»: the colleague's own month (by default the one before this), or null if it was empty. */
+recognitionRouter.get(
+  '/recognitions/recap',
+  route(async (req, res) => {
+    const { month } = parse(z.object({ month: z.string().regex(/^\d{4}\/\d{2}$/, 'ماه درست نیست').optional() }), req.query);
+    res.json({ recap: await recognitionRecap(currentUser(req), month ?? previousRecognitionMonth(recognitionMonth(new Date()))) });
   }),
 );
 

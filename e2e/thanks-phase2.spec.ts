@@ -124,4 +124,28 @@ test.describe('«سپاس», phase 2: preference and entry points', () => {
     await yasi.page.goto('/#training');
     await expect(yasi.page.getByRole('button', { name: 'قدردانی از یاسمن خصوصی' })).toHaveCount(0);
   });
+
+  test('last month’s recap opens once, the first time the page is seen in the new month', async () => {
+    const last = moment().utcOffset(210).subtract(1, 'jMonth').format('jYYYY/jMM');
+    const at = moment().utcOffset(210).subtract(1, 'jMonth').toDate();
+    const row = (id: string, from: string, to: string, extra = '') =>
+      sql(
+        `insert into recognitions (id, from_id, to_id, amount, month, value_id, value_label, value_tone, message, is_public, deliver_at, delivered_at, created_at${extra ? ', opened_at' : ''})
+         values ($1, $2, $3, 5, $4, 'learning', 'یادگیری', 'sky', $5, false, $6, $6, $6${extra ? ', $6' : ''})`,
+        [id, from, to, last, `ممنون بابت جلسهٔ مرور گزارش، ${id}.`, at],
+      );
+    await row(`p2-recap-1-${Date.now()}`, parsa.id, yasi.id);
+    await row(`p2-recap-2-${Date.now()}`, yasi.id, parsa.id, 'opened');
+
+    await parsa.page.goto('/#thanks');
+    const recap = parsa.page.getByRole('dialog', { name: /^کارنامهٔ سپاس/ });
+    await expect(recap).toContainText('این ماه از ۱ همکار قدردانی کردید');
+    await expect(recap).toContainText('ارزشی که بیشتر برایش از شما تشکر شد');
+    await expect(recap).toContainText('یاسمن خصوصی');
+    await recap.getByRole('button', { name: 'ممنون' }).click();
+    await expect(recap).toBeHidden();
+    await parsa.page.reload();
+    await expect(parsa.page.getByRole('region', { name: 'کیف این ماه' })).toBeVisible();
+    await expect(recap).toHaveCount(0);
+  });
 });

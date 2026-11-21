@@ -18,6 +18,8 @@ export interface RecognitionTutorial {
   main?: { state: TourState; step: number };
   received?: ShortTourState;
   owner?: ShortTourState;
+  /** The last month whose recap (2.3) opened by itself; it does not open again for that month. */
+  recapSeen?: string;
   missions?: {
     /** «پنهان کردن فهرست»: the card is away until the «؟» menu brings it back. */
     hidden?: boolean;
@@ -41,6 +43,7 @@ export function cleanTutorial(value: unknown): RecognitionTutorial {
   }
   if (SHORT_STATES.includes(v.received as ShortTourState)) out.received = v.received as ShortTourState;
   if (SHORT_STATES.includes(v.owner as ShortTourState)) out.owner = v.owner as ShortTourState;
+  if (typeof v.recapSeen === 'string' && /^\d{4}\/\d{2}$/.test(v.recapSeen)) out.recapSeen = v.recapSeen;
   const missions = v.missions as Record<string, unknown> | undefined;
   if (missions && typeof missions === 'object') {
     out.missions = {};
