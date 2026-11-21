@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { pool } from '../server/db/index';
 import { ALL_PERMISSIONS } from '../shared/permissions';
 import { createEmployee, resetDatabase, setupAdmin } from './helpers';
+import { todayJalali } from '../shared/jalali';
 
 const newsItem = { title: 'اطلاعیه', summary: 'خلاصه', content: 'متن', category: 'اخبار' };
 const newUser = (username: string, role?: string) => ({
@@ -103,6 +104,8 @@ describe('roles and permissions', () => {
   it('lets the sender or a moderator remove a birthday wish', async () => {
     await admin.patch('/api/roles/manager').send({ permissions: ['comments.moderate'] }).expect(200);
     const other = await createEmployee(admin, { username: 'other.one' });
+    // Cards are listed only around the day they are for: today is this colleague's birthday.
+    await admin.patch(`/api/employees/${other.id}`).send({ birthDate: `1370/${todayJalali().slice(5)}` }).expect(200);
     const send = () => expert.agent.post(`/api/employees/${other.id}/birthday_wishes`).send({ message: 'تولدت مبارک' }).expect(201);
     const wishIds = async () => {
       const all = await admin.get('/api/birthday_wishes').expect(200);
