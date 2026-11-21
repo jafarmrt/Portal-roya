@@ -148,4 +148,49 @@ test.describe('«سپاس», phase 2: preference and entry points', () => {
     await expect(parsa.page.getByRole('region', { name: 'کیف این ماه' })).toBeVisible();
     await expect(recap).toHaveCount(0);
   });
+
+  test('«گنجینهٔ من»: what came in, a new badge said once, and shown in the profile only by choice', async ({ browser }) => {
+    // Five colleagues in three units that Parsa thanked earlier this month.
+    const admin = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const ids: string[] = [];
+    for (const [i, department] of ['تولید', 'فروش', 'فناوری اطلاعات', 'تولید'].entries()) {
+      const added = await admin.request.post('/api/employees', { data: { username: `p2.b${i}`, firstName: 'همکار', lastName: `شمارهٔ ${i + 1}`, position: 'کارشناس', department, role: 'employee' } });
+      expect(added.ok(), await added.text()).toBe(true);
+      ids.push((await added.json()).employee.id);
+    }
+    await admin.close();
+    const month = moment().utcOffset(210).format('jYYYY/jMM');
+    for (const [i, to] of [yasi.id, ...ids].entries()) {
+      await sql(
+        `insert into recognitions (id, from_id, to_id, amount, month, value_id, value_label, value_tone, message, is_public, deliver_at, delivered_at, created_at, opened_at)
+         values ($1, $2, $3, 1, $4, 'teamwork', 'همکاری', 'sage', 'ممنون بابت همراهی در جلسهٔ دیروز.', false, now(), now(), now(), now())`,
+        [`p2-badge-${i}-${Date.now()}`, parsa.id, to, month],
+      );
+    }
+
+    await parsa.page.goto('/#thanks');
+    await parsa.page.getByRole('tab', { name: 'گنجینهٔ من' }).click();
+    await expect(parsa.page.getByText('این صفحه را فقط خودتان می‌بینید.')).toBeVisible();
+    // Yasaman's recognition last month (the recap test) is in.
+    await expect(parsa.page.getByRole('heading', { name: '۵ سکه' })).toBeVisible();
+    await expect(parsa.page.getByRole('status').filter({ hasText: 'نشان تازه' })).toContainText('«پل» مسی');
+    await expect(parsa.page.getByRole('status').filter({ hasText: 'نشان تازه' })).toContainText('«چشم باز» مسی');
+    const badges = parsa.page.getByRole('region', { name: 'نشان‌ها' });
+    await expect(badges).toContainText('۲ واحد دیگر تا نقره‌ای');
+    // Said once.
+    await parsa.page.reload();
+    await parsa.page.getByRole('tab', { name: 'گنجینهٔ من' }).click();
+    await expect(badges).toBeVisible();
+    await expect(parsa.page.getByText('نشان تازه')).toHaveCount(0);
+
+    // Not in the profile until Parsa chooses to show them.
+    await yasi.page.goto(`/#colleagues/${parsa.id}`);
+    await expect(yasi.page.getByRole('dialog').getByRole('heading', { name: 'پارسا قدردان' })).toBeVisible();
+    await expect(yasi.page.getByRole('list', { name: 'نشان‌های سپاس' })).toHaveCount(0);
+    await badges.getByRole('checkbox', { name: /در پروفایلم نشان بده/ }).check();
+    await expect(parsa.page.getByText('نشان‌هایتان در پروفایلتان دیده می‌شود.')).toBeVisible();
+    await yasi.page.reload();
+    await expect(yasi.page.getByRole('list', { name: 'نشان‌های سپاس' })).toContainText('پل');
+    await expect(yasi.page.getByRole('list', { name: 'نشان‌های سپاس' })).toContainText('چشم باز');
+  });
 });

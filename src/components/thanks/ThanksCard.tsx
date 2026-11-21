@@ -6,7 +6,7 @@ import { JALALI_MONTH_NAMES, toPersianDigits } from '../../lib/jalali';
 import { CoinFace, CoinTray, MiniEnvelope, useMonthFill } from './Coin';
 import { useEffectsLevel } from './effects';
 import { toneClass } from './ThanksCardFace';
-import { openGive, openReveal, useThanks, type OpenedCard, type Wallet } from './thanksStore';
+import { openGive, openReveal, showThanksTab, useThanks, type OpenedCard, type Wallet } from './thanksStore';
 
 const fa = toPersianDigits;
 
@@ -52,7 +52,14 @@ export const ThanksCard: React.FC = () => {
           </h2>
           {featureInPreview(appSettings, 'recognition') && <span className="px-2 py-0.5 text-xs font-bold bg-violet-100 text-violet-800 rounded-full">پیش‌نمایش</span>}
         </div>
-        <button type="button" onClick={() => setActiveTab('thanks')} className="tap-area text-xs font-bold text-brand hover:underline flex items-center gap-1 whitespace-nowrap">
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('thanks');
+            showThanksTab('treasury');
+          }}
+          className="tap-area text-xs font-bold text-brand hover:underline flex items-center gap-1 whitespace-nowrap"
+        >
           گنجینهٔ من
           <ChevronLeft className="w-4 h-4" />
         </button>

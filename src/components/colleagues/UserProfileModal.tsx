@@ -37,6 +37,7 @@ import {
   Send,
 } from 'lucide-react';
 import { featureOn, tabOn } from '../../lib/features';
+import { ProfileBadges } from '../thanks/ProfileBadges';
 import { openGive } from '../thanks/thanksStore';
 import { useEventBadges } from '../event/useEventBadges';
 
@@ -171,6 +172,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClos
                     ))}
                   </ul>
                 )}
+                {featureOn(appSettings, 'recognition') && user.hasAccount && <ProfileBadges userId={user.id} />}
                 <p className="text-xs font-bold text-brand flex items-center gap-1.5">
                   <Briefcase className="w-3.5 h-3.5" />
                   <span>{user.position || NO_POSITION}</span>
