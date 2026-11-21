@@ -59,7 +59,7 @@ const FEATURE_ROUTES: {
     key: 'recognition',
     pattern: /^\/recognitions(\/|$)/,
     emptyReads: {},
-    owner: { permission: 'recognition.manage', pattern: /^\/recognitions\/(reports$|report$|tutorial$|[^/]+\/(report\/close|reverse)$)/ },
+    owner: { permission: 'recognition.manage', pattern: /^\/recognitions\/(reports$|report$|tutorial$|fairness(\/seen)?$|[^/]+\/(report\/close|reverse)$)/ },
   },
 ];
 
