@@ -15,7 +15,12 @@ module.exports = {
       name: 'roya-portal',
       cwd: isRelease ? path.join(home, 'current') : releaseDir,
       script: 'server-dist/index.cjs',
-      node_args: '--enable-source-maps',
+      // No --enable-source-maps: it loads the 13 MB map at start and keeps it, about 200 MB of the
+      // 400 MB the portal had; under PM2's limit that meant restarts every half minute with 50 people
+      // online. An error's stack then names lines of server-dist/index.cjs; to read it in TypeScript,
+      // run once with NODE_OPTIONS=--enable-source-maps.
+      // PM2 itself turns source maps on in the process it starts, unless told not to (another ~150 MB).
+      disable_source_map_support: true,
       env: {
         NODE_ENV: 'production',
         TZ: 'Asia/Tehran',
@@ -23,7 +28,8 @@ module.exports = {
         DOTENV_CONFIG_QUIET: 'true',
         UPLOAD_DIR: path.join(home, 'uploads'),
       },
-      max_memory_restart: '400M',
+      // Restarted only if something really runs away. The server has 2 GB with PostgreSQL beside it.
+      max_memory_restart: '700M',
     },
   ],
 };
