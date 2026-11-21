@@ -139,6 +139,8 @@ export interface MonthlySummary {
   idle: number;
   /** Emoji colleagues sent each other in «همکاران آنلاین» (only the total; summaries before v2.38 lack it). */
   kudos?: number;
+  /** «سپاس» that month: the share of colleagues who gave, and how many recognitions (null while off; absent before v2.83). */
+  recognition?: { giversShare: number; recognitions: number } | null;
 }
 
 export interface StoredMonthlySummary extends MonthlySummary {
