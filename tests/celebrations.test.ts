@@ -1,6 +1,6 @@
 import moment from 'moment-jalaali';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { daysSinceYearly, yearsSince } from '../shared/celebrations';
+import { cardsShownNow, daysSinceYearly, daysUntilYearly, yearsSince } from '../shared/celebrations';
 import { pool } from '../server/db/index';
 import { announceFoundingDay, announceWorkAnniversaries } from '../server/scheduler';
 import { createEmployee, resetDatabase, setupAdmin } from './helpers';
@@ -115,6 +115,42 @@ describe('greeting cards, work anniversaries and the founding day', () => {
     for (const agent of [sara.agent, nima.agent, admin]) {
       expect((await notificationsOf(agent)).some((n) => n.title.includes('۲۰ سال') && n.message.includes('تأسیس'))).toBe(true);
     }
+  });
+
+  it('sends only the cards a dashboard can show now, so a year of cards does not travel with every change', async () => {
+    const day = (offset: number) => moment(morning).add(offset, 'day').format('jYYYY/jMM/jDD');
+    const soon = await createEmployee(admin, { username: 'soon' });
+    const gone = await createEmployee(admin, { username: 'gone' });
+    // In ten days (always shown, even across the new year) and two months ago (never shown).
+    await admin.patch(`/api/employees/${soon.id}`).send({ birthDate: `1368/${day(10).slice(5)}` }).expect(200);
+    await admin.patch(`/api/employees/${gone.id}`).send({ birthDate: `1368/${day(-60).slice(5)}`, hireDate: `${thisYear - 5}/${day(-60).slice(5)}` }).expect(200);
+    await nima.agent.post(`/api/employees/${soon.id}/birthday_wishes`).send({ message: 'پیشاپیش مبارک' }).expect(201);
+    await nima.agent.post(`/api/employees/${gone.id}/birthday_wishes`).send({ message: 'دیر شد ولی مبارک' }).expect(201);
+    await nima.agent.post(`/api/employees/${gone.id}/birthday_wishes`).send({ message: 'سالگرد دیر', occasion: 'anniversary' }).expect(201);
+
+    const all = (await reza.agent.get('/api/birthday_wishes').expect(200)).body as Record<string, Card[]>;
+    expect(all[soon.id].map((c) => c.text)).toEqual(['پیشاپیش مبارک']);
+    expect(all[sara.id].length).toBeGreaterThan(0);
+    expect(all).not.toHaveProperty(gone.id);
+    // Reza's anniversary is today, so his anniversary card is still there.
+    expect(all[reza.id].map((c) => c.occasion)).toContain('anniversary');
+  });
+
+  it("knows when a yearly day's cards can be on a dashboard", () => {
+    const at = moment('1405/08/30', 'jYYYY/jMM/jDD').hour(10).toDate();
+    expect(daysUntilYearly('09/01', at)).toBe(1);
+    expect(daysUntilYearly('1370/08/30', at)).toBe(0);
+    expect(daysUntilYearly('08/29', at)).toBe(364);
+    expect(cardsShownNow('1370/08/30', at)).toBe(true);
+    expect(cardsShownNow('09/14', at)).toBe(true);
+    expect(cardsShownNow('09/15', at)).toBe(false);
+    expect(cardsShownNow('08/24', at)).toBe(true);
+    expect(cardsShownNow('08/23', at)).toBe(false);
+    expect(cardsShownNow('', at)).toBe(false);
+    // Across the new year: two days before Nowruz, a 10 Farvardin birthday is twelve days away.
+    const esfand = moment('1404/12/27', 'jYYYY/jMM/jDD').hour(10).toDate();
+    expect(daysUntilYearly('01/10', esfand)).toBe(12);
+    expect(cardsShownNow('01/10', esfand)).toBe(true);
   });
 
   it('counts days since a yearly date and years since a date', () => {

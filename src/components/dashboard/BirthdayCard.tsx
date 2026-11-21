@@ -3,7 +3,7 @@ import { ReactionBar } from '../common/ReactionBar';
 import { usePortal } from '../../context/PortalContext';
 import { UserProfile } from '../../types';
 import { Award, Cake, ChevronDown, Mail } from 'lucide-react';
-import { type WishOccasion, yearsLabel, yearsSince } from '../../../shared/celebrations';
+import { UPCOMING_ANNIVERSARY_DAYS, UPCOMING_BIRTHDAY_DAYS, type WishOccasion, yearsLabel, yearsSince } from '../../../shared/celebrations';
 import { Avatar } from '../common/Avatar';
 import { GreetingCard } from '../common/GreetingCard';
 import { daysUntilBirthday, formatBirthDay, toPersianDigits } from '../../lib/jalali';
@@ -11,8 +11,9 @@ import { EditProfileModal } from '../colleagues/EditProfileModal';
 import { GreetingCardComposer } from './GreetingCardComposer';
 import { SkeletonRows } from '../common/Placeholder';
 
-const UPCOMING_DAYS = 14;
-const ANNIVERSARY_DAYS = 7;
+// The server sends cards for these same windows (cardsShownNow in shared/celebrations.ts).
+const UPCOMING_DAYS = UPCOMING_BIRTHDAY_DAYS;
+const ANNIVERSARY_DAYS = UPCOMING_ANNIVERSARY_DAYS;
 // Three of each at first, so the card stays about as tall as its neighbours; the rest open in place.
 const MAX_SHOWN = 3;
 const DAY_MS = 24 * 60 * 60 * 1000;

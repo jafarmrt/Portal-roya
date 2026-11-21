@@ -40,6 +40,12 @@ const HEARTBEAT_MS = 25_000;
  * at once; more for the same resource within this long are sent as one at its end.
  */
 export const COALESCE_MS = 1000;
+/**
+ * Longer for lists that change in bursts and need not be up to the second: on a birthday morning cards and
+ * their reactions arrive every second or two, and each signal makes every open page load the cards again.
+ * The sender's own page loads them at once anyway.
+ */
+export const SLOW_COALESCE_MS: Partial<Record<ResourceName, number>> = { birthday_wishes: 5000 };
 const lastSent = new Map<ResourceName, number>();
 const queued = new Set<ResourceName>();
 
@@ -93,7 +99,7 @@ function sendChange(resource: ResourceName) {
 
 export function broadcastChange(resource: ResourceName) {
   if (queued.has(resource)) return;
-  const wait = (lastSent.get(resource) ?? 0) + COALESCE_MS - Date.now();
+  const wait = (lastSent.get(resource) ?? 0) + (SLOW_COALESCE_MS[resource] ?? COALESCE_MS) - Date.now();
   if (wait <= 0) {
     sendChange(resource);
     return;

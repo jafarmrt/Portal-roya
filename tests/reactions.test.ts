@@ -3,6 +3,7 @@ import request from 'supertest';
 import { pool } from '../server/db/index';
 import { pruneReactions } from '../server/routes/reactions';
 import { app, createEmployee, resetDatabase, setupAdmin } from './helpers';
+import { todayJalali } from '../shared/jalali';
 
 type Agent = Awaited<ReturnType<typeof setupAdmin>>;
 type Person = Awaited<ReturnType<typeof createEmployee>>;
@@ -62,6 +63,8 @@ describe('emoji reactions to introductions, welcome messages and greeting cards'
   });
 
   it('lets colleagues react to greeting cards that are not private, but not the one the card is for', async () => {
+    // Cards are listed only around the day they are for (shared/celebrations.ts): Sara's birthday is today.
+    await admin.patch(`/api/employees/${sara.id}`).send({ birthDate: `1370/${todayJalali().slice(5)}` }).expect(200);
     await reza.agent.post(`/api/employees/${sara.id}/birthday_wishes`).send({ message: 'تولدت مبارک', isPrivate: false }).expect(201);
     await reza.agent.post(`/api/employees/${sara.id}/birthday_wishes`).send({ message: 'فقط برای تو', isPrivate: true }).expect(201);
     const cards = (await reza.agent.get('/api/birthday_wishes').expect(200)).body[sara.id] as { id: string; isPrivate: boolean; reactions: Count[] }[];

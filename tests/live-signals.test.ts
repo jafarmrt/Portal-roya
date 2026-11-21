@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import type { Response } from 'express';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { COALESCE_MS, addClient, broadcastChange, broadcastEvent } from '../server/events';
+import { COALESCE_MS, SLOW_COALESCE_MS, addClient, broadcastChange, broadcastEvent } from '../server/events';
 import { setClientBuildForTests } from '../server/version';
 
 /** A page of the portal left open, and what the server sent it. */
@@ -40,6 +40,22 @@ describe('live signals to open pages', () => {
     vi.advanceTimersByTime(COALESCE_MS);
     broadcastChange('polls');
     expect(page.signals('polls')).toBe(3);
+    page.emit('close');
+  });
+
+  it('holds greeting cards back longer: one signal every few seconds for a birthday morning burst', () => {
+    vi.useFakeTimers();
+    const page = new OpenPage();
+    addClient('signals.user', page as unknown as Response);
+    const slow = SLOW_COALESCE_MS.birthday_wishes!;
+    expect(slow).toBeGreaterThan(COALESCE_MS);
+    broadcastChange('birthday_wishes');
+    expect(page.signals('birthday_wishes')).toBe(1);
+    broadcastChange('birthday_wishes');
+    vi.advanceTimersByTime(COALESCE_MS);
+    expect(page.signals('birthday_wishes')).toBe(1);
+    vi.advanceTimersByTime(slow - COALESCE_MS);
+    expect(page.signals('birthday_wishes')).toBe(2);
     page.emit('close');
   });
 

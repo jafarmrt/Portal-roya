@@ -5,7 +5,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { currentJalaliYear, todayJalali, toPersianDigits } from '../../shared/jalali.js';
-import { WISH_DESIGNS, WISH_OCCASIONS, WISH_REACTIONS, yearsSince } from '../../shared/celebrations.js';
+import { cardsShownNow, WISH_DESIGNS, WISH_OCCASIONS, WISH_REACTIONS, yearsSince } from '../../shared/celebrations.js';
 import { audit, fromTo } from '../audit.js';
 import { can, type Employee, hashPassword, isAdmin, requirePermission, type SessionUser } from '../auth.js';
 import { db } from '../db/index.js';
@@ -700,7 +700,22 @@ employeesRouter.get(
       res.json({});
       return;
     }
-    const rows = await db
+    // Only the cards a dashboard can show now: of birthdays and anniversaries from two weeks ahead to a
+    // week ago. Every open page loads this list again whenever a card is sent or answered, so the whole
+    // year's cards (hundreds of KB by midyear) made a birthday morning slow for everyone.
+    const now = new Date();
+    const people = await db.select({ id: employees.id, birthDate: employees.birthDate, hireDate: employees.hireDate }).from(employees);
+    const shown = new Set<string>();
+    for (const p of people) {
+      if (cardsShownNow(p.birthDate, now)) shown.add(`${p.id}|birthday`);
+      if (cardsShownNow(p.hireDate, now)) shown.add(`${p.id}|anniversary`);
+    }
+    const targets = [...new Set([...shown].map((key) => key.split('|')[0]))];
+    if (targets.length === 0) {
+      res.json({});
+      return;
+    }
+    const found = await db
       .select({
         id: birthdayWishes.id,
         targetUserId: birthdayWishes.targetUserId,
@@ -720,11 +735,14 @@ employeesRouter.get(
       .where(
         and(
           eq(birthdayWishes.jalaliYear, currentJalaliYear()),
+          inArray(birthdayWishes.targetUserId, targets),
           // A private card is only for the colleague it was written to (and its sender).
           or(eq(birthdayWishes.isPrivate, false), eq(birthdayWishes.targetUserId, viewer.id), eq(birthdayWishes.senderId, viewer.id)),
         ),
       )
       .orderBy(birthdayWishes.createdAt);
+    // A colleague's birthday cards and anniversary cards each follow their own day.
+    const rows = found.filter((r) => shown.has(`${r.targetUserId}|${r.occasion}`));
     // Colleagues' reactions to the cards that are not private.
     const counts = await reactionCounts('greeting', rows.filter((r) => !r.isPrivate).map((r) => String(r.id)), viewer.id);
     const grouped: Record<string, (ReturnType<typeof serializeWish> & { reactions: ReactionCount[] })[]> = {};
