@@ -56,7 +56,7 @@ After=network.target postgresql.service
 WorkingDirectory=/opt/portal
 EnvironmentFile=/opt/portal/.env
 Environment=NODE_ENV=production TZ=Asia/Tehran
-ExecStart=/usr/bin/node --enable-source-maps server-dist/index.cjs
+ExecStart=/usr/bin/node server-dist/index.cjs
 Restart=always
 User=portal
 
