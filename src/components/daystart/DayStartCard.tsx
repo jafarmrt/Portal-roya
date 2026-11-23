@@ -4,6 +4,7 @@ import { usePortal } from '../../context/PortalContext';
 import { haptic } from '../../lib/feedback';
 import { todayJalali } from '../../lib/jalali';
 import { MOOD_PRIVACY_LINE, moodReply, type Mood } from '../../../shared/mood';
+import { DayStep } from './DayStep';
 import { MOOD_LOOK, MOOD_ORDER } from './moodLook';
 import { MyMonth } from './MyMonth';
 import { TeamMood } from './TeamMood';
@@ -80,8 +81,8 @@ export const DayStartCard: React.FC = () => {
   const look = MOOD_LOOK[mine];
   const Icon = look.icon;
   return (
-    // Narrow: the mood and its sentence, «حال‌وهوای ما», then «ماه من». Wide: the colleague's own
-    // side (the mood and «ماه من») in one column and «حال‌وهوای ما» beside it.
+    // Narrow: the mood and its sentence, the day's step, «حال‌وهوای ما», then «ماه من». Wide: the
+    // colleague's own side (the mood, the step, «ماه من») in one column and «حال‌وهوای ما» beside it.
     <section aria-labelledby="day-start-title" className="@container bg-white rounded-3xl p-5 sm:p-6 border border-line/70 shadow-card" dir="rtl" data-testid="day-start">
       <div className="grid gap-4 @3xl:grid-cols-2 @3xl:gap-x-8">
         <div className="flex items-start gap-3 min-w-0 @3xl:col-start-1">
@@ -99,11 +100,16 @@ export const DayStartCard: React.FC = () => {
           </div>
         </div>
 
-        <div className="pt-4 border-t border-line min-w-0 @3xl:col-start-2 @3xl:row-start-1 @3xl:row-span-2 @3xl:pt-0 @3xl:border-t-0 @3xl:border-r @3xl:pr-8">
+        {/* Its wrapper is empty (and takes no room) on a day without a step */}
+        <div className="min-w-0 empty:hidden pt-4 border-t border-line @3xl:col-start-1">
+          <DayStep mood={mine} />
+        </div>
+
+        <div className="pt-4 border-t border-line min-w-0 @3xl:col-start-2 @3xl:row-start-1 @3xl:row-span-3 @3xl:pt-0 @3xl:border-t-0 @3xl:border-r @3xl:pr-8">
           <TeamMood refreshKey={`${today}:${mine}`} />
         </div>
 
-        <div className="pt-4 border-t border-line space-y-3 min-w-0 @3xl:col-start-1 @3xl:row-start-2">
+        <div className="pt-4 border-t border-line space-y-3 min-w-0 @3xl:col-start-1">
           <button
             type="button"
             onClick={() => setMonthOpen((open) => !open)}

@@ -377,6 +377,22 @@ export const moods = pgTable(
   (t) => [uniqueIndex('moods_user_date_uq').on(t.userId, t.date)],
 );
 
+/**
+ * «یک قدم برای امروز» in numbers: how often each kind of step was shown, taken, closed or switched
+ * off on a day. Counts only, with no colleague on them: which step someone was offered depends on
+ * their mood, so nothing here may lead back to a person.
+ */
+export const dayStepCounts = pgTable(
+  'day_step_counts',
+  {
+    date: text('date').notNull(), // Jalali YYYY/MM/DD
+    kind: text('kind').notNull(),
+    outcome: text('outcome').notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.date, t.kind, t.outcome] })],
+);
+
 export const trainings = pgTable('trainings', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),

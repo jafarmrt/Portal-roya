@@ -3,10 +3,11 @@ import { Router } from 'express';
 import moment from 'moment-jalaali';
 import { z } from 'zod';
 import { todayJalali } from '../../shared/jalali.js';
+import { DAY_STEP_OUTCOMES, DAY_STEPS } from '../../shared/dayStep.js';
 import { goodShare, MOOD_MIN_ANSWERS, MOOD_TEAM_DAYS, MOOD_VALUES, type Mood, type MoodTeam } from '../../shared/mood.js';
 import { requirePermission } from '../auth.js';
 import { db } from '../db/index.js';
-import { moods } from '../db/schema.js';
+import { dayStepCounts, moods } from '../db/schema.js';
 import { currentUser, parse, route } from '../http.js';
 
 export const moodsRouter = Router();
@@ -87,6 +88,21 @@ moodsRouter.get(
   route(async (req, res) => {
     currentUser(req);
     res.json(await moodTeam());
+  }),
+);
+
+// «یک قدم برای امروز»: one more for today's count of this kind of step and what became of it. Nothing
+// about the colleague is kept, here or in the audit log: the step offered depends on their mood.
+moodsRouter.post(
+  '/moods/steps',
+  route(async (req, res) => {
+    currentUser(req);
+    const { kind, outcome } = parse(z.object({ kind: z.enum(DAY_STEPS), outcome: z.enum(DAY_STEP_OUTCOMES) }), req.body);
+    await db
+      .insert(dayStepCounts)
+      .values({ date: todayJalali(), kind, outcome, count: 1 })
+      .onConflictDoUpdate({ target: [dayStepCounts.date, dayStepCounts.kind, dayStepCounts.outcome], set: { count: sql`${dayStepCounts.count} + 1` } });
+    res.status(204).end();
   }),
 );
 
