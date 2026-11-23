@@ -31,6 +31,7 @@ import {
   Sparkles,
   Ellipsis,
   HandHeart,
+  Sunrise,
 } from 'lucide-react';
 import { useOpenReports } from './thanks/ownerStore';
 import { useThanks } from './thanks/thanksStore';
@@ -364,6 +365,8 @@ export const Navigation: React.FC<NavigationProps> = ({ isMobileNavOpen, onClose
       ...(openReports > 0 ? { badge: toPersianDigits(openReports), badgeColor: 'bg-amber-300 text-amber-950' } : {}),
     });
   }
+  // The same for whoever looks after «شروع روز»: the questions can be read through before anyone is asked.
+  if (can('mood.manage')) adminItems.push({ id: 'day-admin', label: 'برنامهٔ شروع روز', icon: <Sunrise className="w-4 h-4" /> });
   if (isAdmin) adminItems.push({ id: 'audit', label: 'تاریخچهٔ تغییرات', icon: <History className="w-4 h-4" /> });
 
   // Desktop bar: the org apps already have their own "سامانه‌ها" button in the header, and related

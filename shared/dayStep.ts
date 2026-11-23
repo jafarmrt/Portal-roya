@@ -21,6 +21,16 @@ export const DAY_STEP_LABELS: Record<DayStepKind, string> = {
   coins: 'سکه‌های مانده',
 };
 
+/**
+ * The order the steps are tried in: what whoever looks after «شروع روز» saved, cleaned of unknown and
+ * repeated kinds, with the kinds it does not mention after it in the built-in order. The quiet step
+ * of a hard day is not part of the order: on such a day it is the only one.
+ */
+export function dayStepOrder(saved: readonly string[] = []): DayStepKind[] {
+  const seen = new Set<string>();
+  return [...saved, ...DAY_STEPS].filter((kind): kind is DayStepKind => DAY_STEPS.includes(kind as DayStepKind) && !seen.has(kind) && Boolean(seen.add(kind)));
+}
+
 /** What the portal itself asks of the colleague; these may come back day after day. */
 export const DAY_STEPS_EVERY_DAY: readonly DayStepKind[] = ['acks', 'tasksWaiting'];
 

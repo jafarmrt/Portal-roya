@@ -1,14 +1,28 @@
-import { desc, eq, gte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, ne, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import moment from 'moment-jalaali';
 import { z } from 'zod';
-import { todayJalali } from '../../shared/jalali.js';
-import { DAY_STEP_OUTCOMES, DAY_STEPS } from '../../shared/dayStep.js';
-import { goodShare, MOOD_MIN_ANSWERS, MOOD_TEAM_DAYS, MOOD_VALUES, type Mood, type MoodTeam } from '../../shared/mood.js';
+import { isValidJalaliDate, todayJalali } from '../../shared/jalali.js';
+import {
+  DAY_QUESTION_OPTION_MAX,
+  DAY_QUESTION_OPTIONS_MAX,
+  DAY_QUESTION_OPTIONS_MIN,
+  DAY_QUESTION_TEXT_MAX,
+  DAY_QUESTION_THEME_IDS,
+  DAY_QUESTIONS_MAX,
+  questionProblem,
+  themeLabel,
+} from '../../shared/dayQuestion.js';
+import { DAY_STEP_OUTCOMES, DAY_STEPS, dayStepOrder } from '../../shared/dayStep.js';
+import { goodShare, MOOD_MIN_ANSWERS, MOOD_REASON_IDS, MOOD_REASONS_MAX, MOOD_TEAM_DAYS, MOOD_VALUES, type Mood, type MoodTeam } from '../../shared/mood.js';
+import { audit } from '../audit.js';
 import { requirePermission } from '../auth.js';
+import { addSampleQuestions, answerToday, bankView, clearDayQuestionCache, loadBank, questionToday } from '../dayQuestions.js';
 import { db } from '../db/index.js';
-import { dayStepCounts, moods } from '../db/schema.js';
-import { currentUser, parse, route } from '../http.js';
+import { dayAnswers, dayQuestionDays, dayQuestions, dayStepCounts, moods, settings } from '../db/schema.js';
+import { broadcastChange } from '../events.js';
+import { HttpError, currentUser, newId, parse, route } from '../http.js';
+import { ensureSettings } from '../settings.js';
 
 export const moodsRouter = Router();
 
@@ -57,6 +71,8 @@ async function moodTeam(): Promise<MoodTeam> {
   return value;
 }
 
+const serializeMood = (row: typeof moods.$inferSelect) => ({ id: String(row.id), userId: row.userId, date: row.date, mood: row.mood, reasons: row.reasons });
+
 moodsRouter.post(
   '/moods',
   route(async (req, res) => {
@@ -66,10 +82,30 @@ moodsRouter.post(
     const [row] = await db
       .insert(moods)
       .values({ userId: viewer.id, date, mood })
-      .onConflictDoUpdate({ target: [moods.userId, moods.date], set: { mood, submittedAt: new Date() } })
+      // The reasons went with the mood they were given for; another mood starts without them.
+      .onConflictDoUpdate({
+        target: [moods.userId, moods.date],
+        set: { mood, submittedAt: new Date(), reasons: sql`case when ${moods.mood} = ${mood} then ${moods.reasons} else '{}'::text[] end` },
+      })
       .returning();
     clearMoodTeamCache();
-    res.json({ mood: { id: String(row.id), userId: row.userId, date: row.date, mood: row.mood } });
+    res.json({ mood: serializeMood(row) });
+  }),
+);
+
+// «چه چیزی بیشتر اثر داشت؟»: up to three reasons added to today's mood, or taken off again.
+moodsRouter.put(
+  '/moods/reasons',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const { reasons } = parse(z.object({ reasons: z.array(z.enum(MOOD_REASON_IDS)).max(MOOD_REASONS_MAX) }), req.body);
+    const [row] = await db
+      .update(moods)
+      .set({ reasons: [...new Set(reasons)] })
+      .where(and(eq(moods.userId, viewer.id), eq(moods.date, todayJalali())))
+      .returning();
+    if (!row) throw new HttpError(409, 'اول حال امروزتان را انتخاب کنید.');
+    res.json({ mood: serializeMood(row) });
   }),
 );
 
@@ -78,7 +114,7 @@ moodsRouter.get(
   route(async (req, res) => {
     const viewer = currentUser(req);
     const rows = await db.select().from(moods).where(eq(moods.userId, viewer.id)).orderBy(desc(moods.date)).limit(60);
-    res.json(rows.map((r) => ({ id: String(r.id), userId: r.userId, date: r.date, mood: r.mood })));
+    res.json(rows.map(serializeMood));
   }),
 );
 
@@ -119,5 +155,171 @@ moodsRouter.get(
       for (const mood of MOOD_VALUES) if (day[mood]) rows.push({ date, mood, count: day[mood] });
     }
     res.json(rows);
+  }),
+);
+
+// ---- «پرسش روز» ---------------------------------------------------------------------------------
+
+// Today's question for the card, with the colleague's own answer and, once they answered, everyone's.
+moodsRouter.get(
+  '/moods/question',
+  route(async (req, res) => {
+    res.json(await questionToday(currentUser(req).id));
+  }),
+);
+
+moodsRouter.post(
+  '/moods/question',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const { option } = parse(z.object({ option: z.number().int().min(0).max(DAY_QUESTION_OPTIONS_MAX - 1) }), req.body);
+    if (!(await answerToday(viewer.id, option))) throw new HttpError(400, 'این گزینه در پرسش امروز نیست.');
+    res.json(await questionToday(viewer.id));
+  }),
+);
+
+// What colleagues answered to the questions of the last 30 days, for the managers' report: totals
+// only, and a day with fewer answers than the minimum is left out.
+moodsRouter.get(
+  '/moods/questions/results',
+  requirePermission('reports.view'),
+  route(async (_req, res) => {
+    const since = moment().subtract(30, 'days').format(FORMAT);
+    const days = await db
+      .select({ date: dayQuestionDays.date, id: dayQuestions.id, text: dayQuestions.text, theme: dayQuestions.theme, options: dayQuestions.options })
+      .from(dayQuestionDays)
+      .innerJoin(dayQuestions, eq(dayQuestions.id, dayQuestionDays.questionId))
+      .where(gte(dayQuestionDays.date, since))
+      .orderBy(desc(dayQuestionDays.date));
+    const counts = await db
+      .select({ date: dayAnswers.date, questionId: dayAnswers.questionId, option: dayAnswers.option, count: sql<number>`count(*)::int` })
+      .from(dayAnswers)
+      .where(gte(dayAnswers.date, since))
+      .groupBy(dayAnswers.date, dayAnswers.questionId, dayAnswers.option);
+    const rows = days
+      .map((day) => ({
+        date: day.date,
+        text: day.text,
+        theme: day.theme,
+        options: day.options,
+        counts: day.options.map((_, i) => counts.find((c) => c.date === day.date && c.questionId === day.id && c.option === i)?.count ?? 0),
+      }))
+      .filter((day) => day.counts.reduce((sum, n) => sum + n, 0) >= MOOD_MIN_ANSWERS);
+    res.json(rows);
+  }),
+);
+
+// The bank, for whoever looks after «شروع روز».
+moodsRouter.get(
+  '/moods/questions',
+  requirePermission('mood.manage'),
+  route(async (_req, res) => {
+    res.json(await bankView());
+  }),
+);
+
+const questionSchema = z.object({
+  text: z.string().trim().min(1, 'متن پرسش را بنویسید.').max(DAY_QUESTION_TEXT_MAX),
+  options: z.array(z.string().trim().min(1, 'گزینهٔ خالی را پر یا حذف کنید.').max(DAY_QUESTION_OPTION_MAX)).min(DAY_QUESTION_OPTIONS_MIN).max(DAY_QUESTION_OPTIONS_MAX),
+  theme: z.enum(DAY_QUESTION_THEME_IDS),
+  active: z.boolean().default(true),
+  pinnedDate: z.string().refine((v) => v === '' || isValidJalaliDate(v), 'تاریخ را درست وارد کنید.').default(''),
+});
+
+/** A day can be picked for one question only, not in the past, and not once the day's question is out. */
+async function checkPinnedDate(pinnedDate: string, id: string | null) {
+  if (!pinnedDate) return;
+  const today = todayJalali();
+  if (pinnedDate < today) throw new HttpError(400, 'روز انتخاب‌شده گذشته است.');
+  const [other] = await db
+    .select({ id: dayQuestions.id })
+    .from(dayQuestions)
+    .where(and(eq(dayQuestions.pinnedDate, pinnedDate), id ? ne(dayQuestions.id, id) : undefined));
+  if (other) throw new HttpError(400, 'برای این روز پرسش دیگری انتخاب شده است.');
+  const [given] = await db.select().from(dayQuestionDays).where(eq(dayQuestionDays.date, pinnedDate));
+  if (given && given.questionId !== id) throw new HttpError(400, 'پرسش امروز پرسیده شده است؛ روز دیگری را انتخاب کنید.');
+}
+
+moodsRouter.post(
+  '/moods/questions',
+  requirePermission('mood.manage'),
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const body = parse(questionSchema, req.body);
+    const problem = questionProblem(body);
+    if (problem) throw new HttpError(400, problem);
+    const bank = await loadBank();
+    if (bank.length >= DAY_QUESTIONS_MAX) throw new HttpError(400, 'بانک پرسش پر است؛ اول چند پرسش قدیمی را حذف کنید.');
+    await checkPinnedDate(body.pinnedDate, null);
+    const position = bank.reduce((max, q) => Math.max(max, q.position), -1) + 1;
+    await db.insert(dayQuestions).values({ id: newId('dq'), ...body, position });
+    clearDayQuestionCache();
+    await audit(viewer, { action: 'create', entity: 'settings', title: 'پرسش روز', detail: `${body.text} (${themeLabel(body.theme)})` });
+    res.status(201).json(await bankView());
+  }),
+);
+
+moodsRouter.post(
+  '/moods/questions/samples',
+  requirePermission('mood.manage'),
+  route(async (req, res) => {
+    const added = await addSampleQuestions();
+    if (added > 0) await audit(currentUser(req), { action: 'create', entity: 'settings', title: 'پرسش روز', detail: `${added} پرسش نمونه` });
+    res.json({ added, ...(await bankView()) });
+  }),
+);
+
+moodsRouter.put(
+  '/moods/questions/:id',
+  requirePermission('mood.manage'),
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const body = parse(questionSchema, req.body);
+    const problem = questionProblem(body);
+    if (problem) throw new HttpError(400, problem);
+    const [before] = await db.select().from(dayQuestions).where(eq(dayQuestions.id, req.params.id));
+    if (!before) throw new HttpError(404, 'این پرسش پیدا نشد.');
+    const [asked] = await db.select({ date: dayQuestionDays.date }).from(dayQuestionDays).where(eq(dayQuestionDays.questionId, before.id)).limit(1);
+    // The answers of a day point at an option by its place, so the options of a question that was asked stay as they are.
+    if (asked && JSON.stringify(before.options) !== JSON.stringify(body.options)) {
+      throw new HttpError(400, 'این پرسش پرسیده شده و پاسخ دارد؛ گزینه‌هایش عوض نمی‌شود. آن را خاموش کنید و پرسش تازه‌ای بنویسید.');
+    }
+    if (body.pinnedDate !== before.pinnedDate) await checkPinnedDate(body.pinnedDate, before.id);
+    await db.update(dayQuestions).set(body).where(eq(dayQuestions.id, before.id));
+    clearDayQuestionCache();
+    await audit(viewer, { action: 'update', entity: 'settings', title: 'پرسش روز', detail: `${body.text}${body.active ? '' : ' (خاموش)'}` });
+    res.json(await bankView());
+  }),
+);
+
+moodsRouter.delete(
+  '/moods/questions/:id',
+  requirePermission('mood.manage'),
+  route(async (req, res) => {
+    const [before] = await db.select().from(dayQuestions).where(eq(dayQuestions.id, req.params.id));
+    if (!before) throw new HttpError(404, 'این پرسش پیدا نشد.');
+    const [asked] = await db.select({ date: dayQuestionDays.date }).from(dayQuestionDays).where(eq(dayQuestionDays.questionId, before.id)).limit(1);
+    if (asked) throw new HttpError(409, 'این پرسش پرسیده شده و پاسخ دارد؛ به‌جای حذف، آن را خاموش کنید.');
+    await db.delete(dayQuestions).where(eq(dayQuestions.id, before.id));
+    clearDayQuestionCache();
+    await audit(currentUser(req), { action: 'delete', entity: 'settings', title: 'پرسش روز', detail: before.text });
+    res.json(await bankView());
+  }),
+);
+
+// The order «یک قدم برای امروز» tries its steps in, for everyone.
+moodsRouter.put(
+  '/moods/programme',
+  requirePermission('mood.manage'),
+  route(async (req, res) => {
+    const { stepOrder } = parse(z.object({ stepOrder: z.array(z.enum(DAY_STEPS)).max(DAY_STEPS.length) }), req.body);
+    await ensureSettings();
+    const order = dayStepOrder(stepOrder);
+    // The built-in order is kept as "none", so a step added later takes its built-in place.
+    const same = order.every((kind, i) => kind === DAY_STEPS[i]);
+    await db.update(settings).set({ dayStepOrder: same ? [] : order }).where(eq(settings.id, 'global'));
+    await audit(currentUser(req), { action: 'update', entity: 'settings', title: 'ترتیب پیشنهادهای «شروع روز»', detail: same ? 'ترتیب پیش‌فرض' : order.join('، ') });
+    broadcastChange('settings');
+    res.json({ stepOrder: same ? [] : order });
   }),
 );

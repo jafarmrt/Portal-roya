@@ -8,7 +8,7 @@ import { inputClass } from '../common/Modal';
 import { TaskFormModal } from '../tasks/TaskFormModal';
 import { openGive, useThanks } from '../thanks/thanksStore';
 import { useTickTodo } from '../todos/useTickTodo';
-import { DAY_PLAN_NOTES, DAY_STEP_LABELS, DAY_STEP_LIST, pickStep, type DayStepFacts, type DayStepKind } from '../../../shared/dayStep';
+import { DAY_PLAN_NOTES, DAY_STEP_LABELS, DAY_STEP_LIST, dayStepOrder, pickStep, type DayStepFacts, type DayStepKind } from '../../../shared/dayStep';
 import type { Mood } from '../../../shared/mood';
 import { addJalaliDays, TODO_TITLE_MAX } from '../../../shared/todos';
 import type { PersonalTodo } from '../../types';
@@ -69,7 +69,8 @@ export const DayStep: React.FC<{ mood: Mood }> = ({ mood }) => {
     openPolls: openPoll ? 1 : 0,
     trainingSoon: Boolean(course),
   };
-  const kind = !ready || finished ? null : sorting ? 'overdue' : pickStep(facts, memory, today);
+  // In the order whoever looks after «شروع روز» chose for everyone (the built-in one unless they did).
+  const kind = !ready || finished ? null : sorting ? 'overdue' : pickStep(facts, memory, today, dayStepOrder(appSettings?.dayStepOrder));
 
   // The first time a kind is on screen today it becomes the day's step, and is counted once.
   useEffect(() => {
