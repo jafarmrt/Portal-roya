@@ -149,7 +149,13 @@ test.describe('«سپاس»: giving, receiving and the wall', () => {
 
     // An emoji, then «من هم»: two coins of their own, which can be taken back for a few minutes.
     await card.getByRole('button', { name: /واکنش با ایموجی/ }).click();
+    // The emoji is saved before the next tap, as it is for a person: once, a «من هم» tapped 60 ms after
+    // the emoji (while its answer was still being taken in) reached an enabled button and sent nothing.
+    const reacted = negar.waitForResponse((res) => res.url().endsWith('/api/reactions') && res.request().method() === 'PUT');
+    const refreshed = negar.waitForResponse((res) => res.url().endsWith('/api/new_colleagues'));
     await card.getByRole('button', { name: 'واکنش 🎉' }).click();
+    await reacted;
+    await refreshed;
     await expect(card.getByRole('button', { name: /🎉 ۱، شما هم/ })).toBeVisible();
     await card.getByRole('button', { name: /من هم/ }).click();
     await expect(card).toContainText('شما هم همراه شدید.');

@@ -6,6 +6,7 @@ import { runMigrations } from './db/index.js';
 import { reconcileDepartments, reconcileLocations } from './departments.js';
 import { describeDirectoryUser } from './ldap.js';
 import { isMailEnabled } from './mailer.js';
+import { ensureSampleQuestions } from './dayQuestions.js';
 import { ensureRoles } from './roles.js';
 import { startScheduler } from './scheduler.js';
 import { startPresenceSweep } from './presence.js';
@@ -19,6 +20,13 @@ const NO_CACHE_FILES = new Set(['sw.js', 'manifest.webmanifest', 'offline.html',
 async function main() {
   await runMigrations();
   await ensureRoles();
+  // «پرسش روز» starts with the sample questions; a failure must not keep the portal down.
+  try {
+    const added = await ensureSampleQuestions();
+    if (added > 0) console.log(`Sample questions added to «پرسش روز»: ${added}`);
+  } catch (err) {
+    console.error('Could not add the sample questions:', err);
+  }
   // Brings departments typed before the list was enforced into the list; a failure must not keep the portal down.
   try {
     const departments = await reconcileDepartments();

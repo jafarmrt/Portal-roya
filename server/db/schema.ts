@@ -372,9 +372,47 @@ export const moods = pgTable(
     userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
     date: text('date').notNull(), // Jalali YYYY/MM/DD
     mood: text('mood').notNull(),
+    // «چه چیزی بیشتر اثر داشت؟»: the reasons the colleague added to the day's mood (see MOOD_REASONS).
+    reasons: text('reasons').array().notNull().default([]),
     submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex('moods_user_date_uq').on(t.userId, t.date)],
+);
+
+// «پرسش روز»: the bank the day's question is taken from (shared/dayQuestion.ts).
+export const dayQuestions = pgTable('day_questions', {
+  id: text('id').primaryKey(),
+  text: text('text').notNull(),
+  options: jsonb('options').$type<string[]>().notNull(),
+  theme: text('theme').notNull(),
+  active: boolean('active').notNull().default(true),
+  // Asked on this Jalali day whatever the day's subject; '' for none.
+  pinnedDate: text('pinned_date').notNull().default(''),
+  // The key of the sample question this row began as, so «پرسش‌های نمونه» adds only the missing ones.
+  sample: text('sample'),
+  position: integer('position').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// The question each day was given, written down the first time anyone asks for it: the day's question
+// stays the same for everyone even if the bank is edited at noon.
+export const dayQuestionDays = pgTable('day_question_days', {
+  date: text('date').primaryKey(), // Jalali YYYY/MM/DD
+  questionId: text('question_id').notNull().references(() => dayQuestions.id, { onDelete: 'cascade' }),
+});
+
+// A colleague's answer to the day's question: one a day, kept with their name like the mood, and
+// shown to managers only as totals.
+export const dayAnswers = pgTable(
+  'day_answers',
+  {
+    userId: text('user_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+    date: text('date').notNull(), // Jalali YYYY/MM/DD
+    questionId: text('question_id').notNull().references(() => dayQuestions.id, { onDelete: 'cascade' }),
+    option: integer('option').notNull(),
+    answeredAt: timestamp('answered_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.date] }), index('day_answers_date_idx').on(t.date)],
 );
 
 /**
@@ -747,6 +785,8 @@ export const settings = pgTable('settings', {
   kudosEmojis: jsonb('kudos_emojis').$type<KudosEmoji[]>().notNull().default([]),
   // Steps the administrator adds to every new colleague's «هفتهٔ اول من» list.
   firstWeekSteps: text('first_week_steps').array().notNull().default([]),
+  // The order «یک قدم برای امروز» tries its steps in ([] = the built-in order, see shared/dayStep.ts).
+  dayStepOrder: text('day_step_order').array().notNull().default([]),
   // The portal's own key pair for notifications on phones and computers (Web Push, VAPID); made on first start.
   vapidPublicKey: text('vapid_public_key').notNull().default(''),
   vapidPrivateKey: text('vapid_private_key').notNull().default(''),

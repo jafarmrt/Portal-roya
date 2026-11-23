@@ -1,26 +1,43 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CalendarDays, ChevronDown, Sunrise } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { haptic } from '../../lib/feedback';
 import { todayJalali } from '../../lib/jalali';
 import { MOOD_PRIVACY_LINE, moodReply, type Mood } from '../../../shared/mood';
+import { DayQuestionAsk, DayQuestionResults } from './DayQuestion';
 import { DayStep } from './DayStep';
+import { MoodReasons } from './MoodReasons';
 import { MOOD_LOOK, MOOD_ORDER } from './moodLook';
 import { MyMonth } from './MyMonth';
+import { loadDayQuestion, skipDayQuestion, useDayQuestion } from './questionStore';
 import { TeamMood } from './TeamMood';
 
 /**
- * «شروع روز»: the day's mood in one tap, and then what comes back for it: a sentence for the
- * colleague, how the organisation is today («حال‌وهوای ما») and their own month («ماه من»).
- * The answer is kept with the colleague's name but managers only ever see totals.
+ * «شروع روز» in three short steps: the day's mood in one tap (with what affected it, if the
+ * colleague cares to say), the day's question, and one step for today. What comes back for it: a
+ * sentence for the colleague, how the organisation is today («حال‌وهوای ما»), what everyone answered
+ * to the question, and their own month («ماه من»). Answers are kept with the colleague's name but
+ * managers only ever see totals.
  */
 export const DayStartCard: React.FC = () => {
-  const { userMoods, submitMood, isLoaded } = usePortal();
+  const { currentUser, userMoods, submitMood, isLoaded } = usePortal();
   const [changing, setChanging] = useState(false);
   const [busy, setBusy] = useState<Mood | null>(null);
   const [monthOpen, setMonthOpen] = useState(false);
+  // The reasons are offered in the visit the mood was chosen in, not every time the dashboard opens.
+  const [justAnswered, setJustAnswered] = useState(false);
+  const [reanswering, setReanswering] = useState(false);
   const today = todayJalali();
-  const mine = userMoods.find((m) => m.date === today)?.mood ?? null;
+  const answer = userMoods.find((m) => m.date === today);
+  const mine = answer?.mood ?? null;
+  const userId = currentUser?.id ?? '';
+  const asked = useDayQuestion();
+  const question = asked.key === `${userId}:${today}` ? asked : null;
+
+  // The day's question is asked for once the mood is in: it is the second step, not the first.
+  useEffect(() => {
+    if (userId && mine) void loadDayQuestion(userId, today);
+  }, [userId, mine, today]);
 
   // Until the colleague's own answers have arrived the card would ask again by mistake.
   if (!isLoaded('moods')) return null;
@@ -32,6 +49,7 @@ export const DayStartCard: React.FC = () => {
     await submitMood(mood);
     setBusy(null);
     setChanging(false);
+    setJustAnswered(true);
   };
 
   if (!mine || changing) {
@@ -80,9 +98,15 @@ export const DayStartCard: React.FC = () => {
 
   const look = MOOD_LOOK[mine];
   const Icon = look.icon;
+  const hasQuestion = Boolean(question?.today?.question);
+  const answered = hasQuestion && question!.today!.mine !== null;
+  // The question waits to be answered or passed over; the day's step comes after it.
+  const asking = hasQuestion && (reanswering || (!answered && !question!.skipped));
+  const settled = Boolean(question?.loaded) && !asking;
   return (
-    // Narrow: the mood and its sentence, the day's step, «حال‌وهوای ما», then «ماه من». Wide: the
-    // colleague's own side (the mood, the step, «ماه من») in one column and «حال‌وهوای ما» beside it.
+    // Narrow: the mood and its sentence, the day's question, the day's step, «حال‌وهوای ما», then
+    // «ماه من». Wide: the colleague's own side (the mood, the question, the step, «ماه من») in one
+    // column and what came back («حال‌وهوای ما», the question's answers) beside it.
     <section aria-labelledby="day-start-title" className="@container bg-white rounded-3xl p-5 sm:p-6 border border-line/70 shadow-card" dir="rtl" data-testid="day-start">
       <div className="grid gap-4 @3xl:grid-cols-2 @3xl:gap-x-8">
         <div className="flex items-start gap-3 min-w-0 @3xl:col-start-1">
@@ -97,16 +121,43 @@ export const DayStartCard: React.FC = () => {
               </button>
             </div>
             <p className="text-xs font-medium text-ink-soft mt-1 leading-relaxed" data-testid="mood-reply">{moodReply(mine, today)}</p>
+            {justAnswered && (
+              <div className="mt-3">
+                <MoodReasons mood={mine} chosen={answer?.reasons ?? []} />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Its wrapper is empty (and takes no room) on a day without a step */}
-        <div className="min-w-0 empty:hidden pt-4 border-t border-line @3xl:col-start-1">
-          <DayStep mood={mine} />
-        </div>
+        {asking && (
+          <div className="min-w-0 pt-4 border-t border-line @3xl:col-start-1">
+            <DayQuestionAsk
+              today={question!.today!}
+              onSkip={answered ? () => setReanswering(false) : () => skipDayQuestion(userId, today)}
+              skipLabel={answered ? 'انصراف' : undefined}
+              onAnswered={() => setReanswering(false)}
+            />
+          </div>
+        )}
 
-        <div className="pt-4 border-t border-line min-w-0 @3xl:col-start-2 @3xl:row-start-1 @3xl:row-span-3 @3xl:pt-0 @3xl:border-t-0 @3xl:border-r @3xl:pr-8">
+        {/* Its wrapper is empty (and takes no room) on a day without a step, and until the question is settled */}
+        <div className="min-w-0 empty:hidden pt-4 border-t border-line @3xl:col-start-1">{settled && <DayStep mood={mine} />}</div>
+
+        <div className="pt-4 border-t border-line min-w-0 space-y-4 @3xl:col-start-2 @3xl:row-start-1 @3xl:row-span-4 @3xl:pt-0 @3xl:border-t-0 @3xl:border-r @3xl:pr-8">
           <TeamMood refreshKey={`${today}:${mine}`} />
+          {answered && !reanswering && (
+            <div className="pt-4 border-t border-line">
+              <DayQuestionResults today={question!.today!} onChange={() => setReanswering(true)} />
+            </div>
+          )}
+          {hasQuestion && !answered && question!.skipped && (
+            <p className="pt-4 border-t border-line text-xs text-muted leading-relaxed" data-testid="day-question-skipped">
+              پرسش امروز: «{question!.today!.question!.text}»{' '}
+              <button type="button" onClick={() => skipDayQuestion(userId, today, false)} className="font-bold text-brand-strong hover:underline">
+                پاسخ می‌دهم
+              </button>
+            </p>
+          )}
         </div>
 
         <div className="pt-4 border-t border-line space-y-3 min-w-0 @3xl:col-start-1">
