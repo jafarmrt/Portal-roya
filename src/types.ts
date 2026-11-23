@@ -630,6 +630,29 @@ export interface GuideInput {
   reviewDate: string;
 }
 
+/** One row of an Excel file of guides, as the server read it. */
+export interface GuideImportRow {
+  /** The row's number in the file. */
+  row: number;
+  data: Record<string, string>;
+  /** Why the row cannot be saved; empty when it can. */
+  errors: string[];
+  /** Whether the row writes a new guide, changes the guide with the same question, or matches it already. */
+  action?: 'create' | 'update' | 'unchanged';
+  changes?: string[];
+  /** The colleague the owner cell names. */
+  owner?: string;
+}
+
+export interface GuideImportResult {
+  created: number;
+  updated: number;
+  unchanged: number;
+  /** Guides the file would change, left as they are because updating was not chosen. */
+  leftAlone: number;
+  skipped: { row: number; title: string; errors: string[] }[];
+}
+
 /** The page of a department: who leads it and what to come to it for. */
 export interface DepartmentPage {
   department: string;

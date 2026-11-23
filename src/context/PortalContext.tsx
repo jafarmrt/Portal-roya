@@ -29,6 +29,7 @@ import type {
   DepartmentPage,
   Guide,
   GuideInput,
+  GuideImportResult,
   MoodState,
   NewColleagueWelcome,
   NewsInput,
@@ -339,6 +340,8 @@ interface PortalContextType {
   acknowledgeDocument: (id: string) => Promise<void>;
   saveGuide: (guide: GuideInput, id?: string) => Promise<boolean>;
   deleteGuide: (id: string) => Promise<boolean>;
+  /** Saves the checked rows of an Excel file of guides. Resolves to what was saved, or undefined when it failed. */
+  importGuides: (rows: Record<string, string>[], updateExisting: boolean) => Promise<GuideImportResult | undefined>;
   markGuideReviewed: (id: string, reviewDate: string) => Promise<boolean>;
   sendGuideFeedback: (id: string, helpful: boolean) => Promise<void>;
   /** Resolves to the name of the colleague the question went to, or undefined when it failed. */
@@ -1350,6 +1353,12 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return ok !== undefined;
   };
 
+  const importGuides: PortalContextType['importGuides'] = async (rows, updateExisting) => {
+    const result = await attempt(() => api.post<GuideImportResult>('/api/guides/import', { rows, updateExisting }));
+    if (result) await refresh('guides');
+    return result;
+  };
+
   const markGuideReviewed: PortalContextType['markGuideReviewed'] = async (id, reviewDate) => {
     const guide = await attempt(() => api.post<Guide>(`/api/guides/${id}/review`, { reviewDate }), 'بازبینی ثبت شد.');
     if (guide) replaceGuide(guide);
@@ -1529,6 +1538,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         acknowledgeDocument,
         saveGuide,
         deleteGuide,
+        importGuides,
         markGuideReviewed,
         sendGuideFeedback,
         askGuideQuestion,
