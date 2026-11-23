@@ -3,6 +3,7 @@ import { usePortal } from '../../context/PortalContext';
 import { timeAgo, toPersianDigits } from '../../lib/jalali';
 import {
   Bell,
+  Sunrise,
   MessageSquareText,
   CheckCircle2,
   Trash2,
@@ -74,6 +75,8 @@ export const NotificationsInbox: React.FC = () => {
         return <ClipboardList className="w-4 h-4 text-violet-700" />;
       case 'todo':
         return <NotebookPen className="w-4 h-4 text-teal-700" />;
+      case 'dayStart':
+        return <Sunrise className="w-4 h-4 text-amber-600" />;
       case 'notice':
         return <Megaphone className="w-4 h-4 text-amber-700" />;
       case 'event':

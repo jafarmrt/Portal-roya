@@ -146,6 +146,10 @@ export const employees = pgTable('employees', {
   pushMuted: text('push_muted').array().notNull().default([]),
   /** The colleague wants the two monthly reminders of «سپاس» (the middle of the month, three days before its end). */
   recognitionReminders: boolean('recognition_reminders').notNull().default(true),
+  /** The colleague asked for the morning reminder of «شروع روز» (off unless they switch it on). */
+  dayStartReminder: boolean('day_start_reminder').notNull().default(false),
+  /** The Jalali day that reminder last went out, so it goes once a day. */
+  dayStartRemindedOn: text('day_start_reminded_on'),
   /** «قدردانی از من را…»: 'any', 'public' or 'private'; only the give form's default (shared/recognition.ts). */
   recognitionPreference: text('recognition_preference').$type<RecognitionPreference>().notNull().default('any'),
   /** How far the colleague got in the tutorials of «سپاس» (shared/recognitionTutorial.ts), kept here so a phone and a computer agree. */

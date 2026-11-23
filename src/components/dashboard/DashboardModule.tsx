@@ -9,6 +9,7 @@ import { EventStrip } from './EventStrip';
 import { QuickSystemsWidget } from './QuickSystemsWidget';
 import { DayStartCard } from '../daystart/DayStartCard';
 import { MoodTrackerWidget } from './MoodTrackerWidget';
+import { MyWeekCard } from '../daystart/MyWeekCard';
 import { WelcomeNewColleagueCard } from './WelcomeNewColleagueCard';
 import { DashboardCalendar } from './DashboardCalendar';
 import { isCardOn } from './dashboardCards';
@@ -92,6 +93,13 @@ export const DashboardModule: React.FC = () => {
       {on('mood') && !isGuest && dayStart && dayStartOnTop === true && (
         <div className="order-1" data-testid="day-start-top">
           <DayStartCard />
+        </div>
+      )}
+
+      {/* «هفتهٔ من»: the colleague's own last week, on the first visit of a new week until they close it */}
+      {on('mood') && !isGuest && dayStart && (
+        <div className="order-1">
+          <MyWeekCard />
         </div>
       )}
 

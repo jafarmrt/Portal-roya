@@ -13,7 +13,7 @@ import {
   questionProblem,
   themeLabel,
 } from '../../shared/dayQuestion.js';
-import { DAY_STEP_OUTCOMES, DAY_STEPS, dayStepOrder } from '../../shared/dayStep.js';
+import { DAY_COUNT_KINDS, DAY_STEP_OUTCOMES, DAY_STEPS, dayStepOrder } from '../../shared/dayStep.js';
 import { goodShare, MOOD_MIN_ANSWERS, MOOD_REASON_IDS, MOOD_REASONS_MAX, MOOD_TEAM_DAYS, MOOD_VALUES, type Mood, type MoodTeam } from '../../shared/mood.js';
 import { audit } from '../audit.js';
 import { can, requirePermission } from '../auth.js';
@@ -22,6 +22,7 @@ import { db } from '../db/index.js';
 import { dayAnswers, dayQuestionDays, dayQuestions, dayStepCounts, moods, news, settings } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
 import { HttpError, currentUser, newId, parse, route } from '../http.js';
+import { myWeek } from '../dayWeek.js';
 import { clearMoodReportCache, moodReport } from '../moodReport.js';
 import { heardDraft, isMoodReportDays, type MoodReportDays } from '../../shared/moodReport.js';
 import { questionResults } from '../../shared/dayQuestion.js';
@@ -132,13 +133,21 @@ moodsRouter.get(
   }),
 );
 
+// «هفتهٔ من»: the colleague's own last week, for nobody else. Null for a week with nothing in it.
+moodsRouter.get(
+  '/moods/week',
+  route(async (req, res) => {
+    res.json({ week: await myWeek(currentUser(req)) });
+  }),
+);
+
 // «یک قدم برای امروز»: one more for today's count of this kind of step and what became of it. Nothing
 // about the colleague is kept, here or in the audit log: the step offered depends on their mood.
 moodsRouter.post(
   '/moods/steps',
   route(async (req, res) => {
     currentUser(req);
-    const { kind, outcome } = parse(z.object({ kind: z.enum(DAY_STEPS), outcome: z.enum(DAY_STEP_OUTCOMES) }), req.body);
+    const { kind, outcome } = parse(z.object({ kind: z.enum(DAY_COUNT_KINDS), outcome: z.enum(DAY_STEP_OUTCOMES) }), req.body);
     await db
       .insert(dayStepCounts)
       .values({ date: todayJalali(), kind, outcome, count: 1 })

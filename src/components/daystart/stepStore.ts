@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { api } from '../../lib/api';
-import { NO_STEP_MEMORY, readStepMemory, type DayStepKind, type DayStepMemory, type DayStepOutcome } from '../../../shared/dayStep';
+import { NO_STEP_MEMORY, readStepMemory, type DayCountKind, type DayStepMemory, type DayStepOutcome } from '../../../shared/dayStep';
 
 // What «یک قدم برای امروز» remembers about a colleague stays in their own browser: the kinds they
 // switched off and the last step shown. Which step is offered depends on the day's mood, so none of
@@ -46,7 +46,7 @@ const counted = new Set<string>();
  * One more for the day's anonymous count of this kind of step (shown, taken, closed, switched off).
  * Once per kind and outcome while the page is open; quiet, and never worth an error message.
  */
-export function countStep(kind: DayStepKind, outcome: DayStepOutcome, date: string) {
+export function countStep(kind: DayCountKind, outcome: DayStepOutcome, date: string) {
   const id = `${date}:${kind}:${outcome}`;
   if (counted.has(id)) return;
   counted.add(id);

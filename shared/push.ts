@@ -15,7 +15,7 @@ export const PUSH_CATEGORIES: PushCategory[] = [
   { id: 'news', label: 'خبرها، بخشنامه‌ها و سندها', types: ['announcement', 'document'] },
   { id: 'calendar', label: 'رویدادها و دوره‌های آموزشی', types: ['calendar', 'training'] },
   { id: 'polls', label: 'نظرسنجی‌ها', types: ['poll'] },
-  { id: 'todos', label: 'یادآوری کارهای من', types: ['todo'] },
+  { id: 'todos', label: 'یادآوری کارهای من و «شروع روز»', types: ['todo', 'dayStart'] },
   { id: 'people', label: 'تولد، همکار جدید و تبریک‌ها', types: ['birthday', 'welcome', 'kudos', 'recognition'] },
   { id: 'other', label: 'پیام‌های پرتال و انتقادات و پیشنهادات', types: ['system', 'profile', 'suggestion'] },
 ];

@@ -251,6 +251,8 @@ interface PortalContextType {
   markFeatureSeen: (key: FeatureKey) => void;
   /** Switches the once-a-day effect of the occasions and seasons on or off for this person. */
   setOccasionEffects: (on: boolean) => Promise<boolean>;
+  /** The colleague's own morning reminder of «شروع روز». */
+  setDayStartReminder: (on: boolean) => Promise<boolean>;
   /** Saves this person's order of the dashboard cards; an empty list puts the default order back. */
   setDashboardOrder: (order: string[]) => Promise<boolean>;
   /** Saves the ticked steps of «هفتهٔ اول من» (shown at once; put back if saving fails). */
@@ -825,6 +827,15 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     if (tabIsNew && unseenTabFeature) markFeatureSeen(unseenTabFeature);
   }, [tabIsNew, unseenTabFeature, markFeatureSeen]);
+
+  const setDayStartReminder = async (on: boolean) => {
+    const updated = await attempt(
+      () => api.put<AppSettings>('/api/settings/day-start-reminder', { on }),
+      on ? 'هر صبح کاری «شروع روز» را به شما یادآوری می‌کنیم.' : 'یادآوری صبح خاموش شد.',
+    );
+    if (updated) setAppSettings(updated);
+    return Boolean(updated);
+  };
 
   const setOccasionEffects = async (on: boolean) => {
     const updated = await attempt(
@@ -1472,6 +1483,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         featureOn,
         markFeatureSeen,
         setOccasionEffects,
+        setDayStartReminder,
         setDashboardOrder,
         setFirstWeekDone,
         updateSettings,

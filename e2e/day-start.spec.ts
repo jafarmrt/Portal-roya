@@ -1,5 +1,6 @@
 import { devices, expect, test, type Browser, type BrowserContextOptions, type Page } from '@playwright/test';
 import moment from 'moment-jalaali';
+import { previousWeek } from '../shared/dayWeek';
 import { MOOD_REPLIES } from '../shared/mood';
 
 // «شروع روز»: the daily mood waits right under the welcome until it is answered; then the card says
@@ -504,6 +505,127 @@ test.describe('«یک قدم برای امروز»', () => {
     await expect(step(page)).toHaveAttribute('data-step', 'thanks');
     await step(page).getByRole('button', { name: 'قدردانی کن' }).click();
     await expect(page.getByRole('dialog', { name: 'قدردانی از یک همکار' })).toBeVisible();
+    await who.close();
+  });
+});
+
+// The other end of the day and of the week: the afternoon wrap-up of the day's notes, «هفتهٔ من»,
+// and the morning reminder a colleague may switch on for themselves.
+test.describe('«جمع‌بندی روز» و «هفتهٔ من»', () => {
+  test('in the afternoon the open notes of the day go to tomorrow in one tap, once', async ({ browser }) => {
+    const who = await colleague(browser, 'wrap.one', 'ترانه');
+    await confirmCirculars(who);
+    const today = moment().format('jYYYY/jMM/jDD');
+    const tomorrow = moment().add(1, 'day').format('jYYYY/jMM/jDD');
+    const add = async (title: string) => (await (await who.page.request.post('/api/todos', { data: { title, dueDate: today } })).json()) as { id: string };
+    const done = await add('گزارش هفتگی');
+    await add('تماس با تأمین‌کننده');
+    expect((await who.page.request.patch(`/api/todos/${done.id}`, { data: { done: true } })).ok()).toBe(true);
+    const page = who.page;
+    await pretendMood(page, 16);
+    await page.goto('/#dashboard');
+    await choose(page, 'خوب');
+
+    // The wrap-up takes the place of the day's step.
+    const wrap = page.getByTestId('day-wrap');
+    await expect(wrap).toContainText('از ۲ کار امروز ۱ تا انجام شد. آن یکی را به فردا ببرم؟');
+    await expect(wrap).toContainText('تماس با تأمین‌کننده');
+    await expect(step(page)).toHaveCount(0);
+    await wrap.getByRole('button', { name: 'ببر به فردا' }).click();
+    await expect(page.getByText('یادداشت به فردا رفت.')).toBeVisible();
+    await expect(wrap).toHaveCount(0);
+    const notes = (await (await page.request.get('/api/todos')).json()) as { title: string; dueDate: string }[];
+    expect(notes.find((n) => n.title === 'تماس با تأمین‌کننده')!.dueDate).toBe(tomorrow);
+    // Once a day: it does not come back.
+    await page.reload();
+    await expect(card(page).getByRole('heading', { name: 'حال امروز شما: خوب' })).toBeVisible();
+    await expect(page.getByTestId('day-wrap')).toHaveCount(0);
+    await who.close();
+  });
+
+  test('in the morning, and on a hard day, the notes of the day are not asked about', async ({ browser }) => {
+    const who = await colleague(browser, 'wrap.two', 'کاوه');
+    await confirmCirculars(who);
+    const today = moment().format('jYYYY/jMM/jDD');
+    expect((await who.page.request.post('/api/todos', { data: { title: 'بازبینی سند', dueDate: today } })).ok()).toBe(true);
+    const page = who.page;
+    await pretendMood(page, 10);
+    await page.goto('/#dashboard');
+    await choose(page, 'خوب');
+    await expect(card(page).getByRole('heading', { name: 'حال امروز شما: خوب' })).toBeVisible();
+    await expect(page.getByTestId('team-mood')).toBeVisible();
+    await expect(page.getByTestId('day-wrap')).toHaveCount(0);
+    // The afternoon, and the day has turned hard: the quiet line takes the place of the step chosen
+    // in the morning, and the notes are not asked about.
+    await page.clock.setFixedTime(moment().hour(16).minute(0).second(0).toDate());
+    await page.reload();
+    await card(page).getByRole('button', { name: 'تغییر', exact: true }).click();
+    await choose(page, 'خیلی بد');
+    await expect(step(page)).toHaveAttribute('data-step', 'care');
+    await expect(page.getByTestId('day-wrap')).toHaveCount(0);
+    await who.close();
+  });
+
+  test('«هفتهٔ من» shows the colleague’s own last week until they close it', async ({ browser }) => {
+    const who = await colleague(browser, 'week.one', 'نسیم');
+    const page = who.page;
+    // Nothing happened last week for a colleague made a moment ago: no card, and the week is not asked about again.
+    const empty = page.waitForResponse((res) => res.url().endsWith('/api/moods/week'));
+    await page.goto('/#dashboard');
+    expect(await (await empty).json()).toEqual({ week: null });
+    await expect(card(page)).toBeVisible();
+    await expect(page.getByTestId('my-week')).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('roya.daySeen.week.')))).toBe(true);
+
+    // A week with something in it (the counting itself is tested against the database in tests/dayWeek.test.ts).
+    const last = previousWeek(moment().format('jYYYY/jMM/jDD'));
+    let asked = 0;
+    await page.route('**/api/moods/week', (route) => {
+      asked += 1;
+      return route.fulfill({ json: { week: { ...last, notesDone: 4, tasksDone: 1, given: 2, received: 1, moods: ['خوب', 'عالی', null, 'بد', 'خوب'] } } });
+    });
+    await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('roya.daySeen.week.')).forEach((k) => localStorage.removeItem(k)));
+    await page.reload();
+    const week = page.getByTestId('my-week');
+    await expect(week).toContainText('هفتهٔ گذشتهٔ شما');
+    await expect(week).toContainText('۴ یادداشت را بستید');
+    await expect(week).toContainText('۱ کار ارجاعی را تمام کردید');
+    await expect(week).toContainText('۲ قدردانی دادید و ۱ قدردانی گرفتید');
+    await expect(week.getByLabel('شنبه: خوب', { exact: true })).toBeVisible();
+    await expect(week.getByLabel('دوشنبه: ثبت نشده', { exact: true })).toBeVisible();
+    await expect(week).toContainText('فقط خودتان این را می‌بینید.');
+    // It sits above the organisation's apps, with the day's start.
+    const box = await week.boundingBox();
+    const systems = await page.getByRole('region', { name: 'سامانه‌های سازمان' }).boundingBox();
+    expect(box!.y).toBeLessThan(systems!.y);
+
+    await week.getByRole('button', { name: 'بستن هفتهٔ گذشتهٔ شما' }).click();
+    await expect(week).toHaveCount(0);
+    const before = asked;
+    await page.reload();
+    await expect(card(page)).toBeVisible();
+    await expect(page.getByTestId('my-week')).toHaveCount(0);
+    // Closed for this week: not even asked for again.
+    expect(asked).toBe(before);
+    await who.close();
+  });
+
+  test('the morning reminder is off until the colleague switches it on', async ({ browser }) => {
+    const who = await colleague(browser, 'remind.one', 'آرش');
+    const page = who.page;
+    const wants = async () => ((await (await page.request.get('/api/settings')).json()) as { dayStartReminder: boolean }).dayStartReminder;
+    await pretendMood(page, 9);
+    await page.goto('/#dashboard');
+    await choose(page, 'خوب');
+    const box = page.getByTestId('day-reminder').getByRole('checkbox');
+    await expect(box).not.toBeChecked();
+    expect(await wants()).toBe(false);
+    await box.check();
+    await expect(page.getByText('هر صبح کاری «شروع روز» را به شما یادآوری می‌کنیم.')).toBeVisible();
+    expect(await wants()).toBe(true);
+    await box.uncheck();
+    await expect(page.getByText('یادآوری صبح خاموش شد.')).toBeVisible();
+    expect(await wants()).toBe(false);
     await who.close();
   });
 });

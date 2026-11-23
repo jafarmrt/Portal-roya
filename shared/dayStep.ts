@@ -34,6 +34,11 @@ export function dayStepOrder(saved: readonly string[] = []): DayStepKind[] {
 /** What the portal itself asks of the colleague; these may come back day after day. */
 export const DAY_STEPS_EVERY_DAY: readonly DayStepKind[] = ['acks', 'tasksWaiting'];
 
+/** What is counted beside the steps, in the same anonymous way: the afternoon wrap-up of the day's notes. */
+export const DAY_COUNT_KINDS = [...DAY_STEPS, 'wrap'] as const;
+export type DayCountKind = (typeof DAY_COUNT_KINDS)[number];
+export const DAY_COUNT_LABELS: Record<DayCountKind, string> = { ...DAY_STEP_LABELS, wrap: 'جمع‌بندی عصر' };
+
 export const DAY_STEP_OUTCOMES = ['shown', 'done', 'closed', 'muted'] as const;
 export type DayStepOutcome = (typeof DAY_STEP_OUTCOMES)[number];
 
@@ -111,7 +116,9 @@ export function pickStep(f: DayStepFacts, memory: DayStepMemory, today: string, 
     if (last.state !== 'open' || memory.muted.includes(last.kind)) return null;
     // «سه کار امروز» begun in the morning is not taken away from under the colleague's hands at noon.
     const still = eligibleSteps(last.kind === 'plan' ? { ...f, hour: PLANNING_FROM } : f, order);
-    return still.includes(last.kind) ? last.kind : null;
+    if (still.includes(last.kind)) return last.kind;
+    // A day that turned hard after its step was chosen: the quiet line takes the step's place.
+    return still[0] === 'care' && !memory.muted.includes('care') ? 'care' : null;
   }
   const eligible = eligibleSteps(f, order).filter((kind) => !memory.muted.includes(kind));
   const ignored = last && last.state !== 'done' && !DAY_STEPS_EVERY_DAY.includes(last.kind) ? last.kind : null;

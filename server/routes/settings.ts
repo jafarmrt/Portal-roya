@@ -89,6 +89,8 @@ export function publicSettings(row: typeof settings.$inferSelect, viewer: Sessio
     occasionEffects: viewer?.occasionEffects ?? true,
     // The colleague's own card order, only while the switch for it is on; otherwise the default order.
     dashboardOrder: viewer && features.dashboardLayout ? viewer.dashboardOrder : [],
+    // The morning reminder of «شروع روز», for those who see it and asked for it.
+    dayStartReminder: Boolean(viewer?.dayStartReminder && features.dayStart && features.mood),
     // The steps of «هفتهٔ اول من» this colleague ticked.
     firstWeekDone: viewer && features.firstWeek ? viewer.firstWeekDone : [],
   };
@@ -534,6 +536,17 @@ settingsRouter.put(
     const { on } = parse(z.object({ on: z.boolean() }), req.body);
     await db.update(employees).set({ occasionEffects: on }).where(eq(employees.id, viewer.id));
     res.json(publicSettings(await ensureSettings(), { ...viewer, occasionEffects: on }));
+  }),
+);
+
+/** The colleague's own switch for the morning reminder of «شروع روز» (off until they ask for it). */
+settingsRouter.put(
+  '/settings/day-start-reminder',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const { on } = parse(z.object({ on: z.boolean() }), req.body);
+    await db.update(employees).set({ dayStartReminder: on }).where(eq(employees.id, viewer.id));
+    res.json(publicSettings(await ensureSettings(), { ...viewer, dayStartReminder: on }));
   }),
 );
 
