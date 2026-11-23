@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { MoodState } from '../../types';
+import { MOOD_PRIVACY_LINE } from '../../../shared/mood';
 import { Smile, Frown, Meh, Sparkles, Heart } from 'lucide-react';
 
 export const MoodTrackerWidget: React.FC = () => {
@@ -50,7 +51,7 @@ export const MoodTrackerWidget: React.FC = () => {
           </div>
           <div>
             <h3 className="text-sm font-bold text-ink-strong">حال و هوای کاری امروز شما</h3>
-            <p className="text-xs text-muted">ناشناس است؛ مدیران فقط آمار کلی را می‌بینند.</p>
+            <p className="text-xs text-muted">{MOOD_PRIVACY_LINE}</p>
           </div>
         </div>
 

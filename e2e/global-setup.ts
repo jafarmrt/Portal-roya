@@ -33,6 +33,8 @@ export default async function globalSetup(config: FullConfig) {
     data: { title: 'ناهار جمعه', questions: [{ text: 'ناهار جمعه چه باشد؟', type: 'single', options: [{ text: 'کباب' }, { text: 'سبزی' }] }] },
   }));
   await ok(await admin.post('/api/calendar_events', { data: { title: 'جلسهٔ ماهانه', date: '1405/08/20', type: 'meeting' } }));
+  // «شروع روز» starts in preview; the tests run with it on for everyone, as it will be once introduced.
+  await ok(await admin.put('/api/settings/features/dayStart', { data: { state: 'on' } }));
   // «سپاس» starts switched off; the tests switch it on to try it.
   await ok(await admin.put('/api/settings/features/recognition', { data: { state: 'on' } }));
   // These two have seen the tutorials of «سپاس» already; e2e/thanks-tutorial.spec.ts tries them with new colleagues.

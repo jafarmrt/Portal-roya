@@ -40,10 +40,10 @@ describe('switching parts of the portal off until they are introduced', () => {
     // «کارهای ارجاعی» alone starts in preview, to be tried with one unit first; colleagues do not see it.
     // Notifications on phones and computers also start in preview, for the administrator to try first.
     // «سپاس» starts switched off, for the administrator to try before anyone else sees it (tests/recognition.test.ts).
-    expect(FEATURES.filter((f) => f.defaultState !== 'on').map((f) => f.key)).toEqual(['tasks', 'pushNotifications', 'recognition']);
-    expect(Object.keys(settings.features).sort()).toEqual(
-      FEATURES.map((f) => f.key).filter((k) => k !== 'tasks' && k !== 'pushNotifications' && k !== 'recognition').sort(),
-    );
+    // «شروع روز» starts in preview too: until it is on, colleagues keep the plain mood card (tests/mood.test.ts).
+    const notOn = ['dayStart', 'tasks', 'pushNotifications', 'recognition'];
+    expect(FEATURES.filter((f) => f.defaultState !== 'on').map((f) => f.key)).toEqual(notOn);
+    expect(Object.keys(settings.features).sort()).toEqual(FEATURES.map((f) => f.key).filter((k) => !notOn.includes(k)).sort());
     expect(Object.values(settings.features).every((s) => s === 'on')).toBe(true);
     // Parts that were never launched from the settings page carry no «جدید» badge or introduction card.
     expect(settings.featureNews).toEqual([]);

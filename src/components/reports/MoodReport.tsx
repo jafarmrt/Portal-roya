@@ -5,6 +5,7 @@ import { Activity } from 'lucide-react';
 import { api, errorMessage } from '../../lib/api';
 import { toPersianDigits } from '../../lib/jalali';
 import type { MoodState, MoodSummaryRow } from '../../types';
+import { MOOD_MIN_ANSWERS } from '../../../shared/mood';
 import { cardClass, SectionTitle } from './reportUi';
 
 type Range = 'daily' | 'weekly' | 'monthly';
@@ -19,7 +20,10 @@ const MOODS: { name: MoodState; color: string }[] = [
   { name: 'عالی', color: '#dc2626' },
 ];
 
-/** The anonymous daily mood answers, added up; nobody's own answer is ever shown. */
+/**
+ * The daily mood answers, added up; nobody's own answer is ever shown. The server leaves out days with
+ * fewer than MOOD_MIN_ANSWERS answers, and a range that still adds up to fewer shows no chart.
+ */
 export const MoodReport: React.FC = () => {
   const [rows, setRows] = useState<MoodSummaryRow[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -48,7 +52,11 @@ export const MoodReport: React.FC = () => {
         id="mood-title"
         icon={<Activity className="w-5 h-5" />}
         title="حال‌وهوای سازمان"
-        hint={`جمع پاسخ‌های بی‌نام همکاران در ${RANGE_LABELS[range]} (${toPersianDigits(total)} پاسخ)`}
+        hint={
+          total >= MOOD_MIN_ANSWERS
+            ? `جمع پاسخ‌های همکاران در ${RANGE_LABELS[range]} (${toPersianDigits(total)} پاسخ)، بدون نام. روزهای با کمتر از ${toPersianDigits(MOOD_MIN_ANSWERS)} پاسخ شمرده نمی‌شوند.`
+            : `برای ${RANGE_LABELS[range]} هنوز پاسخ کافی نرسیده است. برای حفظ محرمانگی، با کمتر از ${toPersianDigits(MOOD_MIN_ANSWERS)} پاسخ عددی نشان داده نمی‌شود.`
+        }
         action={
           <div className="flex bg-surface rounded-xl p-1 border border-line w-fit" role="group" aria-label="بازهٔ حال‌وهوا">
             {(Object.keys(RANGE_LABELS) as Range[]).map((r) => (
@@ -66,6 +74,8 @@ export const MoodReport: React.FC = () => {
       />
       {loadError ? (
         <p role="alert" className="text-xs text-danger-700">{loadError}</p>
+      ) : total < MOOD_MIN_ANSWERS ? (
+        <p className="text-sm text-muted py-10 text-center" data-testid="mood-report-empty">هنوز پاسخ کافی نرسیده است.</p>
       ) : (
         <div className="h-64 w-full" dir="ltr">
           <ResponsiveContainer width="100%" height="100%">

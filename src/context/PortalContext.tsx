@@ -73,7 +73,7 @@ const NETWORK_CHECK_MS = 3 * 60_000;
 export type SignInMethod = 'local' | 'ldap';
 
 /** The kinds of data the dashboard waits for before it may say "nothing here". */
-export type LoadedResource = 'news' | 'polls' | 'employees' | 'new_colleagues' | 'birthday_wishes' | 'trainings' | 'calendar' | 'notifications' | 'todos' | 'tasks' | 'notices' | 'documents';
+export type LoadedResource = 'news' | 'polls' | 'employees' | 'new_colleagues' | 'birthday_wishes' | 'trainings' | 'calendar' | 'notifications' | 'todos' | 'tasks' | 'notices' | 'documents' | 'moods';
 
 export interface AccountInput {
   username: string;
@@ -555,6 +555,9 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // --- Loaders ---
 
   const [loadedResources, setLoadedResources] = useState<ReadonlySet<string>>(() => new Set());
+  // Whose lists those are (a colleague's id, null for a visitor). While the portal still asks who is
+  // signed in, a visitor's empty personal lists count as loaded for a moment; they are not the colleague's.
+  const [loadedFor, setLoadedFor] = useState<string | null | undefined>(undefined);
 
   // New notifications also go to the device while the portal is open in the background (no internet needed).
   const knownNotificationIds = useRef<Set<string> | null>(null);
@@ -643,6 +646,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // The notifications already there when the session's list arrives are old news, not new ones for the device.
     knownNotificationIds.current = null;
     setLoadedResources(new Set(sessionKey ? ['settings'] : ['settings', 'notifications', 'moods', 'todos', 'tasks', 'me']));
+    setLoadedFor(sessionKey);
     // Guests only load the shared, read-only content; personal data comes after sign-in.
     const { notifications: loadNotifications, moods: loadMoods, todos: loadTodos, tasks: loadTasks, me: loadMe, ...shared } = loaders;
     const toLoad = sessionKey ? [...Object.values(shared), loadNotifications, loadMoods, loadTodos, loadTasks, loadMe] : Object.values(shared);
@@ -1419,7 +1423,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         changePassword,
         completeProfile,
         isLoading,
-        isLoaded: (resource: LoadedResource) => loadedResources.has(resource),
+        isLoaded: (resource: LoadedResource) => loadedFor === sessionKey && loadedResources.has(resource),
         error,
         activeTab,
         focusId,

@@ -7,6 +7,7 @@ import type { Permission } from '../shared/permissions';
 import type { TaskStatus } from '../shared/tasks';
 import type { TodoRemind, TodoRepeat, TodoSourceType, TodoStep } from '../shared/todos';
 import type { KudosEmoji } from '../shared/kudos';
+import type { Mood } from '../shared/mood';
 
 export type { Permission };
 
@@ -676,7 +677,7 @@ export interface SearchResultItem {
   date?: string;
 }
 
-export type MoodState = 'عالی' | 'خوب' | 'معمولی' | 'بد' | 'خیلی بد';
+export type MoodState = Mood;
 
 /** A note in this person's own «یادداشت‌های من». */
 export interface PersonalTodo {
