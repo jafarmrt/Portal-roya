@@ -16,12 +16,15 @@ import {
 import { DAY_STEP_OUTCOMES, DAY_STEPS, dayStepOrder } from '../../shared/dayStep.js';
 import { goodShare, MOOD_MIN_ANSWERS, MOOD_REASON_IDS, MOOD_REASONS_MAX, MOOD_TEAM_DAYS, MOOD_VALUES, type Mood, type MoodTeam } from '../../shared/mood.js';
 import { audit } from '../audit.js';
-import { requirePermission } from '../auth.js';
+import { can, requirePermission } from '../auth.js';
 import { addSampleQuestions, answerToday, bankView, clearDayQuestionCache, loadBank, questionToday } from '../dayQuestions.js';
 import { db } from '../db/index.js';
-import { dayAnswers, dayQuestionDays, dayQuestions, dayStepCounts, moods, settings } from '../db/schema.js';
+import { dayAnswers, dayQuestionDays, dayQuestions, dayStepCounts, moods, news, settings } from '../db/schema.js';
 import { broadcastChange } from '../events.js';
 import { HttpError, currentUser, newId, parse, route } from '../http.js';
+import { clearMoodReportCache, moodReport } from '../moodReport.js';
+import { heardDraft, isMoodReportDays, type MoodReportDays } from '../../shared/moodReport.js';
+import { questionResults } from '../../shared/dayQuestion.js';
 import { ensureSettings } from '../settings.js';
 
 export const moodsRouter = Router();
@@ -89,6 +92,7 @@ moodsRouter.post(
       })
       .returning();
     clearMoodTeamCache();
+    clearMoodReportCache();
     res.json({ mood: serializeMood(row) });
   }),
 );
@@ -105,6 +109,7 @@ moodsRouter.put(
       .where(and(eq(moods.userId, viewer.id), eq(moods.date, todayJalali())))
       .returning();
     if (!row) throw new HttpError(409, 'اول حال امروزتان را انتخاب کنید.');
+    clearMoodReportCache();
     res.json({ mood: serializeMood(row) });
   }),
 );
@@ -183,29 +188,75 @@ moodsRouter.post(
 moodsRouter.get(
   '/moods/questions/results',
   requirePermission('reports.view'),
-  route(async (_req, res) => {
-    const since = moment().subtract(30, 'days').format(FORMAT);
-    const days = await db
-      .select({ date: dayQuestionDays.date, id: dayQuestions.id, text: dayQuestions.text, theme: dayQuestions.theme, options: dayQuestions.options })
-      .from(dayQuestionDays)
-      .innerJoin(dayQuestions, eq(dayQuestions.id, dayQuestionDays.questionId))
-      .where(gte(dayQuestionDays.date, since))
-      .orderBy(desc(dayQuestionDays.date));
-    const counts = await db
-      .select({ date: dayAnswers.date, questionId: dayAnswers.questionId, option: dayAnswers.option, count: sql<number>`count(*)::int` })
-      .from(dayAnswers)
-      .where(gte(dayAnswers.date, since))
-      .groupBy(dayAnswers.date, dayAnswers.questionId, dayAnswers.option);
-    const rows = days
-      .map((day) => ({
-        date: day.date,
-        text: day.text,
-        theme: day.theme,
-        options: day.options,
-        counts: day.options.map((_, i) => counts.find((c) => c.date === day.date && c.questionId === day.id && c.option === i)?.count ?? 0),
-      }))
-      .filter((day) => day.counts.reduce((sum, n) => sum + n, 0) >= MOOD_MIN_ANSWERS);
-    res.json(rows);
+  route(async (req, res) => {
+    res.json(await askedDays(reportDays(req.query.days)));
+  }),
+);
+
+/** The range a report is asked for: 30 days unless it names one of the others. */
+function reportDays(value: unknown): MoodReportDays {
+  const days = Number(value ?? 30);
+  if (!isMoodReportDays(days)) throw new HttpError(400, 'بازهٔ گزارش درست نیست.');
+  return days;
+}
+
+/** Each day's question in the range with how many chose each option; days below the minimum are left out. */
+async function askedDays(range: number) {
+  const since = moment().subtract(range - 1, 'days').format(FORMAT);
+  const days = await db
+    .select({ date: dayQuestionDays.date, id: dayQuestions.id, text: dayQuestions.text, theme: dayQuestions.theme, options: dayQuestions.options })
+    .from(dayQuestionDays)
+    .innerJoin(dayQuestions, eq(dayQuestions.id, dayQuestionDays.questionId))
+    .where(gte(dayQuestionDays.date, since))
+    .orderBy(desc(dayQuestionDays.date));
+  const counts = await db
+    .select({ date: dayAnswers.date, questionId: dayAnswers.questionId, option: dayAnswers.option, count: sql<number>`count(*)::int` })
+    .from(dayAnswers)
+    .where(gte(dayAnswers.date, since))
+    .groupBy(dayAnswers.date, dayAnswers.questionId, dayAnswers.option);
+  const rows = days
+    .map((day) => ({
+      date: day.date,
+      text: day.text,
+      theme: day.theme,
+      options: day.options,
+      counts: day.options.map((_, i) => counts.find((c) => c.date === day.date && c.questionId === day.id && c.option === i)?.count ?? 0),
+    }))
+    .filter((day) => day.counts.reduce((sum, n) => sum + n, 0) >= MOOD_MIN_ANSWERS);
+  return rows;
+}
+
+// The managers' report of a range: the trend, participation, units, reasons and the day's steps. Totals only.
+moodsRouter.get(
+  '/moods/report',
+  requirePermission('reports.view'),
+  route(async (req, res) => {
+    res.json(await moodReport(reportDays(req.query.days)));
+  }),
+);
+
+// «شنیدیم»: a news draft that tells colleagues what their answers added up to, for whoever publishes
+// news to complete with what was done about it.
+moodsRouter.post(
+  '/moods/report/heard',
+  requirePermission('reports.view'),
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    if (!can(viewer, 'news.manage')) throw new HttpError(403, 'برای ساختن پیش‌نویس خبر، دسترسی انتشار اخبار لازم است.');
+    const { days } = parse(z.object({ days: z.number() }), req.body);
+    const report = await moodReport(reportDays(days));
+    if (report.totals.answers === 0) throw new HttpError(400, 'در این بازه پاسخ کافی برای گزارش نیست.');
+    // The latest question with enough answers, and what most colleagues said.
+    const [latest] = await askedDays(report.days);
+    const shares = latest ? questionResults(latest.counts)?.shares : undefined;
+    const top = shares ? shares.indexOf(Math.max(...shares)) : -1;
+    const draft = heardDraft(report, latest && shares ? { text: latest.text, option: latest.options[top], share: shares[top] } : null);
+    const row = await ensureSettings();
+    const id = newId('news');
+    await db.insert(news).values({ id, ...draft, contentFormat: 'text', category: row.newsCategories[0] ?? 'اخبار سازمان', authorId: viewer.id, isDraft: true });
+    await audit(viewer, { action: 'create', entity: 'news', id, title: draft.title, detail: 'پیش‌نویس «شنیدیم» از گزارش حال‌وهوا' });
+    broadcastChange('news');
+    res.status(201).json({ draftId: id });
   }),
 );
 

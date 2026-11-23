@@ -174,7 +174,12 @@ test.describe('«پرسش روز»', () => {
       const one = await colleague(browser, `ask.other${i}`, 'همکار');
       others.push(one);
       expect((await one.page.request.post('/api/moods/question', { data: { option: i % 2 } })).ok()).toBe(true);
+      // Their mood with a reason and a step shown, for the managers' report below.
+      await answer(one, i < 2 ? 'عالی' : 'بد');
+      expect((await one.page.request.put('/api/moods/reasons', { data: { reasons: ['load'] } })).ok()).toBe(true);
+      expect((await one.page.request.post('/api/moods/steps', { data: { kind: 'plan', outcome: 'shown' } })).ok()).toBe(true);
     }
+    expect((await lead.page.request.post('/api/moods/steps', { data: { kind: 'plan', outcome: 'shown' } })).ok()).toBe(true);
     const page = lead.page;
     await page.goto('/#dashboard');
     await choose(page, 'خوب');
@@ -242,6 +247,40 @@ test.describe('«پرسش روز»', () => {
     await expect(report).toContainText(asked);
     await expect(report).toContainText('۵ پاسخ');
     await expect(report).not.toContainText('لیلا');
+    await admin.close();
+  });
+
+  test('the managers’ report: the trend, the units, what affected the days, the steps, Excel and a «شنیدیم» draft', async ({ browser }) => {
+    const admin = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const page = await admin.newPage();
+    await page.goto('/#reports');
+    await page.getByRole('tab', { name: 'حال‌وهوای سازمان' }).click();
+    const insights = page.getByTestId('mood-insights');
+    await expect(insights.getByRole('heading', { name: 'روند حال‌وهوا' })).toBeVisible();
+    await expect(insights).toContainText('میانگین حال');
+    await expect(insights).toContainText('مشارکت روزانه');
+    await expect(insights).toContainText('۱ روز');
+    await expect(page.getByTestId('mood-trend')).toBeVisible();
+    // Every colleague of these tests works in one unit; it has more than five of them.
+    await expect(page.getByTestId('mood-units')).toContainText('فناوری اطلاعات');
+    await expect(page.getByTestId('mood-reasons-report')).toContainText('حجم کار');
+    await expect(page.getByTestId('mood-steps')).toContainText('سه کار امروز');
+    await expect(insights).not.toContainText('لیلا');
+    // The other ranges read the same day.
+    await insights.getByRole('button', { name: '۱۲ ماه' }).click();
+    await expect(insights.getByRole('button', { name: '۱۲ ماه' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('mood-units')).toContainText('فناوری اطلاعات');
+
+    const download = page.waitForEvent('download');
+    await insights.getByRole('button', { name: 'خروجی Excel' }).click();
+    expect((await download).suggestedFilename()).toMatch(/^mood-.*\.csv$/);
+
+    // «شنیدیم»: a draft for whoever publishes news; removed again so the other tests' news stay as they are.
+    const drafted = page.waitForResponse((res) => res.url().endsWith('/api/moods/report/heard'));
+    await insights.getByRole('button', { name: /پیش‌نویس خبر «شنیدیم»/ }).click();
+    const { draftId } = (await (await drafted).json()) as { draftId: string };
+    await expect(page.getByText('پیش‌نویس خبر «شنیدیم» ساخته شد.')).toBeVisible();
+    expect((await page.request.delete(`/api/news/${draftId}`)).ok()).toBe(true);
     await admin.close();
   });
 
