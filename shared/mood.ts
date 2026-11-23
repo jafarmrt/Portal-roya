@@ -18,6 +18,25 @@ export const MOOD_MIN_ANSWERS = 5;
 /** What the card says about who sees an answer. It is kept with the colleague's name (for «ماه من»), so it is not called anonymous. */
 export const MOOD_PRIVACY_LINE = 'محرمانه است؛ مدیران فقط آمار کلی را می‌بینند.';
 
+/**
+ * «چه چیزی بیشتر اثر داشت؟»: what a colleague may add to the day's mood with one tap. Never asked for;
+ * like the mood, managers only see how often each was chosen.
+ */
+export const MOOD_REASONS = [
+  { id: 'load', label: 'حجم کار' },
+  { id: 'people', label: 'همکاران' },
+  { id: 'tools', label: 'ابزار و سامانه‌ها' },
+  { id: 'meetings', label: 'جلسه‌ها' },
+  { id: 'personal', label: 'موضوع شخصی' },
+  { id: 'goodNews', label: 'یک خبر خوب' },
+] as const;
+export type MoodReason = (typeof MOOD_REASONS)[number]['id'];
+export const MOOD_REASON_IDS = MOOD_REASONS.map((r) => r.id) as [MoodReason, ...MoodReason[]];
+export const MOOD_REASONS_MAX = 3;
+
+/** The reasons offered with a mood: good news is not offered on a hard day. */
+export const reasonsFor = (mood: Mood) => MOOD_REASONS.filter((r) => r.id !== 'goodNews' || MOOD_SCORE[mood] >= 3);
+
 /** How many days «حال‌وهوای ما» looks back, today included. */
 export const MOOD_TEAM_DAYS = 7;
 

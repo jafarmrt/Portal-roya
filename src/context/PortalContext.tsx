@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { chimeNow } from '../lib/sound';
+import type { MoodReason } from '../../shared/mood';
 import type { ReactionTarget } from '../../shared/reactions';
 import toast from 'react-hot-toast';
 import { deleteWithUndo } from '../components/common/UndoToast';
@@ -261,6 +262,8 @@ interface PortalContextType {
   setBanner: (banner: { text: string; level: 'info' | 'warning'; expiresAt: string }) => Promise<boolean>;
   clearBanner: () => Promise<boolean>;
   submitMood: (mood: MoodState) => Promise<void>;
+  /** «چه چیزی بیشتر اثر داشت؟» for today's mood. */
+  setMoodReasons: (reasons: MoodReason[]) => Promise<void>;
   /** Resolves to the new note, or undefined when it failed (e.g. it is already in the list). */
   /** `quiet`: without the «اضافه شد» message, for a caller that says so itself (several notes at once). */
   addTodo: (input: TodoInput, options?: { quiet?: boolean }) => Promise<PersonalTodo | undefined>;
@@ -358,7 +361,7 @@ const PortalContext = createContext<PortalContextType | undefined>(undefined);
 
 const VALID_TABS: ActiveTab[] = [
   'dashboard', 'polls', 'colleagues', 'orgchart', 'departments', 'search', 'news', 'documents', 'guides',
-  'training', 'calendar', 'notifications', 'systems', 'reports', 'people', 'admin', 'audit', 'suggestions', 'todos', 'tasks', 'thanks', 'thanks-admin', 'event',
+  'training', 'calendar', 'notifications', 'systems', 'reports', 'people', 'admin', 'audit', 'suggestions', 'todos', 'tasks', 'thanks', 'thanks-admin', 'day-admin', 'event',
 ];
 
 /** Ids in the address are encoded, since a department's page is named by the department. */
@@ -872,6 +875,10 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const submitMood = async (mood: MoodState) => {
     const result = await attempt(() => api.post<{ mood: UserMood }>('/api/moods', { mood }));
+    if (result) setUserMoods((prev) => [result.mood, ...prev.filter((m) => m.date !== result.mood.date)]);
+  };
+  const setMoodReasons = async (reasons: MoodReason[]) => {
+    const result = await attempt(() => api.put<{ mood: UserMood }>('/api/moods/reasons', { reasons }));
     if (result) setUserMoods((prev) => [result.mood, ...prev.filter((m) => m.date !== result.mood.date)]);
   };
   const todayMoodSubmitted = userMoods.some((m) => m.date === todayJalali());
@@ -1480,6 +1487,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setBanner,
         clearBanner,
         submitMood,
+        setMoodReasons,
         addTodo,
         updateTodo,
         deleteTodo,

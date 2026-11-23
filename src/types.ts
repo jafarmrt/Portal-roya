@@ -7,7 +7,7 @@ import type { Permission } from '../shared/permissions';
 import type { TaskStatus } from '../shared/tasks';
 import type { TodoRemind, TodoRepeat, TodoSourceType, TodoStep } from '../shared/todos';
 import type { KudosEmoji } from '../shared/kudos';
-import type { Mood } from '../shared/mood';
+import type { Mood, MoodReason } from '../shared/mood';
 
 export type { Permission };
 
@@ -686,6 +686,7 @@ export type ActiveTab =
   | 'tasks'
   | 'thanks'
   | 'thanks-admin'
+  | 'day-admin'
   | 'event';
 
 export interface SearchResultItem {
@@ -779,6 +780,8 @@ export interface UserMood {
   userId: string;
   date: string;
   mood: MoodState;
+  /** «چه چیزی بیشتر اثر داشت؟»: what the colleague added to that day's mood. */
+  reasons?: MoodReason[];
 }
 
 export interface MoodSummaryRow {
@@ -845,6 +848,8 @@ export interface AppSettings {
   firstWeekSteps: string[];
   /** The steps of «هفتهٔ اول من» this colleague ticked ('closed' once they closed it). */
   firstWeekDone: string[];
+  /** The order «یک قدم برای امروز» tries its steps in ([] = the built-in order). */
+  dayStepOrder?: string[];
 }
 
 export interface SiteBanner {
