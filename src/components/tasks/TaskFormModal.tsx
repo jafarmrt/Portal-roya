@@ -16,17 +16,21 @@ interface TaskFormModalProps {
   reassign?: AssignedTask;
   /** Who the task is for when it is opened from a colleague (e.g. their profile). */
   initialAssigneeIds?: string[];
+  /** The title to start from, when the task is one of the colleague's own notes («شروع روز»). */
+  initialTitle?: string;
+  /** The due date to start from, with `initialTitle`. */
+  initialDueDate?: string;
   onClose: () => void;
 }
 
 /** Hands a task to one or more colleagues, changes one handed out earlier, or passes a declined one on. */
-export const TaskFormModal: React.FC<TaskFormModalProps> = ({ task, reassign, initialAssigneeIds = [], onClose }) => {
+export const TaskFormModal: React.FC<TaskFormModalProps> = ({ task, reassign, initialAssigneeIds = [], initialTitle = '', initialDueDate = '', onClose }) => {
   const { employees, currentUser, tasks, assignTask, editTask, reassignTask } = usePortal();
   const formId = useId();
-  const [title, setTitle] = useState(task?.title ?? reassign?.title ?? '');
+  const [title, setTitle] = useState(task?.title ?? reassign?.title ?? initialTitle);
   const [note, setNote] = useState(task?.note ?? '');
   // A declined task keeps its date unless that day has gone; then a new one is chosen.
-  const [dueDate, setDueDate] = useState(task?.dueDate ?? (reassign && reassign.dueDate >= todayJalali() ? reassign.dueDate : ''));
+  const [dueDate, setDueDate] = useState(task?.dueDate ?? (reassign ? (reassign.dueDate >= todayJalali() ? reassign.dueDate : '') : initialDueDate));
   const [assigneeIds, setAssigneeIds] = useState<string[]>(initialAssigneeIds);
   const [query, setQuery] = useState('');
   const [saving, setSaving] = useState(false);

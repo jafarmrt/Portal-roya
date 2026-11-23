@@ -8,11 +8,11 @@ import { MOOD_REPLIES } from '../shared/mood';
 
 type Colleague = { id: string; page: Page; close: () => Promise<void> };
 
-async function colleague(browser: Browser, username: string, firstName: string, context: BrowserContextOptions = {}): Promise<Colleague> {
+async function colleague(browser: Browser, username: string, firstName: string, context: BrowserContextOptions = {}, role = 'employee'): Promise<Colleague> {
   const admin = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
   const added = await admin.request.post('/api/employees', {
     // Not «تولید»: e2e/departments.spec.ts counts on nobody working there yet.
-    data: { username, firstName, lastName: 'روزبه', position: 'کارشناس', department: 'فناوری اطلاعات', role: 'employee' },
+    data: { username, firstName, lastName: 'روزبه', position: 'کارشناس', department: 'فناوری اطلاعات', role },
   });
   expect(added.ok(), await added.text()).toBe(true);
   const { temporaryPassword, employee } = await added.json();
@@ -22,6 +22,30 @@ async function colleague(browser: Browser, username: string, firstName: string, 
   await ctx.request.post('/api/auth/change-password', { data: { currentPassword: temporaryPassword, newPassword: `${username}-Pass-123` } });
   return { id: employee.id as string, page: await ctx.newPage(), close: () => ctx.close() };
 }
+
+/** Confirms the circular every colleague finds waiting, so the day's step is about something else. */
+async function confirmCirculars(who: Colleague) {
+  const list = (await (await who.page.request.get('/api/news')).json()) as { items: { id: string; requiresAck: boolean; acknowledgedAt: string | null }[] };
+  for (const item of list.items.filter((n) => n.requiresAck && !n.acknowledgedAt)) expect((await who.page.request.post(`/api/news/${item.id}/ack`)).ok()).toBe(true);
+}
+
+/**
+ * The colleague's mood is answered by the test, not the server, here and after a reload: the tests of
+ * «حال‌وهوای ما» above count today's real answers. The clock is set to `hour` today (the same day as the server's).
+ */
+async function pretendMood(page: Page, hour: number) {
+  const today = moment().format('jYYYY/jMM/jDD');
+  let mine: { id: string; userId: string; date: string; mood: string }[] = [];
+  await page.route('**/api/moods', (route) => {
+    mine = [{ id: '1', userId: 'me', date: today, mood: route.request().postDataJSON().mood }];
+    return route.fulfill({ json: { mood: mine[0] } });
+  });
+  await page.route('**/api/moods/me', (route) => route.fulfill({ json: mine }));
+  await page.clock.setFixedTime(moment().hour(hour).minute(0).second(0).toDate());
+}
+
+const step = (page: Page) => page.getByTestId('day-step');
+const choose = (page: Page, mood: string) => card(page).getByRole('button', { name: mood, exact: true }).click();
 
 const answer = async (who: Colleague, mood: string) => expect((await who.page.request.post('/api/moods', { data: { mood } })).ok()).toBe(true);
 const card = (page: Page) => page.getByTestId('day-start');
@@ -123,6 +147,173 @@ test.describe('«شروع روز»', () => {
     await expect(report).toContainText('روزهای با کمتر از ۵ پاسخ شمرده نمی‌شوند');
     await expect(report).not.toContainText('مینا');
     await admin.close();
+  });
+});
+
+// «یک قدم برای امروز»: after the mood, one step from what really waits for the colleague. The rows of
+// the table are tested one by one in tests/dayStep.test.ts; here the steps are taken on the page.
+test.describe('«یک قدم برای امروز»', () => {
+  test('«سه کار امروز» writes the notes without leaving the dashboard, and that is the day’s one step', async ({ browser }) => {
+    const who = await colleague(browser, 'step.plan', 'پریا');
+    await confirmCirculars(who);
+    const page = who.page;
+    await pretendMood(page, 9);
+    await page.goto('/#dashboard');
+    await choose(page, 'معمولی');
+
+    await expect(step(page)).toHaveAttribute('data-step', 'plan');
+    await expect(step(page)).toContainText('سه کار مهم امروزتان چیست؟');
+    // Nothing to save yet.
+    await expect(step(page).getByRole('button', { name: 'ثبت' })).toBeDisabled();
+    await step(page).getByRole('textbox', { name: 'کار اول' }).fill('بستن گزارش فروش هفته');
+    await step(page).getByRole('textbox', { name: 'کار سوم' }).fill('تماس با تأمین‌کننده');
+    await step(page).getByRole('button', { name: 'ثبت' }).click();
+
+    await expect(page.getByTestId('day-step-done')).toContainText('۲ کار برای امروز در «یادداشت‌های من» ثبت شد.');
+    expect(page.url()).toContain('#dashboard');
+    // Both are in «یادداشت‌های من», due today.
+    const notes = page.getByRole('region', { name: 'یادداشت‌های من' }).getByRole('group', { name: 'امروز' });
+    await expect(notes).toContainText('بستن گزارش فروش هفته');
+    await expect(notes).toContainText('تماس با تأمین‌کننده');
+    // «کارهای ارجاعی» is still in preview for this colleague: nothing about handing work over.
+    await expect(step(page).getByRole('button', { name: /سپردن/ })).toHaveCount(0);
+
+    // Later the same day: the mood and «حال‌وهوای ما» are there, and no second step (a survey is open).
+    await page.reload();
+    await expect(card(page).getByRole('heading', { name: 'حال امروز شما: معمولی' })).toBeVisible();
+    await expect(page.getByTestId('team-mood')).toBeVisible();
+    await expect(step(page)).toHaveCount(0);
+    await who.close();
+  });
+
+  test('a note just written can be handed to a colleague, with its title', async ({ browser }) => {
+    // An administrator sees «کارهای ارجاعی» while it is in preview.
+    const who = await colleague(browser, 'step.boss', 'کاوه', {}, 'admin');
+    await confirmCirculars(who);
+    const page = who.page;
+    await pretendMood(page, 8);
+    await page.goto('/#dashboard');
+    await choose(page, 'معمولی');
+    await step(page).getByRole('textbox', { name: 'کار اول' }).fill('آماده‌سازی جلسهٔ فردا');
+    await step(page).getByRole('button', { name: 'ثبت' }).click();
+    await step(page).getByRole('button', { name: 'سپردن «آماده‌سازی جلسهٔ فردا» به یک همکار' }).click();
+    const form = page.getByRole('dialog', { name: 'سپردن کار به همکار' });
+    await expect(form.getByLabel('چه کاری؟')).toHaveValue('آماده‌سازی جلسهٔ فردا');
+    await who.close();
+  });
+
+  test('a waiting circular comes first; «امروز نه» closes the step for the day', async ({ browser }) => {
+    const who = await colleague(browser, 'step.acks', 'هومن');
+    const page = who.page;
+    await pretendMood(page, 9);
+    await page.goto('/#dashboard');
+    await choose(page, 'خوب');
+    await expect(step(page)).toHaveAttribute('data-step', 'acks');
+    await expect(step(page)).toContainText('۱ بخشنامه منتظر تأیید شماست.');
+    await expect(step(page)).toContainText('بخشنامهٔ ایمنی');
+    await step(page).getByRole('button', { name: 'امروز نه' }).click();
+    await expect(step(page)).toHaveCount(0);
+    await page.reload();
+    await expect(card(page).getByRole('heading', { name: 'حال امروز شما: خوب' })).toBeVisible();
+    await expect(page.getByTestId('team-mood')).toBeVisible();
+    await expect(step(page)).toHaveCount(0);
+    await who.close();
+  });
+
+  test('on a hard day no work is suggested, only a quiet way to be heard', async ({ browser }) => {
+    // A circular and a survey wait for this colleague too.
+    const who = await colleague(browser, 'step.care', 'ژیلا');
+    const page = who.page;
+    await pretendMood(page, 9);
+    await page.goto('/#dashboard');
+    await choose(page, 'خیلی بد');
+    await expect(step(page)).toHaveAttribute('data-step', 'care');
+    await expect(step(page)).toContainText('می‌توانید آن را ناشناس بنویسید');
+    await expect(step(page)).not.toContainText('بخشنامه');
+    await expect(step(page).getByRole('button', { name: 'ثبت' })).toHaveCount(0);
+    await step(page).getByRole('button', { name: 'نوشتن پیام ناشناس' }).click();
+    await expect(page).toHaveURL(/#suggestions/);
+    await who.close();
+  });
+
+  test('a kind switched off stays off on the following days', async ({ browser }) => {
+    const who = await colleague(browser, 'step.mute', 'بهار');
+    await confirmCirculars(who);
+    const page = who.page;
+    // The afternoon, so not «سه کار امروز»; a middling mood, so not a recognition: the open survey.
+    await pretendMood(page, 15);
+    await page.goto('/#dashboard');
+    await choose(page, 'معمولی');
+    await expect(step(page)).toHaveAttribute('data-step', 'poll');
+    await expect(step(page)).toContainText('ناهار جمعه');
+    await step(page).getByRole('button', { name: 'این را دیگر پیشنهاد نده' }).click();
+    await expect(step(page)).toHaveCount(0);
+
+    // The next day (the browser's memory moved a day back): the survey is still open, and not offered.
+    await page.evaluate((id) => {
+      const key = `roya.dayStep.${id}`;
+      const memory = JSON.parse(window.localStorage.getItem(key)!);
+      memory.last.date = '1400/01/01';
+      window.localStorage.setItem(key, JSON.stringify(memory));
+    }, who.id);
+    await page.reload();
+    await expect(page.getByTestId('team-mood')).toBeVisible();
+    await expect(step(page)).toHaveCount(0);
+    expect(await page.evaluate((id) => JSON.parse(window.localStorage.getItem(`roya.dayStep.${id}`)!).muted, who.id)).toEqual(['poll']);
+    await who.close();
+  });
+
+  test('a note left from yesterday is moved to today in one tap', async ({ browser }) => {
+    const who = await colleague(browser, 'step.late', 'سینا');
+    await confirmCirculars(who);
+    const yesterday = moment().subtract(1, 'day').format('jYYYY/jMM/jDD');
+    expect((await who.page.request.post('/api/todos', { data: { title: 'پیگیری قرارداد', dueDate: yesterday } })).ok()).toBe(true);
+    const page = who.page;
+    await pretendMood(page, 9);
+    await page.goto('/#dashboard');
+    await choose(page, 'معمولی');
+    await expect(step(page)).toHaveAttribute('data-step', 'overdue');
+    await expect(step(page)).toContainText('۱ یادداشت از قبل مانده.');
+    await step(page).getByRole('group', { name: 'یادداشت پیگیری قرارداد' }).getByRole('button', { name: 'امروز' }).click();
+    await expect(page.getByTestId('day-step-done')).toContainText('یادداشت‌های مانده مرتب شد.');
+    await expect(page.getByRole('region', { name: 'یادداشت‌های من' }).getByRole('group', { name: 'امروز' })).toContainText('پیگیری قرارداد');
+    await who.close();
+  });
+
+  test('work handed over is accepted from the card', async ({ browser }) => {
+    const who = await colleague(browser, 'step.task', 'آرش', {}, 'admin');
+    await confirmCirculars(who);
+    const admin = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const handed = await admin.request.post('/api/tasks', {
+      data: { title: 'بازبینی فهرست قیمت', note: '', dueDate: moment().add(2, 'day').format('jYYYY/jMM/jDD'), assigneeIds: [who.id] },
+    });
+    expect(handed.ok(), await handed.text()).toBe(true);
+    await admin.close();
+    const page = who.page;
+    await pretendMood(page, 9);
+    await page.goto('/#dashboard');
+    await choose(page, 'خوب');
+    await expect(step(page)).toHaveAttribute('data-step', 'tasksWaiting');
+    await expect(step(page)).toContainText('۱ کار منتظر پاسخ شماست؛ می‌پذیرید؟');
+    await step(page).getByRole('button', { name: 'پذیرفتن بازبینی فهرست قیمت' }).click();
+    await expect(page.getByTestId('day-step-done')).toContainText('پذیرفتید؛ به همکارتان خبر داده شد.');
+    const mine = (await (await page.request.get('/api/tasks')).json()) as { mine: { title: string; status: string }[] };
+    expect(mine.mine.find((t) => t.title === 'بازبینی فهرست قیمت')?.status).toBe('accepted');
+    await who.close();
+  });
+
+  test('a good mood with coins left opens the recognition form', async ({ browser }) => {
+    const who = await colleague(browser, 'step.thanks', 'مهسا');
+    await confirmCirculars(who);
+    const page = who.page;
+    // The afternoon, so «سه کار امروز» is not asked.
+    await pretendMood(page, 15);
+    await page.goto('/#dashboard');
+    await choose(page, 'عالی');
+    await expect(step(page)).toHaveAttribute('data-step', 'thanks');
+    await step(page).getByRole('button', { name: 'قدردانی کن' }).click();
+    await expect(page.getByRole('dialog', { name: 'قدردانی از یک همکار' })).toBeVisible();
+    await who.close();
   });
 });
 

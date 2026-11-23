@@ -41,8 +41,8 @@ const FEATURE_ROUTES: {
   { key: 'training', pattern: /^\/trainings(\/|$)/, emptyReads: { '/trainings': [] } },
   { key: 'guides', pattern: /^\/guides(\/|$)/, emptyReads: { '/guides': [] } },
   { key: 'departmentPages', pattern: /^\/department_pages(\/|$)/, emptyReads: { '/department_pages': [] } },
-  // «حال‌وهوای ما» belongs to «شروع روز»; the rest of the mood API to the daily mood card itself.
-  { key: 'dayStart', pattern: /^\/moods\/team$/, emptyReads: {} },
+  // «حال‌وهوای ما» and the count of steps belong to «شروع روز»; the rest of the mood API to the daily mood card itself.
+  { key: 'dayStart', pattern: /^\/moods\/(team|steps)$/, emptyReads: {} },
   { key: 'mood', pattern: /^\/moods(\/|$)/, emptyReads: { '/moods/me': [] } },
   { key: 'todos', pattern: /^\/todos(\/|$)/, emptyReads: { '/todos': [], '/todos/archive': [] } },
   { key: 'tasks', pattern: /^\/tasks(\/|$)/, emptyReads: { '/tasks': { mine: [], given: [], recipients: [] } } },

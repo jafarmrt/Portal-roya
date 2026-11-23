@@ -261,7 +261,8 @@ interface PortalContextType {
   clearBanner: () => Promise<boolean>;
   submitMood: (mood: MoodState) => Promise<void>;
   /** Resolves to the new note, or undefined when it failed (e.g. it is already in the list). */
-  addTodo: (input: TodoInput) => Promise<PersonalTodo | undefined>;
+  /** `quiet`: without the «اضافه شد» message, for a caller that says so itself (several notes at once). */
+  addTodo: (input: TodoInput, options?: { quiet?: boolean }) => Promise<PersonalTodo | undefined>;
   updateTodo: (
     id: string,
     changes: Partial<Pick<PersonalTodo, 'title' | 'note' | 'important' | 'repeat' | 'remind'>> & {
@@ -911,8 +912,8 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return Boolean(copies);
   };
 
-  const addTodo: PortalContextType['addTodo'] = async (input) => {
-    const created = await attempt(() => api.post<PersonalTodo>('/api/todos', input), 'به یادداشت‌های شما اضافه شد.');
+  const addTodo: PortalContextType['addTodo'] = async (input, options) => {
+    const created = await attempt(() => api.post<PersonalTodo>('/api/todos', input), options?.quiet ? undefined : 'به یادداشت‌های شما اضافه شد.');
     if (created) setTodos((prev) => [...prev.filter((t) => t.id !== created.id), created]);
     return created;
   };

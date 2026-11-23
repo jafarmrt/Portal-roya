@@ -2,7 +2,7 @@ import moment from 'moment-jalaali';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { db, pool } from '../server/db/index';
-import { moods } from '../server/db/schema';
+import { auditLog, dayStepCounts, moods } from '../server/db/schema';
 import { clearMoodTeamCache } from '../server/routes/moods';
 import { todayJalali } from '../shared/jalali';
 import { goodShare, MOOD_MIN_ANSWERS, MOOD_REPLIES, MOOD_TEAM_DAYS, MOOD_VALUES, moodReply, teamLine, type Mood } from '../shared/mood';
@@ -119,6 +119,33 @@ describe('«شروع روز»: what comes back after the daily mood', () => {
     expect(mine.every((m: { userId: string }) => m.userId === people[0].id)).toBe(true);
   });
 
+  it('counts the day’s steps by kind and outcome, with nothing that leads back to a colleague', async () => {
+    await db.delete(dayStepCounts);
+    const audited = (await db.select().from(auditLog)).length;
+    const count = (person: Person, kind: string, outcome: string) => person.agent.post('/api/moods/steps').send({ kind, outcome });
+    await count(people[0], 'plan', 'shown').expect(204);
+    await count(people[1], 'plan', 'shown').expect(204);
+    await count(people[0], 'plan', 'done').expect(204);
+    await count(people[2], 'care', 'shown').expect(204);
+    await count(people[2], 'care', 'muted').expect(204);
+    await count(people[0], 'nonsense', 'shown').expect(400);
+    await count(people[0], 'plan', 'liked').expect(400);
+    await request(app).post('/api/moods/steps').send({ kind: 'plan', outcome: 'shown' }).expect(401);
+
+    const rows = await db.select().from(dayStepCounts);
+    expect(rows.map((r) => [r.date, r.kind, r.outcome, r.count]).sort()).toEqual(
+      [
+        [today, 'care', 'muted', 1],
+        [today, 'care', 'shown', 1],
+        [today, 'plan', 'done', 1],
+        [today, 'plan', 'shown', 2],
+      ].sort(),
+    );
+    // Counts only: the table has no column for a person, and nothing is written to the audit log.
+    expect(Object.keys(rows[0]).sort()).toEqual(['count', 'date', 'kind', 'outcome']);
+    expect((await db.select().from(auditLog)).length).toBe(audited);
+  });
+
   it('keeps «حال‌وهوای ما» for signed-in colleagues who see «شروع روز»', async () => {
     await request(app).get('/api/moods/team').expect(401);
     await admin.put('/api/settings/features/dayStart').send({ state: 'preview' }).expect(200);
@@ -126,6 +153,7 @@ describe('«شروع روز»: what comes back after the daily mood', () => {
     // The plain mood card still works for them.
     await answer(people[0], 'خوب');
     await admin.get('/api/moods/team').expect(200);
+    await people[0].agent.post('/api/moods/steps').send({ kind: 'plan', outcome: 'shown' }).expect(404);
     await admin.put('/api/settings/features/dayStart').send({ state: 'off' }).expect(200);
     await admin.get('/api/moods/team').expect(404);
   });
