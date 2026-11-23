@@ -370,6 +370,7 @@ const FEATURE_RESOURCES: Record<FeatureKey, ResourceName[]> = {
   guides: ['guides'],
   departmentPages: ['department_pages'],
   mood: ['moods'],
+  dayStart: [],
   todos: ['todos', 'notifications'],
   tasks: ['tasks', 'notifications'],
   specialEvents: ['special_event', 'notifications'],

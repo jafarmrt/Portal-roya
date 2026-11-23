@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { BirthdayCard } from './BirthdayCard';
 import { MyCelebrationCard } from './MyCelebrationCard';
@@ -7,6 +7,7 @@ import { InstallInvite } from '../common/InstallApp';
 import { DayThemeBanner } from './DayThemeBanner';
 import { EventStrip } from './EventStrip';
 import { QuickSystemsWidget } from './QuickSystemsWidget';
+import { DayStartCard } from '../daystart/DayStartCard';
 import { MoodTrackerWidget } from './MoodTrackerWidget';
 import { WelcomeNewColleagueCard } from './WelcomeNewColleagueCard';
 import { DashboardCalendar } from './DashboardCalendar';
@@ -46,6 +47,7 @@ export const DashboardModule: React.FC = () => {
     appSettings,
     featureOn,
     isLoaded,
+    todayMoodSubmitted,
   } = usePortal();
   const on = (id: Parameters<typeof isCardOn>[1]) => isCardOn(appSettings, id);
   const [arranging, setArranging] = useState(false);
@@ -54,6 +56,20 @@ export const DashboardModule: React.FC = () => {
   const cardOrder = dashboardOrder(appSettings?.dashboardOrder ?? [], appSettings?.dashboardDefaultOrder ?? []);
   const place = (id: DashboardCardKey): React.CSSProperties => ({ order: 10 + cardOrder.indexOf(id) });
   const canArrange = Boolean(currentUser) && featureOn('dashboardLayout');
+  // «شروع روز» waits right under the welcome until the colleague has answered today, and stays there
+  // for the rest of this visit so its answer is read where the tap was. On a later visit it is back
+  // in the place their own order gives it. Decided once for each colleague and day, when their own
+  // answers have arrived.
+  const dayStart = featureOn('dayStart');
+  const moodsLoaded = isLoaded('moods');
+  const today = todayJalali();
+  const userId = currentUser?.id ?? null;
+  const [dayStartPlace, setDayStartPlace] = useState<{ userId: string; date: string; onTop: boolean } | null>(null);
+  useEffect(() => {
+    if (!moodsLoaded || !userId) return;
+    setDayStartPlace((was) => (was?.userId === userId && was.date === today ? was : { userId, date: today, onTop: !todayMoodSubmitted }));
+  }, [moodsLoaded, userId, today, todayMoodSubmitted]);
+  const dayStartOnTop = dayStartPlace?.userId === userId && dayStartPlace?.date === today ? dayStartPlace.onTop : null;
   // The cards switched on for this person, whether or not they have something to show today.
   const arrangeable = DASHBOARD_LAYOUT.map((c) => c.id).filter((id) => id === 'news' || on(id));
 
@@ -62,7 +78,6 @@ export const DashboardModule: React.FC = () => {
   // Read and acknowledgement state is personal, so guests just see what is published.
   const pendingAcks = isGuest ? [] : publishedNews.filter(n => n.requiresAck && !n.acknowledgedAt);
   const latestNews = publishedNews.filter(n => !pendingAcks.includes(n)).slice(0, 4);
-  const today = todayJalali();
   const upcomingTraining = [...trainings].filter(t => t.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0];
 
 
@@ -72,6 +87,13 @@ export const DashboardModule: React.FC = () => {
     <div className="flex flex-col gap-6 [&>*:empty]:hidden">
       {/* Greeting for the time of day, today's date and one line about the person's day */}
       <WelcomeHero canArrange={canArrange} onArrange={() => setArranging(true)} />
+
+      {/* «شروع روز» until today's mood is answered: the first thing after the welcome */}
+      {on('mood') && !isGuest && dayStart && dayStartOnTop === true && (
+        <div className="order-1" data-testid="day-start-top">
+          <DayStartCard />
+        </div>
+      )}
 
       {/* Nowruz, the seasons, Yalda, the feasts and the founding day; quiet on days of mourning */}
       <div className="order-1">
@@ -346,8 +368,14 @@ export const DashboardModule: React.FC = () => {
             </div>
           )}
 
-          {/* Mood check-in (anonymous in reports) */}
-          {on('mood') && !isGuest && (
+          {/* «شروع روز» once answered: the mood, «حال‌وهوای ما» and «ماه من» (managers see totals only) */}
+          {on('mood') && !isGuest && dayStart && dayStartOnTop === false && (
+            <div style={place('mood')}>
+              <DayStartCard />
+            </div>
+          )}
+          {/* Until «شروع روز» is switched on for this colleague: the plain mood card */}
+          {on('mood') && !isGuest && !dayStart && (
             <div style={place('mood')}>
               <MoodTrackerWidget />
             </div>
