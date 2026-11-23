@@ -2,7 +2,9 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { pool } from '../server/db/index';
 import { isCompanyAddress, outsideList } from '../server/network';
+import { todayJalali } from '../shared/jalali';
 import { isInsideOnlyUrl, systemLink } from '../shared/systemLinks';
+import { addJalaliDays } from '../shared/todos';
 import { app, createEmployee, resetDatabase, setupAdmin } from './helpers';
 
 describe('guest (not signed in) access', () => {
@@ -62,7 +64,8 @@ describe('guest (not signed in) access', () => {
     const id = (
       await admin
         .post('/api/trainings')
-        .send({ title: 'ایمنی کارگاه', instructor: 'مدرس', date: '1405/09/01', capacity: 10, description: 'دوره', category: 'ایمنی' })
+        // A course still ahead whatever day the tests run: signing up for one already held is refused.
+        .send({ title: 'ایمنی کارگاه', instructor: 'مدرس', date: addJalaliDays(todayJalali(), 30), capacity: 10, description: 'دوره', category: 'ایمنی' })
         .expect(201)
     ).body.id;
     await admin.put(`/api/trainings/${id}/materials`).send({ materials: [{ name: 'جزوه.pdf', url: '/uploads/a.pdf', size: 10, mimeType: 'application/pdf' }] }).expect(200);
