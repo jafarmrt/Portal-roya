@@ -6,6 +6,7 @@ import { departmentList, locationList } from './departments.js';
 import { ADMIN_ROLE_ID, DEFAULT_ROLE_ID } from '../shared/permissions.js';
 import { employees, roles } from './db/schema.js';
 import type { AccountRules } from './roles.js';
+import { headerLookup, normalizeHeader, sheetRecords } from './spreadsheet.js';
 import { jalaliDateValue, optionalJalaliDate, optionalText, requiredText, textValue, username } from './validation.js';
 
 export const MAX_IMPORT_ROWS = 300;
@@ -48,19 +49,7 @@ export const FIELD_LABELS: Record<Field, string> = {
   hireDate: 'تاریخ استخدام',
 };
 
-function normalizeHeader(value: string) {
-  return value
-    .replace(/[\u200c\u200e\u200f*:]/g, '')
-    .replace(/ي/g, 'ی')
-    .replace(/ك/g, 'ک')
-    .replace(/[\s_-]+/g, ' ')
-    .trim()
-    .toLowerCase();
-}
-
-const HEADER_LOOKUP = new Map<string, Field>(
-  (Object.entries(COLUMNS) as [Field, readonly string[]][]).flatMap(([field, names]) => names.map((n) => [normalizeHeader(n), field])),
-);
+const HEADER_LOOKUP = headerLookup<Field>(COLUMNS);
 
 const rowSchema = z.object({
   firstName: requiredText(100),
@@ -202,24 +191,10 @@ async function roleResolver() {
 
 /** Turns spreadsheet rows (header first) into field records. */
 export function rowsToRecords(rows: string[][]): { records: { row: number; data: Record<string, string> }[]; missing: string[] } {
-  const headerIndex = rows.findIndex((r) => r.some((c) => c !== ''));
-  if (headerIndex < 0) return { records: [], missing: REQUIRED.map((f) => FIELD_LABELS[f]) };
-  const fields = rows[headerIndex].map((h) => HEADER_LOOKUP.get(normalizeHeader(h)));
+  const { fields, records } = sheetRecords(rows, HEADER_LOOKUP);
   // A file that identifies people (by id or username) may hold only the columns to change, e.g. username and mobile.
   const identifies = fields.includes('id') || fields.includes('username');
   const missing = identifies ? [] : REQUIRED.filter((f) => !fields.includes(f)).map((f) => FIELD_LABELS[f]);
-
-  const records = rows
-    .map((cells, i) => ({ row: i + 1, cells }))
-    .slice(headerIndex + 1)
-    .filter(({ cells }) => cells.some((c) => c !== ''))
-    .map(({ row, cells }) => {
-      const data: Record<string, string> = {};
-      fields.forEach((field, i) => {
-        if (field && cells[i]) data[field] = cells[i];
-      });
-      return { row, data };
-    });
   return { records, missing };
 }
 

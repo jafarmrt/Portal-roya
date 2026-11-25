@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarClock, ChevronLeft, LifeBuoy, Plus, Search, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react';
+import { CalendarClock, ChevronLeft, FileSpreadsheet, LifeBuoy, Plus, Search, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { formatDate, toPersianDigits } from '../../lib/jalali';
 import { htmlToText, matches } from '../../lib/search';
 import type { Guide } from '../../types';
 import { inputClass, Modal, primaryButtonClass, secondaryButtonClass } from '../common/Modal';
 import { GuideFormModal, GuideReviewModal, GuideViewModal, useLooksAfter } from './GuideModals';
+import { ImportGuidesModal } from './ImportGuidesModal';
 
 type Dialog = { kind: 'view' | 'edit' | 'review' | 'delete'; id: string };
 
@@ -53,6 +54,7 @@ export const GuidesModule: React.FC = () => {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [writing, setWriting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [dialog, setDialog] = useState<Dialog | null>(() => (focusId ? { kind: 'view', id: focusId } : null));
 
   // A link from search, a notification or a news text opens that guide.
@@ -87,9 +89,14 @@ export const GuidesModule: React.FC = () => {
           </div>
         </div>
         {isManager && (
-          <button onClick={() => setWriting(true)} className={primaryButtonClass}>
-            <Plus className="w-4 h-4" /> نوشتن راهنما
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setImporting(true)} className={secondaryButtonClass}>
+              <FileSpreadsheet className="w-4 h-4" /> ورود از اکسل
+            </button>
+            <button onClick={() => setWriting(true)} className={primaryButtonClass}>
+              <Plus className="w-4 h-4" /> نوشتن راهنما
+            </button>
+          </div>
         )}
       </div>
 
@@ -134,6 +141,7 @@ export const GuidesModule: React.FC = () => {
           {guides.length === 0 && isManager && (
             <p className="text-xs text-faint max-w-md mx-auto leading-relaxed">
               از پرسش‌هایی شروع کنید که همکاران بیشتر تلفنی می‌پرسند. گزارش «جستجوهای بی‌نتیجه» هم نشان می‌دهد همکاران دنبال چه چیزی بوده‌اند.
+              اگر پرسش‌ها را در اکسل آماده دارید، با «ورود از اکسل» همه را یک‌جا وارد کنید.
             </p>
           )}
         </div>
@@ -153,6 +161,7 @@ export const GuidesModule: React.FC = () => {
       )}
 
       {writing && <GuideFormModal onClose={() => setWriting(false)} />}
+      {importing && <ImportGuidesModal onClose={() => setImporting(false)} />}
       {dialog && current && (
         <>
           {dialog.kind === 'view' && (
