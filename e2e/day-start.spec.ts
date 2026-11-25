@@ -1,5 +1,6 @@
 import { devices, expect, test, type Browser, type BrowserContextOptions, type Page } from '@playwright/test';
 import moment from 'moment-jalaali';
+import { WEEK_END_DAY } from '../shared/dayStep';
 import { MOOD_REPLIES } from '../shared/mood';
 
 // «شروع روز»: the daily mood waits right under the welcome until it is answered; then the card says
@@ -403,7 +404,10 @@ test.describe('«یک قدم برای امروز»', () => {
     }, who.id);
     await page.reload();
     await expect(page.getByTestId('team-mood')).toBeVisible();
-    await expect(step(page)).toHaveCount(0);
+    // On the last working day of the week the coins left are offered next (this colleague has them); on other days nothing is.
+    // Either way, never the survey. The weekday is counted as the card counts it: Saturday is 0.
+    if ((moment().day() + 1) % 7 === WEEK_END_DAY) await expect(step(page)).toHaveAttribute('data-step', 'coins');
+    else await expect(step(page)).toHaveCount(0);
     expect(await page.evaluate((id) => JSON.parse(window.localStorage.getItem(`roya.dayStep.${id}`)!).muted, who.id)).toEqual(['poll']);
     await who.close();
   });
