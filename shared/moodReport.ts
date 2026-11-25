@@ -1,5 +1,5 @@
 import moment from 'moment-jalaali';
-import { DAY_STEP_LABELS, DAY_STEPS, type DayStepKind, type DayStepOutcome } from './dayStep.js';
+import { DAY_COUNT_KINDS, DAY_COUNT_LABELS, type DayCountKind, type DayStepOutcome } from './dayStep.js';
 import { MOOD_MIN_ANSWERS, MOOD_REASONS, MOOD_SCORE, type Mood, type MoodReason } from './mood.js';
 
 // «حال‌وهوای سازمان» for managers: the trend, how many take part, the units, what affected the days
@@ -70,7 +70,7 @@ export interface MoodReportReason {
 }
 
 export interface MoodReportStep {
-  kind: DayStepKind;
+  kind: DayCountKind;
   label: string;
   shown: number;
   done: number;
@@ -225,11 +225,11 @@ export function buildMoodReport({ from, to, days, answers, activeOn, active, ste
   const then = new Set(answers.filter((a) => a.date >= thenFrom && a.date <= thenTo).map((a) => a.userId));
   const now = new Set(answers.filter((a) => a.date >= lastWeekFrom && a.date <= to && then.has(a.userId)).map((a) => a.userId));
 
-  const stepRows = DAY_STEPS.map((kind) => {
+  const stepRows = DAY_COUNT_KINDS.map((kind) => {
     const of = (outcome: DayStepOutcome) => steps.filter((s) => s.kind === kind && s.outcome === outcome).reduce((sum, s) => sum + s.count, 0);
     const shown = of('shown');
     const done = of('done');
-    return { kind, label: DAY_STEP_LABELS[kind], shown, done, closed: of('closed'), muted: of('muted'), taken: Math.min(100, percent(done, shown)) };
+    return { kind, label: DAY_COUNT_LABELS[kind], shown, done, closed: of('closed'), muted: of('muted'), taken: Math.min(100, percent(done, shown)) };
     // A kind shown only a few times says too much about too few people.
   }).filter((s) => s.shown >= MOOD_MIN_ANSWERS);
 

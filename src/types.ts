@@ -517,7 +517,7 @@ export interface CalendarRsvpRow {
   respondedAt: string | null;
 }
 
-export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system' | 'suggestion' | 'todo' | 'kudos' | 'notice' | 'task' | 'event' | 'recognition';
+export type NotificationType = 'birthday' | 'poll' | 'announcement' | 'training' | 'calendar' | 'profile' | 'welcome' | 'document' | 'system' | 'suggestion' | 'todo' | 'kudos' | 'notice' | 'task' | 'event' | 'recognition' | 'dayStart';
 
 export interface NotificationItem {
   id: string;
@@ -850,6 +850,8 @@ export interface AppSettings {
   firstWeekDone: string[];
   /** The order «یک قدم برای امروز» tries its steps in ([] = the built-in order). */
   dayStepOrder?: string[];
+  /** This person asked for the morning reminder of «شروع روز». */
+  dayStartReminder?: boolean;
 }
 
 export interface SiteBanner {

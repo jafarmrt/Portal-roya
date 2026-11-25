@@ -116,6 +116,16 @@ describe('«یک قدم برای امروز»: one step a day, and no asking twi
     expect(pick({ hour: 10, notesToday: 2, openPolls: 1 }, shown('plan', 'open', TODAY))).toBeNull();
   });
 
+  it('lets the quiet line take the step’s place when the day turns hard', () => {
+    // A survey was the day's step; then the colleague changes their mood to «بد».
+    expect(pick({ mood: 'بد', openPolls: 1 }, shown('poll', 'open', TODAY))).toBe('care');
+    // Not when they switched that line off, or when no box is open to write to.
+    expect(pick({ mood: 'بد', openPolls: 1 }, { ...shown('poll', 'open', TODAY), muted: ['care'] })).toBeNull();
+    expect(pick({ mood: 'بد', openPolls: 1, suggestions: false }, shown('poll', 'open', TODAY))).toBeNull();
+    // A step already taken or closed that day stays the day's one step.
+    expect(pick({ mood: 'بد' }, shown('poll', 'done', TODAY))).toBeNull();
+  });
+
   it('offers nothing more on a day whose step was taken or closed', () => {
     const busy = { pendingAcks: 2, openPolls: 1, hour: 9 };
     expect(pick(busy, shown('plan', 'done', TODAY))).toBeNull();

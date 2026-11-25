@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { CalendarDays, ChevronDown, Sunrise } from 'lucide-react';
+import { Bell, CalendarDays, ChevronDown, Sunrise } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { haptic } from '../../lib/feedback';
 import { todayJalali } from '../../lib/jalali';
+import { wrapDue } from '../../../shared/dayWeek';
 import { MOOD_PRIVACY_LINE, moodReply, type Mood } from '../../../shared/mood';
 import { DayQuestionAsk, DayQuestionResults } from './DayQuestion';
 import { DayStep } from './DayStep';
+import { DayWrap, WRAP_SEEN } from './DayWrap';
 import { MoodReasons } from './MoodReasons';
 import { MOOD_LOOK, MOOD_ORDER } from './moodLook';
 import { MyMonth } from './MyMonth';
 import { loadDayQuestion, skipDayQuestion, useDayQuestion } from './questionStore';
+import { useSeen } from './seenStore';
 import { TeamMood } from './TeamMood';
 
 /**
@@ -20,18 +23,27 @@ import { TeamMood } from './TeamMood';
  * managers only ever see totals.
  */
 export const DayStartCard: React.FC = () => {
-  const { currentUser, userMoods, submitMood, isLoaded } = usePortal();
+  const { currentUser, userMoods, submitMood, isLoaded, todos, featureOn, appSettings, setDayStartReminder } = usePortal();
   const [changing, setChanging] = useState(false);
   const [busy, setBusy] = useState<Mood | null>(null);
   const [monthOpen, setMonthOpen] = useState(false);
   // The reasons are offered in the visit the mood was chosen in, not every time the dashboard opens.
   const [justAnswered, setJustAnswered] = useState(false);
   const [reanswering, setReanswering] = useState(false);
+  // The reminder's box answers the tap at once; the saved setting follows.
+  const [reminderTapped, setReminderTapped] = useState<boolean | null>(null);
   const today = todayJalali();
   const answer = userMoods.find((m) => m.date === today);
   const mine = answer?.mood ?? null;
   const userId = currentUser?.id ?? '';
   const asked = useDayQuestion();
+  const wrapSeen = useSeen(userId, WRAP_SEEN);
+  // The afternoon wrap-up comes by the clock, also on a page left open since the morning.
+  const [hour, setHour] = useState(() => new Date().getHours());
+  useEffect(() => {
+    const timer = window.setInterval(() => setHour(new Date().getHours()), 5 * 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const question = asked.key === `${userId}:${today}` ? asked : null;
 
   // The day's question is asked for once the mood is in: it is the second step, not the first.
@@ -103,6 +115,9 @@ export const DayStartCard: React.FC = () => {
   // The question waits to be answered or passed over; the day's step comes after it.
   const asking = hasQuestion && (reanswering || (!answered && !question!.skipped));
   const settled = Boolean(question?.loaded) && !asking;
+  // In the afternoon, what became of the notes that were for today takes the step's place, once.
+  const dueToday = featureOn('todos') && isLoaded('todos') ? todos.filter((t) => t.dueDate === today) : [];
+  const wrapping = settled && wrapDue({ hour, mood: mine, done: dueToday.filter((t) => t.doneAt).length, open: dueToday.filter((t) => !t.doneAt).length, settled: wrapSeen === today });
   return (
     // Narrow: the mood and its sentence, the day's question, the day's step, «حال‌وهوای ما», then
     // «ماه من». Wide: the colleague's own side (the mood, the question, the step, «ماه من») in one
@@ -141,7 +156,9 @@ export const DayStartCard: React.FC = () => {
         )}
 
         {/* Its wrapper is empty (and takes no room) on a day without a step, and until the question is settled */}
-        <div className="min-w-0 empty:hidden pt-4 border-t border-line @3xl:col-start-1">{settled && <DayStep mood={mine} />}</div>
+        <div className="min-w-0 empty:hidden pt-4 border-t border-line @3xl:col-start-1">
+          {wrapping ? <DayWrap userId={userId} today={today} notes={dueToday} /> : settled && <DayStep mood={mine} />}
+        </div>
 
         <div className="pt-4 border-t border-line min-w-0 space-y-4 @3xl:col-start-2 @3xl:row-start-1 @3xl:row-span-4 @3xl:pt-0 @3xl:border-t-0 @3xl:border-r @3xl:pr-8">
           <TeamMood refreshKey={`${today}:${mine}`} />
@@ -178,6 +195,19 @@ export const DayStartCard: React.FC = () => {
               <MyMonth moods={userMoods} />
             </div>
           )}
+          <label className="flex items-center gap-2 text-[11px] text-muted cursor-pointer w-fit" data-testid="day-reminder">
+            <input
+              type="checkbox"
+              checked={reminderTapped ?? Boolean(appSettings?.dayStartReminder)}
+              onChange={(e) => {
+                setReminderTapped(e.target.checked);
+                void setDayStartReminder(e.target.checked).finally(() => setReminderTapped(null));
+              }}
+              className="w-3.5 h-3.5 accent-red-700"
+            />
+            <Bell className="w-3.5 h-3.5" />
+            صبح‌های کاری «شروع روز» را یادآوری کن
+          </label>
         </div>
       </div>
     </section>

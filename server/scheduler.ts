@@ -19,6 +19,7 @@ import { releaseAnonymousSuggestions } from './routes/suggestions.js';
 import { indexMissingDocumentTexts } from './textExtract.js';
 import { announceNews, processAckDeadlines } from './routes/news.js';
 import { processMonthlySummary } from './reports.js';
+import { processDayStartReminders } from './dayWeek.js';
 import { deliverDueRecognitions, markRecognitionStarts, processRecognitionReminders } from './recognition.js';
 import { fullName } from './serializers.js';
 import { ensureSettings } from './settings.js';
@@ -161,6 +162,7 @@ export function startScheduler() {
     deliverDueRecognitions().catch((err) => console.error('Recognition delivery error:', err));
     markRecognitionStarts().catch((err) => console.error('Recognition start error:', err));
     processRecognitionReminders().catch((err) => console.error('Recognition reminder error:', err));
+    processDayStartReminders().catch((err) => console.error('Day start reminder error:', err));
     processSpecialEvents().catch((err) => console.error('Special event error:', err));
     removeStaleScreens().catch((err) => console.error('Event screen cleanup error:', err));
     releaseAnonymousSuggestions().catch((err) => console.error('Suggestion release error:', err));
