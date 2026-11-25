@@ -1,17 +1,20 @@
 import { and, eq, inArray, isNotNull, isNull, lte } from 'drizzle-orm';
 import { Router } from 'express';
+import multer from 'multer';
 import { z } from 'zod';
-import { jalaliToDate } from '../../shared/jalali.js';
+import { jalaliToDate, toPersianDigits } from '../../shared/jalali.js';
 import { audit } from '../audit.js';
 import { can, requirePermission, type SessionUser } from '../auth.js';
 import { db } from '../db/index.js';
 import { employees, guideFeedback, guides } from '../db/schema.js';
 import { requireDepartment } from '../departments.js';
 import { broadcastChange } from '../events.js';
+import { checkGuideRows, guideImportSchema, guideRowsToRecords, MAX_GUIDE_IMPORT_ROWS } from '../guideImport.js';
 import { currentUser, HttpError, newId, parse, route, viewerOf } from '../http.js';
 import { createNotifications } from '../notify.js';
 import { richTextToPlain, sanitizeRichText } from '../richText.js';
 import { fullName } from '../serializers.js';
+import { readSpreadsheet, SpreadsheetError } from '../spreadsheet.js';
 import { jalaliDate, optionalText, requiredText } from '../validation.js';
 
 export const guidesRouter = Router();
@@ -124,6 +127,93 @@ guidesRouter.post(
     broadcastChange('guides');
     const [serialized] = await serializeMany([guide], viewer);
     res.status(201).json(serialized);
+  }),
+);
+
+// Bulk import: a document manager uploads an Excel/CSV file of questions and answers, checks the
+// preview, then confirms the rows without an error.
+const importUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1 } });
+
+guidesRouter.post(
+  '/guides/import/preview',
+  requirePermission('documents.manage'),
+  (req, res, next) => {
+    importUpload.single('file')(req, res, (err: unknown) => {
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') next(new HttpError(400, 'حجم فایل نباید بیشتر از ۲ مگابایت باشد.'));
+      else next(err);
+    });
+  },
+  route(async (req, res) => {
+    if (!req.file) throw new HttpError(400, 'فایلی انتخاب نشده است.');
+    let sheet: string[][];
+    try {
+      sheet = readSpreadsheet(req.file.buffer, req.file.originalname);
+    } catch (err) {
+      if (err instanceof SpreadsheetError) throw new HttpError(400, err.message);
+      throw err;
+    }
+    const { records, missing } = guideRowsToRecords(sheet);
+    if (missing.length > 0) throw new HttpError(400, `ستون‌های لازم در ردیف اول فایل پیدا نشد: ${missing.join('، ')}`);
+    if (records.length === 0) throw new HttpError(400, 'فایل هیچ ردیفی برای ورود ندارد.');
+    if (records.length > MAX_GUIDE_IMPORT_ROWS) throw new HttpError(400, `هر بار حداکثر ${toPersianDigits(MAX_GUIDE_IMPORT_ROWS)} راهنما را می‌توان وارد کرد.`);
+    const rows = await checkGuideRows(records);
+    res.json({ rows: rows.map(({ row, data, errors, action, changes, owner }) => ({ row, data, errors, action, changes, owner })) });
+  }),
+);
+
+guidesRouter.post(
+  '/guides/import',
+  requirePermission('documents.manage'),
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const body = parse(guideImportSchema, req.body);
+    const checked = await checkGuideRows(body.rows.map((data, i) => ({ row: i + 1, data })));
+    const creates = checked.filter((r) => r.value);
+    const updates = body.updateExisting ? checked.filter((r) => r.update) : [];
+
+    const now = new Date();
+    const { created, updated } = await db.transaction(async (tx) => {
+      const created = [];
+      for (const { value } of creates) {
+        const [guide] = await tx
+          .insert(guides)
+          .values({ id: newId('guide'), ...value!, createdById: viewer.id, updatedById: viewer.id })
+          .returning({ id: guides.id, title: guides.title });
+        created.push(guide);
+      }
+      const updated = [];
+      for (const { update } of updates) {
+        const [guide] = await tx
+          .update(guides)
+          .set({ ...update!.set, ...('reviewAt' in update!.set ? { reviewRemindedAt: null } : {}), updatedById: viewer.id, updatedAt: now })
+          .where(eq(guides.id, update!.id))
+          .returning({ id: guides.id, title: guides.title });
+        if (guide) updated.push(guide);
+      }
+      return { created, updated };
+    });
+
+    if (created.length > 0 || updated.length > 0) {
+      const titles = (rows: { title: string }[]) => rows.slice(0, 5).map((g) => `«${g.title}»`).join('، ') + (rows.length > 5 ? ' و…' : '');
+      await audit(viewer, {
+        action: 'import',
+        entity: 'guide',
+        title: 'ورود راهنماها از فایل اکسل',
+        detail: [
+          created.length > 0 ? `${toPersianDigits(created.length)} راهنمای جدید: ${titles(created)}` : '',
+          updated.length > 0 ? `${toPersianDigits(updated.length)} راهنما به‌روز شد: ${titles(updated)}` : '',
+        ].filter(Boolean).join('؛ '),
+      });
+      broadcastChange('guides');
+    }
+    res.status(201).json({
+      created: created.length,
+      updated: updated.length,
+      // Guides that already say the same, and guides left alone because updating was not asked for.
+      unchanged: checked.filter((r) => r.action === 'unchanged').length,
+      leftAlone: body.updateExisting ? 0 : checked.filter((r) => r.action === 'update').length,
+      skipped: checked.filter((r) => r.errors.length > 0).map((r) => ({ row: r.row, title: r.data.title ?? '', errors: r.errors })),
+    });
   }),
 );
 
