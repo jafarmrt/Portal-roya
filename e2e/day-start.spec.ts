@@ -329,7 +329,7 @@ test.describe('with real answers to the day’s mood', () => {
       // The order of the steps: the last two change places, are saved, and are put back.
       await page.getByRole('tab', { name: 'ترتیب پیشنهادها' }).click();
       const order = page.getByTestId('step-order').getByRole('listitem');
-      await expect(order).toHaveCount(8);
+      await expect(order).toHaveCount(7);
       await expect(order.last()).toContainText('سکه‌های مانده');
       await page.getByRole('button', { name: '«سکه‌های مانده» بالاتر' }).click();
       await expect(order.last()).toContainText('دورهٔ این هفته');
@@ -345,6 +345,33 @@ test.describe('with real answers to the day’s mood', () => {
 
 // «یک قدم برای امروز»: after the mood, one step from what really waits for the colleague. The rows of
 // the table are tested one by one in tests/dayStep.test.ts; here the steps are taken on the page.
+// With too few answers the card keeps to one line each: no week of empty bars, and the day's question
+// without its options again (the two answers are faked, so the day's real count is left alone).
+test('with too few answers, «حال‌وهوای ما» and the question keep to one line each', async ({ browser }) => {
+  const who = await colleague(browser, 'few.lines', 'پریا');
+  const page = who.page;
+  await pretendMood(page, 10);
+  const today = moment().format('jYYYY/jMM/jDD');
+  const days = Array.from({ length: 7 }, (_, i) => ({ date: moment().subtract(6 - i, 'days').format('jYYYY/jMM/jDD'), good: i === 2 ? 60 : null }));
+  await page.route('**/api/moods/team', (route) => route.fulfill({ json: { date: today, answers: null, good: null, days } }));
+  const question = { id: 'q1', text: 'این هفته چطور گذشت؟', options: ['عالی', 'خوب', 'معمولی', 'سخت'], theme: 'week' };
+  await page.route('**/api/moods/question', (route) => route.fulfill({ json: { date: today, question, mine: 1, results: null } }));
+  await page.goto('/#dashboard');
+  await choose(page, 'خوب');
+
+  const team = page.getByTestId('team-mood');
+  await expect(team).toContainText('هنوز پاسخ کافی نرسیده؛ بعداً سر بزنید.');
+  await expect(team.getByRole('list')).toHaveCount(0);
+  const results = page.getByTestId('day-question-results');
+  await expect(results).toContainText('این هفته چطور گذشت؟');
+  await expect(page.getByTestId('day-question-few')).toContainText('پاسخ شما: خوب');
+  await expect(page.getByTestId('day-question-few')).toContainText('دست‌کم ۵ نفر');
+  await expect(results.getByRole('listitem')).toHaveCount(0);
+  await expect(results).not.toContainText('معمولی');
+  await expect(results.getByRole('button', { name: 'تغییر پاسخ' })).toBeVisible();
+  await who.close();
+});
+
 test.describe('«یک قدم برای امروز»', () => {
   test('«سه کار امروز» writes the notes without leaving the dashboard, and that is the day’s one step', async ({ browser }) => {
     const who = await colleague(browser, 'step.plan', 'پریا');
@@ -456,23 +483,6 @@ test.describe('«یک قدم برای امروز»', () => {
     if ((moment().day() + 1) % 7 === WEEK_END_DAY) await expect(step(page)).toHaveAttribute('data-step', 'coins');
     else await expect(step(page)).toHaveCount(0);
     expect(await page.evaluate((id) => JSON.parse(window.localStorage.getItem(`roya.dayStep.${id}`)!).muted, who.id)).toEqual(['poll']);
-    await who.close();
-  });
-
-  test('a note left from yesterday is moved to today in one tap', async ({ browser }) => {
-    const who = await colleague(browser, 'step.late', 'سینا');
-    await confirmCirculars(who);
-    const yesterday = moment().subtract(1, 'day').format('jYYYY/jMM/jDD');
-    expect((await who.page.request.post('/api/todos', { data: { title: 'پیگیری قرارداد', dueDate: yesterday } })).ok()).toBe(true);
-    const page = who.page;
-    await pretendMood(page, 9);
-    await page.goto('/#dashboard');
-    await choose(page, 'معمولی');
-    await expect(step(page)).toHaveAttribute('data-step', 'overdue');
-    await expect(step(page)).toContainText('۱ یادداشت از قبل مانده.');
-    await step(page).getByRole('group', { name: 'یادداشت پیگیری قرارداد' }).getByRole('button', { name: 'امروز' }).click();
-    await expect(page.getByTestId('day-step-done')).toContainText('یادداشت‌های مانده مرتب شد.');
-    await expect(page.getByRole('region', { name: 'یادداشت‌های من' }).getByRole('group', { name: 'امروز' })).toContainText('پیگیری قرارداد');
     await who.close();
   });
 

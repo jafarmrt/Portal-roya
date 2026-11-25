@@ -325,7 +325,7 @@ describe('«پرسش روز»: the day’s question, its answers and the bank', 
   it('saves the order of the day’s steps for everyone; the built-in order is kept as none', async () => {
     const settingsOf = async (agent: Agent) => (await agent.get('/api/settings').expect(200)).body.dayStepOrder;
     expect(await settingsOf(people[0].agent)).toEqual([]);
-    const order = ['care', 'plan', 'overdue', 'acks'];
+    const order = ['care', 'plan', 'poll', 'acks'];
     expect((await owner.agent.put('/api/moods/programme').send({ stepOrder: order }).expect(200)).body.stepOrder).toEqual(dayStepOrder(order));
     expect(await settingsOf(people[0].agent)).toEqual(dayStepOrder(order));
     await owner.agent.put('/api/moods/programme').send({ stepOrder: ['nonsense'] }).expect(400);

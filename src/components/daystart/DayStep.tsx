@@ -7,7 +7,6 @@ import { toPersianDigits, todayJalali } from '../../lib/jalali';
 import { inputClass } from '../common/Modal';
 import { TaskFormModal } from '../tasks/TaskFormModal';
 import { openGive, useThanks } from '../thanks/thanksStore';
-import { useTickTodo } from '../todos/useTickTodo';
 import { DAY_PLAN_NOTES, DAY_STEP_LABELS, DAY_STEP_LIST, dayStepOrder, pickStep, type DayStepFacts, type DayStepKind } from '../../../shared/dayStep';
 import type { Mood } from '../../../shared/mood';
 import { addJalaliDays, TODO_TITLE_MAX } from '../../../shared/todos';
@@ -23,17 +22,14 @@ const quiet = 'px-2.5 py-1 rounded-lg border border-line bg-white hover:bg-surfa
  * can be switched off for good. On a hard day no work is suggested, only a quiet way to be heard.
  */
 export const DayStep: React.FC<{ mood: Mood }> = ({ mood }) => {
-  const { currentUser, appSettings, featureOn, isLoaded, news, polls, todos, tasks, trainings, setActiveTab, addTodo, updateTodo, answerTask } = usePortal();
+  const { currentUser, appSettings, featureOn, isLoaded, news, polls, todos, tasks, trainings, setActiveTab, addTodo, answerTask } = usePortal();
   const thanks = useThanks();
-  const tick = useTickTodo();
   const userId = currentUser?.id ?? '';
   const memory = useStepMemory(userId);
   const today = todayJalali();
   // What the colleague did with the step in this visit, kept on screen until they leave the page.
   const [finished, setFinished] = useState<{ kind: DayStepKind; line: string } | null>(null);
   const [planned, setPlanned] = useState<PersonalTodo[]>([]);
-  // Leftover notes are dealt with one by one: the step is taken with the first, and stays for the rest.
-  const [sorting, setSorting] = useState(false);
   const [handing, setHanding] = useState<PersonalTodo | null>(null);
 
   const notesOn = featureOn('todos');
@@ -41,10 +37,6 @@ export const DayStep: React.FC<{ mood: Mood }> = ({ mood }) => {
   const thanksOn = featureOn('recognition');
   const pendingAcks = useMemo(() => news.filter((n) => n.status === 'published' && n.requiresAck && !n.acknowledgedAt), [news]);
   const waiting = useMemo(() => (tasksOn ? tasks.mine.filter((t) => t.status === 'new') : []), [tasks.mine, tasksOn]);
-  const overdue = useMemo(
-    () => (notesOn ? todos.filter((t) => !t.doneAt && t.dueDate !== null && t.dueDate < today).sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? '')) : []),
-    [todos, notesOn, today],
-  );
   const openPoll = featureOn('polls') ? polls.find((p) => p.isActive && p.forMe && !p.hasVoted) : undefined;
   const weekAhead = addJalaliDays(today, 7);
   const course = featureOn('training')
@@ -62,7 +54,6 @@ export const DayStep: React.FC<{ mood: Mood }> = ({ mood }) => {
     pendingAcks: pendingAcks.length,
     tasksWaiting: waiting.length,
     notes: notesOn,
-    overdueNotes: overdue.length,
     notesToday: todos.filter((t) => !t.doneAt && t.dueDate === today).length,
     suggestions: tabOn(appSettings, 'suggestions'),
     coinsLeft: thanksOn ? (thanks.wallet?.left ?? 0) : 0,
@@ -70,7 +61,7 @@ export const DayStep: React.FC<{ mood: Mood }> = ({ mood }) => {
     trainingSoon: Boolean(course),
   };
   // In the order whoever looks after «شروع روز» chose for everyone (the built-in one unless they did).
-  const kind = !ready || finished ? null : sorting ? 'overdue' : pickStep(facts, memory, today, dayStepOrder(appSettings?.dayStepOrder));
+  const kind = !ready || finished ? null : pickStep(facts, memory, today, dayStepOrder(appSettings?.dayStepOrder));
 
   // The first time a kind is on screen today it becomes the day's step, and is counted once.
   useEffect(() => {
@@ -93,15 +84,14 @@ export const DayStep: React.FC<{ mood: Mood }> = ({ mood }) => {
     setActiveTab(tab, id);
   };
 
-  const sorted = sorting && overdue.length === 0;
-  if (finished || sorted) {
+  if (finished) {
     return (
       <Frame>
         <p className="flex items-center gap-1.5 text-xs font-bold text-green-800" data-testid="day-step-done">
           <Check className="w-4 h-4 shrink-0" />
-          {finished?.line ?? 'یادداشت‌های مانده مرتب شد.'}
+          {finished.line}
         </p>
-        {finished?.kind === 'plan' && planned.length > 0 && (
+        {finished.kind === 'plan' && planned.length > 0 && (
           <ul className="space-y-1.5">
             {planned.map((note) => (
               <li key={note.id} className="flex items-center justify-between gap-2 text-xs text-ink">
@@ -194,35 +184,6 @@ export const DayStep: React.FC<{ mood: Mood }> = ({ mood }) => {
         </>
       );
       break;
-    case 'overdue':
-      body = (
-        <>
-          <p className="text-xs font-bold text-ink">{toPersianDigits(overdue.length)} یادداشت از قبل مانده.</p>
-          <ul className="space-y-2">
-            {overdue.slice(0, DAY_STEP_LIST).map((note) => (
-              <li key={note.id} className="space-y-1">
-                <span className="block text-xs text-ink truncate">{note.title}</span>
-                <span className="flex flex-wrap gap-1.5" role="group" aria-label={`یادداشت ${note.title}`}>
-                  <button type="button" onClick={() => void move(note, today)} className={quiet}>امروز</button>
-                  <button type="button" onClick={() => void move(note, addJalaliDays(today, 1))} className={quiet}>فردا</button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await tick(note);
-                      settleOverdue();
-                    }}
-                    className={quiet}
-                  >
-                    انجام شد
-                  </button>
-                </span>
-              </li>
-            ))}
-          </ul>
-          {more(overdue.length)}
-        </>
-      );
-      break;
     case 'plan':
       body = <PlanForm onSave={savePlan} />;
       break;
@@ -289,15 +250,6 @@ export const DayStep: React.FC<{ mood: Mood }> = ({ mood }) => {
     </Frame>
   );
 
-  /** A note moved to today or tomorrow; the step is taken with the first one. */
-  async function move(note: PersonalTodo, dueDate: string) {
-    if (await updateTodo(note.id, { dueDate })) settleOverdue();
-  }
-  function settleOverdue() {
-    if (sorting) return;
-    settle('overdue', 'done');
-    setSorting(true);
-  }
   async function savePlan(titles: string[]) {
     const created: PersonalTodo[] = [];
     for (const title of titles) {

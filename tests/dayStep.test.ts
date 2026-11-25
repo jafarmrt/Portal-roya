@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DAY_STEP_LABELS,
   DAY_STEPS,
+  dayStepOrder,
   eligibleSteps,
   NO_STEP_MEMORY,
   pickStep,
@@ -25,7 +26,6 @@ const quiet: DayStepFacts = {
   pendingAcks: 0,
   tasksWaiting: 0,
   notes: true,
-  overdueNotes: 0,
   notesToday: 0,
   suggestions: true,
   coinsLeft: 0,
@@ -42,7 +42,7 @@ describe('«یک قدم برای امروز»: the rows of the table', () => {
   });
 
   it('row 1: on a hard day only the quiet way to be heard, never work', () => {
-    const busy = { pendingAcks: 2, tasksWaiting: 1, overdueNotes: 3, coinsLeft: 20, openPolls: 1, trainingSoon: true, hour: 9 };
+    const busy = { pendingAcks: 2, tasksWaiting: 1, coinsLeft: 20, openPolls: 1, trainingSoon: true, hour: 9 };
     expect(eligibleSteps({ ...quiet, ...busy, mood: 'بد' })).toEqual(['care']);
     expect(pick({ ...busy, mood: 'خیلی بد' })).toBe('care');
     // Without a suggestion box there is nothing to offer, and still no work.
@@ -52,17 +52,17 @@ describe('«یک قدم برای امروز»: the rows of the table', () => {
   });
 
   it('row 2: a circular waiting for confirmation comes first', () => {
-    expect(pick({ pendingAcks: 1, tasksWaiting: 2, overdueNotes: 1, hour: 9 })).toBe('acks');
+    expect(pick({ pendingAcks: 1, tasksWaiting: 2, hour: 9 })).toBe('acks');
   });
 
   it('row 3: work handed over and not answered', () => {
-    expect(pick({ tasksWaiting: 2, overdueNotes: 1, hour: 9 })).toBe('tasksWaiting');
+    expect(pick({ tasksWaiting: 2, hour: 9 })).toBe('tasksWaiting');
   });
 
-  it('row 4: notes left from earlier days', () => {
-    expect(pick({ overdueNotes: 3, hour: 9 })).toBe('overdue');
-    // Not where «یادداشت‌های من» is hidden from the colleague.
-    expect(pick({ overdueNotes: 3, hour: 9, notes: false })).toBeNull();
+  it('row 4 is gone: notes left from earlier days are on «یادداشت‌های من», not a step', () => {
+    expect(DAY_STEPS).not.toContain('overdue');
+    // A saved order that still names it simply leaves it out.
+    expect(dayStepOrder(['overdue', 'poll'])).toEqual(['poll', ...DAY_STEPS.filter((k) => k !== 'poll')]);
   });
 
   it('row 5: «سه کار امروز» in the morning, when nothing is written for today', () => {
