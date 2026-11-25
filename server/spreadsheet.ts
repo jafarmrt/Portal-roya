@@ -17,6 +17,45 @@ export function readSpreadsheet(buffer: Buffer, filename: string): string[][] {
   return parseCsv(decodeText(buffer));
 }
 
+/** A header cell as it is compared: without marks, stars or colons, one spelling of ی and ک, lower case. */
+export function normalizeHeader(value: string) {
+  return value
+    .replace(/[\u200c\u200e\u200f*:]/g, '')
+    .replace(/ي/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/[\s_-]+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+/** Maps every accepted header name (normalized) to its field. */
+export function headerLookup<F extends string>(columns: Record<F, readonly string[]>): Map<string, F> {
+  return new Map((Object.entries(columns) as [F, readonly string[]][]).flatMap(([field, names]) => names.map((n) => [normalizeHeader(n), field])));
+}
+
+/**
+ * Turns a sheet into one record per filled row, keyed by field. The first row with anything in it
+ * is the header; columns it does not name and empty cells are left out. `row` is the sheet's own
+ * row number, as Excel shows it.
+ */
+export function sheetRecords<F extends string>(rows: string[][], lookup: Map<string, F>): { fields: (F | undefined)[]; records: { row: number; data: Record<string, string> }[] } {
+  const headerIndex = rows.findIndex((r) => r.some((c) => c !== ''));
+  if (headerIndex < 0) return { fields: [], records: [] };
+  const fields = rows[headerIndex].map((h) => lookup.get(normalizeHeader(h)));
+  const records = rows
+    .map((cells, i) => ({ row: i + 1, cells }))
+    .slice(headerIndex + 1)
+    .filter(({ cells }) => cells.some((c) => c !== ''))
+    .map(({ row, cells }) => {
+      const data: Record<string, string> = {};
+      fields.forEach((field, i) => {
+        if (field && cells[i]) data[field] = cells[i];
+      });
+      return { row, data };
+    });
+  return { fields, records };
+}
+
 function decodeText(buffer: Buffer) {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(buffer).replace(/^\uFEFF/, '');

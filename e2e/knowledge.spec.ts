@@ -113,4 +113,45 @@ test.describe('guides, department pages and search', () => {
     await expect(reports.page.getByRole('region', { name: 'جستجوهای بی‌نتیجه' })).toContainText('بیمه تکمیلی دندان');
     await reports.context.close();
   });
+
+  test('a document manager brings in questions and answers from an Excel file', async ({ browser }) => {
+    const csv = [
+      'پرسش,دسته,پاسخ کوتاه,متن کامل,واحد,مسئول',
+      'برای ازدواج چه مرخصی‌ای دارم؟,مرخصی,۳ روز مرخصی با مزد.,"این مرخصی برای این موارد است:\n- ازدواج دائم\n- فوت همسر، پدر، مادر و فرزندان",فروش,مدیر سیستم',
+      'مرخصی ساعتی چطور حساب می‌شود؟,مرخصی,از مرخصی سالانه کم می‌شود.,"۱. درخواست را ثبت کنید.\n۲. تأیید سرپرست را بگیرید.",,',
+      'ساعت کاری چقدر است؟,حضور و غیاب,,۴۴ ساعت در هفته.,واحدی که نیست,',
+    ].join('\r\n');
+    const file = { name: 'guides.csv', mimeType: 'text/csv', buffer: Buffer.from(`\uFEFF${csv}`) };
+
+    const { context, page } = await asRole(browser, 'admin');
+    await page.goto('/#guides');
+    await page.getByRole('button', { name: 'ورود از اکسل' }).click();
+    const dialog = page.getByRole('dialog', { name: 'ورود راهنماها از اکسل' });
+    await dialog.locator('input[type="file"]').setInputFiles(file);
+    await expect(dialog.getByText('۲ راهنمای جدید')).toBeVisible();
+    await expect(dialog.getByText('۱ ردیف با خطا (ثبت نمی‌شود)')).toBeVisible();
+    await expect(dialog.getByRole('row', { name: /ساعت کاری چقدر است/ })).toContainText('«واحدی که نیست» در فهرست واحدهای پرتال نیست');
+    await dialog.getByRole('button', { name: 'ثبت ۲ راهنما' }).click();
+    await expect(dialog).toBeHidden();
+
+    await expect(page.getByRole('heading', { name: /^مرخصی/, level: 3 })).toContainText('(۲)');
+    await page.getByRole('button', { name: /برای ازدواج چه مرخصی‌ای دارم/ }).click();
+    const view = page.getByRole('dialog', { name: 'برای ازدواج چه مرخصی‌ای دارم؟' });
+    await expect(view.getByRole('listitem')).toHaveText(['ازدواج دائم', 'فوت همسر، پدر، مادر و فرزندان']);
+    await expect(view).toContainText('مسئول: مدیر سیستم');
+    await view.getByRole('button', { name: 'بستن' }).first().click();
+
+    // The same file again writes nothing twice.
+    await page.getByRole('button', { name: 'ورود از اکسل' }).click();
+    await dialog.locator('input[type="file"]').setInputFiles(file);
+    await expect(dialog.getByText('۲ راهنما بدون تغییر')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'ثبت ۰ راهنما' })).toBeDisabled();
+    await context.close();
+
+    const employee = await asRole(browser, 'employee');
+    await employee.page.goto('/#guides');
+    await expect(employee.page.getByRole('button', { name: /مرخصی ساعتی چطور حساب می‌شود/ })).toBeVisible();
+    await expect(employee.page.getByRole('button', { name: 'ورود از اکسل' })).toHaveCount(0);
+    await employee.context.close();
+  });
 });
