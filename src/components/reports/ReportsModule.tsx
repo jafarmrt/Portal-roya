@@ -7,7 +7,7 @@ import { formatDate, isValidJalaliDate, toLatinDigits } from '../../lib/jalali';
 import { JalaliDateInput } from '../common/JalaliDateInput';
 import { labelClass, secondaryButtonClass } from '../common/Modal';
 import { MonthlySummaries } from './MonthlySummaries';
-import { DayQuestionsReport } from './DayQuestionsReport';
+import { MoodInsights } from './MoodInsights';
 import { MoodReport } from './MoodReport';
 import { IdlePeopleCard, NewsReachReport } from './NewsReachReport';
 import { ParticipationReport } from './ParticipationReport';
@@ -120,7 +120,7 @@ export const ReportsModule: React.FC = () => {
       {tab === 'mood' ? (
         <div className="space-y-6">
           <MoodReport />
-          <DayQuestionsReport />
+          <MoodInsights />
         </div>
       ) : (
         <>
