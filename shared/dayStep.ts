@@ -5,7 +5,8 @@ import { isGoodMood, type Mood } from './mood.js';
 // decided in the browser: the server never learns which step went with which mood.
 
 /** The steps, in the order they are tried. */
-export const DAY_STEPS = ['care', 'acks', 'tasksWaiting', 'overdue', 'plan', 'thanks', 'poll', 'training', 'coins'] as const;
+// Notes left from earlier days are not one of them: «یادداشت‌های من» on the dashboard already shows them first.
+export const DAY_STEPS = ['care', 'acks', 'tasksWaiting', 'plan', 'thanks', 'poll', 'training', 'coins'] as const;
 export type DayStepKind = (typeof DAY_STEPS)[number];
 
 /** How each step is called where a colleague switches it off, and in the numbers of «شروع روز». */
@@ -13,7 +14,6 @@ export const DAY_STEP_LABELS: Record<DayStepKind, string> = {
   care: 'پیام ناشناس در روز سخت',
   acks: 'بخشنامهٔ تأییدنشده',
   tasksWaiting: 'کار ارجاعی منتظر پاسخ',
-  overdue: 'یادداشت‌های مانده',
   plan: 'سه کار امروز',
   thanks: 'قدردانی از یک همکار',
   poll: 'نظرسنجی باز',
@@ -65,8 +65,6 @@ export interface DayStepFacts {
   tasksWaiting: number;
   /** «یادداشت‌های من» is open for the colleague. */
   notes: boolean;
-  /** Open notes due before today. */
-  overdueNotes: number;
   /** Open notes due today. */
   notesToday: number;
   /** A suggestion box is open for the colleague. */
@@ -86,7 +84,6 @@ export function eligibleSteps(f: DayStepFacts, order: readonly DayStepKind[] = D
     care: false,
     acks: f.pendingAcks > 0,
     tasksWaiting: f.tasksWaiting > 0,
-    overdue: f.notes && f.overdueNotes > 0,
     plan: f.notes && isPlanningTime(f.hour) && f.notesToday === 0,
     thanks: isGoodMood(f.mood) && f.coinsLeft > 0,
     poll: f.openPolls > 0,

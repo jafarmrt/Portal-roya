@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { haptic } from '../../lib/feedback';
 import { toPersianDigits } from '../../lib/jalali';
 import type { DayQuestionToday } from '../../../shared/dayQuestion';
+import { MOOD_MIN_ANSWERS } from '../../../shared/mood';
 import { answerDayQuestion } from './questionStore';
 
 const optionClass =
@@ -56,7 +57,8 @@ export const DayQuestionAsk: React.FC<{ today: DayQuestionToday; onSkip: () => v
 
 /**
  * «پرسش روز», answered: every option with its share and the colleague's own choice marked. Shares
- * only, and none at all while the answers are too few.
+ * only. While the answers are too few, just the colleague's own answer and one line: the options
+ * again without numbers only crowd the card.
  */
 export const DayQuestionResults: React.FC<{ today: DayQuestionToday; onChange: () => void }> = ({ today, onChange }) => {
   if (!today.question || today.mine === null) return null;
@@ -73,30 +75,37 @@ export const DayQuestionResults: React.FC<{ today: DayQuestionToday; onChange: (
         </button>
       </div>
       <p id="day-question-results-title" className="text-sm font-bold text-ink leading-relaxed">{question.text}</p>
-      <ul className="space-y-1.5 max-w-sm">
-        {question.options.map((option, i) => {
-          const share = results?.shares[i] ?? null;
-          return (
-            <li key={option} className="text-xs">
-              <div className="flex items-center justify-between gap-2">
-                <span className={`flex items-center gap-1 min-w-0 ${mine === i ? 'font-black text-brand-strong' : 'font-medium text-ink-soft'}`}>
-                  {mine === i && <Check className="w-3.5 h-3.5 shrink-0" aria-label="پاسخ شما" />}
-                  <span className="truncate">{option}</span>
-                </span>
-                {share !== null && <span className="tabular-nums text-faint shrink-0">{toPersianDigits(share)}٪</span>}
-              </div>
-              {share !== null && (
-                <div className="mt-1 h-1.5 rounded-full bg-surface overflow-hidden" aria-hidden>
-                  <div className={`h-full rounded-full ${mine === i ? 'bg-brand' : 'bg-brand/30'}`} style={{ width: `${share}%` }} />
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      <p className="text-[11px] text-faint">
-        {results ? `${toPersianDigits(results.answers)} پاسخ تا این لحظه` : 'هنوز پاسخ کافی نرسیده؛ بعداً سر بزنید تا ببینید بقیه چه گفتند.'}
-      </p>
+      {results ? (
+        <>
+          <ul className="space-y-1.5 max-w-sm">
+            {question.options.map((option, i) => {
+              const share = results?.shares[i] ?? null;
+              return (
+                <li key={option} className="text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`flex items-center gap-1 min-w-0 ${mine === i ? 'font-black text-brand-strong' : 'font-medium text-ink-soft'}`}>
+                      {mine === i && <Check className="w-3.5 h-3.5 shrink-0" aria-label="پاسخ شما" />}
+                      <span className="truncate">{option}</span>
+                    </span>
+                    {share !== null && <span className="tabular-nums text-faint shrink-0">{toPersianDigits(share)}٪</span>}
+                  </div>
+                  {share !== null && (
+                    <div className="mt-1 h-1.5 rounded-full bg-surface overflow-hidden" aria-hidden>
+                      <div className={`h-full rounded-full ${mine === i ? 'bg-brand' : 'bg-brand/30'}`} style={{ width: `${share}%` }} />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-[11px] text-faint">{toPersianDigits(results.answers)} پاسخ تا این لحظه</p>
+        </>
+      ) : (
+        <p className="text-xs text-ink-soft leading-relaxed" data-testid="day-question-few">
+          پاسخ شما: <strong className="text-brand-strong">{question.options[mine]}</strong>
+          <span className="text-faint"> · نتیجه وقتی دیده می‌شود که دست‌کم {toPersianDigits(MOOD_MIN_ANSWERS)} نفر پاسخ دهند.</span>
+        </p>
+      )}
     </section>
   );
 };
