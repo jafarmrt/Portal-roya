@@ -21,6 +21,7 @@ import { useTabBadge } from './lib/tabBadge';
 import { tabOn } from './lib/features';
 import { KudosListener } from './components/online/KudosListener';
 import { ThanksHost } from './components/thanks/ThanksHost';
+import { DiscoverTourHost } from './components/daystart/DiscoverTour';
 import { useAppearance } from './lib/appearance';
 import { useToastLimit } from './lib/toastLimit';
 
@@ -201,6 +202,7 @@ const MainContent: React.FC = () => {
       <MobileBottomBar />
       {currentUser && featureOn('onlineColleagues') && <KudosListener emojis={appSettings?.kudosEmojis ?? []} />}
       {currentUser && featureOn('recognition') && <ThanksHost userId={currentUser.id} />}
+      {currentUser && <DiscoverTourHost />}
       {isGuest && <LoginModal />}
       <UpdateNotice page={activeTab} />
 

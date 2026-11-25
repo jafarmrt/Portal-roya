@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, CalendarDays, ChevronDown, Sunrise } from 'lucide-react';
+import { Bell, CalendarDays, ChevronDown, Compass, Sunrise } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
 import { haptic } from '../../lib/feedback';
 import { todayJalali } from '../../lib/jalali';
@@ -11,6 +11,8 @@ import { DayWrap, WRAP_SEEN } from './DayWrap';
 import { MoodReasons } from './MoodReasons';
 import { MOOD_LOOK, MOOD_ORDER } from './moodLook';
 import { MyMonth } from './MyMonth';
+import { MyPortal, myPortalCount } from './MyPortal';
+import { useDiscoverParts } from './discoverStore';
 import { loadDayQuestion, skipDayQuestion, useDayQuestion } from './questionStore';
 import { useSeen } from './seenStore';
 import { TeamMood } from './TeamMood';
@@ -27,6 +29,7 @@ export const DayStartCard: React.FC = () => {
   const [changing, setChanging] = useState(false);
   const [busy, setBusy] = useState<Mood | null>(null);
   const [monthOpen, setMonthOpen] = useState(false);
+  const [portalOpen, setPortalOpen] = useState(false);
   // The reasons are offered in the visit the mood was chosen in, not every time the dashboard opens.
   const [justAnswered, setJustAnswered] = useState(false);
   const [reanswering, setReanswering] = useState(false);
@@ -45,6 +48,7 @@ export const DayStartCard: React.FC = () => {
     return () => window.clearInterval(timer);
   }, []);
   const question = asked.key === `${userId}:${today}` ? asked : null;
+  const portalParts = useDiscoverParts(userId, Boolean(userId));
 
   // The day's question is asked for once the mood is in: it is the second step, not the first.
   useEffect(() => {
@@ -194,6 +198,24 @@ export const DayStartCard: React.FC = () => {
             <div className="max-w-xs">
               <MyMonth moods={userMoods} />
             </div>
+          )}
+          {portalParts && portalParts.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setPortalOpen((open) => !open)}
+                aria-expanded={portalOpen}
+                className="w-full flex items-center justify-between text-xs font-bold text-ink-soft hover:text-brand-strong"
+              >
+                <span className="flex items-center gap-2">
+                  <Compass className="w-4 h-4" />
+                  پرتال من
+                  <span className="font-medium text-faint">({myPortalCount(portalParts)})</span>
+                </span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${portalOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {portalOpen && <MyPortal parts={portalParts} />}
+            </>
           )}
           <label className="flex items-center gap-2 text-[11px] text-muted cursor-pointer w-fit" data-testid="day-reminder">
             <input

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarClock, ChevronLeft, FileSpreadsheet, LifeBuoy, Plus, Search, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
+import { markTried } from '../daystart/discoverStore';
 import { formatDate, toPersianDigits } from '../../lib/jalali';
 import { htmlToText, matches } from '../../lib/search';
 import type { Guide } from '../../types';
@@ -49,7 +50,12 @@ const GuideRow: React.FC<{ guide: Guide; onOpen: () => void }> = ({ guide, onOpe
 
 /** How-to guides and answers to common questions, each kept current by its owner. */
 export const GuidesModule: React.FC = () => {
-  const { guides, can, focusId, deleteGuide } = usePortal();
+  const { guides, can, focusId, deleteGuide, currentUser } = usePortal();
+  // «کشف پرتال»: the colleague has opened the guides.
+  const userId = currentUser?.id ?? '';
+  useEffect(() => {
+    markTried(userId, 'guides');
+  }, [userId]);
   const isManager = can('documents.manage');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
@@ -101,7 +107,7 @@ export const GuidesModule: React.FC = () => {
       </div>
 
       <div className="bg-white p-4 rounded-2xl border border-line space-y-3">
-        <div className="relative">
+        <div className="relative" data-discover="guides-search">
           <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-faint" />
           <input
             type="search"
@@ -113,7 +119,7 @@ export const GuidesModule: React.FC = () => {
           />
         </div>
         {(categories.length > 1 || dueReview > 0) && (
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="دسته‌ها">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="دسته‌ها" data-discover="guides-categories">
             {[
               { id: 'all', label: 'همه' },
               ...categories.map((c) => ({ id: c, label: c })),

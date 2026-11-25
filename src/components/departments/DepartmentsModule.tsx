@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Building2, ChevronLeft, ExternalLink, FileText, LifeBuoy, Newspaper, Pencil, Phone, Search, Users } from 'lucide-react';
 import { usePortal } from '../../context/PortalContext';
+import { markTried } from '../daystart/discoverStore';
 import { formatDate, toPersianDigits } from '../../lib/jalali';
 import { aboutHits, aboutSummary, aboutTopics } from '../../lib/departmentAbout';
 import { htmlToText, matches } from '../../lib/search';
@@ -161,7 +162,13 @@ const LinkRow: React.FC<{ title: string; detail: string; onClick: () => void }> 
 );
 
 const DepartmentView: React.FC<{ department: string }> = ({ department }) => {
-  const { employees, departmentPages, guides, documents, news, appSettings, setActiveTab, systemHref } = usePortal();
+  const { currentUser, employees, departmentPages, guides, documents, news, appSettings, setActiveTab, systemHref } = usePortal();
+  // «کشف پرتال»: the colleague has seen the page of their own unit.
+  const userId = currentUser?.id ?? '';
+  const own = Boolean(currentUser && currentUser.department === department);
+  useEffect(() => {
+    if (own) markTried(userId, 'unit');
+  }, [own, userId]);
   const canEdit = useCanEdit();
   const [editing, setEditing] = useState(false);
   const page = departmentPages.find((p) => p.department === department);
@@ -218,7 +225,7 @@ const DepartmentView: React.FC<{ department: string }> = ({ department }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         <div className="lg:col-span-2 space-y-6">
-          <section className="bg-white rounded-3xl border border-line/70 shadow-card p-5 space-y-3">
+          <section className="bg-white rounded-3xl border border-line/70 shadow-card p-5 space-y-3" data-discover="unit-about">
             <SectionTitle icon={<Building2 className="w-4 h-4" />}>برای چه کارهایی به ما مراجعه کنید</SectionTitle>
             {page?.about ? (
               <>
@@ -291,7 +298,7 @@ const DepartmentView: React.FC<{ department: string }> = ({ department }) => {
             </section>
           )}
 
-          <section className="bg-white rounded-3xl border border-line/70 shadow-card p-5 space-y-2">
+          <section className="bg-white rounded-3xl border border-line/70 shadow-card p-5 space-y-2" data-discover="unit-people">
             <SectionTitle icon={<Users className="w-4 h-4" />}>همکاران واحد</SectionTitle>
             {members.length === 0 ? (
               <p className="text-xs text-muted">همکاری در این واحد ثبت نشده است.</p>

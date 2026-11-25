@@ -45,6 +45,8 @@ async function pretendMood(page: Page, hour: number) {
   await page.route('**/api/moods/me', (route) => route.fulfill({ json: mine }));
   // No question that day: these tests are about the step that follows it.
   await page.route('**/api/moods/question', (route) => route.fulfill({ json: { date: today, question: null, mine: null, results: null } }));
+  // Nothing to introduce either, so «می‌دانستید؟» does not take the step's place (the tests of «کشف پرتال» say otherwise).
+  await page.route('**/api/moods/discover', (route) => route.fulfill({ json: { parts: [] } }));
   await page.clock.setFixedTime(moment().hour(hour).minute(0).second(0).toDate());
 }
 
@@ -640,6 +642,131 @@ test.describe('«جمع‌بندی روز» و «هفتهٔ من»', () => {
     await box.uncheck();
     await expect(page.getByText('یادآوری صبح خاموش شد.')).toBeVisible();
     expect(await wants()).toBe(false);
+    await who.close();
+  });
+});
+
+// «کشف پرتال»: once a week «می‌دانستید؟» takes the step's place, with a short tour on the part's own
+// page, and «پرتال من» lists the parts with a tick. Which parts are used is faked where the test is
+// about the card, and read from the server where it is about what the portal notes.
+test.describe('«کشف پرتال»', () => {
+  const fakeParts = (page: Page, parts: { part: string; used: boolean }[]) => page.route('**/api/moods/discover', (route) => route.fulfill({ json: { parts } }));
+  const tour = (page: Page) => page.locator('.sp-tour-box');
+
+  test('«می‌دانستید؟» takes the day’s step, opens the guides with their tour, and the guides count as opened', async ({ browser }) => {
+    const who = await colleague(browser, 'discover.try', 'رها');
+    await confirmCirculars(who);
+    const page = who.page;
+    await pretendMood(page, 14);
+    await fakeParts(page, [
+      { part: 'guides', used: false },
+      { part: 'layout', used: true },
+    ]);
+    await page.goto('/#dashboard');
+    await choose(page, 'خوب');
+
+    const discover = page.getByTestId('day-discover');
+    await expect(discover).toHaveAttribute('data-part', 'guides');
+    await expect(discover).toContainText('می‌دانستید؟');
+    await expect(step(page)).toHaveCount(0);
+    await discover.getByRole('button', { name: 'همین حالا امتحان کنید' }).click();
+
+    // The guides open with three steps; the first two light up the search and the categories.
+    await expect(page.getByRole('heading', { name: 'راهنماها و پرسش‌های رایج' })).toBeVisible();
+    const box = tour(page);
+    await expect(box).toContainText('اول جستجو کنید');
+    await expect(box).toContainText('۱ از ۳');
+    await expect(page.locator('[data-discover="guides-search"]')).toBeVisible();
+    await box.getByRole('button', { name: 'بعدی' }).click();
+    await expect(box).toContainText('یا از دسته‌ها');
+    await box.getByRole('button', { name: 'بعدی' }).click();
+    await expect(box).toContainText('پاسخ را پیدا نکردید؟');
+    await box.getByRole('button', { name: 'فهمیدم' }).click();
+    await expect(page.locator('.sp-tour-box')).toHaveCount(0);
+
+    // The portal noted the guides as opened (read from the server, past the faked list).
+    await expect
+      .poll(async () => ((await (await page.request.get('/api/moods/discover')).json()) as { parts: { part: string; used: boolean }[] }).parts.find((p) => p.part === 'guides')?.used)
+      .toBe(true);
+    // Back on the dashboard: that was the day's one step.
+    await page.goto('/#dashboard');
+    await expect(card(page).getByRole('heading', { name: 'حال امروز شما: خوب' })).toBeVisible();
+    await expect(page.getByTestId('day-discover')).toHaveCount(0);
+    await expect(step(page)).toHaveCount(0);
+    await who.close();
+  });
+
+  test('not on a hard day: the quiet line is the day’s step', async ({ browser }) => {
+    const who = await colleague(browser, 'discover.hard', 'کاوه');
+    await confirmCirculars(who);
+    const page = who.page;
+    await pretendMood(page, 14);
+    await fakeParts(page, [{ part: 'layout', used: false }]);
+    await page.goto('/#dashboard');
+    await choose(page, 'بد');
+    await expect(step(page)).toHaveAttribute('data-step', 'care');
+    await expect(page.getByTestId('day-discover')).toHaveCount(0);
+    await who.close();
+  });
+
+  test('«این را می‌دانم» puts a part aside for good', async ({ browser }) => {
+    const who = await colleague(browser, 'discover.known', 'ترانه');
+    await confirmCirculars(who);
+    const page = who.page;
+    await pretendMood(page, 14);
+    await fakeParts(page, [{ part: 'layout', used: false }]);
+    await page.goto('/#dashboard');
+    await choose(page, 'معمولی');
+    const discover = page.getByTestId('day-discover');
+    await expect(discover).toHaveAttribute('data-part', 'layout');
+    await discover.getByRole('button', { name: 'این را می‌دانم' }).click();
+    await expect(discover).toHaveCount(0);
+    expect(await page.evaluate((id) => JSON.parse(window.localStorage.getItem(`roya.discover.${id}`)!).known, who.id)).toEqual(['layout']);
+    await who.close();
+  });
+
+  test('«پرتال من» ticks what was used, and every part has its short tour', async ({ browser }) => {
+    // An administrator sees the parts still in preview («کارهای ارجاعی»).
+    const who = await colleague(browser, 'discover.list', 'نیما', {}, 'admin');
+    const page = who.page;
+    await pretendMood(page, 14);
+    await fakeParts(page, [
+      { part: 'tasks', used: false },
+      { part: 'guides', used: true },
+      { part: 'push', used: false },
+      { part: 'layout', used: false },
+      { part: 'unit', used: false },
+    ]);
+    await page.goto('/#dashboard');
+    await choose(page, 'خوب');
+    const open = page.getByRole('button', { name: /پرتال من/ });
+    await expect(open).toContainText('۱ از ۵');
+    await open.click();
+    const list = page.getByTestId('my-portal');
+    await expect(list.getByRole('listitem')).toHaveCount(5);
+    await expect(list.getByRole('listitem').filter({ hasText: 'راهنماها' }).getByRole('img', { name: 'استفاده کرده‌اید' })).toBeVisible();
+    await expect(list.getByRole('listitem').filter({ hasText: 'کارهای ارجاعی' }).getByRole('img', { name: 'هنوز امتحان نکرده‌اید' })).toBeVisible();
+
+    const parts = [
+      { label: 'کارهای ارجاعی', title: 'سپردن کار', target: 'tasks-assign' },
+      { label: 'راهنماها و پرسش‌های رایج', title: 'اول جستجو کنید', target: 'guides-search' },
+      { label: 'اعلان روی گوشی و کامپیوتر', title: 'اعلان روی همین دستگاه', target: null },
+      { label: 'چیدمان داشبورد', title: 'چیدمان داشبورد', target: 'layout-button' },
+      { label: 'صفحهٔ واحد شما', title: 'معرفی واحد', target: 'unit-about' },
+    ];
+    for (const part of parts) {
+      await page.goto('/#dashboard');
+      // The list stays open while the page does.
+      if (!(await page.getByTestId('my-portal').isVisible())) await page.getByRole('button', { name: /پرتال من/ }).click();
+      await page.getByTestId('my-portal').getByRole('listitem').filter({ hasText: part.label }).getByRole('button').click();
+      const box = tour(page);
+      await expect(box).toContainText(part.title);
+      await expect(box).toContainText('۱ از ۳');
+      if (part.target) await expect(page.locator(`[data-discover="${part.target}"]`)).toBeVisible();
+      // Escape ends it, as in the tutorials of «سپاس».
+      await page.keyboard.press('Escape');
+      await expect(page.locator('.sp-tour-box')).toHaveCount(0);
+    }
     await who.close();
   });
 });

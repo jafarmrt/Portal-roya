@@ -112,12 +112,12 @@ export const TasksPage: React.FC = () => {
           </span>
         }
       >
-        <button type="button" onClick={() => setWriting(true)} className={primaryButtonClass}>
+        <button type="button" onClick={() => setWriting(true)} className={primaryButtonClass} data-discover="tasks-assign">
           <Send className="w-4 h-4" /> سپردن کار
         </button>
       </PageHeader>
 
-      <div className="flex gap-1.5" role="tablist" aria-label="کارهای ارجاعی">
+      <div className="flex gap-1.5" role="tablist" aria-label="کارهای ارجاعی" data-discover="tasks-tabs">
         {tabs.map((t) => (
           <button
             key={t.id}

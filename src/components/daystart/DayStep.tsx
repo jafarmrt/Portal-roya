@@ -7,10 +7,13 @@ import { toPersianDigits, todayJalali } from '../../lib/jalali';
 import { inputClass } from '../common/Modal';
 import { TaskFormModal } from '../tasks/TaskFormModal';
 import { openGive, useThanks } from '../thanks/thanksStore';
-import { DAY_PLAN_NOTES, DAY_STEP_LABELS, DAY_STEP_LIST, dayStepOrder, pickStep, type DayStepFacts, type DayStepKind } from '../../../shared/dayStep';
+import { DAY_PLAN_NOTES, DAY_STEP_LABELS, DAY_STEP_LIST, DAY_STEPS_EVERY_DAY, dayStepOrder, pickStep, type DayStepFacts, type DayStepKind } from '../../../shared/dayStep';
+import { discoverTakesToday, pickDiscover, weekOf } from '../../../shared/discover';
 import type { Mood } from '../../../shared/mood';
 import { addJalaliDays, TODO_TITLE_MAX } from '../../../shared/todos';
 import type { PersonalTodo } from '../../types';
+import { DiscoverStep } from './DiscoverStep';
+import { saveDiscoverMemory, useDiscoverMemory, useDiscoverParts } from './discoverStore';
 import { countStep, saveStepMemory, useStepMemory } from './stepStore';
 
 const primary = 'px-3 py-1.5 rounded-xl bg-brand hover:bg-brand-hover text-white text-xs font-bold transition-colors flex items-center gap-1 disabled:opacity-50';
@@ -26,6 +29,9 @@ export const DayStep: React.FC<{ mood: Mood }> = ({ mood }) => {
   const thanks = useThanks();
   const userId = currentUser?.id ?? '';
   const memory = useStepMemory(userId);
+  // «کشف پرتال»: once a week «می‌دانستید؟» takes the step's place (shared/discover.ts).
+  const discoverParts = useDiscoverParts(userId, Boolean(userId));
+  const discoverMemory = useDiscoverMemory(userId);
   const today = todayJalali();
   // What the colleague did with the step in this visit, kept on screen until they leave the page.
   const [finished, setFinished] = useState<{ kind: DayStepKind; line: string } | null>(null);
@@ -45,7 +51,14 @@ export const DayStep: React.FC<{ mood: Mood }> = ({ mood }) => {
 
   // Nothing is chosen before everything it is chosen from has arrived: an early guess would be the day's step.
   const ready =
-    Boolean(userId) && isLoaded('news') && isLoaded('polls') && isLoaded('todos') && isLoaded('tasks') && isLoaded('trainings') && (!thanksOn || thanks.wallet !== null);
+    Boolean(userId) &&
+    isLoaded('news') &&
+    isLoaded('polls') &&
+    isLoaded('todos') &&
+    isLoaded('tasks') &&
+    isLoaded('trainings') &&
+    (!thanksOn || thanks.wallet !== null) &&
+    discoverParts !== null;
 
   const facts: DayStepFacts = {
     mood,
@@ -61,7 +74,12 @@ export const DayStep: React.FC<{ mood: Mood }> = ({ mood }) => {
     trainingSoon: Boolean(course),
   };
   // In the order whoever looks after «شروع روز» chose for everyone (the built-in one unless they did).
-  const kind = !ready || finished ? null : pickStep(facts, memory, today, dayStepOrder(appSettings?.dayStepOrder));
+  const candidate = !ready || finished ? null : pickStep(facts, memory, today, dayStepOrder(appSettings?.dayStepOrder));
+  // What the portal waits for, the quiet line of a hard day, or a step already shown today does not give way.
+  const stepHolds = memory.last?.date === today || (candidate !== null && (candidate === 'care' || DAY_STEPS_EVERY_DAY.includes(candidate)));
+  const discover = ready && !finished && discoverParts ? pickDiscover({ mood, today, parts: discoverParts, stepHolds }, discoverMemory) : null;
+  // A day whose «می‌دانستید؟» was taken or closed has had its one step.
+  const kind = discover || (!stepHolds && discoverTakesToday(discoverMemory, today)) ? null : candidate;
 
   // The first time a kind is on screen today it becomes the day's step, and is counted once.
   useEffect(() => {
@@ -69,6 +87,12 @@ export const DayStep: React.FC<{ mood: Mood }> = ({ mood }) => {
     saveStepMemory(userId, { ...memory, last: { date: today, kind, state: 'open' } });
     countStep(kind, 'shown', today);
   }, [kind, memory, today, userId]);
+  // The same for «می‌دانستید؟»: the week's introduction, counted once.
+  useEffect(() => {
+    if (!discover || (discoverMemory.last?.date === today && discoverMemory.last.part === discover)) return;
+    saveDiscoverMemory(userId, { ...discoverMemory, last: { week: weekOf(today), date: today, part: discover, state: 'open' } });
+    countStep('discover', 'shown', today);
+  }, [discover, discoverMemory, today, userId]);
 
   const settle = (step: DayStepKind, state: 'done' | 'closed', line = '') => {
     saveStepMemory(userId, { ...memory, last: { date: today, kind: step, state } });
@@ -110,6 +134,7 @@ export const DayStep: React.FC<{ mood: Mood }> = ({ mood }) => {
       </Frame>
     );
   }
+  if (discover) return <DiscoverStep part={discover} userId={userId} today={today} memory={discoverMemory} />;
   if (!kind) return null;
 
   const more = (n: number) => (n > DAY_STEP_LIST ? <p className="text-[11px] text-faint">و {toPersianDigits(n - DAY_STEP_LIST)} مورد دیگر</p> : null);

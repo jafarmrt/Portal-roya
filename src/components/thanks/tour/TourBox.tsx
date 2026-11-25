@@ -2,6 +2,7 @@ import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'reac
 import { createPortal } from 'react-dom';
 import { toPersianDigits } from '../../../lib/jalali';
 import type { EffectsLevel } from '../effects';
+import './tour.css';
 
 // One step of a tutorial: the page is dimmed except the part the step is about, and a small box next to
 // it says what to do. On a phone the box sits at the bottom of the screen, or at the top when the part

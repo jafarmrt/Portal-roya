@@ -34,10 +34,13 @@ export function dayStepOrder(saved: readonly string[] = []): DayStepKind[] {
 /** What the portal itself asks of the colleague; these may come back day after day. */
 export const DAY_STEPS_EVERY_DAY: readonly DayStepKind[] = ['acks', 'tasksWaiting'];
 
-/** What is counted beside the steps, in the same anonymous way: the afternoon wrap-up of the day's notes. */
-export const DAY_COUNT_KINDS = [...DAY_STEPS, 'wrap'] as const;
+/**
+ * What is counted beside the steps, in the same anonymous way: the afternoon wrap-up of the day's notes,
+ * and «می‌دانستید؟» of «کشف پرتال» (shared/discover.ts), which takes the step's place once a week.
+ */
+export const DAY_COUNT_KINDS = [...DAY_STEPS, 'wrap', 'discover'] as const;
 export type DayCountKind = (typeof DAY_COUNT_KINDS)[number];
-export const DAY_COUNT_LABELS: Record<DayCountKind, string> = { ...DAY_STEP_LABELS, wrap: 'جمع‌بندی عصر' };
+export const DAY_COUNT_LABELS: Record<DayCountKind, string> = { ...DAY_STEP_LABELS, wrap: 'جمع‌بندی عصر', discover: 'می‌دانستید؟ (کشف پرتال)' };
 
 export const DAY_STEP_OUTCOMES = ['shown', 'done', 'closed', 'muted'] as const;
 export type DayStepOutcome = (typeof DAY_STEP_OUTCOMES)[number];
