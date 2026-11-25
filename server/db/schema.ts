@@ -142,6 +142,8 @@ export const employees = pgTable('employees', {
   acceptKudos: boolean('accept_kudos').notNull().default(true),
   /** Steps of «هفتهٔ اول من» the colleague ticked (and 'closed' once they closed the list). */
   firstWeekDone: text('first_week_done').array().notNull().default([]),
+  /** Parts of «کشف پرتال» (shared/discover.ts) the colleague has opened, where their own data cannot tell. */
+  portalTried: text('portal_tried').array().notNull().default([]),
   /** Kinds of notification (shared/push.ts) the colleague does not want on their phone or computer; [] = all of them. */
   pushMuted: text('push_muted').array().notNull().default([]),
   /** The colleague wants the two monthly reminders of «سپاس» (the middle of the month, three days before its end). */

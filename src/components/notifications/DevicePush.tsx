@@ -240,7 +240,7 @@ export const PushSettingsPanel: React.FC = () => {
   }
 
   return (
-    <section aria-labelledby="push-settings-title" className="bg-white p-4 sm:p-5 rounded-2xl border border-line shadow-xs space-y-4">
+    <section aria-labelledby="push-settings-title" data-discover="push-panel" className="bg-white p-4 sm:p-5 rounded-2xl border border-line shadow-xs space-y-4">
       <div className="flex flex-wrap items-start gap-3">
         <div className="w-9 h-9 shrink-0 rounded-xl bg-brand-soft flex items-center justify-center">
           <BellRing className="w-4 h-4 text-brand-strong" />

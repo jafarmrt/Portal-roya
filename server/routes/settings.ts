@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
 import {
@@ -16,6 +16,7 @@ import {
 } from '../../shared/features.js';
 import { boxNames, SUGGESTION_BOXES } from '../../shared/suggestions.js';
 import { dashboardOrder } from '../../shared/dashboard.js';
+import { TRIED_PARTS } from '../../shared/discover.js';
 import { KUDOS_EMOJI_MAX } from '../../shared/kudos.js';
 import { toPersianDigits } from '../../shared/jalali.js';
 import { markRecognitionStarts } from '../recognition.js';
@@ -547,6 +548,25 @@ settingsRouter.put(
     const { on } = parse(z.object({ on: z.boolean() }), req.body);
     await db.update(employees).set({ dayStartReminder: on }).where(eq(employees.id, viewer.id));
     res.json(publicSettings(await ensureSettings(), { ...viewer, dayStartReminder: on }));
+  }),
+);
+
+/**
+ * «کشف پرتال»: a part the colleague opened (the guides, the page of their own unit), where nothing else
+ * says they used it. Kept for every colleague, so «پرتال من» already knows when «شروع روز» is switched on.
+ */
+settingsRouter.post(
+  '/settings/portal-tried',
+  route(async (req, res) => {
+    const viewer = currentUser(req);
+    const { part } = parse(z.object({ part: z.enum(TRIED_PARTS) }), req.body);
+    if (!viewer.portalTried.includes(part)) {
+      await db
+        .update(employees)
+        .set({ portalTried: sql`array_append(array_remove(${employees.portalTried}, ${part}), ${part})` })
+        .where(eq(employees.id, viewer.id));
+    }
+    res.status(204).end();
   }),
 );
 

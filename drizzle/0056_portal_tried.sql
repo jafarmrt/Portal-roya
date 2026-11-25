@@ -1,0 +1,1 @@
+ALTER TABLE "employees" ADD COLUMN "portal_tried" text[] DEFAULT '{}' NOT NULL;

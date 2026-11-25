@@ -23,6 +23,7 @@ import { dayAnswers, dayQuestionDays, dayQuestions, dayStepCounts, moods, news, 
 import { broadcastChange } from '../events.js';
 import { HttpError, currentUser, newId, parse, route } from '../http.js';
 import { myWeek } from '../dayWeek.js';
+import { discoverStatus } from '../discover.js';
 import { clearMoodReportCache, moodReport } from '../moodReport.js';
 import { heardDraft, isMoodReportDays, type MoodReportDays } from '../../shared/moodReport.js';
 import { questionResults } from '../../shared/dayQuestion.js';
@@ -138,6 +139,15 @@ moodsRouter.get(
   '/moods/week',
   route(async (req, res) => {
     res.json({ week: await myWeek(currentUser(req)) });
+  }),
+);
+
+// «کشف پرتال»: the parts of the portal the colleague can use and whether they have, for «می‌دانستید؟»
+// and «پرتال من». Only about the colleague themself; nobody else is ever told what they have not used.
+moodsRouter.get(
+  '/moods/discover',
+  route(async (req, res) => {
+    res.json({ parts: await discoverStatus(currentUser(req)) });
   }),
 );
 

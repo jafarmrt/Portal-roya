@@ -102,6 +102,7 @@ export const WelcomeHero: React.FC<{ canArrange: boolean; onArrange: () => void 
             {canArrange && (
               <button
                 onClick={onArrange}
+                data-discover="layout-button"
                 aria-label="چیدمان داشبورد"
                 title="چیدمان داشبورد"
                 className="self-stretch px-3 py-2 sm:py-2.5 bg-white/10 hover:bg-white/20 rounded-2xl border border-white/10 text-xs font-bold text-on-brand-muted flex items-center gap-1.5 transition-colors"

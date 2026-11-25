@@ -44,9 +44,9 @@ const FEATURE_ROUTES: {
   // «حال‌وهوای ما», the day's question and reasons, and the count of steps belong to «شروع روز»; the rest of the mood API to the daily mood card itself.
   {
     key: 'dayStart',
-    pattern: /^\/moods\/(team|steps|question|reasons|week)$/,
+    pattern: /^\/moods\/(team|steps|question|reasons|week|discover)$/,
     // A page of «شروع روز» left open after it was hidden simply finds no question.
-    emptyReads: { '/moods/question': { date: '', question: null, mine: null, results: null }, '/moods/week': { week: null } },
+    emptyReads: { '/moods/question': { date: '', question: null, mine: null, results: null }, '/moods/week': { week: null }, '/moods/discover': { parts: [] } },
   },
   // The bank of questions and the order of the steps are their owner's even before «شروع روز» is shown to them.
   {
